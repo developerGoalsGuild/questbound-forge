@@ -3,22 +3,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useUserData } from '@/hooks/useUserData';
+import { useCommunityActivities } from '@/hooks/useCommunityData';
 
 const UserDashboard = () => {
   const { t } = useTranslation();
+  const { data: userData, loading, error } = useUserData();
+  const { activities: communityActivities } = useCommunityActivities('achievement', 2);
 
-  // Mock data - in real app this would come from AWS Lambda/DynamoDB
-  const mockGoals = [
-    { id: 1, title: 'Complete React Course', progress: 75, category: 'Learning', dueDate: '2024-12-15' },
-    { id: 2, title: 'Run 5K Marathon', progress: 45, category: 'Fitness', dueDate: '2024-11-30' },
-    { id: 3, title: 'Read 12 Books', progress: 60, category: 'Personal', dueDate: '2024-12-31' },
-  ];
+  if (loading) {
+    return (
+      <div className="spacing-medieval py-8">
+        <div className="container mx-auto">
+          <div className="animate-pulse space-y-8">
+            <div className="h-20 bg-muted rounded-lg" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-24 bg-muted rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const mockAchievements = [
-    { name: 'First Quest', icon: Star, earned: true },
-    { name: 'Team Player', icon: Users, earned: true },
-    { name: 'Goal Crusher', icon: Target, earned: false },
-  ];
+  if (error || !userData) {
+    return (
+      <div className="spacing-medieval py-8">
+        <div className="container mx-auto text-center">
+          <p className="text-destructive">{error || 'Failed to load dashboard data'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="spacing-medieval py-8">
@@ -38,7 +56,7 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">12</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData.stats.activeQuests}</div>
               <div className="text-sm text-muted-foreground">Active Quests</div>
             </CardContent>
           </Card>
@@ -46,7 +64,7 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Trophy className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-gold">8</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData.stats.achievements}</div>
               <div className="text-sm text-muted-foreground">Achievements</div>
             </CardContent>
           </Card>
@@ -54,7 +72,7 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">156</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData.stats.guildPoints}</div>
               <div className="text-sm text-muted-foreground">Guild Points</div>
             </CardContent>
           </Card>
@@ -62,7 +80,7 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <TrendingUp className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-gold">89%</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData.stats.successRate}%</div>
               <div className="text-sm text-muted-foreground">Success Rate</div>
             </CardContent>
           </Card>
@@ -78,7 +96,7 @@ const UserDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {mockGoals.map((goal) => (
+              {userData.goals.map((goal) => (
                 <div key={goal.id} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold">{goal.title}</h3>
@@ -115,7 +133,7 @@ const UserDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                {mockAchievements.map((achievement, index) => {
+                {userData.achievements.map((achievement, index) => {
                   const Icon = achievement.icon;
                   return (
                     <div
@@ -139,12 +157,14 @@ const UserDashboard = () => {
                   Next Achievement
                 </div>
                 <div className="text-sm text-muted-foreground mb-3">
-                  Complete 3 more quests to unlock "Quest Master"
+                  {userData.nextAchievement.description}
                 </div>
                 <div className="progress-medieval mb-2">
-                  <div className="progress-medieval-fill" style={{ width: '66%' }} />
+                  <div className="progress-medieval-fill" style={{ width: `${userData.nextAchievement.progress}%` }} />
                 </div>
-                <div className="text-xs text-muted-foreground">2/3 quests completed</div>
+                <div className="text-xs text-muted-foreground">
+                  {userData.nextAchievement.current}/{userData.nextAchievement.target} quests completed
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -160,25 +180,22 @@ const UserDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 bg-accent rounded-lg">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <span className="text-primary-foreground font-semibold">A</span>
+              {communityActivities.map((activity) => (
+                <div key={activity.id} className="flex items-start gap-4 p-4 bg-accent rounded-lg">
+                  <div className={`w-10 h-10 ${activity.type === 'achievement' ? 'bg-primary' : 'bg-secondary'} rounded-full flex items-center justify-center`}>
+                    <span className={`${activity.type === 'achievement' ? 'text-primary-foreground' : 'text-secondary-foreground'} font-semibold`}>
+                      {activity.userInitial}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold">{activity.activity}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {activity.timeAgo}
+                      {activity.details && ` • ${activity.details}`}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="font-semibold">Alex completed "Master JavaScript"</div>
-                  <div className="text-sm text-muted-foreground">2 hours ago • Earned "Code Warrior" badge</div>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4 bg-accent rounded-lg">
-                <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                  <span className="text-secondary-foreground font-semibold">M</span>
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold">Maria shared tips in "Fitness Guild"</div>
-                  <div className="text-sm text-muted-foreground">4 hours ago • 12 guild members liked this</div>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>

@@ -2,23 +2,38 @@ import { Building2, BarChart3, Users, DollarSign, TrendingUp, Calendar } from 'l
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePartnerData } from '@/hooks/usePartnerData';
 
 const PartnerDashboard = () => {
   const { t } = useTranslation();
+  const { data: partnerData, loading, error } = usePartnerData();
 
-  // Mock data for partner company metrics
-  const mockServices = [
-    { name: 'Leadership Coaching', active: true, engagement: 85, revenue: 2400 },
-    { name: 'Team Building Workshops', active: true, engagement: 72, revenue: 1800 },
-    { name: 'Career Mentorship', active: false, engagement: 0, revenue: 0 },
-  ];
+  if (loading) {
+    return (
+      <div className="spacing-medieval py-8">
+        <div className="container mx-auto">
+          <div className="animate-pulse space-y-8">
+            <div className="h-20 bg-muted rounded-lg" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-24 bg-muted rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const mockMetrics = {
-    totalUsers: 1247,
-    activeEngagements: 89,
-    monthlyRevenue: 4200,
-    satisfaction: 4.8,
-  };
+  if (error || !partnerData) {
+    return (
+      <div className="spacing-medieval py-8">
+        <div className="container mx-auto text-center">
+          <p className="text-destructive">{error || 'Failed to load partner data'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="spacing-medieval py-8">
@@ -39,7 +54,7 @@ const PartnerDashboard = () => {
             <CardContent className="p-6 text-center">
               <Users className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">
-                {mockMetrics.totalUsers.toLocaleString()}
+                {partnerData.metrics.totalUsers.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">Total Users Reached</div>
             </CardContent>
@@ -49,7 +64,7 @@ const PartnerDashboard = () => {
             <CardContent className="p-6 text-center">
               <TrendingUp className="h-8 w-8 text-secondary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">
-                {mockMetrics.activeEngagements}
+                {partnerData.metrics.activeEngagements}
               </div>
               <div className="text-sm text-muted-foreground">Active Engagements</div>
             </CardContent>
@@ -59,7 +74,7 @@ const PartnerDashboard = () => {
             <CardContent className="p-6 text-center">
               <DollarSign className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">
-                ${mockMetrics.monthlyRevenue.toLocaleString()}
+                ${partnerData.metrics.monthlyRevenue.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">Monthly Revenue</div>
             </CardContent>
@@ -69,7 +84,7 @@ const PartnerDashboard = () => {
             <CardContent className="p-6 text-center">
               <BarChart3 className="h-8 w-8 text-secondary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">
-                {mockMetrics.satisfaction}/5
+                {partnerData.metrics.satisfaction}/5
               </div>
               <div className="text-sm text-muted-foreground">Satisfaction Score</div>
             </CardContent>
@@ -86,7 +101,7 @@ const PartnerDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {mockServices.map((service, index) => (
+              {partnerData.services.map((service, index) => (
                 <div key={index} className="p-4 border border-border rounded-lg">
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -139,18 +154,18 @@ const PartnerDashboard = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm">This Month</span>
-                    <span className="text-sm font-semibold text-primary">+12%</span>
+                    <span className="text-sm font-semibold text-primary">+{partnerData.engagementTrends.thisMonth}%</span>
                   </div>
                   <div className="progress-medieval">
-                    <div className="progress-medieval-fill" style={{ width: '75%' }} />
+                    <div className="progress-medieval-fill" style={{ width: `${partnerData.engagementTrends.thisMonth + 60}%` }} />
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Last Month</span>
-                    <span className="text-sm font-semibold">+8%</span>
+                    <span className="text-sm font-semibold">+{partnerData.engagementTrends.lastMonth}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
-                    <div className="bg-muted-foreground h-2 rounded-full" style={{ width: '63%' }} />
+                    <div className="bg-muted-foreground h-2 rounded-full" style={{ width: `${partnerData.engagementTrends.lastMonth + 55}%` }} />
                   </div>
                 </div>
               </div>
@@ -159,14 +174,14 @@ const PartnerDashboard = () => {
               <div>
                 <h3 className="font-semibold mb-3">Top Performing Services</h3>
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center p-2 bg-accent rounded">
-                    <span className="text-sm">Leadership Coaching</span>
-                    <span className="text-sm font-semibold text-secondary">85% engagement</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-accent rounded">
-                    <span className="text-sm">Team Building</span>
-                    <span className="text-sm font-semibold">72% engagement</span>
-                  </div>
+                  {partnerData.topServices.map((service, index) => (
+                    <div key={index} className="flex justify-between items-center p-2 bg-accent rounded">
+                      <span className="text-sm">{service.name}</span>
+                      <span className={`text-sm font-semibold ${index === 0 ? 'text-secondary' : ''}`}>
+                        {service.engagement}% engagement
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -187,29 +202,18 @@ const PartnerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 bg-accent rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full mt-3" />
-                <div className="flex-1">
-                  <div className="font-semibold">New user enrolled in Leadership Coaching</div>
-                  <div className="text-sm text-muted-foreground">Sarah Johnson • 2 hours ago</div>
+              {partnerData.activities.map((activity) => (
+                <div key={activity.id} className="flex items-start gap-4 p-4 bg-accent rounded-lg">
+                  <div className={`w-2 h-2 ${
+                    activity.type === 'enrollment' ? 'bg-primary' : 
+                    activity.type === 'completion' ? 'bg-secondary' : 'bg-primary'
+                  } rounded-full mt-3`} />
+                  <div className="flex-1">
+                    <div className="font-semibold">{activity.activity}</div>
+                    <div className="text-sm text-muted-foreground">{activity.details}</div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4 bg-accent rounded-lg">
-                <div className="w-2 h-2 bg-secondary rounded-full mt-3" />
-                <div className="flex-1">
-                  <div className="font-semibold">Team Building Workshop completed</div>
-                  <div className="text-sm text-muted-foreground">Tech Innovators Guild • 4 hours ago</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-4 bg-accent rounded-lg">
-                <div className="w-2 h-2 bg-primary rounded-full mt-3" />
-                <div className="flex-1">
-                  <div className="font-semibold">Monthly revenue target achieved</div>
-                  <div className="text-sm text-muted-foreground">$4,200 total • Today</div>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>

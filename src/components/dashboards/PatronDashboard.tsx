@@ -2,30 +2,38 @@ import { Crown, Heart, Users, Gift, TrendingUp, Award } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePatronData } from '@/hooks/usePatronData';
 
 const PatronDashboard = () => {
   const { t } = useTranslation();
+  const { data: patronData, loading, error } = usePatronData();
 
-  // Mock data for patron metrics
-  const mockContributions = [
-    { month: 'November 2024', amount: 150, impact: 12 },
-    { month: 'October 2024', amount: 150, impact: 15 },
-    { month: 'September 2024', amount: 100, impact: 8 },
-  ];
+  if (loading) {
+    return (
+      <div className="spacing-medieval py-8">
+        <div className="container mx-auto">
+          <div className="animate-pulse space-y-8">
+            <div className="h-20 bg-muted rounded-lg" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-24 bg-muted rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const mockImpact = {
-    totalSupported: 45,
-    goalsAchieved: 127,
-    communityGrowth: 18,
-    totalContributed: 1200,
-  };
-
-  const patronBenefits = [
-    { name: 'Early Access to Features', unlocked: true },
-    { name: 'Exclusive Patron Events', unlocked: true },
-    { name: 'Monthly Impact Reports', unlocked: true },
-    { name: 'Direct Developer Access', unlocked: false, requirement: '$200/month' },
-  ];
+  if (error || !patronData) {
+    return (
+      <div className="spacing-medieval py-8">
+        <div className="container mx-auto text-center">
+          <p className="text-destructive">{error || 'Failed to load patron data'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="spacing-medieval py-8">
@@ -42,11 +50,11 @@ const PatronDashboard = () => {
 
         {/* Impact Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="guild-card bg-gradient-gold border-secondary">
+            <Card className="guild-card bg-gradient-gold border-secondary">
             <CardContent className="p-6 text-center">
               <Users className="h-8 w-8 text-secondary-foreground mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-secondary-foreground">
-                {mockImpact.totalSupported}
+                {patronData.impact.totalSupported}
               </div>
               <div className="text-sm text-secondary-foreground/80">Adventurers Supported</div>
             </CardContent>
@@ -56,7 +64,7 @@ const PatronDashboard = () => {
             <CardContent className="p-6 text-center">
               <Award className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">
-                {mockImpact.goalsAchieved}
+                {patronData.impact.goalsAchieved}
               </div>
               <div className="text-sm text-muted-foreground">Goals Achieved</div>
             </CardContent>
@@ -66,7 +74,7 @@ const PatronDashboard = () => {
             <CardContent className="p-6 text-center">
               <TrendingUp className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">
-                +{mockImpact.communityGrowth}%
+                +{patronData.impact.communityGrowth}%
               </div>
               <div className="text-sm text-muted-foreground">Community Growth</div>
             </CardContent>
@@ -76,7 +84,7 @@ const PatronDashboard = () => {
             <CardContent className="p-6 text-center">
               <Crown className="h-8 w-8 text-secondary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">
-                ${mockImpact.totalContributed}
+                ${patronData.impact.totalContributed}
               </div>
               <div className="text-sm text-muted-foreground">Total Contributed</div>
             </CardContent>
@@ -93,7 +101,7 @@ const PatronDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {mockContributions.map((contribution, index) => (
+              {patronData.contributions.map((contribution, index) => (
                 <div key={index} className="p-4 border border-border rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold">{contribution.month}</span>
@@ -103,8 +111,10 @@ const PatronDashboard = () => {
                     Helped {contribution.impact} adventurers achieve their goals
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-xs">
-                    <div className="w-2 h-2 bg-primary rounded-full" />
-                    <span className="text-primary">Payment processed successfully</span>
+                    <div className={`w-2 h-2 ${contribution.status === 'processed' ? 'bg-primary' : 'bg-muted-foreground'} rounded-full`} />
+                    <span className={contribution.status === 'processed' ? 'text-primary' : 'text-muted-foreground'}>
+                      {contribution.status === 'processed' ? 'Payment processed successfully' : 'Payment pending'}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -132,7 +142,7 @@ const PatronDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {patronBenefits.map((benefit, index) => (
+              {patronData.benefits.map((benefit, index) => (
                 <div key={index} className={`p-4 rounded-lg border ${
                   benefit.unlocked 
                     ? 'bg-primary/5 border-primary/20' 
@@ -188,19 +198,19 @@ const PatronDashboard = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-accent rounded-lg">
-                  <div className="font-cinzel text-2xl font-bold text-gradient-royal">89%</div>
+                  <div className="font-cinzel text-2xl font-bold text-gradient-royal">{patronData.communityStats.goalSuccessRate}%</div>
                   <div className="text-sm text-muted-foreground">Goal Success Rate</div>
                   <div className="text-xs text-primary mt-1">+12% vs last month</div>
                 </div>
                 
                 <div className="text-center p-4 bg-accent rounded-lg">
-                  <div className="font-cinzel text-2xl font-bold text-gradient-gold">324</div>
+                  <div className="font-cinzel text-2xl font-bold text-gradient-gold">{patronData.communityStats.livesImpacted}</div>
                   <div className="text-sm text-muted-foreground">Lives Impacted</div>
                   <div className="text-xs text-primary mt-1">Through your patronage</div>
                 </div>
 
                 <div className="text-center p-4 bg-accent rounded-lg">
-                  <div className="font-cinzel text-2xl font-bold text-gradient-royal">156</div>
+                  <div className="font-cinzel text-2xl font-bold text-gradient-royal">{patronData.communityStats.thankYouMessages}</div>
                   <div className="text-sm text-muted-foreground">Thank You Messages</div>
                   <div className="text-xs text-primary mt-1">From the community</div>
                 </div>
