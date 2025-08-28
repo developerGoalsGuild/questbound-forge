@@ -1,8 +1,8 @@
 import { Target, Users, Trophy, Crown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/useTranslation';
-import collaborationImage from '@/assets/collaboration-guild.jpg';
-import achievementsImage from '@/assets/achievements.jpg';
+//import collaborationImage from '@/assets/collaboration-guild.jpg';
+//import achievementsImage from '@/assets/achievements.jpg';
 
 const Features = () => {
   const { t } = useTranslation();
@@ -19,14 +19,14 @@ const Features = () => {
       title: t.features.community.title,
       description: t.features.community.description,
       gradient: 'from-secondary to-secondary-hover',
-      image: collaborationImage,
+      image: '',//collaborationImage,
     },
     {
       icon: Trophy,
       title: t.features.gamification.title,
       description: t.features.gamification.description,
       gradient: 'from-secondary to-secondary-hover',
-      image: achievementsImage,
+      image: '',//achievementsImage,
     },
     {
       icon: Crown,
