@@ -1,96 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Medieval-inspired design system for goal collaboration platform
+All colors MUST be HSL format for proper theming
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Medieval Color Palette */
+    --background: 42 15% 97%; /* Parchment white */
+    --foreground: 220 13% 18%; /* Deep charcoal */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Primary - Royal Blue */
+    --primary: 221 83% 25%; /* Deep royal blue */
+    --primary-foreground: 42 15% 97%;
+    --primary-hover: 221 83% 20%;
+    --primary-glow: 221 83% 35%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Secondary - Medieval Gold */
+    --secondary: 43 96% 56%; /* Rich gold */
+    --secondary-foreground: 220 13% 18%;
+    --secondary-hover: 43 96% 46%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Accent - Stone */
+    --accent: 220 13% 91%;
+    --accent-foreground: 220 13% 18%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Muted - Parchment tones */
+    --muted: 42 30% 95%;
+    --muted-foreground: 220 13% 46%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Destructive - Medieval red */
+    --destructive: 0 65% 51%;
+    --destructive-foreground: 42 15% 97%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Borders and inputs */
+    --border: 220 13% 91%; /* Light gray as specified */
+    --input: 220 13% 91%;
+    --ring: 221 83% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Cards */
+    --card: 42 15% 99%;
+    --card-foreground: 220 13% 18%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Popover */
+    --popover: 42 15% 99%;
+    --popover-foreground: 220 13% 18%;
 
-    --radius: 0.5rem;
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-hover)));
+    --gradient-royal: linear-gradient(135deg, hsl(221 83% 25%), hsl(240 62% 35%));
+    --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(38 92% 50%));
+    --gradient-parchment: linear-gradient(180deg, hsl(42 30% 98%), hsl(42 30% 95%));
 
-    --sidebar-background: 0 0% 98%;
+    /* Shadows */
+    --shadow-royal: 0 10px 30px -5px hsl(221 83% 25% / 0.3);
+    --shadow-gold: 0 8px 25px -8px hsl(43 96% 56% / 0.4);
+    --shadow-medieval: 0 4px 20px -4px hsl(220 13% 18% / 0.15);
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Medieval-specific tokens */
+    --heraldic-blue: 240 100% 25%;
+    --heraldic-gold: 45 100% 50%;
+    --parchment-light: 42 30% 98%;
+    --stone-dark: 220 13% 25%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Radius */
+    --radius: 0.375rem; /* 6px as specified */
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Animations */
+    --transition-medieval: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --hover-lift: translateY(-2px);
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    /* Sidebar colors */
+    --sidebar-background: 220 13% 96%;
+    --sidebar-foreground: 220 13% 18%;
+    --sidebar-primary: 221 83% 25%;
+    --sidebar-primary-foreground: 42 15% 97%;
+    --sidebar-accent: 220 13% 91%;
+    --sidebar-accent-foreground: 220 13% 18%;
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 221 83% 25%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Medieval Dark Theme */
+    --background: 220 13% 8%;
+    --foreground: 42 15% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --primary: 221 83% 45%;
+    --primary-foreground: 220 13% 8%;
+    --primary-hover: 221 83% 50%;
+    --primary-glow: 221 83% 55%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --secondary: 43 96% 46%;
+    --secondary-foreground: 220 13% 8%;
+    --secondary-hover: 43 96% 56%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 13% 15%;
+    --accent-foreground: 42 15% 95%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --muted: 220 13% 12%;
+    --muted-foreground: 220 13% 65%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --destructive: 0 65% 61%;
+    --destructive-foreground: 42 15% 97%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --border: 220 13% 20%;
+    --input: 220 13% 20%;
+    --ring: 221 83% 45%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --card: 220 13% 10%;
+    --card-foreground: 42 15% 95%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover: 220 13% 10%;
+    --popover-foreground: 42 15% 95%;
+
+    --sidebar-background: 220 13% 6%;
+    --sidebar-foreground: 42 15% 95%;
+    --sidebar-primary: 221 83% 45%;
+    --sidebar-primary-foreground: 220 13% 8%;
+    --sidebar-accent: 220 13% 15%;
+    --sidebar-accent-foreground: 42 15% 95%;
+    --sidebar-border: 220 13% 20%;
+    --sidebar-ring: 221 83% 45%;
   }
 }
 
@@ -100,6 +136,90 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-inter;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-cinzel;
+  }
+}
+
+@layer components {
+  /* Medieval Banner Component */
+  .medieval-banner {
+    @apply relative overflow-hidden rounded-lg border border-border;
+    background: var(--gradient-parchment);
+    box-shadow: var(--shadow-medieval);
+  }
+
+  .medieval-banner::before {
+    content: '';
+    @apply absolute inset-0 opacity-5;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Heraldic Button Styles */
+  .btn-heraldic {
+    @apply relative overflow-hidden rounded-lg border font-medium transition-all duration-300;
+    background: var(--gradient-royal);
+    box-shadow: var(--shadow-royal);
+  }
+
+  .btn-heraldic:hover {
+    transform: var(--hover-lift);
+    box-shadow: var(--shadow-royal), 0 0 20px hsl(var(--primary-glow) / 0.4);
+  }
+
+  .btn-gold {
+    background: var(--gradient-gold);
+    box-shadow: var(--shadow-gold);
+    @apply text-foreground border-secondary;
+  }
+
+  .btn-gold:hover {
+    box-shadow: var(--shadow-gold), 0 0 20px hsl(var(--secondary) / 0.4);
+  }
+
+  /* Guild Card Component */
+  .guild-card {
+    @apply bg-card border border-border rounded-lg p-6 transition-all duration-300;
+    box-shadow: var(--shadow-medieval);
+  }
+
+  .guild-card:hover {
+    transform: var(--hover-lift);
+    box-shadow: var(--shadow-medieval), 0 0 15px hsl(var(--primary) / 0.1);
+  }
+
+  /* Progress Bar Medieval Style */
+  .progress-medieval {
+    @apply w-full bg-muted rounded-full h-3 border border-border;
+    box-shadow: inset 0 2px 4px hsl(var(--muted-foreground) / 0.1);
+  }
+
+  .progress-medieval-fill {
+    @apply h-full rounded-full transition-all duration-500;
+    background: var(--gradient-gold);
+    box-shadow: 0 0 10px hsl(var(--secondary) / 0.3);
+  }
+}
+
+@layer utilities {
+  .text-gradient-royal {
+    background: var(--gradient-royal);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .spacing-medieval {
+    @apply px-5 gap-4; /* 20px outer padding, 16px gutter as specified */
   }
 }
