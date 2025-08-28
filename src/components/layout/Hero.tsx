@@ -1,7 +1,7 @@
 import { ArrowRight, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
-import heroImage from '@/assets/hero-castle.jpg';
+//import heroImage from '@/assets/hero-castle.jpg';
 
 const Hero = () => {
   const { t } = useTranslation();
@@ -11,7 +11,8 @@ const Hero = () => {
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <img
-          src={heroImage}
+          //src={heroImage}
+          src=''
           alt="Medieval castle representing collaboration and achievement"
           className="w-full h-full object-cover"
         />
