@@ -10,12 +10,4 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "user_service_image_uri" {
-  description = "ECR image URI for the user service Lambda container"
-  type        = string
-}
 
-variable "quest_service_image_uri" {
-  description = "ECR image URI for the quest service Lambda container"
-  type        = string
-}

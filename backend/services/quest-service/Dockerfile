@@ -1,17 +1,18 @@
+# Bring in the AWS Lambda Web Adapter
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 AS lambda-adapter
 
-FROM public.ecr.aws/lambda/python:3.11
+
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-
 WORKDIR /app
-# Install dependencies
-COPY requirements.txt ./
+
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install pydantic-settings[aws-secrets-manager]
-
-# Copy app code
 COPY ./ ./
+
+
+
 
 # Copy the adapter binary into the Lambda extensions dir (per official docs)
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter

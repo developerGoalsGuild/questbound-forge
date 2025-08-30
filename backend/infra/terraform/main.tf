@@ -74,7 +74,7 @@ module "lambda_user_service" {
   source        = "./modules/lambda"
   environment   = var.environment
   function_name = "goalsguild_user_service"
-  image_uri     = var.user_service_image_uri
+  image_uri     = module.user_service_image.image_uri  
   memory_size   = 512
   timeout       = 10
   role_arn      = module.network.lambda_exec_role_arn
@@ -88,8 +88,8 @@ module "lambda_quest_service" {
   source        = "./modules/lambda"
   environment   = var.environment
   function_name = "goalsguild_quest_service"
-  image_uri     = var.quest_service_image_uri
-  memory_size   = 512
+  image_uri     = module.quest_service_image.image_uri
+  memory_size   = 128
   timeout       = 10
   role_arn      = module.network.lambda_exec_role_arn
   tags = {

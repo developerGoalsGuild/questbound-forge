@@ -9,14 +9,17 @@ resource "aws_ecr_repository" "repo" {
   count                 = var.create_ecr ? 1 : 0
   name                  = var.ecr_repository_name
   image_tag_mutability  = "MUTABLE"
+  force_delete         = true  
   image_scanning_configuration { scan_on_push = true }
-  lifecycle { prevent_destroy = true }
+  
 }
 
 data "aws_ecr_repository" "repo" {
   count = var.create_ecr ? 0 : 1
   name  = var.ecr_repository_name
 }
+
+
 
 # Pick the repository URL from whichever block is active
 locals {
@@ -27,29 +30,33 @@ locals {
   image_uri = "${local.ecr_registry}:${local.new_version}"
 }
 
-# Login to ECR
-resource "null_resource" "ecr_login" {
-  provisioner "local-exec" {
-    # Tip: on Windows you may want interpreter = ["PowerShell","-Command"]
-    command = "aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${local.ecr_registry}"
+resource "docker_image" "app" {
+  name = "${local.ecr_registry}:${local.new_version}"
+
+  build {
+    context    = "${var.context_path}"
+    dockerfile = "${var.dockerfile_path}"
+    # uncomment to pass build args:
+    # build_arg = { VERSION = "1.0.0" }
+  }
+
+  # Rebuild when Dockerfile changes (extend as needed)
+  triggers = {
+    dockerfile_sha = filesha256("${var.dockerfile_path}")
   }
 }
 
-# Build with the FULL registry tag
-resource "null_resource" "docker_build" {
-  depends_on = [null_resource.ecr_login]
-  provisioner "local-exec" {
-    command = "docker build -t ${local.image_uri} -f ${var.dockerfile_path} ${var.context_path}"
-  }
+
+
+
+
+# Push to ECR
+resource "docker_registry_image" "app" {
+  name          = docker_image.app.name
+  keep_remotely = true
+  depends_on    = [aws_ecr_repository.repo]
 }
 
-# Push the image to ECR (full URI)
-resource "null_resource" "docker_push" {
-  depends_on = [null_resource.docker_build]
-  provisioner "local-exec" {
-    command = "docker push ${local.image_uri}"
-  }
-}
 
 # (Optional) Let ECR auto-expire old images instead of shelling
 resource "aws_ecr_lifecycle_policy" "keep_last_3" {

@@ -10,18 +10,27 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from uuid import uuid4
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("quest-service")
+# In Lambda on AWS, these env vars are already set — no need to override.
+def aws_region() -> str | None:
+    # Prefer AWS_REGION, then AWS_DEFAULT_REGION; return None to let boto3 decide.
+    return os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION")
 
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)    
+logger = logging.getLogger("quest-service")
 # Environment variables
 QUESTS_TABLE = os.getenv("QUESTS_TABLE", "goalsguild_quests")
 
 # Initialize DynamoDB client
-dynamodb = boto3.resource("dynamodb")
+dynamodb = boto3.resource("dynamodb",aws_region())
 quests_table = dynamodb.Table(QUESTS_TABLE)
 
-app = FastAPI(title="GoalsGuild Quest Service")
+
+ROOT_PATH =f"/DEV"
+print(f'ROOTPATH: {ROOT_PATH}')
+app = FastAPI(root_path=ROOT_PATH,title="Sign Service", version="1.0.0")
+
 
 # CORS middleware (adjust origins as needed)
 app.add_middleware(

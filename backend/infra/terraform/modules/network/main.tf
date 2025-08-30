@@ -132,13 +132,37 @@ resource "aws_api_gateway_method" "quest_get" {
   api_key_required = false
 }
 
+
+# -- Lambda proxy integration
+# var.quest_service_lambda_arn must be the FULL Lambda ARN (optionally with :alias)
 resource "aws_api_gateway_integration" "quest_get_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.quest_service_resource.id
   http_method             = aws_api_gateway_method.quest_get.http_method
-  integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+  integration_http_method = "GET"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+
+resource "aws_api_gateway_method" "user_login" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_service_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+  api_key_required = false
+}
+
+
+# -- Lambda proxy integration
+# var.quest_service_lambda_arn must be the FULL Lambda ARN (optionally with :alias)
+resource "aws_api_gateway_integration" "user_login_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_service_resource.id
+  http_method             = aws_api_gateway_method.user_login.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
 
 resource "aws_lambda_permission" "allow_api_gateway_user" {
@@ -157,7 +181,48 @@ resource "aws_lambda_permission" "allow_api_gateway_quest" {
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }
 
-# Outputs for use by other modules
+# Create SSM Parameter for Cognito User Pool ID
+resource "aws_ssm_parameter" "cognito_user_pool_id" {
+  name        = "/goalsguild/${var.environment}/cognito/user_pool_id"
+  description = "Cognito User Pool ID for GoalsGuild ${var.environment} environment"
+  type        = "String"
+  value       = aws_cognito_user_pool.user_pool.id
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "cognito"
+  }
+  depends_on = [aws_cognito_user_pool.user_pool]
+}
+
+# Create SSM Parameter for Cognito User Pool Client ID
+resource "aws_ssm_parameter" "cognito_client_id" {
+  name        = "/goalsguild/${var.environment}/cognito/client_id"
+  description = "Cognito User Pool Client ID for GoalsGuild ${var.environment} environment"
+  type        = "String"
+  value       = aws_cognito_user_pool_client.user_pool_client.id
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "cognito"
+  }
+  depends_on = [aws_cognito_user_pool_client.user_pool_client]
+}
+
+# Create SSM Parameter for Cognito User Pool Client Secret (SecureString)
+resource "aws_ssm_parameter" "cognito_client_secret" {
+  name        = "/goalsguild/${var.environment}/cognito/client_secret"
+  description = "Cognito User Pool Client Secret for GoalsGuild ${var.environment} environment"
+  type        = "SecureString"
+  value       = "1"//aws_cognito_user_pool_client.user_pool_client.client_secret
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "cognito"
+  }
+  depends_on = [aws_cognito_user_pool_client.user_pool_client]
+}
+
 
 
 
