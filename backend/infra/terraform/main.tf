@@ -1,4 +1,43 @@
 
+# Current versions can be stored in terraform.tfvars or remotely; here default 0 for demo
+variable "user_service_current_version" {
+  description = "Current version of user-service Docker image"
+  type        = number
+  default     = 0
+}
+
+variable "quest_service_current_version" {
+  description = "Current version of quest-service Docker image"
+  type        = number
+  default     = 0
+}
+
+
+
+# Module for user-service Docker image build and push
+module "user_service_image" {
+  source               = "./modules/docker_lambda_image"
+  service_name         = "user-service"
+  ecr_repository_name  = "goalsguild_user_service"
+  aws_region           = var.aws_region
+  environment          = var.environment
+  current_version      = var.user_service_current_version
+  dockerfile_path      = "../../../backend/services/user-service/Dockerfile"
+  context_path         = "../../../backend/services/user-service"
+}
+
+# Module for quest-service Docker image build and push
+module "quest_service_image" {
+  source               = "./modules/docker_lambda_image"
+  service_name         = "quest-service"
+  ecr_repository_name  = "goalsguild_quest_service"
+  aws_region           = var.aws_region
+  environment          = var.environment
+  current_version      = var.quest_service_current_version
+  dockerfile_path      = "../../../backend/services/quest-service/Dockerfile"
+  context_path         = "../../../backend/services/quest-service"
+
+}
 
 
 
