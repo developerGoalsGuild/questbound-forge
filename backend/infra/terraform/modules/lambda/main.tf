@@ -8,5 +8,5 @@ resource "aws_lambda_function" "lambda_function" {
 
   tags = var.tags
 
-  # Note: Lambda container image functions require the image_uri to be a valid ECR image URI
+  
 }

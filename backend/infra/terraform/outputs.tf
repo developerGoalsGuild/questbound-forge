@@ -23,12 +23,4 @@ output "lambda_exec_role_arn" {
   value       = module.network.lambda_exec_role_arn
 }
 
-output "api_gateway_rest_api_id" {
-  description = "ID of the API Gateway REST API"
-  value       = module.network.api_gateway_rest_api_id
-}
 
-output "cognito_user_pool_id" {
-  description = "ID of the Cognito User Pool"
-  value       = module.network.cognito_user_pool_id
-}

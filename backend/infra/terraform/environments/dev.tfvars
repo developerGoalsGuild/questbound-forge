@@ -1,4 +1,4 @@
-aws_region           = "us-east-1"
+aws_region           = "us-east-2"
 environment          = "dev"
-user_service_image_uri = "your_dev_user_service_image_uri"
-quest_service_image_uri = "your_dev_quest_service_image_uri"
+user_service_image_uri = "user_service"
+quest_service_image_uri = "quest_service"

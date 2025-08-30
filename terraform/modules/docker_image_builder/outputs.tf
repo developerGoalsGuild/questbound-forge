@@ -1,4 +1,3 @@
 output "image_uri" {
-  description = "The full image URI with version tag"
-  value       = aws_ssm_parameter.image_uri.value
+  value = "${var.ecr_repository_url}:${var.image_tag}"
 }

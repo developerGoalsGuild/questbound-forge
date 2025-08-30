@@ -20,10 +20,21 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+
+variable "user_service_lambda_arn" {
+  description = "ARN of the user-service Lambda function"
+  type        = string
+}
+
+variable "quest_service_lambda_arn" {
+  description = "ARN of the quest-service Lambda function"
+  type        = string
+}
 # Cognito User Pool
 resource "aws_cognito_user_pool" "user_pool" {
   name = "goalsguild_user_pool_${var.environment}"
 
+  # keep email verification on
   auto_verified_attributes = ["email"]
 
   password_policy {
@@ -49,17 +60,18 @@ resource "aws_cognito_user_pool" "user_pool" {
 
   mfa_configuration = "OFF"
 
-  email_verification_message = "Your verification code is {####}."
-  email_verification_subject = "Verify your email for GoalsGuild"
+  # REMOVE the legacy fields:
+  # email_verification_message = "Your verification code is {####}."
+  # email_verification_subject = "Verify your email for GoalsGuild"
 
-  # Disable email confirmation for simplicity
+  # Keep only the new-style block:
   verification_message_template {
-    email_message = "Welcome to GoalsGuild! Your code is {####}."
-    email_subject = "Welcome to GoalsGuild!"
-    sms_message   = "Welcome to GoalsGuild! Your code is {####}."
+    email_message        = "Welcome to GoalsGuild! Your code is {####}."
+    email_subject        = "Welcome to GoalsGuild!"
+    sms_message          = "Welcome to GoalsGuild! Your code is {####}."
+    default_email_option = "CONFIRM_WITH_CODE" # or "CONFIRM_WITH_LINK"
   }
 }
-
 # Cognito User Pool Client
 resource "aws_cognito_user_pool_client" "user_pool_client" {
   name         = "goalsguild_user_pool_client_${var.environment}"
@@ -109,18 +121,43 @@ resource "aws_api_gateway_authorizer" "cognito_authorizer" {
   type            = "COGNITO_USER_POOLS"
 }
 
+# Quest Service API Gateway Method and Integration
+
+resource "aws_api_gateway_method" "quest_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quest_service_resource.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "quest_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quest_service_resource.id
+  http_method             = aws_api_gateway_method.quest_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+resource "aws_lambda_permission" "allow_api_gateway_user" {
+  statement_id  = "AllowAPIGatewayInvokeUser"
+  action        = "lambda:InvokeFunction"
+  function_name = var.user_service_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "allow_api_gateway_quest" {
+  statement_id  = "AllowAPIGatewayInvokeQuest"
+  action        = "lambda:InvokeFunction"
+  function_name = var.quest_service_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
+}
+
 # Outputs for use by other modules
-output "lambda_exec_role_arn" {
-  description = "ARN of the IAM role used by Lambda functions"
-  value       = aws_iam_role.lambda_exec_role.arn
-}
 
-output "cognito_user_pool_id" {
-  description = "ID of the Cognito User Pool"
-  value       = aws_cognito_user_pool.user_pool.id
-}
 
-output "api_gateway_rest_api_id" {
-  description = "ID of the API Gateway REST API"
-  value       = aws_api_gateway_rest_api.rest_api.id
-}
+

@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+save-terraform-files.js
+
+.terraform.lock.hcl
+terraform.tfstate
+.terraform
+backend/infra/terraform/plan.out
