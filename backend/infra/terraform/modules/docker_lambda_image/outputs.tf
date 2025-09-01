@@ -7,3 +7,9 @@ output "new_version" {
   description = "New incremented version number"
   value       = local.new_version
 }
+
+
+output "registry_host" { 
+  value = local.registry_host 
+  
+  }

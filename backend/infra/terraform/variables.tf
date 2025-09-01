@@ -11,3 +11,8 @@ variable "environment" {
 }
 
 
+variable "api_stage_name" {
+  description = "API Gateway stage name"
+  type        = string
+  default     = "v1"
+}

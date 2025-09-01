@@ -15,9 +15,11 @@ ssm_client = boto3.client("ssm", region_name=AWS_REGION)
 cognito_client = boto3.client("cognito-idp", region_name=AWS_REGION)
 
 # Parameter Store keys for Cognito config
-PARAM_COGNITO_USER_POOL_ID = "/user-service/cognito/user_pool_id"
-PARAM_COGNITO_CLIENT_ID = "/user-service/cognito/client_id"
-PARAM_COGNITO_CLIENT_SECRET = "/user-service/cognito/client_secret"  # Optional
+PARAM_COGNITO_USER_POOL_ID = "/goalsguild/dev/cognito/user_pool_id"
+PARAM_COGNITO_CLIENT_ID = "/goalsguild/dev/cognito/client_id"
+PARAM_COGNITO_CLIENT_SECRET = "/goalsguild/dev/cognito/client_secret"  # Optional
+
+
 
 # Cache for parameters
 config_cache = {}
@@ -27,10 +29,14 @@ def get_parameter(name: str, with_decryption: bool = False) -> Optional[str]:
   Retrieve a parameter value from AWS Parameter Store.
   """
   try:
+    print(f'Getting cognito parameter:{name}')
     response = ssm_client.get_parameter(Name=name, WithDecryption=with_decryption)
+    print(f'Getting cognito response:{response["Parameter"]["Value"]}')
+    
     return response["Parameter"]["Value"]
   except ClientError as e:
     # Log or handle error as needed
+    print(f'erro ao obter dados do cognito{e}')
     return None
 
 def load_cognito_config():
@@ -55,6 +61,7 @@ def get_secret_hash(username: str) -> Optional[str]:
   """
   Calculate secret hash for Cognito client secret if configured.
   """
+
   client_secret = config_cache.get("COGNITO_CLIENT_SECRET")
   client_id = config_cache.get("COGNITO_CLIENT_ID")
   if not client_secret or not client_id:

@@ -35,3 +35,41 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "log_retention_in_days" {
+  description = "Number of days to retain CloudWatch logs"
+  type        = number
+  default     = 14
+}
+
+variable "error_threshold" {
+  description = "Number of errors to trigger CloudWatch alarm"
+  type        = number
+  default     = 1
+}
+
+variable "throttle_threshold" {
+  description = "Number of throttles to trigger CloudWatch alarm"
+  type        = number
+  default     = 1
+}
+
+variable "duration_threshold_ms" {
+  description = "Duration in milliseconds to trigger CloudWatch alarm"
+  type        = number
+  default     = 3000
+}
+
+variable "alarm_actions" {
+  description = "List of ARNs to notify when alarm triggers"
+  type        = list(string)
+  default     = []
+}
+
+variable "ok_actions" {
+  description = "List of ARNs to notify when alarm recovers"
+  type        = list(string)
+  default     = []
+}
+
+

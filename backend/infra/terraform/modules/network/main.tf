@@ -1,3 +1,5 @@
+
+
 # IAM Role for Lambda execution
 resource "aws_iam_role" "lambda_exec_role" {
   name = "goalsguild_lambda_exec_role_${var.environment}"
@@ -14,11 +16,17 @@ resource "aws_iam_role" "lambda_exec_role" {
   })
 }
 
+
+
 # Attach AWS managed policy for basic Lambda execution permissions
 resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   role       = aws_iam_role.lambda_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
+
+
+
+
 
 
 variable "user_service_lambda_arn" {
@@ -30,11 +38,11 @@ variable "quest_service_lambda_arn" {
   description = "ARN of the quest-service Lambda function"
   type        = string
 }
+
 # Cognito User Pool
 resource "aws_cognito_user_pool" "user_pool" {
   name = "goalsguild_user_pool_${var.environment}"
 
-  # keep email verification on
   auto_verified_attributes = ["email"]
 
   password_policy {
@@ -60,18 +68,14 @@ resource "aws_cognito_user_pool" "user_pool" {
 
   mfa_configuration = "OFF"
 
-  # REMOVE the legacy fields:
-  # email_verification_message = "Your verification code is {####}."
-  # email_verification_subject = "Verify your email for GoalsGuild"
-
-  # Keep only the new-style block:
   verification_message_template {
     email_message        = "Welcome to GoalsGuild! Your code is {####}."
     email_subject        = "Welcome to GoalsGuild!"
     sms_message          = "Welcome to GoalsGuild! Your code is {####}."
-    default_email_option = "CONFIRM_WITH_CODE" # or "CONFIRM_WITH_LINK"
+    default_email_option = "CONFIRM_WITH_CODE"
   }
 }
+
 # Cognito User Pool Client
 resource "aws_cognito_user_pool_client" "user_pool_client" {
   name         = "goalsguild_user_pool_client_${var.environment}"
@@ -106,6 +110,36 @@ resource "aws_api_gateway_resource" "user_service_resource" {
   path_part   = "users"
 }
 
+resource "aws_api_gateway_resource" "user_signup_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.user_service_resource.id
+  path_part   = "signup"
+}
+
+resource "aws_api_gateway_resource" "user_login_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.user_service_resource.id
+  path_part   = "login"
+}
+
+resource "aws_api_gateway_resource" "user_logout_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.user_service_resource.id
+  path_part   = "logout"
+}
+
+resource "aws_api_gateway_resource" "user_login_google_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.user_login_resource.id
+  path_part   = "google"
+}
+
+resource "aws_api_gateway_resource" "user_health_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "health"
+}
+
 resource "aws_api_gateway_resource" "quest_service_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -121,8 +155,102 @@ resource "aws_api_gateway_authorizer" "cognito_authorizer" {
   type            = "COGNITO_USER_POOLS"
 }
 
-# Quest Service API Gateway Method and Integration
+# User-Service API Gateway Methods and Integrations
 
+# POST /users/signup (public)
+resource "aws_api_gateway_method" "user_signup_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_signup_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "user_signup_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_signup_resource.id
+  http_method             = aws_api_gateway_method.user_signup_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+# POST /users/login (public)
+resource "aws_api_gateway_method" "user_login_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_login_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "user_login_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_login_resource.id
+  http_method             = aws_api_gateway_method.user_login_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+# POST /users/logout (requires auth)
+resource "aws_api_gateway_method" "user_logout_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_logout_resource.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "user_logout_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_logout_resource.id
+  http_method             = aws_api_gateway_method.user_logout_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+# POST /users/login/google (public)
+resource "aws_api_gateway_method" "user_login_google_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_login_google_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "user_login_google_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_login_google_resource.id
+  http_method             = aws_api_gateway_method.user_login_google_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+# GET /health (public)
+resource "aws_api_gateway_method" "health_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_health_resource.id
+  http_method   = "GET"
+  authorization = "NONE"
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "health_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_health_resource.id
+  http_method             = aws_api_gateway_method.health_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+# Quest-Service API Gateway Methods and Integrations
+
+# GET /quests (requires auth)
 resource "aws_api_gateway_method" "quest_get" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.quest_service_resource.id
@@ -132,38 +260,35 @@ resource "aws_api_gateway_method" "quest_get" {
   api_key_required = false
 }
 
-
-# -- Lambda proxy integration
-# var.quest_service_lambda_arn must be the FULL Lambda ARN (optionally with :alias)
 resource "aws_api_gateway_integration" "quest_get_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.quest_service_resource.id
   http_method             = aws_api_gateway_method.quest_get.http_method
   type                    = "AWS_PROXY"
-  integration_http_method = "GET"
+  integration_http_method = "POST"
   uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
 }
 
-
-resource "aws_api_gateway_method" "user_login" {
+# POST /quests (requires auth)
+resource "aws_api_gateway_method" "quest_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_service_resource.id
+  resource_id   = aws_api_gateway_resource.quest_service_resource.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
   api_key_required = false
 }
 
-
-# -- Lambda proxy integration
-# var.quest_service_lambda_arn must be the FULL Lambda ARN (optionally with :alias)
-resource "aws_api_gateway_integration" "user_login_post_integration" {
+resource "aws_api_gateway_integration" "quest_post_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
-  resource_id             = aws_api_gateway_resource.user_service_resource.id
-  http_method             = aws_api_gateway_method.user_login.http_method
+  resource_id             = aws_api_gateway_resource.quest_service_resource.id
+  http_method             = aws_api_gateway_method.quest_post.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
 }
+
+# Lambda permissions for API Gateway invocation
 
 resource "aws_lambda_permission" "allow_api_gateway_user" {
   statement_id  = "AllowAPIGatewayInvokeUser"
@@ -226,3 +351,200 @@ resource "aws_ssm_parameter" "cognito_client_secret" {
 
 
 
+# CloudWatch Log Group for API Gateway Access Logs
+resource "aws_cloudwatch_log_group" "apigw_access_logs" {
+  name              = "/aws/apigateway/goalsguild_api_${var.environment}_access_logs"
+  retention_in_days = 1
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "apigateway"
+  }
+}
+
+# IAM Role for API Gateway to write logs
+resource "aws_iam_role" "apigw_cloudwatch_role" {
+  name = "goalsguild_apigw_cloudwatch_role_${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "apigateway.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+# Lets API Gateway write logs to CloudWatch Logs
+resource "aws_iam_role_policy_attachment" "apigw_push_to_cw" {
+  role       = aws_iam_role.apigw_cloudwatch_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+# Must exist before any stage enables logging
+resource "aws_api_gateway_account" "account" {
+  cloudwatch_role_arn = aws_iam_role.apigw_cloudwatch_role.arn
+  depends_on          = [aws_iam_role_policy_attachment.apigw_push_to_cw]
+}
+
+
+
+resource "aws_iam_role_policy" "apigw_cloudwatch_policy" {
+  name = "goalsguild_apigw_cloudwatch_policy_${var.environment}"
+  role = aws_iam_role.apigw_cloudwatch_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+
+# Re-deploy whenever any integration changes
+resource "aws_api_gateway_deployment" "rest_api_deployment" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+
+  triggers = {
+    redeploy = sha1(jsonencode({
+      user_signup_post  = aws_api_gateway_integration.user_signup_post_integration.id
+      user_login_post   = aws_api_gateway_integration.user_login_post_integration.id
+      user_logout_post  = aws_api_gateway_integration.user_logout_post_integration.id
+      user_login_google = aws_api_gateway_integration.user_login_google_post_integration.id
+      health_get        = aws_api_gateway_integration.health_get_integration.id
+      quest_get         = aws_api_gateway_integration.quest_get_integration.id
+      quest_post        = aws_api_gateway_integration.quest_post_integration.id
+    }))
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
+# Enable API Gateway Stage with Access Logging
+resource "aws_api_gateway_stage" "api_stage" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  stage_name    = var.api_stage_name
+  deployment_id = aws_api_gateway_deployment.rest_api_deployment.id
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.apigw_access_logs.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip             = "$context.identity.sourceIp"
+      caller         = "$context.identity.caller"
+      user           = "$context.identity.user"
+      requestTime    = "$context.requestTime"
+      httpMethod     = "$context.httpMethod"
+      resourcePath   = "$context.resourcePath"
+      status         = "$context.status"
+      protocol       = "$context.protocol"
+      responseLength = "$context.responseLength"
+    })
+  }
+
+  depends_on = [
+    aws_api_gateway_account.account,         # <— ensure account setting in place
+    aws_iam_role_policy.apigw_cloudwatch_policy
+  ]
+}
+
+# Let API Gateway assume the CW role (needed for execution logging)
+
+resource "aws_api_gateway_method_settings" "all_methods" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.api_stage.stage_name
+  method_path = "*/*" # or "/" to apply to entire stage
+
+  settings {
+    logging_level      = "INFO"   # or "ERROR"
+    metrics_enabled    = true
+    data_trace_enabled = true
+  }
+
+  depends_on = [aws_api_gateway_account.account]
+}
+
+
+# New SSM Parameter for User Services environment variables (excluding AWS_REGION)
+resource "aws_ssm_parameter" "user_service_env_vars" {
+  name        = "/goalsguild/${var.environment}/user-service/env_vars"
+  description = "JSON object of environment variables for User Service excluding AWS_REGION"
+  type        = "String"
+  value       = jsonencode({
+    COGNITO_USER_POOL_ID     = aws_ssm_parameter.cognito_user_pool_id.value
+    COGNITO_CLIENT_ID        = aws_ssm_parameter.cognito_client_id.value
+    COGNITO_CLIENT_SECRET    = aws_ssm_parameter.cognito_client_secret.value
+    EMAIL_SENDER             = "no-reply@goalsguild.com"
+    FRONTEND_BASE_URL        = "https://app.goalsguild.com"
+    PASSWORD_KEY             = "your-encrypted-password-key" # Replace with actual secure value or SSM reference
+  })
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "user-service"
+  }
+}
+
+# Attach IAM policy to Lambda execution role to allow reading the new SSM parameter
+resource "aws_iam_role_policy" "lambda_ssm_read_user_service_env" {
+  name = "goalsguild_lambda_ssm_read_user_service_env_${var.environment}"
+  role = aws_iam_role.lambda_exec_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement: [
+      {
+        Effect = "Allow",
+        Action = [
+          "ssm:GetParameter"
+        ],
+        Resource = [
+          aws_ssm_parameter.user_service_env_vars.arn
+        ]
+      }
+    ]
+  })
+}
+
+
+# Inline policy granting read access to specific SSM parameters
+resource "aws_iam_role_policy" "lambda_ssm_read_policy" {
+  name = "goalsguild_lambda_ssm_read_policy_${var.environment}"
+  role = aws_iam_role.lambda_exec_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement: [
+      {
+        Effect = "Allow",
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ],
+        Resource = [
+          aws_ssm_parameter.cognito_client_secret.arn,
+          aws_ssm_parameter.cognito_client_id.arn,
+          aws_ssm_parameter.cognito_user_pool_id.arn,
+          aws_ssm_parameter.user_service_env_vars.arn
+        ]
+      }
+    ]
+  })
+}

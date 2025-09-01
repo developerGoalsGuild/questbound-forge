@@ -82,6 +82,8 @@ module "lambda_user_service" {
     Environment = var.environment
     Project     = "goalsguild"
   }
+  depends_on = [module.user_service_image]
+
 }
 
 module "lambda_quest_service" {
@@ -96,6 +98,8 @@ module "lambda_quest_service" {
     Environment = var.environment
     Project     = "goalsguild"
   }
+  depends_on = [module.quest_service_image]
+
 }
 
 # Note: API Gateway and Cognito resources are managed inside the network module for clarity and reuse
@@ -105,4 +109,8 @@ module "network" {
   aws_region              = var.aws_region
   user_service_lambda_arn = module.lambda_user_service.lambda_function_arn
   quest_service_lambda_arn = module.lambda_quest_service.lambda_function_arn
+  api_stage_name          = var.api_stage_name
 }
+
+
+

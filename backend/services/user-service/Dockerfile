@@ -1,26 +1,33 @@
+# 1) Bring in the AWS Lambda Web Adapter binary
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 AS lambda-adapter
 
-FROM public.ecr.aws/lambda/python:3.11
+# 2) Your runtime image
 FROM python:3.12-slim
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
-# Install dependencies
-COPY requirements.txt ./
+ENV PYTHONPATH=/app
+
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install pydantic-settings[aws-secrets-manager]
+RUN pip install --no-cache-dir pydantic-settings[aws-secrets-manager]
 
-# Copy app code
-COPY ./ ./
+# Copy source
+COPY ./ ./ 
 
-# Copy the adapter binary into the Lambda extensions dir (per official docs)
+# 3) Register the adapter as a Lambda extension (container-image style)
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 
-# Enable LWA and expose the HTTP server
-ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/bootstrap \
+# 4) LWA/Server settings
+ENV PORT=8080 \
     AWS_LWA_PORT=8080 \
-    PORT=8080 \
-    RUST_LOG=info
+    RUST_LOG=info \
+    AWS_LWA_READINESS_CHECK_PATH=/healthz
 
 EXPOSE 8080
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# IMPORTANT: point to the real module path for your ASGI app
+# If your app is in app/main.py and the variable is `app`, use app.main:app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
