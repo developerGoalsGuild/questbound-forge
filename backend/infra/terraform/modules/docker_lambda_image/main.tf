@@ -1,4 +1,3 @@
-
 # -------- Versioning: bump every apply --------
 # Read last version from a local dotfile; start at 0 if missing
 locals {
@@ -93,5 +92,3 @@ resource "local_file" "version_file" {
   content  = tostring(local.new_version)
   filename = local._version_file
 }
-
-

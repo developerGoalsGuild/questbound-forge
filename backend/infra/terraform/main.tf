@@ -1,4 +1,3 @@
-
 # Current versions can be stored in terraform.tfvars or remotely; here default 0 for demo
 variable "user_service_current_version" {
   description = "Current version of user-service Docker image"
@@ -111,6 +110,3 @@ module "network" {
   quest_service_lambda_arn = module.lambda_quest_service.lambda_function_arn
   api_stage_name          = var.api_stage_name
 }
-
-
-

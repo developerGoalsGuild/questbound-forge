@@ -22,5 +22,3 @@ output "lambda_exec_role_arn" {
   description = "ARN of the IAM role used by Lambda functions"
   value       = module.network.lambda_exec_role_arn
 }
-
-

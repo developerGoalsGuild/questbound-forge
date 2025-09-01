@@ -71,5 +71,3 @@ variable "ok_actions" {
   type        = list(string)
   default     = []
 }
-
-
