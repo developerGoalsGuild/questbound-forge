@@ -3,7 +3,7 @@ import time, uuid, logging, json
 from typing import Optional
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
-from ssm import settings
+from .ssm import settings
 
 logger = logging.getLogger("auth")
 if not logger.handlers:

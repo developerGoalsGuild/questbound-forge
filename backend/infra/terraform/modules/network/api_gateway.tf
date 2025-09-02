@@ -1,4 +1,4 @@
-# API Gateway REST API
+# API Gateway REST API for GoalsGuild User-Service
 resource "aws_api_gateway_rest_api" "rest_api" {
   name        = "goalsguild_api_${var.environment}"
   description = "API Gateway for GoalsGuild services"
@@ -21,23 +21,6 @@ resource "aws_api_gateway_authorizer" "lambda_authorizer" {
   authorizer_credentials = var.api_gateway_authorizer_lambda_role_arn
 }
 
-
-
-# RIGHT: method created on /users/logout
-resource "aws_api_gateway_method" "user_logout_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_logout_resource.id
-  http_method   = "POST"
-  authorization = "CUSTOM" # or "COGNITO_USER_POOLS"/"NONE" as desired
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
-  api_key_required = false
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
-
 resource "aws_api_gateway_resource" "user_service_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -50,53 +33,43 @@ resource "aws_api_gateway_resource" "quest_service_resource" {
   path_part   = "quests"
 }
 
-
-
-
-
-# Lambda permission for API Gateway to invoke the Lambda authorizer
-resource "aws_lambda_permission" "allow_api_gateway_lambda_authorizer" {
-  statement_id  = "AllowAPIGatewayInvokeLambdaAuthorizer"
-  action        = "lambda:InvokeFunction"
-  function_name = var.lambda_authorizer_arn
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/authorizers/${aws_api_gateway_authorizer.lambda_authorizer.id}"
-}
-
-
 resource "aws_api_gateway_resource" "user_signup_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_service_resource.id
   path_part   = "signup"
 }
 
+# /users/login resource
 resource "aws_api_gateway_resource" "user_login_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_service_resource.id
   path_part   = "login"
 }
 
+# /users/logout resource
 resource "aws_api_gateway_resource" "user_logout_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_service_resource.id
   path_part   = "logout"
 }
 
+# /users/login/google resource (nested under /users/login)
 resource "aws_api_gateway_resource" "user_login_google_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_login_resource.id
   path_part   = "google"
 }
 
+# /health resource (root level)
 resource "aws_api_gateway_resource" "user_health_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
   path_part   = "health"
 }
 
-# User-Service API Gateway Methods and Integrations
+# --- Methods and Integrations for User-Service API ---
 
-# POST /users/signup (public)
+# POST /users/signup (public, no auth)
 resource "aws_api_gateway_method" "user_signup_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_signup_resource.id
@@ -111,10 +84,10 @@ resource "aws_api_gateway_integration" "user_signup_post_integration" {
   http_method             = aws_api_gateway_method.user_signup_post.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
 
-# POST /users/login (public)
+# POST /users/login (public, no auth)
 resource "aws_api_gateway_method" "user_login_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_login_resource.id
@@ -129,27 +102,35 @@ resource "aws_api_gateway_integration" "user_login_post_integration" {
   http_method             = aws_api_gateway_method.user_login_post.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
 
+# POST /users/logout (requires custom auth via Lambda authorizer)
+resource "aws_api_gateway_method" "user_logout_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_logout_resource.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = false
 
+  lifecycle {
+    create_before_destroy = false
+  }
+}
 
 resource "aws_api_gateway_integration" "user_logout_post_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.user_logout_resource.id
   http_method             = aws_api_gateway_method.user_logout_post.http_method
-
   type                    = "AWS_PROXY"
-  integration_http_method = "POST"  # must be POST for Lambda proxy
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 
   depends_on = [aws_api_gateway_method.user_logout_post]
-
-  
 }
 
-
-# POST /users/login/google (public)
+# POST /users/login/google (public, no auth)
 resource "aws_api_gateway_method" "user_login_google_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_login_google_resource.id
@@ -164,10 +145,10 @@ resource "aws_api_gateway_integration" "user_login_google_post_integration" {
   http_method             = aws_api_gateway_method.user_login_google_post.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
 
-# GET /health (public)
+# GET /health (public, no auth)
 resource "aws_api_gateway_method" "health_get" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_health_resource.id
@@ -181,8 +162,8 @@ resource "aws_api_gateway_integration" "health_get_integration" {
   resource_id             = aws_api_gateway_resource.user_health_resource.id
   http_method             = aws_api_gateway_method.health_get.http_method
   type                    = "AWS_PROXY"
-  integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  integration_http_method = "POST" # Lambda proxy requires POST even for GET method
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
 
 # Quest-Service API Gateway Methods and Integrations
@@ -309,7 +290,7 @@ resource "aws_api_gateway_method_settings" "all_methods" {
 
   depends_on = [aws_api_gateway_account.account]
 }
-
+# Lambda permissions for API Gateway to invoke user-service Lambda
 resource "aws_lambda_permission" "allow_api_gateway_user" {
   statement_id  = "AllowAPIGatewayInvokeUser"
   action        = "lambda:InvokeFunction"
@@ -317,6 +298,16 @@ resource "aws_lambda_permission" "allow_api_gateway_user" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }
+
+# Lambda permission for API Gateway to invoke the Lambda authorizer
+resource "aws_lambda_permission" "allow_api_gateway_lambda_authorizer" {
+  statement_id  = "AllowAPIGatewayInvokeLambdaAuthorizer"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_authorizer_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/authorizers/${aws_api_gateway_authorizer.lambda_authorizer.id}"
+}
+
 
 resource "aws_lambda_permission" "allow_api_gateway_quest" {
   statement_id  = "AllowAPIGatewayInvokeQuest"

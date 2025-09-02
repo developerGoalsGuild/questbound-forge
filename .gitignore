@@ -29,3 +29,5 @@ terraform.tfstate
 .terraform
 backend/infra/terraform/plan.out
 .build
+*.backup
+*.*.backup

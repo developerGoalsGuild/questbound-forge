@@ -1,17 +1,17 @@
 from __future__ import annotations
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Literal, Optional
 
 
 class SignupLocal(BaseModel):
-  provider: str = Field("local", const=True)
+  provider: Literal['local'] = 'local'
   email: EmailStr
   password: str
   name: Optional[str] = None
 
 
 class SignupGoogle(BaseModel):
-  provider: str = Field("google", const=True)
+  provider: Literal['google'] = 'google'
   authorization_code: str
   redirect_uri: str
 

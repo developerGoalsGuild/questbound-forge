@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from requests import Request, request
+from fastapi import Request
 from .models import ConfirmEmailResponse, PasswordChangeRequest, SendTempPassword, SignupLocal, SignupGoogle, LoginLocal, TokenResponse, PublicUser
 from .ssm import settings
 from .security import generate_secure_password, hash_password, verify_local_jwt, verify_password, issue_local_jwt, validate_password_strength
@@ -32,16 +32,13 @@ if not logger.handlers:
 
 BLOCK_THRESHOLD = 3
 
-app = FastAPI(title="Serverless Auth API", version="1.0.0")
+app = FastAPI(title="Goals Guild Serverless Auth API", version="1.0.0")
 ddb = boto3.resource("dynamodb")
 users = ddb.Table(settings.ddb_users_table)
 
-@app.get("/healthz")
+@app.get("/health")
 def healthz():
     return {"ok": True, "time": int(time.time())}
-
-
-
 
 # --- SIGNUP (LOCAL) — send confirmation email ---
 @app.post("/signup")
@@ -172,7 +169,7 @@ def confirm_email(token: str = Query(..., min_length=20)):
 
     users.update_item(
         Key={"pk": f"USER#{email}", "sk": "PROFILE"},
-        UpdateExpression="REMOVE email_confirm_jti, email_confirm_expires_at SET email_confirmed=:t",
+        UpdateExpression="SET email_confirmed=:t REMOVE email_confirm_jti, email_confirm_expires_at",
         ExpressionAttributeValues={":t": True},
     )
     logger.info(json.dumps({"event":"email_confirmed","email":email}))
@@ -199,9 +196,10 @@ def login(body: LoginLocal, request: Request):
     # Blocked window handled earlier; here show must-change enforcement before issuing tokens
     # ... existing failed_count_last_month checks and BLOCKED logic above this point ...
 
+    
     if not verify_password(body.password, item.get("password_hash", "")):
-        # ... existing failure path ...
-        pass
+      record_attempt(email, success=False, ip=client_ip, ua=ua, reason="BAD_PASSWORD")
+      raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Must-change-password enforcement (no access token yet)
     if item.get("must_change_password", False):
