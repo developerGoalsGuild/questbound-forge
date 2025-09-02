@@ -120,3 +120,5 @@ resource "aws_iam_role_policy" "lambda_ssm_read_policy" {
     ]
   })
 }
+
+

@@ -28,3 +28,4 @@ save-terraform-files.js
 terraform.tfstate
 .terraform
 backend/infra/terraform/plan.out
+.build

@@ -1,3 +1,8 @@
+
+
+
+
+
 # CloudWatch Log Group for API Gateway Access Logs
 resource "aws_cloudwatch_log_group" "apigw_access_logs" {
   name              = "/aws/apigateway/goalsguild_api_${var.environment}_access_logs"

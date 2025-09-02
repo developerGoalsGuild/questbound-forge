@@ -1,36 +1,50 @@
-from pydantic import BaseModel, EmailStr
+from __future__ import annotations
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
-class UserItem(BaseModel):
-  """
-  Represents a user item stored in DynamoDB.
-  """
-  email: EmailStr
-  password_hash: Optional[str] = None
-  salt: Optional[str] = None
-  login_type: str = "social"  # 'native' or 'social'
-  email_verified: bool = False
-  verification_token: Optional[str] = None
 
-class SignUpRequest(BaseModel):
-  """
-  Request model for native user sign-up.
-  """
+class SignupLocal(BaseModel):
+  provider: str = Field("local", const=True)
+  email: EmailStr
+  password: str
+  name: Optional[str] = None
+
+
+class SignupGoogle(BaseModel):
+  provider: str = Field("google", const=True)
+  authorization_code: str
+  redirect_uri: str
+
+
+class LoginLocal(BaseModel):
   email: EmailStr
   password: str
 
-class EmailVerificationRequest(BaseModel):
-  """
-  Request model for email verification.
-  """
-  token: str
 
-class LoginResponse(BaseModel):
-  """
-  Response model for login tokens.
-  """
+class TokenResponse(BaseModel):
+  token_type: str = "Bearer"
   access_token: str
-  id_token: str
-  refresh_token: str
-  token_type: str
   expires_in: int
+  id_token: Optional[str] = None
+  refresh_token: Optional[str] = None
+
+
+class PublicUser(BaseModel):
+  user_id: str
+  email: EmailStr
+  name: Optional[str] = None
+  provider: str
+
+
+class SendTempPassword(BaseModel):
+  email: EmailStr
+
+
+class PasswordChangeRequest(BaseModel):
+  current_password: str | None = None # required for both flows
+  new_password: str
+  challenge_token: str | None = None # when must-change flow is triggered
+
+
+class ConfirmEmailResponse(BaseModel):
+  message: str

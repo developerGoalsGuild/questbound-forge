@@ -8,7 +8,12 @@ resource "aws_dynamodb_table" "dynamodb_table" {
     type = var.attribute_type
   }
 
+  point_in_time_recovery { enabled = true }
+  server_side_encryption { enabled = true } 
   tags = var.tags
 
   # Enable Row Level Security (RLS) and policies should be configured separately in Supabase or application layer
 }
+
+
+

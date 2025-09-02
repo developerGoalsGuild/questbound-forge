@@ -24,3 +24,15 @@ variable "quest_service_lambda_arn" {
   description = "ARN of the quest-service Lambda function"
   type        = string
 }
+
+
+variable "lambda_authorizer_arn" {
+  description = "ARN of the authorizer-service Lambda function"
+  type        = string
+}
+variable "api_gateway_authorizer_lambda_role_arn" {
+  description = "ARN of the authorizer-service Lambda function"
+  type        = string
+}
+
+
