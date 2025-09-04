@@ -22,3 +22,9 @@ output "lambda_exec_role_arn" {
   description = "ARN of the IAM role used by Lambda functions"
   value       = module.network.lambda_exec_role_arn
 }
+
+#output "table_name"        { value = module.goalsguild_table.table_name }
+output "table_name" { value = module.ddb.table_name }
+
+#output "table_stream_arn"  { value = module.goalsguild_table.table_stream_arn }
+#output "app_rw_policy_arn" { value = module.goalsguild_table.app_rw_policy_arn }

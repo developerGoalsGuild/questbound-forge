@@ -33,3 +33,21 @@ variable "api_gateway_lambda_role_name" {
   type    = string
   default = "goalsguild_apigateway_lambda_invoke_role"
 }
+
+# Authentication mode for AppSync: "AWS_LAMBDA" | "AMAZON_COGNITO_USER_POOLS" | "API_KEY"
+variable "appsync_auth_type" {
+  type    = string
+  default = "AWS_LAMBDA"
+}
+
+# Paths
+variable "schema_path" {
+  type    = string
+  default = ""
+}
+
+variable "resolvers_dir" {
+  type    = string
+  default = ""
+}
+
