@@ -60,7 +60,7 @@ resource "aws_iam_role_policy" "ds_ddb_policy" {
 role = aws_iam_role.ds_ddb_role.id
 policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [{ Effect = "Allow", Action = ["dynamodb:PutItem","dynamodb:GetItem","dynamodb:Query","dynamodb:UpdateItem"], Resource = [
+    Statement = [{ Effect = "Allow", Action = ["dynamodb:PutItem","dynamodb:GetItem","dynamodb:Query","dynamodb:UpdateItem","dynamodb:TransactWriteItems"], Resource = [
      var.ddb_table_arn,"${var.ddb_table_arn}/index/*"
 ] }]
 })

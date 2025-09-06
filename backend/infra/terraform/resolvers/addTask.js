@@ -2,7 +2,6 @@
 import { util } from '@aws-appsync/utils';
 import { put } from '@aws-appsync/utils/dynamodb';
 
-
 export function request(ctx) {
   const identity = ctx.identity || {};
   const ownerId = identity.sub;
@@ -14,7 +13,7 @@ export function request(ctx) {
   if (!goalId) util.error('goalId required', 'Validation');
   if (!title) util.error('title required', 'Validation');
 
-  const now = ((new Date()).getTime());
+  const now = util.time.nowEpochMilliSeconds();
   const taskId = util.autoId();
 
   const item = {

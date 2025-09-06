@@ -76,7 +76,7 @@ const Header = () => {
               {t.nav.login}
             </Button>
             <Button className="btn-heraldic text-primary-foreground" asChild>
-              <a href="/dashboard">{t.nav.signup}</a>
+              <a href="/signup/LocalSignUp">{t.nav.signup}</a>
             </Button>
           </div>
 

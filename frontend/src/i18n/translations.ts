@@ -1,4 +1,7 @@
-// Multilingual translation framework for the goal collaboration platform
+// Extended translations for sign-up pages
+
+//import { Language, Translations } from './translations-base'; // Assuming base types are here
+
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -24,6 +27,7 @@ export interface Translations {
     ctaSecondary: string;
   };
 
+  
   // Features
   features: {
     title: string;
@@ -70,8 +74,14 @@ export interface Translations {
       benefits: string;
       community: string;
     };
+
+
+    
+
   };
 
+  // Allowing flexible shapes for signup translations (flat or nested under `local`)
+  signup: any;
   // Common
   common: {
     loading: string;
@@ -160,6 +170,32 @@ export const translations: Record<Language, Translations> = {
       view: "View",
       close: "Close",
     },
+    signup: {
+        title: "User Sign-Up",
+        email: "Email Address",
+        fullName: "Full Name",
+        birthDate: "Date of Birth",
+        nickname: "Nickname",
+        bio: "Bio",
+        country: "Country",
+        selectCountry: "Select your country",
+        password: "Password",
+        confirmPassword: "Confirm Password",
+        submit: "Create Account",
+        successMessage: "Account created! Please check your email to confirm your address.",
+        errorMessage: "Failed to create account. Please try again.",
+        validation: {
+          required: "This field is required",
+          invalidEmail: "Please enter a valid email address",
+          passwordMismatch: "Passwords do not match",
+          passwordMinLength: "Password must be at least 8 characters",
+          invalidDate: "Please enter a valid date (YYYY-MM-DD)",
+          birthDateTooRecent: "Birth date cannot be later than today minus 1 year",
+          bioMaxLength: "Bio must be 200 characters or fewer",
+          emailTaken: "This email is already in use",
+          invalidCountry: "Please choose a country from the list",
+        },
+    },
   },
   es: {
     nav: {
@@ -233,6 +269,41 @@ export const translations: Record<Language, Translations> = {
       edit: "Editar",
       view: "Ver",
       close: "Cerrar",
+    },
+    signup: {
+      local: {
+        title: "Registro de Usuario Local",
+        email: "Correo Electrónico",
+        fullName: "Nombre Completo",
+        birthDate: "Fecha de Nacimiento",
+        nickname: "Apodo",
+        bio: "Biografía",
+        country: "País",
+        selectCountry: "Selecciona tu país",
+        password: "Contraseña",
+        confirmPassword: "Confirmar Contraseña",
+        submit: "Crear Cuenta",
+        successMessage: "¡Cuenta creada! Por favor, revisa tu correo para confirmar tu dirección.",
+        errorMessage: "Error al crear la cuenta. Por favor, inténtalo de nuevo.",
+        validation: {
+          required: "Este campo es obligatorio",
+          invalidEmail: "Por favor, introduce un correo electrónico válido",
+          passwordMismatch: "Las contraseñas no coinciden",
+          passwordMinLength: "La contraseña debe tener al menos 8 caracteres",
+          invalidDate: "Por favor, introduce una fecha válida (AAAA-MM-DD)",
+          birthDateTooRecent: "La fecha de nacimiento no puede ser posterior a hoy menos 1 año",
+          bioMaxLength: "La biografía debe tener 200 caracteres o menos",
+          emailTaken: "Este correo ya está en uso",
+          invalidCountry: "Por favor, elige un país de la lista",
+        },
+      },
+      social: {
+        title: "Registro con Inicio Social",
+        email: "Correo Electrónico",
+        submit: "Completar Registro",
+        successMessage: "¡Cuenta creada mediante inicio social!",
+        errorMessage: "Error al crear la cuenta. Por favor, inténtalo de nuevo.",
+      },
     },
   },
   fr: {
@@ -308,5 +379,42 @@ export const translations: Record<Language, Translations> = {
       view: "Voir",
       close: "Fermer",
     },
+    signup: {
+      local: {
+        title: "Inscription Utilisateur Locale",
+        email: "Adresse Email",
+        fullName: "Nom Complet",
+        birthDate: "Date de Naissance",
+        nickname: "Pseudo",
+        bio: "Bio",
+        country: "Pays",
+        selectCountry: "Sélectionnez votre pays",
+        password: "Mot de Passe",
+        confirmPassword: "Confirmer le Mot de Passe",
+        submit: "Créer un Compte",
+        successMessage: "Compte créé ! Veuillez vérifier votre email pour confirmer votre adresse.",
+        errorMessage: "Échec de la création du compte. Veuillez réessayer.",
+        validation: {
+          required: "Ce champ est requis",
+          invalidEmail: "Veuillez entrer une adresse email valide",
+          passwordMismatch: "Les mots de passe ne correspondent pas",
+          passwordMinLength: "Le mot de passe doit contenir au moins 8 caractères",
+          invalidDate: "Veuillez entrer une date valide (AAAA-MM-JJ)",
+          birthDateTooRecent: "La date de naissance ne peut pas être postérieure à aujourd'hui moins 1 an",
+          bioMaxLength: "La biographie doit contenir 200 caractères ou moins",
+          emailTaken: "Cet email est déjà utilisé",
+          invalidCountry: "Veuillez choisir un pays dans la liste",
+        },
+      },
+      social: {
+        title: "Inscription via Connexion Sociale",
+        email: "Adresse Email",
+        submit: "Terminer l'Inscription",
+        successMessage: "Compte créé via connexion sociale !",
+        errorMessage: "Échec de la création du compte. Veuillez réessayer.",
+      },
+    },
   },
 };
+
+export { Language };

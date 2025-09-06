@@ -11,9 +11,8 @@ export function request(ctx) {
   const title = input.title;
   if (!title) util.error('title required', 'Validation');
 
-  const now = ((new Date()).getTime());
+  const now = util.time.nowEpochMilliSeconds();
   const goalId = util.autoId();
-
   const item = {
     PK: 'USER#' + userId,
     SK: 'GOAL#' + goalId,

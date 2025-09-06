@@ -4,6 +4,7 @@
 
 # AWS Scalars
 scalar AWSDateTime
+scalar AWSDate
 scalar AWSTimestamp
 scalar AWSJSON
 
@@ -25,7 +26,12 @@ enum TaskStatus {
 # Types
 type User {
   id: ID!
+  email: String
+  fullName: String
   nickname: String
+  birthDate: AWSDate
+  status: String
+  country: String
   language: String
   pronouns: String
   bio: String
@@ -83,6 +89,7 @@ type Query {
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
   offers(tags: [String!], limit: Int = 20): [Offer!]!
+  isEmailAvailable(email: String!): Boolean!
 }
 
 # Mutations
@@ -120,12 +127,18 @@ type Subscription {
 
 # Inputs
 input CreateUserInput {
+  email: String!
+  fullName: String!
   nickname: String!
+  birthDate: AWSDate
+  status: String
+  country: String!
   language: String = "en"
   pronouns: String
   bio: String
   tags: [String!]
-  passwordHash: String!      # bcrypt hash; hashing is done outside this API
+  passwordHash: String       # bcrypt hash; hashing is done outside this API
+  password: String           # DEV ONLY: plaintext accepted for non-production
 }
 
 input GoalInput {

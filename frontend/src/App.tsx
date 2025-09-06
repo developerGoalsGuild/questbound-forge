@@ -6,7 +6,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TranslationProvider } from '@/hooks/useTranslation';
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import LocalSignup from "./pages/signup/LocalSignUp";
 import NotFound from "./pages/NotFound";
+//import ConfirmEmail from "./pages/ConfirmEmail";
+
+
 
 const queryClient = new QueryClient();
 
@@ -20,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/signup/Localsignup" element={<LocalSignup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

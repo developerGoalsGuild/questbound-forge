@@ -195,6 +195,12 @@ module "appsync" {
       data_source = "DDB"
       code_path   = "${local.resolvers_dir}/sendMessage.js"
     }
+    "Query.isEmailAvailable" = {
+      type        = "Query"
+      field       = "isEmailAvailable"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/isEmailAvailable.js"
+    }
     "Subscription.onMessage" = {
       type        = "Subscription"
       field       = "onMessage"
@@ -306,4 +312,3 @@ module "network" {
   api_gateway_authorizer_lambda_role_arn = module.iam.lambda_authorizer_role_arn
 
 }
-

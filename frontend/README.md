@@ -1,73 +1,66 @@
-# Welcome to your Lovable project
+# React Sign-Up Pages with AWS AppSync and i18n
 
-## Project info
+## Overview
 
-**URL**: https://lovable.dev/projects/798497a2-3f1f-4e49-a0ec-293e961f7d8f
+This project contains two React sign-up pages integrated with AWS AppSync for user creation and a simulated email confirmation service. It supports multi-language translations (English, Spanish, French) using the existing i18n framework.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- Local User Sign-Up with full form validation and password confirmation.
+- Social Login Sign-Up with pre-filled, read-only email.
+- Calls AWS AppSync GraphQL resolver `createuser.js` to create users.
+- Calls `user-service` method `confirmEmail` to send verification emails.
+- Multi-language support for all UI text and validation messages.
+- Environment-specific AWS Amplify configuration for development and production.
+- Comprehensive unit tests for both sign-up pages.
 
-**Use Lovable**
+## Setup
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/798497a2-3f1f-4e49-a0ec-293e961f7d8f) and start prompting.
+1. Install dependencies:
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+npm install
+```
 
-**Use your preferred IDE**
+2. Configure environment variables and AWS Amplify:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Update `frontend/src/config/aws-exports.prod.ts` with your production AppSync endpoint.
+- Development config is pre-filled with the provided dev endpoint.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+3. Run the development server:
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- Import and use `<LocalSignUp />` for local user registration.
+- Import and use `<SocialSignUp email="user@example.com" />` for social login registration.
 
-**Use GitHub Codespaces**
+## Testing
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Run unit tests with:
 
-## What technologies are used for this project?
+```bash
+npm test
+```
 
-This project is built with:
+Tests cover form validation, submission success, error handling, and UI rendering in multiple languages.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Notes
 
-## How can I deploy this project?
+- The `confirmEmail` function is simulated and should be replaced with actual backend integration.
+- The user status is set to `"email confirmation pending"` on creation to reflect email verification state.
+- The AWS Amplify configuration is designed to be flexible for future JWT token support.
 
-Simply open [Lovable](https://lovable.dev/projects/798497a2-3f1f-4e49-a0ec-293e961f7d8f) and click on Share -> Publish.
+## File Structure
 
-## Can I connect a custom domain to my Lovable project?
+- `src/config/` - AWS Amplify environment configs.
+- `src/components/signup/` - Sign-up page components and tests.
+- `src/lib/api.ts` - API calls to AppSync and user-service.
+- `src/i18n/translations.ts` - Multi-language translations.
 
-Yes, you can!
+## Contact
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+For questions or support, please contact the development team.

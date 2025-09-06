@@ -13,7 +13,7 @@ export function request(ctx) {
   if (!roomId) util.error('roomId required', 'Validation');
   if (!text) util.error('text required', 'Validation');
 
-  const ts =((new Date()).getTime());
+  const ts = util.time.nowEpochMilliSeconds();
   const id = util.autoId();
 
   const item = {
