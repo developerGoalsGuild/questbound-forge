@@ -1,6 +1,9 @@
-aws_region           = "us-east-2"
-environment          = "dev"
-api_stage_name       = "v1"
-appsync_auth_type = "AWS_LAMBDA"
+# Dev environment tfvars
+environment                 = "dev"
+enable_appsync_api_key      = true
 
-  
+# WAF disabled in dev
+enable_appsync_waf          = false
+waf_enforce                 = false
+enable_appsync_waf_logging  = false
+enable_waf_logging_stream   = false

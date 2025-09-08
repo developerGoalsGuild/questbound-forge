@@ -6,3 +6,9 @@ export const IS_EMAIL_AVAILABLE = gql`
   }
 `;
 
+
+export const IS_NICKNAME_AVAILABLE = gql`
+  query IsNicknameAvailable($nickname: String!) {
+    isNicknameAvailable(nickname: $nickname)
+  }
+`;

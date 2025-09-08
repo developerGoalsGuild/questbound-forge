@@ -1,0 +1,29 @@
+{
+  "args": {
+    "input": {
+      "nickname": "neo",
+      "email": "neo@example.com",
+      "fullName": "Neo Anderson",
+      "birthDate": "1995-05-20",
+      "country": "US",
+      "language": "en",
+      "gender": "",
+      "pronouns": "they/them",
+      "bio": "Just a dev exploring goals.",
+      "tags": ["dev", "golang"],
+      "password": "dev-secret"
+    }
+  },
+  "identity": {
+    "sub": "00000000-0000-4000-8000-000000000001",
+    "username": "neo",
+    "claims": {
+      "sub": "00000000-0000-4000-8000-000000000001",
+      "email": "neo@example.com",
+      "email_verified": true
+    },
+    "sourceIp": ["127.0.0.1"],
+    "groups": []
+  }
+}
+

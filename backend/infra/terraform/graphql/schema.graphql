@@ -25,20 +25,22 @@ enum TaskStatus {
 
 # Types
 type User {
-  id: ID!
-  email: String
+  id: ID! @aws_api_key
+  email: String @aws_api_key
   fullName: String
   nickname: String
   birthDate: AWSDate
-  status: String
+  status: String @aws_api_key
   country: String
   language: String
+  gender: String
   pronouns: String
   bio: String
   tags: [String!]!
   tier: String!                 # "free" | "premium" etc.
   createdAt: AWSTimestamp
   updatedAt: AWSTimestamp
+  ageYears: Int
 }
 
 type Goal {
@@ -89,7 +91,8 @@ type Query {
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
   offers(tags: [String!], limit: Int = 20): [Offer!]!
-  isEmailAvailable(email: String!): Boolean!
+  isEmailAvailable(email: String!): Boolean! @aws_api_key
+  isNicknameAvailable(nickname: String!): Boolean! @aws_api_key
 }
 
 # Mutations
@@ -98,7 +101,7 @@ type Mutation {
   Create a user profile. Accepts a bcrypt password hash (NEVER plaintext).
   The resolver sets tier to 'free' by default.
   """
-  createUser(input: CreateUserInput!): User!
+  createUser(input: CreateUserInput!): User! @aws_api_key
 
   """
   Create a goal for the current user (from JWT).
@@ -134,6 +137,7 @@ input CreateUserInput {
   status: String
   country: String!
   language: String = "en"
+  gender: String
   pronouns: String
   bio: String
   tags: [String!]

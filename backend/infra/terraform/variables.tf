@@ -51,3 +51,44 @@ variable "resolvers_dir" {
   default = ""
 }
 
+
+# Enable public API key for AppSync (additional auth provider)
+variable "enable_appsync_api_key" {
+  type    = bool
+  default = false
+}
+# Enable AWS WAFv2 for AppSync
+variable "enable_appsync_waf" {
+  type    = bool
+  default = false
+}
+
+# Rate limit per 5 minutes per IP
+variable "waf_rate_limit" {
+  type    = number
+  default = 2000
+}
+
+# WAF enforce/monitor toggle
+variable "waf_enforce" {
+  description = "If true, WAF rules block. If false, they only count (monitor)."
+  type        = bool
+  default     = false
+}
+
+# Enable WAF logging (requires Kinesis Data Firehose ARN)
+variable "enable_appsync_waf_logging" {
+  type    = bool
+  default = false
+}
+
+variable "waf_logging_firehose_arn" {
+  type    = string
+  default = ""
+}
+
+# Provision a Firehose->S3 stream for WAF logging
+variable "enable_waf_logging_stream" {
+  type    = bool
+  default = false
+}

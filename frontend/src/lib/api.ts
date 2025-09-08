@@ -1,6 +1,6 @@
 import { generateClient } from "aws-amplify/api";
 import { CREATE_USER } from "@/graphql/mutations";
-import { IS_EMAIL_AVAILABLE } from "@/graphql/queries";
+import { IS_EMAIL_AVAILABLE, IS_NICKNAME_AVAILABLE } from "@/graphql/queries";
 
 export interface CreateUserInput {
   email: string;
@@ -22,7 +22,7 @@ export async function createUser(input: CreateUserInput) {
   const { data, errors } = await client.graphql({
     query: CREATE_USER,
     variables: { input },
-    // authMode: "userPool", // or "apiKey" | "iam" | "oidc" | "lambda" if needed
+    authMode: 'apiKey',
   });
 
   if (errors?.length) {
@@ -45,9 +45,22 @@ export async function isEmailAvailable(email: string): Promise<boolean> {
   const { data, errors } = await client.graphql({
     query: IS_EMAIL_AVAILABLE,
     variables: { email },
+    authMode: 'apiKey',
   });
   if (errors?.length) {
     throw new Error(errors.map(e => e.message).join(" | "));
   }
   return Boolean((data as any)?.isEmailAvailable);
+}
+
+export async function isNicknameAvailable(nickname: string): Promise<boolean> {
+  const { data, errors } = await client.graphql({
+    query: IS_NICKNAME_AVAILABLE,
+    variables: { nickname },
+    authMode: 'apiKey',
+  });
+  if (errors?.length) {
+    throw new Error(errors.map(e => e.message).join(" | "));
+  }
+  return Boolean((data as any)?.isNicknameAvailable);
 }

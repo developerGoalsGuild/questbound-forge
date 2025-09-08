@@ -28,3 +28,32 @@ output "table_name" { value = module.ddb.table_name }
 
 #output "table_stream_arn"  { value = module.goalsguild_table.table_stream_arn }
 #output "app_rw_policy_arn" { value = module.goalsguild_table.app_rw_policy_arn }
+output "appsync_graphql_url" {
+  description = "AppSync GraphQL endpoint URL"
+  value       = module.appsync.graphql_url
+}
+
+output "appsync_api_id" {
+  description = "AppSync API ID"
+  value       = module.appsync.api_id
+}
+
+output "appsync_api_key_id" {
+  description = "AppSync API key ID (x-api-key) when enabled"
+  value       = module.appsync.api_key_id
+}
+
+output "appsync_api_key_expires" {
+  description = "AppSync API key expiration when enabled"
+  value       = module.appsync.api_key_expires
+}
+
+output "appsync_api_arn" {
+  description = "AppSync API ARN"
+  value       = module.appsync.api_arn
+}
+
+output "appsync_api_key_expires_human" {
+  description = "AppSync API key expiration (human-readable)"
+  value       = module.appsync.api_key_expires_human
+}

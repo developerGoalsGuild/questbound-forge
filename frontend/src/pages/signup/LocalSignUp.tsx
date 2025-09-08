@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
-import { createUser, confirmEmail, isEmailAvailable } from '@/lib/api';
+import { createUser, confirmEmail, isEmailAvailable, isNicknameAvailable } from '@/lib/api';
 import { getCountries, initialsFor, isValidCountryCode } from '@/i18n/countries';
 
 interface FormData {
@@ -13,6 +13,7 @@ interface FormData {
   bio: string;
   birthDate: string;
   country: string;
+  gender: string;
 }
 
 const LocalSignUp: React.FC = () => {
@@ -28,13 +29,32 @@ const LocalSignUp: React.FC = () => {
     pronouns: '',
     bio: '',
     birthDate: '',
-    country: ''
+    country: '',
+        gender: ''
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
+        const [nickChecking, setNickChecking] = useState(false);
+  const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const n = formData.nickname.trim();
+    setNicknameAvailable(null);
+    if (!n) { setNickChecking(false); return; }
+    const h = setTimeout(async () => {
+      try {
+        setNickChecking(true);
+        const available = await isNicknameAvailable(n);
+        setNicknameAvailable(available);
+        setErrors(prev => ({ ...prev, nickname: available ? undefined : (signup.validation?.nicknameTaken || 'Nickname already in use') }));
+      } catch {}
+      finally { setNickChecking(false); }
+    }, 500);
+    return () => clearTimeout(h);
+  }, [formData.nickname]);
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
 
   // Formats a Date to YYYY-MM-DD in local time without timezone shifts
@@ -47,6 +67,22 @@ const LocalSignUp: React.FC = () => {
 
   const { language } = useTranslation();
   const countries = useMemo(() => getCountries(language), [language]);
+  const pronounOptions = [
+    { value: 'she/her', label: signup.options?.pronouns?.sheHer || 'She/Her' },
+    { value: 'he/him', label: signup.options?.pronouns?.heHim || 'He/Him' },
+    { value: 'they/them', label: signup.options?.pronouns?.theyThem || 'They/Them' },
+    { value: 'she/they', label: signup.options?.pronouns?.sheThey || 'She/They' },
+    { value: 'he/they', label: signup.options?.pronouns?.heThey || 'He/They' },
+    { value: 'other', label: signup.options?.common?.other || 'Other' },
+  ];
+  const genderOptions = [
+    { value: 'female', label: signup.options?.genders?.female || 'Female' },
+    { value: 'male', label: signup.options?.genders?.male || 'Male' },
+    { value: 'non-binary', label: signup.options?.genders?.nonBinary || 'Non-binary' },
+    { value: 'transgender', label: signup.options?.genders?.transgender || 'Transgender' },
+    { value: 'prefer-not', label: signup.options?.common?.preferNot || 'Prefer not to say' },
+    { value: 'other', label: signup.options?.common?.other || 'Other' },
+  ];
   const [countryQuery, setCountryQuery] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
   const countryInputRef = useRef<HTMLInputElement | null>(null);
@@ -193,8 +229,9 @@ const LocalSignUp: React.FC = () => {
         pronouns: formData.pronouns,
         bio: formData.bio,
         birthDate: formData.birthDate,
-        country: formData.country
-      });
+        country: formData.country,
+        gender: formData.gender
+        });
       await confirmEmail(formData.email);
       setSuccessMessage(signup.successMessage);
       setFormData({
@@ -207,6 +244,7 @@ const LocalSignUp: React.FC = () => {
         bio: '',
         birthDate: '',
         country: '',
+        gender: '',
       });
     } catch (error) {
       setErrorMessage(signup.errorMessage);
@@ -240,14 +278,16 @@ const LocalSignUp: React.FC = () => {
           )}
         </div>
         {formData.email && !errors.email && (
-          <div className="text-xs mt-[-8px] mb-2">
-            {emailChecking ? (
-              <span className="text-gray-500">{t.common.loading}</span>
-            ) : emailAvailable === true ? (
-              <span className="text-green-600">✓</span>
-            ) : null}
-          </div>
-        )}
+  <div className="text-xs mt-[-8px] mb-2">
+    {emailChecking ? (
+      <span className="text-gray-500">{t.common.loading}</span>
+    ) : emailAvailable === true ? (
+      <span className="text-green-600">{(signup.validation?.emailAvailable as string) || t.common.success || 'Available'}</span>
+    ) : emailAvailable === false ? (
+      <span className="text-red-600">{(signup.validation?.emailTaken as string) || 'Email already in use'}</span>
+    ) : null}
+  </div>
+)}
 
         <div className="mb-4">
           <label htmlFor="fullName" className="block font-medium mb-1">
@@ -288,6 +328,33 @@ const LocalSignUp: React.FC = () => {
             <p id="nickname-error" className="text-red-600 text-sm mt-1">
               {errors.nickname}
             </p>
+          )}
+        </div>
+        {formData.nickname && !errors.nickname && (
+          <div id="nickname-status" className="text-xs mt-[-8px] mb-2">
+            {nickChecking ? (
+              <span className="text-gray-500">{t.common.loading}</span>
+            ) : nicknameAvailable === true ? (
+              <span className="text-green-600">{(signup.validation?.nicknameAvailable as string) || (signup.validation?.available as string) || 'Available'}</span>
+            ) : nicknameAvailable === false ? (
+              <span className="text-red-600">{(signup.validation?.nicknameTaken as string) || 'Nickname already in use'}</span>
+            ) : null}
+          </div>
+        )}
+        <div className="mb-4">
+          <label htmlFor="pronouns" className="block font-medium mb-1">{signup.pronouns || 'Pronouns'}</label>
+          <input
+            id="pronouns"
+            name="pronouns"
+            type="text"
+            value={formData.pronouns}
+            onChange={handleChange}
+            className={'w-full border rounded px-3 py-2 ' + ((errors as any).pronouns ? 'border-red-500' : 'border-gray-300')}
+            aria-invalid={!!(errors as any).pronouns}
+            aria-describedby="pronouns-error"
+          />
+          {(errors as any).pronouns && (
+            <p id="pronouns-error" className="text-red-600 text-sm mt-1">{(errors as any).pronouns}</p>
           )}
         </div>
 

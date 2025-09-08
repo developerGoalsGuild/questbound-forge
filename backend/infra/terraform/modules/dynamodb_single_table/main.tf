@@ -30,11 +30,15 @@ resource "aws_dynamodb_table" "this" {
         name = "GSI2SK" 
         type = "S" 
         }
+    attribute { 
+        name = "GSI3PK" 
+        type = "S" 
+        }
+    attribute { 
+        name = "GSI3SK" 
+        type = "S" 
+        }
     /*attribute { 
-        name = "GSI3PK" type = "S" }
-    attribute { 
-        name = "GSI3SK" type = "S" }
-    attribute { 
         name = "GSI4PK" type = "S" }
     attribute { 
         name = "GSI4SK" type = "S" }
@@ -60,7 +64,12 @@ resource "aws_dynamodb_table" "this" {
         range_key = "GSI2SK" 
         projection_type = "ALL" 
         }
-    #global_secondary_index { name = "GSI3" hash_key = "GSI3PK" range_key = "GSI3SK" projection_type = "ALL" }
+    global_secondary_index { 
+        name = "GSI3" 
+        hash_key = "GSI3PK" 
+        range_key = "GSI3SK" 
+        projection_type = "ALL"
+    }
     #global_secondary_index { name = "GSI4" hash_key = "GSI4PK" range_key = "GSI4SK" projection_type = "ALL" }
     #global_secondary_index { name = "GSI5" hash_key = "GSI5PK" range_key = "GSI5SK" projection_type = "ALL" }
     #global_secondary_index { name = "GSI6" hash_key = "GSI6PK" range_key = "GSI6SK" projection_type = "ALL" }

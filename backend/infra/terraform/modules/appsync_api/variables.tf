@@ -34,3 +34,14 @@ variable "resolvers" {
 
 
 variable "ddb_table_arn"  { type = string }
+# Optional: enable API key as additional auth provider
+variable "enable_api_key" {
+  type    = bool
+  default = false
+}
+
+# Optional: API key expiry in days (only used if you set it in the resource)
+variable "api_key_expires_days" {
+  type    = number
+  default = 30
+}

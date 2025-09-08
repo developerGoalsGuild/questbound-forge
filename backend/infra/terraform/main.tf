@@ -163,6 +163,7 @@ module "appsync" {
   #user_pool_id = module.cognito.enabled ? module.cognito.user_pool_id : null
   #user_pool_client_id = module.cognito.enabled ? module.cognito.app_client_id : null
   region = var.aws_region
+  enable_api_key = var.enable_appsync_api_key
 
 
   # Attach DDB as a data source and register resolvers from local files
@@ -200,6 +201,12 @@ module "appsync" {
       field       = "isEmailAvailable"
       data_source = "DDB"
       code_path   = "${local.resolvers_dir}/isEmailAvailable.js"
+    }
+    "Query.isNicknameAvailable" = {
+      type        = "Query"
+      field       = "isNicknameAvailable"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/isNicknameAvailable.js"
     }
     "Subscription.onMessage" = {
       type        = "Subscription"
