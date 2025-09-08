@@ -57,3 +57,13 @@ output "appsync_api_key_expires_human" {
   description = "AppSync API key expiration (human-readable)"
   value       = module.appsync.api_key_expires_human
 }
+
+output "cognito_user_pool_id" {
+  description = "ID of the Cognito User Pool"
+  value       = module.network.cognito_user_pool_id
+}
+
+output "cognito_user_pool_client_id" {
+  description = "App client ID for the Cognito User Pool"
+  value       = module.network.cognito_user_pool_client_id
+}

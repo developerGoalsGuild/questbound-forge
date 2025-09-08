@@ -11,7 +11,7 @@
       "pronouns": "they/them",
       "bio": "Just a dev exploring goals.",
       "tags": ["dev", "golang"],
-      "password": "dev-secret"
+      "password": "Dev-Secret1!"
     }
   },
   "identity": {
@@ -26,4 +26,3 @@
     "groups": []
   }
 }
-

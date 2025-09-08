@@ -142,8 +142,18 @@ const LocalSignUp: React.FC = () => {
     }
     if (!formData.password) {
       newErrors.password = validation.required;
-    } else if (formData.password.length < 8) {
-      newErrors.password = validation.passwordMinLength;
+    } else {
+      const pwd = formData.password;
+      const rules = [
+        { test: (s: string) => s.length >= 8, msg: validation.passwordMinLength },
+        { test: (s: string) => /[a-z]/.test(s), msg: validation.passwordLower || 'Must include a lowercase letter' },
+        { test: (s: string) => /[A-Z]/.test(s), msg: validation.passwordUpper || 'Must include an uppercase letter' },
+        { test: (s: string) => /[0-9]/.test(s), msg: validation.passwordDigit || 'Must include a digit' },
+        { test: (s: string) => /[!@#$%^&*()\-_=+\[\]{};:,.?/]/.test(s), msg: validation.passwordSpecial || 'Must include a special character' },
+      ];
+      for (const r of rules) {
+        if (!r.test(pwd)) { newErrors.password = r.msg; break; }
+      }
     }
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = validation.required;

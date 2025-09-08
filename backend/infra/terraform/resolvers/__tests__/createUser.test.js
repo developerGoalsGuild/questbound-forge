@@ -13,12 +13,13 @@ function loadCtx(file) {
 }
 
 describe('createUser resolver', () => {
-  test('request builds TransactWriteItems for user + email lock', () => {
+  test('request invokes Lambda with sanitized payload', () => {
     const ctx = loadCtx('createUser.request.json');
     const req = request(ctx);
-    expect(req.operation).toBe('TransactWriteItems');
-    expect(Array.isArray(req.transactItems)).toBe(true);
-    expect(req.transactItems.length).toBe(2);
+    expect(req.operation).toBe('Invoke');
+    expect(req.payload).toBeTruthy();
+    expect(req.payload.input.email).toBe(ctx.args.input.email.toLowerCase());
+    expect(req.payload.action).toBe('signup');
   });
 
   test('validation: invalid email triggers error', () => {
@@ -29,29 +30,18 @@ describe('createUser resolver', () => {
 
   test('response reconstructs user from args/identity', () => {
     const ctx = loadCtx('createUser.request.json');
-    const out = response({ args: ctx.args, identity: ctx.identity, result: {} });
+    const out = response({ args: ctx.args, identity: ctx.identity, result: { ok: true } });
     expect(out.id).toBe(ctx.identity.sub);
     expect(out.email).toBe(ctx.args.input.email.toLowerCase());
     expect(out.nickname).toBe(ctx.args.input.nickname);
     expect(out.tier).toBe('free');
   });
 
-  test('response derives id from result keys when identity is missing', () => {
+  test('response uses autoId when identity is missing', () => {
     const ctx = loadCtx('createUser.request.json');
-    const emailLower = ctx.args.input.email.toLowerCase();
-    const fakeId = '00000000-0000-4000-8000-FAKEID000123';
-    const out = response({
-      args: ctx.args,
-      identity: {},
-      result: {
-        keys: [
-          { PK: `EMAIL#${emailLower}`, SK: 'UNIQUE#USER' },
-          { PK: `USER#${fakeId}`, SK: `PROFILE#${fakeId}` }
-        ]
-      }
-    });
-    expect(out.id).toBe(fakeId);
-    expect(out.email).toBe(emailLower);
+    const out = response({ args: ctx.args, identity: {}, result: { ok: true } });
+    expect(out.id).toBeTruthy();
+    expect(out.email).toBe(ctx.args.input.email.toLowerCase());
     expect(out.nickname).toBe(ctx.args.input.nickname);
   });
 });

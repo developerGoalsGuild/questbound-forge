@@ -17,6 +17,18 @@ if (-not (Test-Path $TfvarsFile)) {
   Write-Error "tfvars file not found: $TfvarsFile"
 }
 
+# Lint resolvers to catch AppSync runtime limitations early
+Push-Location $TerraformDir
+try {
+  if (-not (Test-Path (Join-Path $TerraformDir 'node_modules'))) {
+    Write-Host "[deploy] Installing dev dependencies (lint)..." -ForegroundColor DarkCyan
+    npm install
+  }
+  Write-Host "[deploy] Linting resolvers..." -ForegroundColor Cyan
+  npm run lint
+} finally { Pop-Location }
+if ($LASTEXITCODE -ne 0) { Write-Error "[deploy] Lint failed. Aborting." }
+
 # Run unit tests for resolvers before deploying
 $TestScript = Join-Path $ScriptDir 'test.ps1'
 Write-Host "[deploy] Running backend resolver tests..." -ForegroundColor Cyan
@@ -42,12 +54,29 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "[deploy] Validating createUser resolver via aws appsync evaluate-code..." -ForegroundColor Cyan
 $AwsCli = Get-Command aws -ErrorAction SilentlyContinue
 if (-not $AwsCli) { Write-Error "[deploy] AWS CLI not found in PATH. Install AWS CLI v2 to use evaluate-code validation." }
+$AwsPath = $AwsCli.Source
+# Robust Windows detection (older PS may not have $IsWindows)
+$IsWin = $true
+try {
+  if ($null -ne $IsWindows) { $IsWin = [bool]$IsWindows }
+  else {
+    $IsWin = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+  }
+} catch { $IsWin = $env:OS -eq 'Windows_NT' }
 
 # Ensure evaluate-code is supported by installed CLI
-$appsyncHelp = (& aws appsync help 2>$null)
-if (-not $appsyncHelp -or ($appsyncHelp -notmatch 'evaluate-code')) {
-  Write-Error "[deploy] Your AWS CLI does not support 'aws appsync evaluate-code'. Please update to AWS CLI v2 (2.13.7+) and retry."
+function Test-EvaluateCodeSupport {
+  try {
+    & aws appsync evaluate-code help | Out-Null
+    return ($LASTEXITCODE -eq 0)
+  } catch {
+    return $false
+  }
 }
+if (-not (Test-EvaluateCodeSupport)) {
+  Write-Warning "[deploy] 'aws appsync evaluate-code' command not available in your AWS CLI. Skipping code evaluation."
+  $SkipEvaluate = $true
+} else { $SkipEvaluate = $false }
 
 # Try to read current AppSync API ID from terraform outputs (existing state)
 Push-Location $TerraformDir
@@ -61,40 +90,56 @@ if (-not (Test-Path $CreateUserPath))   { Write-Error "[deploy] Resolver not fou
 if (-not (Test-Path $CreateUserReqCtx)) { Write-Error "[deploy] Request context not found: $CreateUserReqCtx" }
 if (-not (Test-Path $CreateUserRespCtx)) { Write-Warning "[deploy] Response context not found: $CreateUserRespCtx (skipping response eval)" }
 
-# Helper to run evaluate-code and parse JSON
-function Invoke-EvaluateCode {
-  param(
-    [string]$ApiId,
-    [string]$CodePath,
-    [string]$ContextPath,
-    [ValidateSet('request','response')][string]$Function
-  )
-  $args = @('appsync','evaluate-code',
-            '--api-id', $ApiId,
-            '--runtime', 'name=APPSYNC_JS,runtimeVersion=1.0.0',
-            '--code', "file://$CodePath",
-            '--context', "file://$ContextPath",
-            '--function', $Function)
-  $json = & aws @args | Out-String
-  try { return $json | ConvertFrom-Json } catch { return $null, $json }
-}
+if (-not $SkipEvaluate) {
+  # Helper to run evaluate-code and parse JSON with exit code check
+  function Invoke-EvaluateCode {
+    param(
+      [string]$ApiId,
+      [string]$CodePath,
+      [string]$ContextPath,
+      [ValidateSet('request','response')][string]$Function
+    )
+    $origEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    if ($IsWin) {
+      # Invoke via cmd.exe to avoid PS argument parsing issues (include --api-id). Use file:// (text) for code/context.
+      $cmdLine = '"' + $AwsPath + '" appsync evaluate-code --runtime name=APPSYNC_JS,runtimeVersion=1.0.0 --code ' + 'file://"' + $CodePath + '"' + ' --context ' + 'file://"' + $ContextPath + '"' + ' --function ' + $Function
+      $out = & cmd.exe /c $cmdLine 2>&1
+    } else {
+      $arguments = @('appsync','evaluate-code',        
+        '--runtime', 'name=APPSYNC_JS,runtimeVersion=1.0.0',
+        '--code', "file://$CodePath",
+        '--context', "file://$ContextPath",
+        '--function', $Function)
+      $out = & $AwsPath @arguments 2>&1
+    }
+    $ErrorActionPreference = $origEAP
+    $exit = $LASTEXITCODE
+    $raw = ($out | Out-String)
+    if ($exit -ne 0) {
+      Write-Host $raw
+      Write-Error "[deploy] aws appsync evaluate-code ($Function) exited with code $exit. Aborting."
+    }
+    try { return $raw | ConvertFrom-Json } catch { return $null }
+  }
 
-# Evaluate request
-$evalReq = Invoke-EvaluateCode -ApiId $ApiId -CodePath $CreateUserPath -ContextPath $CreateUserReqCtx -Function 'request'
-if ($null -eq $evalReq) { Write-Error "[deploy] Failed to parse evaluate-code response for request." }
-if ($evalReq.errors -and $evalReq.errors.Count -gt 0) {
-  Write-Host ($evalReq | ConvertTo-Json -Depth 6) | Out-String
-  Write-Error "[deploy] appsync evaluate-code reported errors for createUser request. Aborting."
-} else { Write-Host "[deploy] createUser request evaluation passed." -ForegroundColor Green }
+  # Evaluate request
+  $evalReq = Invoke-EvaluateCode -ApiId $ApiId -CodePath $CreateUserPath -ContextPath $CreateUserReqCtx -Function 'request'
+  if ($null -eq $evalReq) { Write-Error "[deploy] Failed to parse evaluate-code JSON for request. Aborting." }
+  if ($evalReq.errors -and $evalReq.errors.Count -gt 0) {
+    Write-Host ($evalReq | ConvertTo-Json -Depth 6)
+    Write-Error "[deploy] appsync evaluate-code reported errors for createUser request. Aborting."
+  } else { Write-Host "[deploy] createUser request evaluation passed." -ForegroundColor Green }
 
-# Evaluate response (optional if context exists)
-if (Test-Path $CreateUserRespCtx) {
-  $evalRes = Invoke-EvaluateCode -ApiId $ApiId -CodePath $CreateUserPath -ContextPath $CreateUserRespCtx -Function 'response'
-  if ($null -eq $evalRes) { Write-Error "[deploy] Failed to parse evaluate-code response for response." }
-  if ($evalRes.errors -and $evalRes.errors.Count -gt 0) {
-    Write-Host ($evalRes | ConvertTo-Json -Depth 6) | Out-String
-    Write-Error "[deploy] appsync evaluate-code reported errors for createUser response. Aborting."
-  } else { Write-Host "[deploy] createUser response evaluation passed." -ForegroundColor Green }
+  # Evaluate response (optional if context exists)
+  if (Test-Path $CreateUserRespCtx) {
+    $evalRes = Invoke-EvaluateCode -ApiId $ApiId -CodePath $CreateUserPath -ContextPath $CreateUserRespCtx -Function 'response'
+    if ($null -eq $evalRes) { Write-Error "[deploy] Failed to parse evaluate-code JSON for response. Aborting." }
+    if ($evalRes.errors -and $evalRes.errors.Count -gt 0) {
+      Write-Host ($evalRes | ConvertTo-Json -Depth 6)
+      Write-Error "[deploy] appsync evaluate-code reported errors for createUser response. Aborting."
+    } else { Write-Host "[deploy] createUser response evaluation passed." -ForegroundColor Green }
+  }
 }
 
 # Terraform init/apply
@@ -126,6 +171,11 @@ Push-Location $FrontendDir
 try {
   Write-Host "[deploy] Syncing API key to .env.$mode" -ForegroundColor Cyan
   node $syncScript --mode=$mode | Write-Output
+  $syncCognito = Join-Path $ScriptDir 'sync_cognito_to_env.js'
+  if (Test-Path $syncCognito) {
+    Write-Host "[deploy] Syncing Cognito vars to .env.$mode" -ForegroundColor Cyan
+    node $syncCognito --mode=$mode | Write-Output
+  }
 }
 finally {
   Pop-Location

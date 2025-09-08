@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "gg-backend-infra-terraform": "file:../../.."
+  }
+}

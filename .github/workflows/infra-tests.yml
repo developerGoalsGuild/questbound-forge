@@ -1,0 +1,31 @@
+name: Backend Infra Tests
+
+on:
+  push:
+    paths:
+      - 'backend/infra/terraform/**'
+      - '.github/workflows/infra-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/infra/terraform/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        working-directory: backend/infra/terraform
+        run: npm install
+
+      - name: Run tests
+        working-directory: backend/infra/terraform
+        run: npm test -- --ci
+

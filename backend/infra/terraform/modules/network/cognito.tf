@@ -40,3 +40,11 @@ resource "aws_cognito_user_pool_client" "user_pool_client" {
     Component   = "cognito"
   }*/
 }
+
+# Optional Hosted UI domain (created only if a domain prefix is provided)
+resource "aws_cognito_user_pool_domain" "user_pool_domain" {
+  count        = var.cognito_domain_prefix != "" ? 1 : 0
+  domain       = var.cognito_domain_prefix
+  user_pool_id = aws_cognito_user_pool.user_pool.id
+}
+

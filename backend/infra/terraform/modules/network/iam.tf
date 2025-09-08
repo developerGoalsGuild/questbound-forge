@@ -121,4 +121,26 @@ resource "aws_iam_role_policy" "lambda_ssm_read_policy" {
   })
 }
 
+# Allow Lambda exec role to write to gg_core table
+resource "aws_iam_role_policy" "lambda_ddb_write" {
+  name = "goalsguild_lambda_ddb_write_${var.environment}"
+  role = aws_iam_role.lambda_exec_role.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect: "Allow",
+        Action: [
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:TransactWriteItems"
+        ],
+        Resource: [
+          var.ddb_table_arn,
+          "${var.ddb_table_arn}/index/*"
+        ]
+      }
+    ]
+  })
+}
 

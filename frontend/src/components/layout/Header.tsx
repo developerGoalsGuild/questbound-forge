@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Shield, Menu, X, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -72,11 +73,11 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant="outline">
-              {t.nav.login}
+            <Button className="btn-heraldic text-primary-foreground" variant="outline" asChild>
+              <Link to="/login/Login">{t.nav.login}</Link>
             </Button>
             <Button className="btn-heraldic text-primary-foreground" asChild>
-              <a href="/signup/LocalSignUp">{t.nav.signup}</a>
+              <Link to="/signup/LocalSignUp">{t.nav.signup}</Link>
             </Button>
           </div>
 
@@ -109,11 +110,11 @@ const Header = () => {
               </a>
               
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button variant="outline" className="justify-start">
-                  {t.nav.login}
+                <Button className="btn-heraldic text-primary-foreground justify-start" variant="outline" className="justify-start" asChild>
+                  <Link to="/login/Login">{t.nav.login}</Link>
                 </Button>
-                <Button className="btn-heraldic text-primary-foreground justify-start">
-                  {t.nav.signup}
+                <Button className="btn-heraldic text-primary-foreground justify-start" asChild>
+                  <Link to="/signup/LocalSignUp">{t.nav.signup}</Link>
                 </Button>
               </div>
             </nav>

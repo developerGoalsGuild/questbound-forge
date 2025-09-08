@@ -92,3 +92,9 @@ variable "enable_waf_logging_stream" {
   type    = bool
   default = false
 }
+
+variable "cognito_domain_prefix" {
+  description = "Optional domain prefix for Cognito Hosted UI (must be globally unique per region)"
+  type        = string
+  default     = ""
+}

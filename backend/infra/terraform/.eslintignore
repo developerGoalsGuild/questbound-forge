@@ -1,0 +1,4 @@
+resolvers/__tests__/**
+lambdas/**
+node_modules/**
+
