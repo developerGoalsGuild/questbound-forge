@@ -46,4 +46,9 @@ variable "ddb_table_arn" {
   type        = string
 }
 
+variable "ddb_table_name" {
+  description = "Name of the gg_core DynamoDB table"
+  type        = string
+}
+
 

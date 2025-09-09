@@ -25,7 +25,12 @@ jobs:
         working-directory: backend/infra/terraform
         run: npm install
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: backend/infra/terraform
-        run: npm test -- --ci
+        run: npm run test:cov -- --ci
 
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: infra-jest-coverage
+          path: backend/infra/terraform/coverage

@@ -35,6 +35,7 @@ BLOCK_THRESHOLD = 3
 app = FastAPI(title="Goals Guild Serverless Auth API", version="1.0.0")
 ddb = boto3.resource("dynamodb")
 users = ddb.Table(settings.ddb_users_table)
+core = ddb.Table(settings.core_table_name)
 
 @app.get("/health")
 def healthz():
@@ -60,6 +61,41 @@ def signup(payload: dict, request: Request):
         user_id = str(uuid.uuid4())
         password_hash = hash_password(body.password)
         ts = int(time.time())
+        # Extended profile fields (optional)
+        nickname = (payload.get("nickname") or "").strip()
+        full_name = (payload.get("fullName") or payload.get("name") or "").strip()
+        country = (payload.get("country") or "").strip().upper()
+        birth_date = (payload.get("birthDate") or "").strip()
+        language = payload.get("language") or "en"
+        gender = payload.get("gender") or ""
+        pronouns = payload.get("pronouns") or ""
+        bio = payload.get("bio") or ""
+        tags = payload.get("tags") or []
+        status = payload.get("status") or "email confirmation pending"
+
+        # Country allow-list
+        if country:
+            allowed_countries = {"US","CA","MX","BR","AR","CL","CO","PE","VE","UY","PY","BO","EC","GT","CR","PA","DO","CU","HN","NI","SV","JM","TT",
+                "GB","IE","FR","DE","ES","PT","IT","NL","BE","LU","CH","AT","DK","SE","NO","FI","IS","PL","CZ","SK","HU","RO","BG","GR","HR","SI","RS","BA","MK","AL","ME","UA","BY","LT","LV","EE","MD","TR","CY","MT","RU",
+                "CN","JP","KR","IN","PK","BD","LK","NP","BT","MV","TH","MY","SG","ID","PH","VN","KH","LA","MM","BN","TL",
+                "AE","SA","QA","BH","KW","OM","YE","IR","IQ","JO","LB","SY","IL","PS","AF","KZ","KG","UZ","TM","TJ","MN",
+                "AU","NZ","PG","FJ","SB","VU","WS","TO","TV","KI","FM","MH","NR","PW",
+                "EG","MA","DZ","TN","LY","SD","SS","ET","ER","DJ","SO","KE","UG","TZ","RW","BI","CD","CG","GA","GQ","CM","NG","GH","CI","SN","ML","BF","NE","BJ","TG","GM","GN","GW","SL","LR","MR","EH","AO","ZM","ZW","MW","MZ","NA","BW","SZ","LS","MG","MU","SC","CV","ST","KM"}
+            if country not in allowed_countries:
+                raise HTTPException(status_code=400, detail="invalid country")
+        # Birthdate must be <= today - 1 year
+        if birth_date:
+            try:
+                y, m, d = map(int, birth_date.split("-"))
+            except Exception:
+                raise HTTPException(status_code=400, detail="invalid birthDate format, expected YYYY-MM-DD")
+            if not (1 <= m <= 12 and 1 <= d <= 31 and y > 1900):
+                raise HTTPException(status_code=400, detail="invalid birthDate")
+            now_iso = time.strftime("%Y-%m-%d", time.gmtime())
+            cy, cm, cd = map(int, now_iso.split("-"))
+            cutoff_y = cy - 1
+            if y > cutoff_y or (y == cutoff_y and (m > cm or (m == cm and d > cd))):
+                raise HTTPException(status_code=400, detail="birthDate too recent")
         try:
             users.put_item(
                 Item={
@@ -80,6 +116,53 @@ def signup(payload: dict, request: Request):
             if e.response["Error"].get("Code") == "ConditionalCheckFailedException":
                 raise HTTPException(status_code=409, detail="User already exists")
             raise
+
+        # Mirror AppSync createUser write into gg_core (email lock + profile)
+        try:
+            core.put_item(
+                Item={
+                    "PK": f"EMAIL#{email}",
+                    "SK": "UNIQUE#USER",
+                    "type": "EmailUnique",
+                    "email": email,
+                    "userId": user_id,
+                    "createdAt": ts,
+                },
+                ConditionExpression="attribute_not_exists(#pk)",
+                ExpressionAttributeNames={"#pk": "PK"},
+            )
+        except ClientError as e:
+            if e.response["Error"].get("Code") == "ConditionalCheckFailedException":
+                raise HTTPException(status_code=409, detail="Email already in use")
+            raise
+        core.put_item(
+            Item={
+                "PK": f"USER#{user_id}",
+                "SK": f"PROFILE#{user_id}",
+                "type": "User",
+                "id": user_id,
+                "nickname": nickname,
+                "email": email,
+                "fullName": full_name,
+                "birthDate": birth_date or None,
+                "status": status,
+                "country": country,
+                "language": language,
+                "gender": gender,
+                "pronouns": pronouns,
+                "bio": bio,
+                "tags": tags if isinstance(tags, list) else [],
+                "tier": "free",
+                "GSI2PK": f"NICK#{nickname}",
+                "GSI2SK": f"PROFILE#{user_id}",
+                "GSI3PK": f"EMAIL#{email}",
+                "GSI3SK": f"PROFILE#{user_id}",
+                "createdAt": ts,
+                "updatedAt": ts,
+                "GSI1PK": f"USER#{user_id}",
+                "GSI1SK": f"ENTITY#User#{ts}",
+            }
+        )
 
         # email confirmation token (subject carries email|user_id)
         tok = issue_link_token(f"{email}|{user_id}", TokenPurpose.EMAIL_CONFIRM, CONFIRM_TTL)

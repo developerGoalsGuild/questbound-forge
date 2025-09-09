@@ -170,17 +170,9 @@ module "appsync" {
   ddb_table_name              = module.ddb.table_name
   ddb_table_arn               = module.ddb.arn
   lambda_user_function_arn    = module.lambda_appsync_create_user.lambda_arn
-  lambda_persist_function_arn = module.lambda_appsync_persist_user.lambda_arn
 
 
   resolvers = {
-    "Mutation.createUser" = {
-      type        = "Mutation"
-      field       = "createUser"
-      data_source = "LAMBDA_USER"   # unused for pipeline but required by TF schema
-      code_path   = "${local.resolvers_dir}/createUser.pipeline.js"
-      pipeline    = ["createUserSignup", "persistUserProfile"]
-    }
     "Mutation.createGoal" = {
       type        = "Mutation"
       field       = "createGoal"
@@ -220,18 +212,7 @@ module "appsync" {
   }
 
 
-  functions = {
-    createUserSignup = {
-      name        = "createUserSignup"
-      data_source = "LAMBDA_USER"
-      code_path   = "${local.resolvers_dir}/createUser.js"
-    }
-    persistUserProfile = {
-      name        = "persistUserProfile"
-      data_source = "LAMBDA_PERSIST"
-      code_path   = "${local.resolvers_dir}/persistUser.js"
-    }
-  }
+  functions = {}
 
   tags = {
 
@@ -327,24 +308,7 @@ module "lambda_appsync_create_user" {
   }
 }
 
-module "lambda_appsync_persist_user" {
-  source        = "./modules/lambda_zip"
-  function_name = "goalsguild_appsync_persist_user"
-  environment   = var.environment
-  role_arn      = module.network.lambda_exec_role_arn
-  src_dir       = "${path.module}/lambdas/appsync_persist_user"
-  handler       = "index.handler"
-  runtime       = "nodejs20.x"
-  use_powershell = true
-  environment_variables = {
-    TABLE = module.ddb.table_name
-  }
-  log_retention_in_days = 14
-  tags = {
-    Environment = var.environment
-    Project     = "goalsguild"
-  }
-}
+## removed lambda_appsync_persist_user; persistence handled by DDB Function
 
 module "lambda_quest_service" {
   source        = "./modules/lambda"
@@ -374,5 +338,6 @@ module "network" {
   api_gateway_authorizer_lambda_role_arn = module.iam.lambda_authorizer_role_arn
   cognito_domain_prefix                  = var.cognito_domain_prefix
   ddb_table_arn                          = module.ddb.arn
+  ddb_table_name                         = module.ddb.table_name
 
 }

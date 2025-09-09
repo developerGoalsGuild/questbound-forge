@@ -2,7 +2,8 @@ param(
   [ValidateSet('dev','staging','prod')]
   [string]$Env = 'dev',
   [switch]$AutoApprove,
-  [switch]$SkipInit
+  [switch]$SkipInit,
+  [switch]$RunUserTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +16,30 @@ $TfvarsFile   = Join-Path $TerraformDir "environments/$Env.tfvars"
 
 if (-not (Test-Path $TfvarsFile)) {
   Write-Error "tfvars file not found: $TfvarsFile"
+}
+
+# Run Python user-service tests first (optional)
+if ($RunUserTests) {
+  $UserSvcDir = Join-Path $ScriptDir '../../../../backend/services/user-service' | Resolve-Path | Select-Object -ExpandProperty Path
+  if (-not (Test-Path $UserSvcDir)) { Write-Error "[deploy] user-service directory not found: $UserSvcDir" }
+  $python = Get-Command python -ErrorAction SilentlyContinue
+  if (-not $python) { Write-Error "[deploy] Python not found on PATH; cannot run user-service tests. Install Python 3.10+ or omit -RunUserTests." }
+  Push-Location $UserSvcDir
+  try {
+    Write-Host "[deploy] Setting up virtual environment for user-service tests..." -ForegroundColor DarkCyan
+    $venv = Join-Path $UserSvcDir '.venv'
+    if (-not (Test-Path $venv)) { python -m venv .venv }
+    $activate = Join-Path $venv 'Scripts/Activate.ps1'
+    if (-not (Test-Path $activate)) { Write-Error "[deploy] Could not find venv activation script at $activate" }
+    . $activate
+    python -m pip install --upgrade pip | Write-Output
+    pip install -r requirements.txt | Write-Output
+    Write-Host "[deploy] Running user-service tests..." -ForegroundColor Cyan
+    pytest -q
+  } finally {
+    Pop-Location
+  }
+  if ($LASTEXITCODE -ne 0) { Write-Error "[deploy] user-service tests failed. Aborting." }
 }
 
 # Lint resolvers to catch AppSync runtime limitations early

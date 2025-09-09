@@ -1,5 +1,4 @@
 import { generateClient } from "aws-amplify/api";
-import { CREATE_USER } from "@/graphql/mutations";
 import { IS_EMAIL_AVAILABLE, IS_NICKNAME_AVAILABLE } from "@/graphql/queries";
 
 export interface CreateUserInput {
@@ -10,7 +9,7 @@ export interface CreateUserInput {
   [key: string]: any;
 }
 
-const client = generateClient(); // create once and reuse
+const client = generateClient(); // GraphQL client (still used for other ops)
 
 
 /*const client = generateClient({
@@ -19,16 +18,38 @@ const client = generateClient(); // create once and reuse
 });*/
 
 export async function createUser(input: CreateUserInput) {
-  const { data, errors } = await client.graphql({
-    query: CREATE_USER,
-    variables: { input },
-    authMode: 'apiKey',
+  const base = import.meta.env.VITE_API_BASE_URL;
+  if (!base) throw new Error('API base URL not configured');
+  const url = base.replace(/\/$/, '') + '/users/signup';
+  const payload: any = {
+    provider: 'local',
+    email: input.email,
+    password: input.password,
+    name: input.fullName,
+    // pass through optional profile fields if present
+    nickname: input.nickname,
+    birthDate: input.birthDate,
+    country: input.country,
+    language: input.language,
+    gender: input.gender,
+    pronouns: input.pronouns,
+    bio: input.bio,
+    tags: input.tags,
+    status: input.status || 'email confirmation pending'
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
   });
-
-  if (errors?.length) {
-    throw new Error(errors.map(e => e.message).join(" | "));
+  const text = await res.text();
+  let body: any = {};
+  try { body = text ? JSON.parse(text) : {}; } catch {}
+  if (!res.ok) {
+    const msg = body?.detail || body?.message || text || 'Signup failed';
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
-  return data; // e.g. data?.createUser depending on your schema
+  return body;
 }
 
 // Simulated user-service confirmEmail call

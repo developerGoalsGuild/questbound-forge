@@ -91,7 +91,6 @@ resource "aws_appsync_datasource" "none" {
 
 # Optional Lambda data source for user operations (e.g., signup)
 resource "aws_iam_role" "ds_lambda_role" {
-  count = length(var.lambda_user_function_arn) > 0 ? 1 : 0
   name  = "${var.name}-ds-lambda-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -100,69 +99,71 @@ resource "aws_iam_role" "ds_lambda_role" {
 }
 
 resource "aws_iam_role_policy" "ds_lambda_invoke" {
-  count = length(var.lambda_user_function_arn) > 0 ? 1 : 0
-  role  = aws_iam_role.ds_lambda_role[0].id
+  role  = aws_iam_role.ds_lambda_role.id
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
       Effect   = "Allow",
       Action   = ["lambda:InvokeFunction"],
-      Resource = [var.lambda_user_function_arn]
+      Resource = compact([var.lambda_user_function_arn, var.lambda_persist_function_arn])
     }]
   })
 }
 
 resource "aws_appsync_datasource" "lambda_user" {
-  count = length(var.lambda_user_function_arn) > 0 ? 1 : 0
   api_id = aws_appsync_graphql_api.this.id
   name   = "LAMBDA_USER"
   type   = "AWS_LAMBDA"
-  service_role_arn = aws_iam_role.ds_lambda_role[0].arn
+  service_role_arn = aws_iam_role.ds_lambda_role.arn
   lambda_config {
-    lambda_function_arn = var.lambda_user_function_arn
+    function_arn = var.lambda_user_function_arn
   }
 }
 
-# Optional Lambda data source for persistence
-resource "aws_appsync_datasource" "lambda_persist" {
-  count = length(var.lambda_persist_function_arn) > 0 ? 1 : 0
-  api_id = aws_appsync_graphql_api.this.id
-  name   = "LAMBDA_PERSIST"
-  type   = "AWS_LAMBDA"
-  service_role_arn = aws_iam_role.ds_lambda_role[0].arn
-  lambda_config {
-    lambda_function_arn = var.lambda_persist_function_arn
+## Removed Lambda data source for persistence (using DDB in pipeline)
+
+
+locals {
+  unit_resolvers = { for k, v in var.resolvers : k => v if length(try(v.pipeline, [])) == 0 }
+  pipeline_resolvers = { for k, v in var.resolvers : k => v if length(try(v.pipeline, [])) > 0 }
+}
+
+# UNIT resolvers (with data_source)
+resource "aws_appsync_resolver" "unit" {
+  for_each  = local.unit_resolvers
+  api_id    = aws_appsync_graphql_api.this.id
+  type      = each.value.type
+  field     = each.value.field
+  data_source = (
+    each.value.data_source == "DDB" ? aws_appsync_datasource.ddb.name : (
+    each.value.data_source == "LAMBDA_USER" ? aws_appsync_datasource.lambda_user.name : aws_appsync_datasource.none.name))
+  kind      = "UNIT"
+  code      = file(each.value.code_path)
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
   }
 }
 
-
-# Resolvers from map
-resource "aws_appsync_resolver" "this" {
-    for_each = var.resolvers
-    api_id = aws_appsync_graphql_api.this.id
-    type = each.value.type
-    field = each.value.field
-    data_source = (
-      each.value.data_source == "DDB" ? aws_appsync_datasource.ddb.name : (
-      each.value.data_source == "LAMBDA_USER" ? aws_appsync_datasource.lambda_user[0].name : (
-      each.value.data_source == "LAMBDA_PERSIST" ? aws_appsync_datasource.lambda_persist[0].name : aws_appsync_datasource.none.name)))
-    kind = length(try(each.value.pipeline, [])) > 0 ? "PIPELINE" : "UNIT"
-    code = file(each.value.code_path)
-    dynamic "pipeline_config" {
-      for_each = length(try(each.value.pipeline, [])) > 0 ? [1] : []
-      content {
-        functions = [for fkey in each.value.pipeline : aws_appsync_function.this[fkey].function_id]
-      }
-    }
-    runtime { 
-        name = "APPSYNC_JS" 
-        runtime_version = "1.0.0" 
-    }
+# PIPELINE resolvers (no data_source)
+resource "aws_appsync_resolver" "pipeline" {
+  for_each  = local.pipeline_resolvers
+  api_id    = aws_appsync_graphql_api.this.id
+  type      = each.value.type
+  field     = each.value.field
+  kind      = "PIPELINE"
+  code      = file(each.value.code_path)
+  pipeline_config {
+    functions = [for fkey in each.value.pipeline : aws_appsync_function.this[fkey].function_id]
+  }
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
 }
 
 # Allow AppSync to invoke the Lambda if configured
 resource "aws_lambda_permission" "allow_appsync_invoke_user" {
-  count         = length(var.lambda_user_function_arn) > 0 ? 1 : 0
   statement_id  = "AllowAppSyncInvokeUserLambda"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_user_function_arn
@@ -170,14 +171,7 @@ resource "aws_lambda_permission" "allow_appsync_invoke_user" {
   source_arn    = aws_appsync_graphql_api.this.arn
 }
 
-resource "aws_lambda_permission" "allow_appsync_invoke_persist" {
-  count         = length(var.lambda_persist_function_arn) > 0 ? 1 : 0
-  statement_id  = "AllowAppSyncInvokePersistLambda"
-  action        = "lambda:InvokeFunction"
-  function_name = var.lambda_persist_function_arn
-  principal     = "appsync.amazonaws.com"
-  source_arn    = aws_appsync_graphql_api.this.arn
-}
+## Removed Lambda permission for persist
 
 # AppSync Functions for Pipelines
 resource "aws_appsync_function" "this" {
@@ -186,8 +180,7 @@ resource "aws_appsync_function" "this" {
   name        = each.value.name
   data_source = (
     each.value.data_source == "DDB" ? aws_appsync_datasource.ddb.name : (
-    each.value.data_source == "LAMBDA_USER" ? aws_appsync_datasource.lambda_user[0].name : (
-    each.value.data_source == "LAMBDA_PERSIST" ? aws_appsync_datasource.lambda_persist[0].name : aws_appsync_datasource.none.name)))
+    each.value.data_source == "LAMBDA_USER" ? aws_appsync_datasource.lambda_user.name : aws_appsync_datasource.none.name))
   code = file(each.value.code_path)
   runtime { 
     name = "APPSYNC_JS"

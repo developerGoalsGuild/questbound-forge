@@ -8,6 +8,15 @@ class SignupLocal(BaseModel):
   email: EmailStr
   password: str
   name: Optional[str] = None
+  # Extended profile fields (to mirror AppSync createUser)
+  nickname: Optional[str] = None
+  birthDate: Optional[str] = None  # YYYY-MM-DD
+  country: Optional[str] = None
+  language: Optional[str] = 'en'
+  gender: Optional[str] = None
+  pronouns: Optional[str] = None
+  bio: Optional[str] = None
+  tags: Optional[list[str]] = None
 
 
 class SignupGoogle(BaseModel):

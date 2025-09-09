@@ -7,7 +7,8 @@
     "lint:fix": "eslint \"resolvers/**/*.js\" --fix",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
-    "test:ci": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand"
+    "test:ci": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
+    "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --coverage"
   },
   "devDependencies": {
     "jest": "^29.7.0",

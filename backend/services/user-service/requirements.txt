@@ -10,3 +10,6 @@ pydantic==2.8.2
 python-jose[cryptography]
 python-multipart
 email_validator
+pytest
+httpx
+moto

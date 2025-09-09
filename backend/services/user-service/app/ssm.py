@@ -37,6 +37,18 @@ class Settings:
         return value
 
     @property
+    def core_table_name(self) -> str:
+        # Single-table used by AppSync patterns (gg_core)
+        key = "CORE_TABLE"
+        v = self.ssmvariables.get(key)
+        if not v:
+            # Backward compat: try explicit name
+            v = self.ssmvariables.get("GG_CORE_TABLE")
+        if not v:
+            raise KeyError("Missing CORE_TABLE in user-service env_vars SSM parameter")
+        return v
+
+    @property
     def jwt_secret(self) -> str:
         return get_param(self._p("JWT_SECRET"), True)
 
