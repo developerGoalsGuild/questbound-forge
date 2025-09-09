@@ -3,13 +3,15 @@
     "private":  true,
     "version":  "0.0.0",
     "type":  "module",
-    "scripts":  {
+  "scripts":  {
                     "sync:appsync-key":  "node ../backend/infra/terraform/scripts/sync_appsync_key_to_env.js",
                     "lint":  "eslint .",
                     "sync:appsync-key:dev":  "node ../backend/infra/terraform/scripts/sync_appsync_key_to_env.js --mode=development",
                     "build:dev":  "vite build --mode development",
                     "build":  "vite build",
                     "dev":  "vite",
+                    "test": "vitest",
+                    "test:cov": "vitest run --coverage",
                     "sync:appsync-key:prod":  "node ../backend/infra/terraform/scripts/sync_appsync_key_to_env.js --mode=production",
                     "preview":  "vite preview"
                 },
@@ -88,7 +90,9 @@
                             "tailwindcss":  "^3.4.17",
                             "typescript":  "^5.8.3",
                             "typescript-eslint":  "^8.38.0",
-                            "vite":  "^5.4.19"
+                            "vite":  "^5.4.19",
+                            "vitest": "^2.0.5",
+                            "@vitest/coverage-v8": "^2.0.5"
                         },
     "overrides":  {
                       "graphql":  "16.11.0"

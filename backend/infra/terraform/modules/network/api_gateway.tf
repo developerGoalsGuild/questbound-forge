@@ -87,6 +87,49 @@ resource "aws_api_gateway_integration" "user_signup_post_integration" {
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
 
+# OPTIONS /users/signup (CORS preflight)
+resource "aws_api_gateway_method" "user_signup_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_signup_resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "user_signup_options_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_signup_resource.id
+  http_method             = aws_api_gateway_method.user_signup_options.http_method
+  type                    = "MOCK"
+  request_templates       = { "application/json" = "{\"statusCode\": 200}" }
+
+  integration_http_method = "POST"
+
+  passthrough_behavior = "WHEN_NO_MATCH"
+
+  integration_responses {
+    status_code = 200
+    response_parameters = {
+      "method.response.header.Access-Control-Allow-Origin"  = "'*'",
+      "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+      "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    }
+    response_templates = { "application/json" = "" }
+  }
+}
+
+resource "aws_api_gateway_method_response" "user_signup_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_signup_resource.id
+  http_method = aws_api_gateway_method.user_signup_options.http_method
+  status_code = 200
+  response_models = { "application/json" = "Empty" }
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin"  = true,
+    "method.response.header.Access-Control-Allow-Headers" = true,
+    "method.response.header.Access-Control-Allow-Methods" = true
+  }
+}
+
 # POST /users/login (public, no auth)
 resource "aws_api_gateway_method" "user_login_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -214,6 +257,7 @@ resource "aws_api_gateway_deployment" "rest_api_deployment" {
   triggers = {
     redeploy = sha1(jsonencode({
       user_signup_post  = aws_api_gateway_integration.user_signup_post_integration.id
+      user_signup_options = aws_api_gateway_integration.user_signup_options_integration.id
       user_login_post   = aws_api_gateway_integration.user_login_post_integration.id
       user_logout_post  = aws_api_gateway_integration.user_logout_post_integration.id
       user_login_google = aws_api_gateway_integration.user_login_google_post_integration.id
@@ -226,6 +270,7 @@ resource "aws_api_gateway_deployment" "rest_api_deployment" {
   depends_on = [
     # all methods
     aws_api_gateway_method.user_signup_post,
+    aws_api_gateway_method.user_signup_options,
     aws_api_gateway_method.user_login_post,
     aws_api_gateway_method.user_logout_post,
     aws_api_gateway_method.user_login_google_post,
@@ -235,6 +280,7 @@ resource "aws_api_gateway_deployment" "rest_api_deployment" {
 
     # all integrations
     aws_api_gateway_integration.user_signup_post_integration,
+    aws_api_gateway_integration.user_signup_options_integration,
     aws_api_gateway_integration.user_login_post_integration,
     aws_api_gateway_integration.user_logout_post_integration,
     aws_api_gateway_integration.user_login_google_post_integration,

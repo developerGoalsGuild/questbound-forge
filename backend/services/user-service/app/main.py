@@ -6,6 +6,7 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException, Header, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from fastapi import Request
@@ -33,6 +34,18 @@ if not logger.handlers:
 BLOCK_THRESHOLD = 3
 
 app = FastAPI(title="Goals Guild Serverless Auth API", version="1.0.0")
+
+# CORS (allow frontend origin or all in dev)
+allowed_origins = [
+    settings.app_base_url.rstrip("/") if settings.app_base_url else "*"
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 ddb = boto3.resource("dynamodb")
 users = ddb.Table(settings.ddb_users_table)
 core = ddb.Table(settings.core_table_name)
