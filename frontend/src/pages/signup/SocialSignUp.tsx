@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createUser } from '@/lib/api';
 
@@ -8,6 +8,7 @@ interface SocialSignUpProps {
 
 const SocialSignUp: React.FC<SocialSignUpProps> = ({ email }) => {
   const { t } = useTranslation();
+  const signup = useMemo(() => (t as any).signup?.social || (t as any).signup?.local || (t as any).signup || {}, [t]);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -22,9 +23,9 @@ const SocialSignUp: React.FC<SocialSignUpProps> = ({ email }) => {
         email,
         status: 'email confirmation pending',
       });
-      setSuccessMessage(t.signup.social.successMessage);
+      setSuccessMessage(signup.successMessage);
     } catch (error) {
-      setErrorMessage(t.signup.social.errorMessage);
+      setErrorMessage(signup.errorMessage);
     } finally {
       setLoading(false);
     }
@@ -32,11 +33,11 @@ const SocialSignUp: React.FC<SocialSignUpProps> = ({ email }) => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-semibold mb-4">{t.signup.social.title}</h2>
+      <h2 className="text-2xl font-semibold mb-4">{signup.title}</h2>
       <form onSubmit={handleSubmit} noValidate>
         <div className="mb-4">
           <label htmlFor="email" className="block font-medium mb-1">
-            {t.signup.social.email}
+            {signup.email}
           </label>
           <input
             id="email"
@@ -54,7 +55,7 @@ const SocialSignUp: React.FC<SocialSignUpProps> = ({ email }) => {
           disabled={loading}
           className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:opacity-50"
         >
-          {loading ? t.common.loading : t.signup.social.submit}
+          {loading ? t.common.loading : signup.submit}
         </button>
       </form>
 

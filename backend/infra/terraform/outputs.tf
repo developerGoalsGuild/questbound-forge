@@ -67,3 +67,14 @@ output "cognito_user_pool_client_id" {
   description = "App client ID for the Cognito User Pool"
   value       = module.network.cognito_user_pool_client_id
 }
+
+output "api_invoke_url" {
+  description = "Invoke URL for API Gateway stage"
+  value       = module.network.api_invoke_url
+}
+
+output "api_gateway_api_key_value" {
+  description = "API Gateway API key value for frontend"
+  value       = module.network.api_gateway_api_key_value
+  sensitive   = true
+}

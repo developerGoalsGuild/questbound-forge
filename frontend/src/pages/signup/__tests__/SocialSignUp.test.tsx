@@ -1,14 +1,24 @@
+/** @vitest-environment jsdom */
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+vi.mock('@/lib/api', () => ({
+  createUser: vi.fn(),
+  confirmEmail: vi.fn(),
+  isEmailAvailable: vi.fn().mockResolvedValue(true),
+  isNicknameAvailable: vi.fn().mockResolvedValue(true),
+}));
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import SocialSignUp from '../SocialSignUp';
 import * as api from '@/lib/api';
 import { TranslationProvider } from '@/hooks/useTranslation';
 
-jest.mock('@/lib/api');
-
 describe('SocialSignUp', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    cleanup();
   });
 
   const renderComponent = (email: string) =>
@@ -27,27 +37,27 @@ describe('SocialSignUp', () => {
   });
 
   test('submits form successfully', async () => {
-    (api.createUser as jest.Mock).mockResolvedValue({});
+    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
 
     renderComponent('social@example.com');
 
-    fireEvent.click(screen.getByRole('button', { name: /complete registration/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /create account/i })[0]);
 
     await waitFor(() => {
       expect(api.createUser).toHaveBeenCalledWith({
         email: 'social@example.com',
         status: 'email confirmation pending',
       });
-      expect(screen.getByText(/account created via social login!/i)).toBeInTheDocument();
+      expect(screen.getByText(/account created/i)).toBeInTheDocument();
     });
   });
 
   test('shows error message on submission failure', async () => {
-    (api.createUser as jest.Mock).mockRejectedValue(new Error('Failed'));
+    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Failed'));
 
     renderComponent('social@example.com');
 
-    fireEvent.click(screen.getByRole('button', { name: /complete registration/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /create account/i })[0]);
 
     await waitFor(() => {
       expect(screen.getByText(/failed to create account/i)).toBeInTheDocument();

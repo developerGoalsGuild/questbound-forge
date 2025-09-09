@@ -27,3 +27,9 @@ output "api_invoke_url" {
   description = "Invoke URL for API Gateway stage"
   value       = "https://${aws_api_gateway_rest_api.rest_api.id}.execute-api.${var.aws_region}.amazonaws.com/${var.api_stage_name}"
 }
+
+output "api_gateway_api_key_value" {
+  description = "API Gateway API key value for frontend"
+  value       = aws_api_gateway_api_key.frontend_key.value
+  sensitive   = true
+}

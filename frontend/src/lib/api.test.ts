@@ -21,9 +21,13 @@ vi.mock('@/graphql/queries', () => ({
 import { createUser, isEmailAvailable, isNicknameAvailable } from './api';
 
 describe('frontend api lib', () => {
-  const OLD_ENV = { ...import.meta.env } as any;
-  beforeEach(() => { (import.meta as any).env = { ...OLD_ENV, VITE_API_BASE_URL: 'https://api.example.com/dev' }; });
-  afterEach(() => { vi.restoreAllMocks(); });
+  beforeEach(() => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
 
   it('createUser posts to /users/signup with payload', async () => {
     const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
@@ -55,4 +59,3 @@ describe('frontend api lib', () => {
     await expect(isNicknameAvailable('neo')).resolves.toBe(false);
   });
 });
-

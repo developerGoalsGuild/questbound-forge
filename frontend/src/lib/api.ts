@@ -19,6 +19,7 @@ const client = generateClient(); // GraphQL client (still used for other ops)
 
 export async function createUser(input: CreateUserInput) {
   const base = import.meta.env.VITE_API_BASE_URL;
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
   if (!base) throw new Error('API base URL not configured');
   const url = base.replace(/\/$/, '') + '/users/signup';
   const payload: any = {
@@ -37,9 +38,12 @@ export async function createUser(input: CreateUserInput) {
     tags: input.tags,
     status: input.status || 'email confirmation pending'
   };
+  const headers: Record<string,string> = { 'content-type': 'application/json' };
+  if (apiKey) { headers['x-api-key'] = apiKey; }
+
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(payload)
   });
   const text = await res.text();
