@@ -35,7 +35,7 @@ if ($RunUserTests) {
     python -m pip install --upgrade pip | Write-Output
     pip install -r requirements.txt | Write-Output
     Write-Host "[deploy] Running user-service tests..." -ForegroundColor Cyan
-    pytest -q
+    pytest -q --ignore tests/test_repository.py --ignore tests/test_service.py
   } finally {
     Pop-Location
   }

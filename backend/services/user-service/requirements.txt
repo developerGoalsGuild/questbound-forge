@@ -11,5 +11,6 @@ python-jose[cryptography]
 python-multipart
 email_validator
 pytest
+pytest-cov
 httpx
 moto

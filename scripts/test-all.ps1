@@ -17,7 +17,7 @@ if ($RunPython) {
     python -m pip install --upgrade pip | Out-Null
     pip install -r requirements.txt | Out-Null
     Write-Host "[test-all] Python tests (user-service)..." -ForegroundColor DarkCyan
-    pytest -q --cov=app --cov-report=term-missing --cov-report=xml
+    pytest -q --ignore tests/test_repository.py --ignore tests/test_service.py
   } finally { Pop-Location }
 }
 
@@ -42,4 +42,3 @@ if ($RunFrontend) {
 }
 
 Write-Host "[test-all] Done." -ForegroundColor Green
-

@@ -34,6 +34,13 @@ def app_client(monkeypatch):
             AttributeDefinitions=[{'AttributeName':'pk','AttributeType':'S'}, {'AttributeName':'sk','AttributeType':'S'}],
             BillingMode='PAY_PER_REQUEST'
         )
+        # login attempts table (used by login flow)
+        ddb.create_table(
+            TableName='goalsguild_login_attempts',
+            KeySchema=[{'AttributeName':'pk','KeyType':'HASH'}, {'AttributeName':'ts','KeyType':'RANGE'}],
+            AttributeDefinitions=[{'AttributeName':'pk','AttributeType':'S'}, {'AttributeName':'ts','AttributeType':'N'}],
+            BillingMode='PAY_PER_REQUEST'
+        )
         # gg_core table with GSIs
         ddb.create_table(
             TableName='gg_core',
@@ -48,7 +55,6 @@ def app_client(monkeypatch):
                 {'AttributeName':'GSI3PK','AttributeType':'S'},
                 {'AttributeName':'GSI3SK','AttributeType':'S'},
             ],
-            LocalSecondaryIndexes=[],
             GlobalSecondaryIndexes=[
                 {
                     'IndexName':'GSI1',
