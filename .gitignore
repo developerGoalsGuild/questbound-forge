@@ -1,13 +1,4 @@
 backend/services/user-service/app/__pycache__/*
-backend/infra/terraform/coverage/*
-backend/services/user-service/coverage.xml
-backend/services/user-service/*coverage*
-backend/infra/terraform/coverage/lcov-report/*
-backend/infra/terraform/coverage/*
-backend/infra/terraform/coverage/lcov-report/*
-backend/infra/terraform/coverage/lcov-report/lambdas/appsync_create_user/*
-backend/infra/terraform/coverage/lcov-report/resolvers/*
-backend/infra/terraform/coverage/lcov-report/test/mocks/*
 backend/services/user-service/tests/__pycache__/*
 
 
@@ -48,3 +39,16 @@ backend/infra/terraform/plan.out
 *.*.backup
 backend/infra/terraform/terraform.tfstate.backup
 frontend/.env.development
+
+# Coverage artifacts (all workspaces)
+**/coverage/
+**/coverage-*/
+**/lcov.info
+**/coverage-final.json
+**/clover.xml
+**/.nyc_output/
+**/.coverage
+**/.coverage.*
+**/coverage.xml
+**/htmlcov/
+**/.pytest_cache/

@@ -110,6 +110,37 @@ finally {
   Pop-Location
 }
 
+# Quick CORS preflight smoke test for /users/signup (best-effort)
+try {
+  Push-Location $TerraformDir
+  try { $InvokeUrl = (terraform output -raw api_invoke_url) } catch { $InvokeUrl = $null } finally { Pop-Location }
+  if ($InvokeUrl) {
+    $PreflightUrl = "$InvokeUrl/users/signup"
+    Write-Host "[deploy] Checking CORS preflight: $PreflightUrl" -ForegroundColor DarkCyan
+    $headers = @{
+      'Origin'                         = 'http://localhost:8080'
+      'Access-Control-Request-Method'  = 'POST'
+      'Access-Control-Request-Headers' = 'content-type,x-api-key'
+    }
+    try {
+      $resp = Invoke-WebRequest -Uri $PreflightUrl -Method Options -Headers $headers -ErrorAction Stop
+      $h = $resp.Headers
+      $ok = $resp.StatusCode -eq 200 -and $h['Access-Control-Allow-Origin'] -and $h['Access-Control-Allow-Methods'] -and $h['Access-Control-Allow-Headers'] -and $h['Access-Control-Allow-Credentials']
+      if ($ok) {
+        Write-Host "[deploy] Preflight OK: ACAO=$($h['Access-Control-Allow-Origin']) ACAC=$($h['Access-Control-Allow-Credentials'])" -ForegroundColor Green
+      } else {
+        Write-Warning "[deploy] Preflight missing expected CORS headers. Headers: $(($h.GetEnumerator() | % { $_.Name + ':' + $_.Value }) -join '; ')"
+      }
+    } catch {
+      Write-Warning "[deploy] Preflight request failed: $($_.Exception.Message)"
+    }
+  } else {
+    Write-Warning "[deploy] api_invoke_url output not available; skipping CORS preflight check."
+  }
+} catch {
+  Write-Warning "[deploy] CORS preflight check skipped: $($_.Exception.Message)"
+}
+
 # After apply, try best-effort AppSync code evaluation if AWS CLI is available
 try {
   Write-Host "[deploy] Attempting AppSync evaluate-code validation (post-apply)..." -ForegroundColor Cyan
@@ -193,3 +224,31 @@ finally {
 }
 
 Write-Host "[deploy] Done. Restart frontend dev server to pick up env changes." -ForegroundColor Green
+
+# Cleanup coverage artifacts generated during deploy-related tests
+try {
+  Write-Host "[deploy] Cleaning coverage artifacts..." -ForegroundColor DarkGray
+  $Root = Resolve-Path (Join-Path $ScriptDir '../../../..') | Select-Object -ExpandProperty Path
+  $targets = @(
+    'frontend/coverage',
+    'frontend/.nyc_output',
+    'backend/infra/terraform/coverage',
+    'backend/infra/terraform/.nyc_output',
+    'backend/services/user-service/htmlcov',
+    'backend/services/user-service/.pytest_cache'
+  )
+  foreach ($rel in $targets) {
+    $p = Join-Path $Root $rel
+    if (Test-Path $p) { Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $p }
+  }
+  $files = @(
+    'backend/services/user-service/coverage.xml',
+    'backend/services/user-service/.coverage',
+    'backend/services/user-service/.coverage.*',
+    'backend/infra/terraform/lcov.info',
+    'frontend/lcov.info'
+  )
+  foreach ($pattern in $files) {
+    Get-ChildItem -Path (Join-Path $Root $pattern) -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item -Force -ErrorAction SilentlyContinue $_.FullName }
+  }
+} catch {}

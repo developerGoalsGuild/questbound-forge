@@ -42,3 +42,32 @@ if ($RunFrontend) {
 }
 
 Write-Host "[test-all] Done." -ForegroundColor Green
+
+# Cleanup coverage artifacts to keep the repo tidy
+try {
+  Write-Host "[test-all] Cleaning coverage artifacts..." -ForegroundColor DarkGray
+  $Root = Resolve-Path (Join-Path $PSScriptRoot '..') | Select-Object -ExpandProperty Path
+  $targets = @(
+    'frontend/coverage',
+    'frontend/.nyc_output',
+    'backend/infra/terraform/coverage',
+    'backend/infra/terraform/.nyc_output',
+    'backend/services/user-service/htmlcov',
+    'backend/services/user-service/.pytest_cache'
+  )
+  foreach ($rel in $targets) {
+    $p = Join-Path $Root $rel
+    if (Test-Path $p) { Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $p }
+  }
+  # Files
+  $files = @(
+    'backend/services/user-service/coverage.xml',
+    'backend/services/user-service/.coverage',
+    'backend/services/user-service/.coverage.*',
+    'backend/infra/terraform/lcov.info',
+    'frontend/lcov.info'
+  )
+  foreach ($pattern in $files) {
+    Get-ChildItem -Path (Join-Path $Root $pattern) -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item -Force -ErrorAction SilentlyContinue $_.FullName }
+  }
+} catch {}

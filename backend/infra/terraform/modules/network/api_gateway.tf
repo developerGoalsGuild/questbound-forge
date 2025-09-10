@@ -93,6 +93,9 @@ resource "aws_api_gateway_method" "user_signup_options" {
   resource_id   = aws_api_gateway_resource.user_signup_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin" = false
+  }
 }
 
 resource "aws_api_gateway_integration" "user_signup_options_integration" {
@@ -114,9 +117,11 @@ resource "aws_api_gateway_integration_response" "user_signup_options_200" {
   http_method = aws_api_gateway_method.user_signup_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
+    "method.response.header.Vary"                              = "'Origin'",
+    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
+    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
   response_templates = { "application/json" = "" }
 
@@ -130,11 +135,38 @@ resource "aws_api_gateway_method_response" "user_signup_options_200" {
   status_code = 200
   response_models = { "application/json" = "Empty" }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = true,
-    "method.response.header.Access-Control-Allow-Headers" = true,
-    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"       = true,
+    "method.response.header.Access-Control-Allow-Credentials"  = true,
+    "method.response.header.Vary"                              = true,
+    "method.response.header.Access-Control-Allow-Headers"      = true,
+    "method.response.header.Access-Control-Allow-Methods"      = true
   }
 }
+
+resource "aws_api_gateway_gateway_response" "default_4xx" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  response_type = "DEFAULT_4XX"
+  response_parameters = {
+  "gatewayresponse.header.Access-Control-Allow-Origin" = "'*'"
+  "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
+  "gatewayresponse.header.Vary" = "'Origin'"
+  "gatewayresponse.header.Access-Control-Allow-Headers" = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'"
+  "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+  }
+  }
+
+resource "aws_api_gateway_gateway_response" "default_5xx" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  response_type = "DEFAULT_5XX"
+  response_parameters = {
+  "gatewayresponse.header.Access-Control-Allow-Origin" = "'*'"
+  "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
+  "gatewayresponse.header.Vary" = "'Origin'"
+  "gatewayresponse.header.Access-Control-Allow-Headers" = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'"
+  "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+  }
+}
+
 
 # POST /users/login (public, no auth)
 resource "aws_api_gateway_method" "user_login_post" {
@@ -160,6 +192,9 @@ resource "aws_api_gateway_method" "user_login_options" {
   resource_id   = aws_api_gateway_resource.user_login_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin" = false
+  }
 }
 
 resource "aws_api_gateway_integration" "user_login_options_integration" {
@@ -178,9 +213,11 @@ resource "aws_api_gateway_integration_response" "user_login_options_200" {
   http_method = aws_api_gateway_method.user_login_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
+    "method.response.header.Vary"                              = "'Origin'",
+    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
+    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
   response_templates = { "application/json" = "" }
 
@@ -194,9 +231,11 @@ resource "aws_api_gateway_method_response" "user_login_options_200" {
   status_code = 200
   response_models = { "application/json" = "Empty" }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = true,
-    "method.response.header.Access-Control-Allow-Headers" = true,
-    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"       = true,
+    "method.response.header.Access-Control-Allow-Credentials"  = true,
+    "method.response.header.Vary"                              = true,
+    "method.response.header.Access-Control-Allow-Headers"      = true,
+    "method.response.header.Access-Control-Allow-Methods"      = true
   }
 }
 
@@ -231,6 +270,9 @@ resource "aws_api_gateway_method" "user_logout_options" {
   resource_id   = aws_api_gateway_resource.user_logout_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin" = false
+  }
 }
 
 resource "aws_api_gateway_integration" "user_logout_options_integration" {
@@ -249,9 +291,11 @@ resource "aws_api_gateway_integration_response" "user_logout_options_200" {
   http_method = aws_api_gateway_method.user_logout_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
+    "method.response.header.Vary"                              = "'Origin'",
+    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
+    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
   response_templates = { "application/json" = "" }
   depends_on = [aws_api_gateway_integration.user_logout_options_integration]
@@ -264,9 +308,11 @@ resource "aws_api_gateway_method_response" "user_logout_options_200" {
   status_code = 200
   response_models = { "application/json" = "Empty" }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = true,
-    "method.response.header.Access-Control-Allow-Headers" = true,
-    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"       = true,
+    "method.response.header.Access-Control-Allow-Credentials"  = true,
+    "method.response.header.Vary"                              = true,
+    "method.response.header.Access-Control-Allow-Headers"      = true,
+    "method.response.header.Access-Control-Allow-Methods"      = true
   }
 }
 
@@ -294,6 +340,9 @@ resource "aws_api_gateway_method" "user_login_google_options" {
   resource_id   = aws_api_gateway_resource.user_login_google_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin" = false
+  }
 }
 
 resource "aws_api_gateway_integration" "user_login_google_options_integration" {
@@ -312,9 +361,11 @@ resource "aws_api_gateway_integration_response" "user_login_google_options_200" 
   http_method = aws_api_gateway_method.user_login_google_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
-    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
+    "method.response.header.Vary"                              = "'Origin'",
+    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
+    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
   response_templates = { "application/json" = "" }
   depends_on = [aws_api_gateway_integration.user_login_google_options_integration]
@@ -327,9 +378,11 @@ resource "aws_api_gateway_method_response" "user_login_google_options_200" {
   status_code = 200
   response_models = { "application/json" = "Empty" }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"  = true,
-    "method.response.header.Access-Control-Allow-Headers" = true,
-    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"       = true,
+    "method.response.header.Access-Control-Allow-Credentials"  = true,
+    "method.response.header.Vary"                              = true,
+    "method.response.header.Access-Control-Allow-Headers"      = true,
+    "method.response.header.Access-Control-Allow-Methods"      = true
   }
 }
 
@@ -400,15 +453,25 @@ resource "aws_api_gateway_deployment" "rest_api_deployment" {
     redeploy = sha1(jsonencode({
       user_signup_post  = aws_api_gateway_integration.user_signup_post_integration.id
       user_signup_options = aws_api_gateway_integration.user_signup_options_integration.id
+      cors_signup_ir    = aws_api_gateway_integration_response.user_signup_options_200.id
+      cors_signup_mr    = aws_api_gateway_method_response.user_signup_options_200.id
       user_login_post   = aws_api_gateway_integration.user_login_post_integration.id
       user_login_options = aws_api_gateway_integration.user_login_options_integration.id
+      cors_login_ir     = aws_api_gateway_integration_response.user_login_options_200.id
+      cors_login_mr     = aws_api_gateway_method_response.user_login_options_200.id
       user_logout_post  = aws_api_gateway_integration.user_logout_post_integration.id
       user_logout_options = aws_api_gateway_integration.user_logout_options_integration.id
+      cors_logout_ir    = aws_api_gateway_integration_response.user_logout_options_200.id
+      cors_logout_mr    = aws_api_gateway_method_response.user_logout_options_200.id
       user_login_google = aws_api_gateway_integration.user_login_google_post_integration.id
       user_login_google_options = aws_api_gateway_integration.user_login_google_options_integration.id
+      cors_google_ir    = aws_api_gateway_integration_response.user_login_google_options_200.id
+      cors_google_mr    = aws_api_gateway_method_response.user_login_google_options_200.id
       health_get        = aws_api_gateway_integration.health_get_integration.id
       quest_get         = aws_api_gateway_integration.quest_get_integration.id
       quest_post        = aws_api_gateway_integration.quest_post_integration.id
+      default_4xx       = aws_api_gateway_gateway_response.default_4xx.id
+      default_5xx       = aws_api_gateway_gateway_response.default_5xx.id
     }))
   }
 
@@ -567,3 +630,4 @@ resource "aws_lambda_permission" "allow_api_gateway_quest" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }
+

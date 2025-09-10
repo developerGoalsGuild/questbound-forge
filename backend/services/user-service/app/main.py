@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from fastapi import Request
+from starlette.requests import Request
 from .models import ConfirmEmailResponse, PasswordChangeRequest, SendTempPassword, SignupLocal, SignupGoogle, LoginLocal, TokenResponse, PublicUser
 from .ssm import settings
 from .security import generate_secure_password, hash_password, verify_local_jwt, verify_password, issue_local_jwt, validate_password_strength
@@ -55,7 +55,7 @@ def healthz():
     return {"ok": True, "time": int(time.time())}
 
 # --- SIGNUP (LOCAL) — send confirmation email ---
-@app.post("/signup")
+@app.post("/signup", response_model=None)
 def signup(payload: dict, request: Request):
     provider = payload.get("provider")
     client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
@@ -272,7 +272,7 @@ def confirm_email(token: str = Query(..., min_length=20)):
     return {"message": "Email confirmed. You may now log in."}
 
 # --- LOGIN ENFORCEMENTS ---
-@app.post("/login")
+@app.post("/login", response_model=None)
 def login(body: LoginLocal, request: Request):
     email = body.email.lower()
     client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "")
@@ -313,7 +313,7 @@ def login(body: LoginLocal, request: Request):
     return TokenResponse(**token).model_dump()
 
 # --- TEMP PASSWORD FOR BLOCKED USERS ---
-@app.post("/password/temp")
+@app.post("/password/temp", response_model=None)
 def send_temp_password(body: SendTempPassword):
     email = body.email.lower()
     resp = users.get_item(Key={"pk": f"USER#{email}", "sk": "PROFILE"})
@@ -348,7 +348,7 @@ def send_temp_password(body: SendTempPassword):
     return {"message": "If the account exists and is eligible, an email will be sent."}
 
 # --- CHANGE PASSWORD (local users) ---
-@app.post("/password/change")
+@app.post("/password/change", response_model=None)
 def change_password(body: PasswordChangeRequest, request: Request, authorization: str | None = Header(default=None)):
     email = None
     item = None
