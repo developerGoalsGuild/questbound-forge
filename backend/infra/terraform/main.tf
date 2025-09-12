@@ -89,6 +89,7 @@ module "user_service_image" {
   current_version     = var.user_service_current_version
   dockerfile_path     = "../../../backend/services/user-service/Dockerfile"
   context_path        = "../../../backend/services/user-service"
+  
 }
 
 # Module for quest-service Docker image build and push
@@ -169,7 +170,7 @@ module "appsync" {
   # Attach DDB as a data source and register resolvers from local files
   ddb_table_name              = module.ddb.table_name
   ddb_table_arn               = module.ddb.arn
-  lambda_user_function_arn    = module.lambda_appsync_create_user.lambda_arn
+  #lambda_user_function_arn    = module.lambda_appsync_create_user.lambda_arn
 
 
   resolvers = {
@@ -288,25 +289,7 @@ module "lambda_user_service" {
 
 }
 
-# Lambda for AppSync createUser -> calls API Gateway user-service signup
-module "lambda_appsync_create_user" {
-  source        = "./modules/lambda_zip"
-  function_name = "goalsguild_appsync_create_user"
-  environment   = var.environment
-  role_arn      = module.network.lambda_exec_role_arn
-  src_dir       = "${path.module}/lambdas/appsync_create_user"
-  handler       = "index.handler"
-  runtime       = "nodejs20.x"
-  use_powershell = true
-  environment_variables = {
-    USER_SERVICE_BASE_URL = module.network.api_invoke_url
-  }
-  log_retention_in_days = 14
-  tags = {
-    Environment = var.environment
-    Project     = "goalsguild"
-  }
-}
+
 
 ## removed lambda_appsync_persist_user; persistence handled by DDB Function
 

@@ -117,7 +117,7 @@ resource "aws_api_gateway_integration_response" "user_signup_options_200" {
   http_method = aws_api_gateway_method.user_signup_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
     "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
     "method.response.header.Vary"                              = "'Origin'",
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
@@ -213,7 +213,7 @@ resource "aws_api_gateway_integration_response" "user_login_options_200" {
   http_method = aws_api_gateway_method.user_login_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
     "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
     "method.response.header.Vary"                              = "'Origin'",
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
@@ -291,7 +291,7 @@ resource "aws_api_gateway_integration_response" "user_logout_options_200" {
   http_method = aws_api_gateway_method.user_logout_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
     "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
     "method.response.header.Vary"                              = "'Origin'",
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
@@ -361,7 +361,7 @@ resource "aws_api_gateway_integration_response" "user_login_google_options_200" 
   http_method = aws_api_gateway_method.user_login_google_options.http_method
   status_code = 200
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "method.request.header.Origin",
+    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
     "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
     "method.response.header.Vary"                              = "'Origin'",
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
@@ -550,7 +550,7 @@ resource "random_string" "apigw_api_key" {
   length  = 32
   upper   = false
   lower   = true
-  number  = true
+  numeric  = true
   special = false
 }
 

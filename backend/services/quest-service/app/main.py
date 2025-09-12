@@ -29,7 +29,7 @@ quests_table = dynamodb.Table(QUESTS_TABLE)
 
 ROOT_PATH =f"/DEV"
 print(f'ROOTPATH: {ROOT_PATH}')
-app = FastAPI(root_path=ROOT_PATH,title="Sign Service", version="1.0.0")
+app = FastAPI(root_path=ROOT_PATH,title="Quest Service", version="1.0.1")
 
 
 # CORS middleware (adjust origins as needed)

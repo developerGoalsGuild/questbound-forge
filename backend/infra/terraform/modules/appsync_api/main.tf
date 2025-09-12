@@ -90,7 +90,7 @@ resource "aws_appsync_datasource" "none" {
 }
 
 # Optional Lambda data source for user operations (e.g., signup)
-resource "aws_iam_role" "ds_lambda_role" {
+/*resource "aws_iam_role" "ds_lambda_role" {
   name  = "${var.name}-ds-lambda-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -119,7 +119,7 @@ resource "aws_appsync_datasource" "lambda_user" {
     function_arn = var.lambda_user_function_arn
   }
 }
-
+*/
 ## Removed Lambda data source for persistence (using DDB in pipeline)
 
 
@@ -135,8 +135,8 @@ resource "aws_appsync_resolver" "unit" {
   type      = each.value.type
   field     = each.value.field
   data_source = (
-    each.value.data_source == "DDB" ? aws_appsync_datasource.ddb.name : (
-    each.value.data_source == "LAMBDA_USER" ? aws_appsync_datasource.lambda_user.name : aws_appsync_datasource.none.name))
+    aws_appsync_datasource.ddb.name
+    )
   kind      = "UNIT"
   code      = file(each.value.code_path)
   runtime {
@@ -163,13 +163,15 @@ resource "aws_appsync_resolver" "pipeline" {
 }
 
 # Allow AppSync to invoke the Lambda if configured
-resource "aws_lambda_permission" "allow_appsync_invoke_user" {
+/*resource "aws_lambda_permission" "allow_appsync_invoke_user" {
   statement_id  = "AllowAppSyncInvokeUserLambda"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_user_function_arn
   principal     = "appsync.amazonaws.com"
   source_arn    = aws_appsync_graphql_api.this.arn
 }
+*/
+
 
 ## Removed Lambda permission for persist
 
@@ -179,8 +181,8 @@ resource "aws_appsync_function" "this" {
   api_id      = aws_appsync_graphql_api.this.id
   name        = each.value.name
   data_source = (
-    each.value.data_source == "DDB" ? aws_appsync_datasource.ddb.name : (
-    each.value.data_source == "LAMBDA_USER" ? aws_appsync_datasource.lambda_user.name : aws_appsync_datasource.none.name))
+     aws_appsync_datasource.ddb.name
+  )
   code = file(each.value.code_path)
   runtime { 
     name = "APPSYNC_JS"

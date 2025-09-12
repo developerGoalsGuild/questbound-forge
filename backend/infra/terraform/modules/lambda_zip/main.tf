@@ -14,11 +14,35 @@ locals {
   func_name_full = "${var.function_name}_${var.environment}"
 }
 
+
+output "src_abs" {
+  value = local.src_abs
+}
+
+output "build_abs" {
+  value = local.build_abs
+}
+
+
+
+output "dist_abs" {
+  value = local.dist_abs
+}
+
+output "zip_abs" {
+  value = local.zip_abs
+}
+
+
+
+
+
 # ------------------- Build on Windows (PowerShell) -------------------
-resource "null_resource" "build_ps" {
+resource "null_resource" "build_ps"  {
   count = var.use_powershell ? 1 : 0
 
   triggers = {
+    force = timestamp()
     src_hash  = local.src_hash
     src_abs   = local.src_abs
     build_abs = local.build_abs
@@ -30,23 +54,34 @@ resource "null_resource" "build_ps" {
   provisioner "local-exec" {
     interpreter = ["PowerShell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command"]
     command = <<-POWERSHELL
-      # Clean build & dist
-      if (Test-Path '${local.build_abs}') { Remove-Item -Recurse -Force '${local.build_abs}' }
-      if (Test-Path '${local.dist_abs}')  { Remove-Item -Recurse -Force '${local.dist_abs}' }
+      $VerbosePreference = "Continue"
+      Write-Host "Cleaning build and dist directories..."
+      if (Test-Path '${local.build_abs}') {
+        Write-Host "Removing build directory: ${local.build_abs}"
+        Remove-Item -Recurse -Force '${local.build_abs}'
+      }
+      if (Test-Path '${local.dist_abs}') {
+        Write-Host "Removing dist directory: ${local.dist_abs}"
+        Remove-Item -Recurse -Force '${local.dist_abs}'
+      }
+      Write-Host "Creating build directory: ${local.build_abs}"
       New-Item -Force -ItemType Directory -Path '${local.build_abs}' | Out-Null
-      New-Item -Force -ItemType Directory -Path '${local.dist_abs}'  | Out-Null
+      Write-Host "Creating dist directory: ${local.dist_abs}"
+      New-Item -Force -ItemType Directory -Path '${local.dist_abs}' | Out-Null
 
-      # Copy source into build dir
+      Write-Host "Copying source files from ${local.src_abs} to ${local.build_abs}..."
       robocopy '${local.src_abs}' '${local.build_abs}' /E /NFL /NDL /NJH /NJS /NC /NS | Out-Null
 
-      # Install dependencies into build dir using Lambda Python image (override entrypoint!)
       if (Test-Path '${local.src_abs}\\${var.requirements_file}') {
+        Write-Host "Installing Python dependencies from ${var.requirements_file} into build directory..."
         docker run --rm `
           -v "${local.build_abs}:/out" `
           -v "${local.src_abs}:/src" `
           --entrypoint /bin/sh `
           ${var.python_builder_image} `
           -lc "pip install -r /src/${var.requirements_file} --target /out"
+      } else {
+        Write-Host "No requirements file found at ${local.src_abs}\\${var.requirements_file}, skipping dependency installation."
       }
     POWERSHELL
   }
@@ -69,20 +104,24 @@ resource "null_resource" "build_bash" {
     interpreter = ["/bin/bash", "-lc"]
     command = <<-EOB
       set -euo pipefail
+      echo "Cleaning build and dist directories..."
       rm -rf "${local.build_abs}" "${local.dist_abs}"
+      echo "Creating build and dist directories..."
       mkdir -p "${local.build_abs}" "${local.dist_abs}"
 
-      # Copy source
+      echo "Copying source files from ${local.src_abs} to ${local.build_abs}..."
       cp -R "${local.src_abs}/." "${local.build_abs}/"
 
-      # Install dependencies into build dir via Lambda Python image (override entrypoint)
       if [ -f "${local.src_abs}/${var.requirements_file}" ]; then
+        echo "Installing Python dependencies from ${var.requirements_file} into build directory..."
         docker run --rm \
           -v "${local.build_abs}:/out" \
           -v "${local.src_abs}:/src" \
           --entrypoint /bin/sh \
           ${var.python_builder_image} \
           -lc 'pip install -r /src/${var.requirements_file} --target /out'
+      else
+        echo "No requirements file found at ${local.src_abs}/${var.requirements_file}, skipping dependency installation."
       fi
     EOB
   }
@@ -126,10 +165,3 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
   retention_in_days = var.log_retention_in_days
   tags              = var.tags
 }
-
-# ------------------- Helpful outputs (optional to keep in outputs.tf) -------------------
-# (Keep outputs in outputs.tf if you prefer)
-# output "function_name" { value = aws_lambda_function.this.function_name }
-# output "lambda_arn"    { value = aws_lambda_function.this.arn }
-# output "zip_path"      { value = data.archive_file.lambda_zip.output_path }
-# output "source_code_hash" { value = data.archive_file.lambda_zip.output_base64sha256 }

@@ -115,7 +115,7 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
     EMAIL_SENDER             = "no-reply@goalsguild.com"
     FRONTEND_BASE_URL        = "https://app.goalsguild.com"
     PASSWORD_KEY             = "your-encrypted-password-key" # Replace with actual secure value or SSM reference
-    DYNAMODB_USERS_TABLE     = "goalsguild_users"
+    DYNAMODB_USERS_TABLE     = "gg_core"
     CORE_TABLE               = var.ddb_table_name
     APP_BASE_URL              = "http://localhost:5050"
     LOGIN_ATTEMPTS_TABLE = "goalsguild_login_attempts"

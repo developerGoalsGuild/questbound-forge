@@ -24,7 +24,7 @@ COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 ENV PORT=8080 \
     AWS_LWA_PORT=8080 \
     RUST_LOG=info \
-    AWS_LWA_READINESS_CHECK_PATH=/healthz
+    AWS_LWA_READINESS_CHECK_PATH=/health
 
 EXPOSE 8080
 
