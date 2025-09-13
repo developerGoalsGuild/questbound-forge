@@ -65,7 +65,7 @@ def generate_secure_password(length: int = 16) -> str:
 # Local JWT
 
 
-def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_seconds: int = 900) -> dict:
+def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_seconds: int = 1200, *, role: str | None = None) -> dict:
     now = int(time.time())
     payload = {
     "iss": settings.jwt_issuer,
@@ -79,6 +79,8 @@ def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_s
     "token_use": "access",
     "provider": "local",
     }
+    if role:
+        payload["role"] = role
     token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
     return {"access_token": token, "expires_in": ttl_seconds}
 

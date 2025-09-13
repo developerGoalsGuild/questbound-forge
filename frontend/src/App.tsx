@@ -10,6 +10,9 @@ import LocalSignup from "./pages/signup/LocalSignUp";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
 //import ConfirmEmail from "./pages/ConfirmEmail";
+import { SessionKeepAlive } from '@/lib/session';
+import { ProtectedRoute, AuthWatcher } from '@/lib/auth';
+import ChangePassword from './pages/account/ChangePassword';
 
 
 
@@ -21,10 +24,13 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <SessionKeepAlive />
         <BrowserRouter>
+          <AuthWatcher />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/account/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

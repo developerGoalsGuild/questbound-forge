@@ -52,3 +52,8 @@ frontend/.env.development
 **/coverage.xml
 **/htmlcov/
 **/.pytest_cache/
+backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
+backend/infra/terraform/terraform.tfstate.backup
+backend/infra/terraform/terraform.tfstate.backup
+backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
+backend/infra/terraform/terraform.tfstate.backup

@@ -204,6 +204,36 @@ module "appsync" {
       data_source = "DDB"
       code_path   = "${local.resolvers_dir}/isNicknameAvailable.js"
     }
+    "Query.goals" = {
+      type        = "Query"
+      field       = "goals"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/getGoals.js"
+    }
+    "Query.activeGoalsCount" = {
+      type        = "Query"
+      field       = "activeGoalsCount"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/activeGoalsCount.js"
+    }
+    "Query.tasks" = {
+      type        = "Query"
+      field       = "tasks"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/getTasks.js"
+    }
+    "Query.myGoals" = {
+      type        = "Query"
+      field       = "myGoals"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/myGoals.js"
+    }
+    "Query.myTasks" = {
+      type        = "Query"
+      field       = "myTasks"
+      data_source = "DDB"
+      code_path   = "${local.resolvers_dir}/myTasks.js"
+    }
     "Subscription.onMessage" = {
       type        = "Subscription"
       field       = "onMessage"
@@ -314,6 +344,7 @@ module "network" {
   source                                 = "./modules/network"
   environment                            = var.environment
   aws_region                             = var.aws_region
+  account_id                             = local.account_id
   user_service_lambda_arn                = module.lambda_user_service.lambda_function_arn
   quest_service_lambda_arn               = module.lambda_quest_service.lambda_function_arn
   api_stage_name                         = var.api_stage_name
@@ -322,5 +353,6 @@ module "network" {
   cognito_domain_prefix                  = var.cognito_domain_prefix
   ddb_table_arn                          = module.ddb.arn
   ddb_table_name                         = module.ddb.table_name
+  login_attempts_table_arn               = aws_dynamodb_table.login_attempts.arn
 
 }

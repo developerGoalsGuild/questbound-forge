@@ -8,6 +8,12 @@ vi.mock('aws-amplify/api', () => {
     if (query === 'IS_NICKNAME_AVAILABLE') {
       return { data: { isNicknameAvailable: variables?.nickname !== 'neo' }, errors: [] };
     }
+    if (query === 'ACTIVE_GOALS_COUNT') {
+      if (variables?.userId === 'ERR') {
+        return { data: {}, errors: [{ message: 'boom' }] } as any;
+      }
+      return { data: { activeGoalsCount: 2 }, errors: [] };
+    }
     return { data: {}, errors: [] };
   });
   return { generateClient: () => ({ graphql: graph }) };
@@ -15,10 +21,11 @@ vi.mock('aws-amplify/api', () => {
 
 vi.mock('@/graphql/queries', () => ({
   IS_EMAIL_AVAILABLE: 'IS_EMAIL_AVAILABLE',
-  IS_NICKNAME_AVAILABLE: 'IS_NICKNAME_AVAILABLE'
+  IS_NICKNAME_AVAILABLE: 'IS_NICKNAME_AVAILABLE',
+  ACTIVE_GOALS_COUNT: 'ACTIVE_GOALS_COUNT',
 }));
 
-import { createUser, isEmailAvailable, isNicknameAvailable } from './api';
+import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken, getActiveGoalsCountForUser } from './api';
 
 describe('frontend api lib', () => {
   beforeEach(() => {
@@ -44,9 +51,142 @@ describe('frontend api lib', () => {
     expect(body.name).toBe('User');
   });
 
+  it('login posts to /users/login and returns token', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ token_type: 'Bearer', access_token: 'aaa.bbb.ccc', expires_in: 3600 })
+    } as any);
+    const resp = await login('user@example.com', 'Aa1!aaaa');
+    expect(spy).toHaveBeenCalled();
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toMatch(/\/users\/login$/);
+    const body = JSON.parse((init as any).body);
+    expect(body.email).toBe('user@example.com');
+    expect(resp.access_token).toBeDefined();
+  });
+
+  it('login surfaces API errors', async () => {
+    vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: false, text: async () => JSON.stringify({ detail: 'bad creds' }) } as any);
+    await expect(login('bad@example.com', 'wrong')).rejects.toThrow(/bad creds/);
+  });
+
+  it('login allows pending confirmation when flag is OFF', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+    vi.doMock('@/config/featureFlags', () => ({ emailConfirmationEnabled: false }));
+    const { login: loginWithFlagOff } = await import('./api');
+    vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: false, text: async () => JSON.stringify({ detail: 'Email confirmation pending' }) } as any);
+    const resp = await loginWithFlagOff('u@e.com', 'pass');
+    expect(resp.access_token).toBeTruthy();
+    // token should be a JWT-like string with 3 parts
+    expect(resp.access_token.split('.').length).toBe(3);
+  });
+
+  it('authFetch attaches Authorization and x-api-key when available', async () => {
+    // Mock browser localStorage in this test environment
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => store.clear(),
+      }
+    });
+    const tok = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ sub: 'u' })) + '.sig';
+    localStorage.setItem('auth', JSON.stringify({ token_type: 'Bearer', access_token: tok, expires_in: 3600 }));
+    const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: true, text: async () => '' } as any);
+    await authFetch('/protected/resource', { method: 'GET' });
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toMatch(/^https:\/\/api\.example\.com\/dev\/protected\/resource$/);
+    const headers = (init as any).headers;
+    const auth = headers.get ? headers.get('authorization') : headers['authorization'];
+    expect(auth).toMatch(/^Bearer /);
+  });
+
+  it('authFetch renews token when expiring soon', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+    // mock localStorage and time-sensitive token (exp in 10s)
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => store.clear(),
+      }
+    });
+    const exp = Math.floor(Date.now()/1000) + 10;
+    const soon = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ exp })) + '.sig';
+    localStorage.setItem('auth', JSON.stringify({ token_type: 'Bearer', access_token: soon, expires_in: 10 }));
+
+    // First call is renew, second is actual endpoint
+    const fetchSpy = vi.spyOn(globalThis, 'fetch' as any)
+      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ token_type: 'Bearer', access_token: soon, expires_in: 1200 }) } as any)
+      .mockResolvedValueOnce({ ok: true, text: async () => '' } as any);
+
+    await authFetch('/protected', { method: 'GET' });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][0]).toMatch(/\/auth\/renew$/);
+  });
+
+  it('authFetch clears auth if renew fails with 401', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => store.clear(),
+      }
+    });
+    const exp = Math.floor(Date.now()/1000) + 10;
+    const soon = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ exp })) + '.sig';
+    localStorage.setItem('auth', JSON.stringify({ token_type: 'Bearer', access_token: soon, expires_in: 10 }));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch' as any)
+      .mockResolvedValueOnce({ ok: false, text: async () => JSON.stringify({ detail: 'Token expired or invalid' }) } as any)
+      .mockResolvedValueOnce({ ok: true, text: async () => '' } as any);
+    await authFetch('/protected', { method: 'GET' });
+    expect(localStorage.getItem('auth')).toBeNull();
+  });
+
   it('createUser surfaces API errors', async () => {
     vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: false, text: async () => JSON.stringify({ detail: 'bad' }) } as any);
     await expect(createUser({ email: 'u@e.com', fullName: 'U', password: 'Aa1!aaaa' })).rejects.toThrow(/bad/);
+  });
+
+  it('normalizes pending status to active when flag is OFF', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+    vi.doMock('@/config/featureFlags', () => ({ emailConfirmationEnabled: false }));
+    const { createUser: createUserWithFlagOff } = await import('./api');
+    const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ ok: true })
+    } as any);
+    await createUserWithFlagOff({ email: 'x@y.com', status: 'email confirmation pending' });
+    const [, init] = spy.mock.calls[0];
+    const body = JSON.parse((init as any).body);
+    expect(body.status).toBe('active');
+  });
+
+  it('keeps pending status when flag is ON', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+    vi.doMock('@/config/featureFlags', () => ({ emailConfirmationEnabled: true }));
+    const { createUser: createUserWithFlagOn } = await import('./api');
+    const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ ok: true })
+    } as any);
+    await createUserWithFlagOn({ email: 'x@y.com', status: 'email confirmation pending' });
+    const [, init] = spy.mock.calls[0];
+    const body = JSON.parse((init as any).body);
+    expect(body.status).toBe('email confirmation pending');
   });
 
   it('isEmailAvailable returns true/false from GraphQL', async () => {
@@ -57,5 +197,33 @@ describe('frontend api lib', () => {
   it('isNicknameAvailable returns true/false from GraphQL', async () => {
     await expect(isNicknameAvailable('trinity')).resolves.toBe(true);
     await expect(isNicknameAvailable('neo')).resolves.toBe(false);
+  });
+
+  it('getUserIdFromToken returns sub or email fallback', () => {
+    const subTok = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ sub: 'U1' })) + '.sig';
+    // Mock localStorage retrieval path used by getAccessToken
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => store.clear(),
+      }
+    });
+    localStorage.setItem('auth', JSON.stringify({ access_token: subTok }));
+    expect(getUserIdFromToken()).toBe('U1');
+    const emailTok = 'e.' + btoa(JSON.stringify({ email: 'x@y.com' })) + '.s';
+    localStorage.setItem('auth', JSON.stringify({ access_token: emailTok }));
+    expect(getUserIdFromToken()).toBe('x@y.com');
+  });
+
+  it('getActiveGoalsCountForUser counts active goals', async () => {
+    await expect(getActiveGoalsCountForUser('U1')).resolves.toBe(2);
+  });
+
+  it('getActiveGoalsCountForUser returns 0 on error', async () => {
+    await expect(getActiveGoalsCountForUser('ERR')).resolves.toBe(0);
   });
 });

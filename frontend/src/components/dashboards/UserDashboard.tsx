@@ -4,12 +4,27 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUserData } from '@/hooks/useUserData';
+import { getActiveGoalsCountForUser, getUserIdFromToken } from '@/lib/api';
+import { useEffect, useState } from 'react';
 import { useCommunityActivities } from '@/hooks/useCommunityData';
 
 const UserDashboard = () => {
   const { t } = useTranslation();
   const { data: userData, loading, error } = useUserData();
   const { activities: communityActivities } = useCommunityActivities('achievement', 2);
+
+  // Fetch live active quests count from backend (fallback to mock on error)
+  const [activeCount, setActiveCount] = useState<number | null>(null);
+  useEffect(() => {
+    const uid = getUserIdFromToken();
+    if (!uid) { setActiveCount(null); return; }
+    let cancelled = false;
+    (async () => {
+      const n = await getActiveGoalsCountForUser(uid);
+      if (!cancelled) setActiveCount(n);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   if (loading) {
     return (
@@ -56,7 +71,7 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData.stats.activeQuests}</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? userData.stats.activeQuests}</div>
               <div className="text-sm text-muted-foreground">Active Quests</div>
             </CardContent>
           </Card>

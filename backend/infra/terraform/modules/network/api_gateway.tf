@@ -123,7 +123,13 @@ resource "aws_api_gateway_integration_response" "user_signup_options_200" {
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
     "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
-  response_templates = { "application/json" = "" }
+  # Provide a concrete body so API Gateway has a valid
+  # output mapping for all Accept headers (avoids 500 with
+  # "No match for output mapping").
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
 
   depends_on = [aws_api_gateway_integration.user_signup_options_integration]
 }
@@ -133,7 +139,10 @@ resource "aws_api_gateway_method_response" "user_signup_options_200" {
   resource_id = aws_api_gateway_resource.user_signup_resource.id
   http_method = aws_api_gateway_method.user_signup_options.http_method
   status_code = 200
-  response_models = { "application/json" = "Empty" }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin"       = true,
     "method.response.header.Access-Control-Allow-Credentials"  = true,
@@ -219,7 +228,10 @@ resource "aws_api_gateway_integration_response" "user_login_options_200" {
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
     "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
-  response_templates = { "application/json" = "" }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
 
   depends_on = [aws_api_gateway_integration.user_login_options_integration]
 }
@@ -229,7 +241,10 @@ resource "aws_api_gateway_method_response" "user_login_options_200" {
   resource_id = aws_api_gateway_resource.user_login_resource.id
   http_method = aws_api_gateway_method.user_login_options.http_method
   status_code = 200
-  response_models = { "application/json" = "Empty" }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin"       = true,
     "method.response.header.Access-Control-Allow-Credentials"  = true,
@@ -297,7 +312,10 @@ resource "aws_api_gateway_integration_response" "user_logout_options_200" {
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
     "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
-  response_templates = { "application/json" = "" }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
   depends_on = [aws_api_gateway_integration.user_logout_options_integration]
 }
 
@@ -306,7 +324,10 @@ resource "aws_api_gateway_method_response" "user_logout_options_200" {
   resource_id = aws_api_gateway_resource.user_logout_resource.id
   http_method = aws_api_gateway_method.user_logout_options.http_method
   status_code = 200
-  response_models = { "application/json" = "Empty" }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin"       = true,
     "method.response.header.Access-Control-Allow-Credentials"  = true,
@@ -367,7 +388,10 @@ resource "aws_api_gateway_integration_response" "user_login_google_options_200" 
     "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
     "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
   }
-  response_templates = { "application/json" = "" }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
   depends_on = [aws_api_gateway_integration.user_login_google_options_integration]
 }
 
@@ -376,7 +400,10 @@ resource "aws_api_gateway_method_response" "user_login_google_options_200" {
   resource_id = aws_api_gateway_resource.user_login_google_resource.id
   http_method = aws_api_gateway_method.user_login_google_options.http_method
   status_code = 200
-  response_models = { "application/json" = "Empty" }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin"       = true,
     "method.response.header.Access-Control-Allow-Credentials"  = true,
@@ -630,4 +657,3 @@ resource "aws_lambda_permission" "allow_api_gateway_quest" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }
-

@@ -12,3 +12,18 @@ export const IS_NICKNAME_AVAILABLE = gql`
     isNicknameAvailable(nickname: $nickname)
   }
 `;
+
+// Goals by user (minimal fields for counting)
+export const GOALS_BY_USER = gql`
+  query Goals($userId: ID!) {
+    goals(userId: $userId) {
+      id
+      status
+    }
+  }
+`;
+export const ACTIVE_GOALS_COUNT = gql`
+  query ActiveGoalsCount($userId: ID!) {
+    activeGoalsCount(userId: $userId)
+  }
+`;

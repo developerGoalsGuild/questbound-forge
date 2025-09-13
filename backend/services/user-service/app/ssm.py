@@ -112,6 +112,11 @@ class Settings:
         return value   
         #return get_param(self._p("app_base_url"), False)
 
+    @property
+    def frontend_base_url(self) -> str | None:
+        """Optional separate frontend base URL for CORS (e.g., SPA origin)."""
+        return self.ssmvariables.get("FRONTEND_BASE_URL") or self.ssmvariables.get("frontend_base_url")
+
 
     @property
     def ddb_login_attempts_table(self) -> str:

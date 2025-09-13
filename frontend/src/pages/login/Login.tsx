@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/useTranslation';
+import { login as apiLogin, LoginResponse } from '@/lib/api';
+import { PasswordInput } from '@/components/ui/password-input';
 
 const Login = () => {
   const { t } = useTranslation();
@@ -15,13 +17,46 @@ const Login = () => {
     setError(null);
     setLoading(true);
     try {
-      if (!email || !password) {
-        setError('Email and password are required');
+      // basic validation
+      const emailTrim = email.trim();
+      const pwdTrim = password.trim();
+      const emailRe = /.+@.+\..+/;
+      if (!emailTrim) {
+        setError(t?.login?.validation?.requiredEmail || 'Email is required');
         return;
       }
-      window.location.href = '/dashboard';
+      if (!emailRe.test(emailTrim)) {
+        setError(t?.login?.validation?.invalidEmail || 'Please enter a valid email address');
+        return;
+      }
+      if (!pwdTrim) {
+        setError(t?.login?.validation?.requiredPassword || 'Password is required');
+        return;
+      }
+
+      const resp: LoginResponse = await apiLogin(emailTrim, pwdTrim);
+      try {
+        localStorage.setItem('auth', JSON.stringify(resp));
+        window.dispatchEvent(new CustomEvent('auth:change'));
+      } catch {}
+
+      // Try to infer user type from token payload (id_token preferred)
+      const token = resp.id_token || resp.access_token;
+      let userType: 'user' | 'partner' | 'patron' = 'user';
+      if (token && token.split('.').length >= 2) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const role = (payload?.role || payload?.user_type || '').toString().toLowerCase();
+          if (role === 'partner' || role === 'patron' || role === 'user') {
+            userType = role as any;
+          }
+        } catch {}
+      }
+      const dest = userType ? `/dashboard?type=${encodeURIComponent(userType)}` : '/dashboard';
+      window.location.href = dest;
     } catch (err: any) {
-      setError(err?.message || 'Login failed');
+      const msg = err?.message || t?.login?.messages?.loginFailed || 'Login failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -89,47 +124,46 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 shadow-sm">
         <h1 className="text-2xl font-semibold mb-6 text-foreground">
-          {t?.nav?.login || 'Sign In'}
+          {t?.login?.title || t?.nav?.login || 'Sign In'}
         </h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form noValidate onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm mb-1 text-muted-foreground">Email</label>
+            <label htmlFor="email" className="block text-sm mb-1 text-muted-foreground">{t?.login?.emailLabel || 'Email'}</label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t?.login?.emailPlaceholder || 'you@example.com'}
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm mb-1 text-muted-foreground">Password</label>
-            <Input
+            <label htmlFor="password" className="block text-sm mb-1 text-muted-foreground">{t?.login?.passwordLabel || 'Password'}</label>
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder={t?.login?.passwordPlaceholder || '••••••••'}
             />
           </div>
           {error && (
             <p className="text-sm text-red-600" role="alert">{error}</p>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in…' : (t?.nav?.login || 'Sign In')}
+            {loading ? (t?.common?.loading || 'Loading...') : (t?.login?.submit || t?.nav?.login || 'Sign In')}
           </Button>
         </form>
         <div className="text-sm text-muted-foreground mt-4 flex items-center justify-between">
           <a href="/signup/LocalSignUp" className="hover:text-foreground">{t?.nav?.signup || 'Create account'}</a>
-          <a href="#" className="hover:text-foreground">Forgot password?</a>
+          <a href="#" className="hover:text-foreground">{t?.login?.forgotPassword || 'Forgot password?'}</a>
         </div>
 
         {/* Divider */}
         <div className="flex items-center gap-3 my-6">
           <div className="h-px bg-border flex-1" />
-          <span className="text-xs text-muted-foreground">or continue with</span>
+          <span className="text-xs text-muted-foreground">{t?.login?.orContinueWith || 'or continue with'}</span>
           <div className="h-px bg-border flex-1" />
         </div>
 

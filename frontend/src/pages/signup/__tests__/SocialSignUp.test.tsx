@@ -63,4 +63,47 @@ describe('SocialSignUp', () => {
       expect(screen.getByText(/failed to create account/i)).toBeInTheDocument();
     });
   });
+
+  test('disables submit and shows loading text while submitting', async () => {
+    // Delay createUser so we can observe loading state
+    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(res => setTimeout(() => res({}), 150)));
+
+    renderComponent('social@example.com');
+
+    const button = screen.getAllByRole('button', { name: /create account/i })[0];
+    fireEvent.click(button);
+
+    // While pending
+    expect(button).toBeDisabled();
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    // After resolved
+    await waitFor(() => {
+      expect(button).not.toBeDisabled();
+      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/account created/i)).toBeInTheDocument();
+    });
+  });
+
+  test('clears previous messages on resubmit', async () => {
+    // First attempt fails
+    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
+    // Second attempt succeeds
+    ;(api.createUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({});
+
+    renderComponent('social@example.com');
+
+    const button = screen.getAllByRole('button', { name: /create account/i })[0];
+
+    // 1st: fail
+    fireEvent.click(button);
+    await waitFor(() => expect(screen.getByText(/failed to create account/i)).toBeInTheDocument());
+
+    // 2nd: success, should clear error and show success
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(screen.queryByText(/failed to create account/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/account created/i)).toBeInTheDocument();
+    });
+  });
 });

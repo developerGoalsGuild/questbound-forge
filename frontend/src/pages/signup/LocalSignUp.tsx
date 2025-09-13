@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
-import { createUser, confirmEmail, isEmailAvailable, isNicknameAvailable } from '@/lib/api';
+import { createUser, isEmailAvailable, isNicknameAvailable, confirmEmail } from '@/lib/api';
 import { getCountries, initialsFor, isValidCountryCode } from '@/i18n/countries';
+import { mapSignupErrorToField } from './errorMapping';
+import { PasswordInput } from '@/components/ui/password-input';
+import { cn } from '@/lib/utils';
+import { emailConfirmationEnabled } from '@/config/featureFlags';
 
 interface FormData {
   email: string;
@@ -14,6 +18,7 @@ interface FormData {
   birthDate: string;
   country: string;
   gender: string;
+  role: 'user' | 'partner' | 'patron';
 }
 
 const LocalSignUp: React.FC = () => {
@@ -30,9 +35,12 @@ const LocalSignUp: React.FC = () => {
     bio: '',
     birthDate: '',
     country: '',
-        gender: ''
+        gender: '',
+        role: 'user'
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [pronounsWasSet, setPronounsWasSet] = useState(false);
+  const [genderWasSet, setGenderWasSet] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -67,6 +75,7 @@ const LocalSignUp: React.FC = () => {
 
   const { language } = useTranslation();
   const countries = useMemo(() => getCountries(language), [language]);
+  // TODO: Transform pronouns input into a select combo using these values.
   const pronounOptions = [
     { value: 'she/her', label: signup.options?.pronouns?.sheHer || 'She/Her' },
     { value: 'he/him', label: signup.options?.pronouns?.heHim || 'He/Him' },
@@ -75,6 +84,7 @@ const LocalSignUp: React.FC = () => {
     { value: 'he/they', label: signup.options?.pronouns?.heThey || 'He/They' },
     { value: 'other', label: signup.options?.common?.other || 'Other' },
   ];
+  // TODO: Add a Gender select combo bound to formData.gender using these values.
   const genderOptions = [
     { value: 'female', label: signup.options?.genders?.female || 'Female' },
     { value: 'male', label: signup.options?.genders?.male || 'Male' },
@@ -86,6 +96,11 @@ const LocalSignUp: React.FC = () => {
   const [countryQuery, setCountryQuery] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
   const countryInputRef = useRef<HTMLInputElement | null>(null);
+  const roleOptions = [
+    { value: 'user', label: signup.options?.roles?.user || 'User' },
+    { value: 'partner', label: signup.options?.roles?.partner || 'Partner' },
+    { value: 'patron', label: signup.options?.roles?.patron || 'Patron' },
+  ];
 
   const filteredCountries = useMemo(() => {
     const q = countryQuery.trim().toLowerCase();
@@ -139,6 +154,13 @@ const LocalSignUp: React.FC = () => {
       newErrors.country = validation.required;
     } else if (!isValidCountryCode(formData.country)) {
       newErrors.country = validation.invalidCountry || validation.required;
+    }
+    // Optional fields with special rule: if user once selected a value and later cleared, require re-selection
+    if (pronounsWasSet && !formData.pronouns) {
+      (newErrors as any).pronouns = validation.required || 'This field is required';
+    }
+    if (genderWasSet && !formData.gender) {
+      newErrors.gender = validation.required || 'This field is required';
     }
     if (!formData.password) {
       newErrors.password = validation.required;
@@ -205,6 +227,12 @@ const LocalSignUp: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
+    if (name === 'pronouns' && value) {
+      setPronounsWasSet(true);
+    }
+    if (name === 'gender' && value) {
+      setGenderWasSet(true);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -229,12 +257,14 @@ const LocalSignUp: React.FC = () => {
 
     setLoading(true);
     try {
-      // Create user with status "email confirmation pending"
+      // Create user; status depends on feature flag
+      const status = emailConfirmationEnabled ? 'email confirmation pending' : 'active';
       await createUser({
         email: formData.email,
         fullName: formData.fullName,
         password: formData.password,
-        status: 'email confirmation pending',
+        status,
+        role: formData.role,
         nickname: formData.nickname,
         pronouns: formData.pronouns,
         bio: formData.bio,
@@ -242,8 +272,15 @@ const LocalSignUp: React.FC = () => {
         country: formData.country,
         gender: formData.gender
         });
-      await confirmEmail(formData.email);
-      setSuccessMessage(signup.successMessage);
+      if (emailConfirmationEnabled) {
+        // Send email confirmation only when enabled
+        await confirmEmail(formData.email);
+      }
+      // Success copy depends on feature flag
+      const successText = emailConfirmationEnabled
+        ? (signup.successConfirmMessage || signup.successMessage)
+        : signup.successMessage;
+      setSuccessMessage(successText);
       setFormData({
         email: '',
         fullName: '',
@@ -255,9 +292,15 @@ const LocalSignUp: React.FC = () => {
         birthDate: '',
         country: '',
         gender: '',
+        role: 'user',
       });
-    } catch (error) {
-      setErrorMessage(signup.errorMessage);
+    } catch (error: any) {
+      const mapped = mapSignupErrorToField(error, signup);
+      if (mapped) {
+        setErrors((prev) => ({ ...prev, [mapped.field]: mapped.message }));
+      } else {
+        setErrorMessage(signup.errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -265,8 +308,29 @@ const LocalSignUp: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded shadow">
+      {emailConfirmationEnabled && (
+        <div role="note" className="mb-4 text-sm rounded border border-blue-200 bg-blue-50 text-blue-800 px-3 py-2">
+          {(signup.successConfirmMessage as string) || 'Email confirmation is required. Please check your inbox after signing up.'}
+        </div>
+      )}
       <h2 className="text-2xl font-semibold mb-4">{signup.title}</h2>
       <form onSubmit={handleSubmit} noValidate>
+        <div className="mb-4">
+          <label htmlFor="role" className="block font-medium mb-1">
+            {signup.role || 'Role'}
+          </label>
+          <select
+            id="role"
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            className={'w-full border rounded px-3 py-2 ' + (errors as any).role ? 'border-red-500' : 'border-gray-300'}
+          >
+            {roleOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
         <div className="mb-4">
           <label htmlFor="email" className="block font-medium mb-1">
             {signup.email}
@@ -353,18 +417,44 @@ const LocalSignUp: React.FC = () => {
         )}
         <div className="mb-4">
           <label htmlFor="pronouns" className="block font-medium mb-1">{signup.pronouns || 'Pronouns'}</label>
-          <input
+          <select
             id="pronouns"
             name="pronouns"
-            type="text"
             value={formData.pronouns}
             onChange={handleChange}
-            className={'w-full border rounded px-3 py-2 ' + ((errors as any).pronouns ? 'border-red-500' : 'border-gray-300')}
+            className={'w-full border rounded px-3 py-2 bg-white ' + ((errors as any).pronouns ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!(errors as any).pronouns}
             aria-describedby="pronouns-error"
-          />
+          >
+            <option value="">{signup.selectPronouns || 'Select pronouns'}</option>
+            {pronounOptions.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
           {(errors as any).pronouns && (
             <p id="pronouns-error" className="text-red-600 text-sm mt-1">{(errors as any).pronouns}</p>
+          )}
+        </div>
+
+        {/* Gender select */}
+        <div className="mb-4">
+          <label htmlFor="gender" className="block font-medium mb-1">{signup.gender || 'Gender'}</label>
+          <select
+            id="gender"
+            name="gender"
+            value={formData.gender}
+            onChange={handleChange}
+            className={'w-full border rounded px-3 py-2 bg-white ' + (errors.gender ? 'border-red-500' : 'border-gray-300')}
+            aria-invalid={!!errors.gender}
+            aria-describedby="gender-error"
+          >
+            <option value="">{signup.options?.common?.preferNot || 'Prefer not to say'}</option>
+            {genderOptions.map(g => (
+              <option key={g.value} value={g.value}>{g.label}</option>
+            ))}
+          </select>
+          {errors.gender && (
+            <p id="gender-error" className="text-red-600 text-sm mt-1">{errors.gender}</p>
           )}
         </div>
 
@@ -469,13 +559,13 @@ const LocalSignUp: React.FC = () => {
           <label htmlFor="password" className="block font-medium mb-1">
             {signup.password}
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             value={formData.password}
             onChange={handleChange}
-            className={'w-full border rounded px-3 py-2 ' + (errors.password ? 'border-red-500' : 'border-gray-300')}
+            className="w-full"
+            inputClassName={cn('border rounded', errors.password ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!errors.password}
             aria-describedby="password-error"
           />
@@ -490,13 +580,13 @@ const LocalSignUp: React.FC = () => {
           <label htmlFor="confirmPassword" className="block font-medium mb-1">
             {signup.confirmPassword}
           </label>
-          <input
+          <PasswordInput
             id="confirmPassword"
             name="confirmPassword"
-            type="password"
             value={formData.confirmPassword}
             onChange={handleChange}
-            className={'w-full border rounded px-3 py-2 ' + (errors.confirmPassword ? 'border-red-500' : 'border-gray-300')}
+            className="w-full"
+            inputClassName={cn('border rounded', errors.confirmPassword ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!errors.confirmPassword}
             aria-describedby="confirmPassword-error"
           />
@@ -531,3 +621,4 @@ const LocalSignUp: React.FC = () => {
 };
 
 export default LocalSignUp;
+        {/* Gender select inserted above */}

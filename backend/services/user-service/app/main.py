@@ -116,21 +116,75 @@ def _safe_event(msg: str, **kwargs):
         kwargs["refresh_token"] = "<redacted>"
     logger.info(msg, extra={"extra": kwargs})
 
+def _detect_conflict(email: Optional[str] = None, nickname: Optional[str] = None) -> dict | None:
+    """Return a structured conflict descriptor if email/nickname locks exist.
+    Uses the lock items written to `gg_core`:
+      - Email lock:  PK = EMAIL#{email}, SK = UNIQUE#USER
+      - Nick lock:   PK = NICK#{nickname}, SK = UNIQUE#USER
+    """
+    try:
+        if email:
+            r = core.get_item(Key={"PK": f"EMAIL#{email}", "SK": "UNIQUE#USER"})
+            if r.get("Item"):
+                return {"code": "EMAIL_TAKEN", "field": "email", "message": "Email already in use"}
+    except Exception:
+        pass
+    try:
+        if nickname:
+            r = core.get_item(Key={"PK": f"NICK#{nickname}", "SK": "UNIQUE#USER"})
+            if r.get("Item"):
+                return {"code": "NICKNAME_TAKEN", "field": "nickname", "message": "Nickname already in use"}
+    except Exception:
+        pass
+    return None
+
 # -------------------------
 # FastAPI app & middleware
 # -------------------------
 app = FastAPI(title="Goals Guild Serverless Auth API", version="1.0.0")
 
-allowed_origins = [
-    settings.app_base_url.rstrip("/") if settings.app_base_url else "*"
+def _norm_origin(o: Optional[str]) -> Optional[str]:
+    if not o:
+        return None
+    return o.rstrip("/")
+
+# Build a permissive but explicit allowlist to ensure CORS headers are
+# present on all responses when coming from known frontends.
+_origin_candidates = [
+    _norm_origin(getattr(settings, "frontend_base_url", None)),
+    _norm_origin(settings.app_base_url),
+    _norm_origin(os.getenv("DEV_FRONTEND_ORIGIN", "http://localhost:8080")),
 ]
+_allow_origins = [o for o in _origin_candidates if o]
+if not _allow_origins:
+    _allow_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Hardening: ensure CORS headers on all responses (including errors) when
+# the request Origin is allowed. Some adapters or frameworks may occasionally
+# omit ACAO on non-2xx responses; this guarantees it for browsers.
+@app.middleware("http")
+async def _ensure_cors_headers(request: Request, call_next: Callable):
+    response = await call_next(request)
+    origin = request.headers.get("origin")
+    if origin and origin.rstrip("/") in _allow_origins:
+        # Only set if not already present
+        if "access-control-allow-origin" not in response.headers:
+            response.headers["access-control-allow-origin"] = origin
+        if "access-control-allow-credentials" not in response.headers:
+            response.headers["access-control-allow-credentials"] = "true"
+        # Ensure caches vary by Origin
+        vary = response.headers.get("vary") or ""
+        if "Origin" not in vary.split(","):
+            response.headers["vary"] = ", ".join([v for v in [vary.strip(", ") or None, "Origin"] if v])
+    return response
 
 def _client_ip(request: Request) -> str:
     xfwd = request.headers.get("x-forwarded-for")
@@ -332,6 +386,7 @@ def signup(payload: dict, request: Request):
                 "type": "User",
                 "id": user_id,
                 "email": email,
+                "role": body.role,
                 "fullName": full_name,
                 "birthDate": birth_date or None,
                 "status": status,
@@ -427,7 +482,10 @@ def signup(payload: dict, request: Request):
             if code in {"ConditionalCheckFailedException"}:
                 # Could be email or nickname already in use
                 _safe_event("signup.local.core_conflict", cid=cid, email=_mask_email(email), nickname=nickname)
-                raise HTTPException(status_code=409, detail="Email or nickname already in use")
+                det = _detect_conflict(email=email, nickname=nickname)
+                if not det:
+                    det = {"code": "EMAIL_OR_NICKNAME_TAKEN", "message": "Email or nickname already in use"}
+                raise HTTPException(status_code=409, detail=det)
             if code in {"TransactionCanceledException", "ValidationException"}:
                 # Some local stacks (e.g., moto) do not fully support TransactWriteItems.
                 # Fallback to sequential conditional puts with best-effort compensation.
@@ -476,7 +534,7 @@ def signup(payload: dict, request: Request):
                                 logger.warning("fallback.cleanup.email_lock_delete_failed", exc_info=True)
                             ncode = ne.response.get("Error", {}).get("Code")
                             if ncode == "ConditionalCheckFailedException":
-                                raise HTTPException(status_code=409, detail="Nickname already in use")
+                                raise HTTPException(status_code=409, detail={"code": "NICKNAME_TAKEN", "field": "nickname", "message": "Nickname already in use"})
                             raise
 
                     # Profile item
@@ -491,7 +549,10 @@ def signup(payload: dict, request: Request):
                 except ClientError as fe:
                     fcode = fe.response.get("Error", {}).get("Code")
                     if fcode == "ConditionalCheckFailedException":
-                        raise HTTPException(status_code=409, detail="Email or nickname already in use")
+                        det = _detect_conflict(email=email, nickname=nickname)
+                        if not det:
+                            det = {"code": "EMAIL_OR_NICKNAME_TAKEN", "message": "Email or nickname already in use"}
+                        raise HTTPException(status_code=409, detail=det)
                     logger.error("signup.local.core_fallback_error", exc_info=True)
                     raise HTTPException(status_code=500, detail="Could not create profile")
             if not core_profile_created:
@@ -542,7 +603,7 @@ def signup(payload: dict, request: Request):
                             pass
                         ncode = ne.response.get("Error", {}).get("Code")
                         if ncode == "ConditionalCheckFailedException":
-                            raise HTTPException(status_code=409, detail="Nickname already in use")
+                            raise HTTPException(status_code=409, detail={"code": "NICKNAME_TAKEN", "field": "nickname", "message": "Nickname already in use"})
                         raise
 
                 _ddb_call(
@@ -556,7 +617,10 @@ def signup(payload: dict, request: Request):
             except ClientError as fe2:
                 fcode = fe2.response.get("Error", {}).get("Code")
                 if fcode == "ConditionalCheckFailedException":
-                    raise HTTPException(status_code=409, detail="Email or nickname already in use")
+                    det = _detect_conflict(email=email, nickname=nickname)
+                    if not det:
+                        det = {"code": "EMAIL_OR_NICKNAME_TAKEN", "message": "Email or nickname already in use"}
+                    raise HTTPException(status_code=409, detail=det)
                 logger.error("signup.local.core_fallback2_error", exc_info=True)
                 raise HTTPException(status_code=500, detail="Could not create profile")
             except Exception:
@@ -632,6 +696,7 @@ def signup(payload: dict, request: Request):
                 "type": "User",
                 "id": sub,
                 "email": email or f"unknown+{sub}@example.com",
+                "role": "user",
                 "fullName": display_name,
                 "status": "ACTIVE",
                 "tier": "free",
@@ -674,7 +739,7 @@ def signup(payload: dict, request: Request):
             code = e.response.get("Error", {}).get("Code")
             if code in {"ConditionalCheckFailedException"}:
                 _safe_event("signup.google.core_conflict", cid=cid, email=_mask_email(email) if email else None, sub=sub)
-                raise HTTPException(status_code=409, detail="Email already in use")
+                raise HTTPException(status_code=409, detail={"code": "EMAIL_TAKEN", "field": "email", "message": "Email already in use"})
             if code in {"TransactionCanceledException", "ValidationException"}:
                 # Fallback to sequential conditional puts for local test stacks
                 try:
@@ -705,7 +770,7 @@ def signup(payload: dict, request: Request):
                 except ClientError as fe:
                     fcode = fe.response.get("Error", {}).get("Code")
                     if fcode == "ConditionalCheckFailedException":
-                        raise HTTPException(status_code=409, detail="Email already in use")
+                        raise HTTPException(status_code=409, detail={"code": "EMAIL_TAKEN", "field": "email", "message": "Email already in use"})
                     logger.error("signup.google.core_fallback_error", exc_info=True)
                     raise HTTPException(status_code=500, detail="Could not create profile")
             if not core_profile_created:
@@ -739,7 +804,7 @@ def signup(payload: dict, request: Request):
             except ClientError as fe2:
                 fcode = fe2.response.get("Error", {}).get("Code")
                 if fcode == "ConditionalCheckFailedException":
-                    raise HTTPException(status_code=409, detail="Email already in use")
+                    raise HTTPException(status_code=409, detail={"code": "EMAIL_TAKEN", "field": "email", "message": "Email already in use"})
                 logger.error("signup.google.core_fallback2_error", exc_info=True)
                 raise HTTPException(status_code=500, detail="Could not create profile")
             except Exception:
@@ -874,10 +939,54 @@ def login(body: LoginLocal, request: Request):
         })
 
     # Success
-    token = issue_local_jwt(item["id"], email)
+    user_role = (
+        item.get("role")
+        or item.get("user_type")
+        or "user"
+    )
+    token = issue_local_jwt(item["id"], email, ttl_seconds=1200, role=user_role)
     record_attempt(email, success=True, ip=client_ip, ua=ua, reason="OK")
     _safe_event("login.success", cid=cid, email=_mask_email(email), ip=client_ip, ua=ua)
     return TokenResponse(**token).model_dump()
+
+@app.post("/auth/renew", response_model=None)
+def renew_token(request: Request, authorization: Optional[str] = Header(None)):
+    cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+    authz = authorization or ""
+    if not authz.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = authz.split(" ", 1)[1].strip()
+    try:
+        claims = verify_local_jwt(token)
+    except Exception:
+        _safe_event("renew.token_invalid", cid=cid)
+        raise HTTPException(status_code=401, detail="Token expired or invalid")
+
+    user_id = claims.get("sub")
+    email = (claims.get("email") or "").lower()
+    role = (claims.get("role") or claims.get("user_type") or "user")
+    if not user_id or not email:
+        raise HTTPException(status_code=400, detail="Malformed token")
+
+    # Optionally verify user still exists/active
+    try:
+        r = core.get_item(Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"})
+        item = r.get("Item")
+        if not item:
+            raise HTTPException(status_code=404, detail="User not found")
+        if item.get("status") in {"BLOCKED", "DISABLED"}:
+            raise HTTPException(status_code=403, detail="User not allowed")
+        if not item.get("email_confirmed", True):
+            raise HTTPException(status_code=403, detail="Email not confirmed")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.error("renew.ddb_error", exc_info=True)
+        raise HTTPException(status_code=500, detail="Unable to renew token")
+
+    new_tok = issue_local_jwt(user_id, email, ttl_seconds=1200, role=role)
+    _safe_event("renew.success", cid=cid, email=_mask_email(email))
+    return TokenResponse(**new_tok).model_dump()
 
 # --- TEMP PASSWORD FOR BLOCKED USERS ---
 @app.post("/password/temp", response_model=None)

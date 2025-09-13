@@ -7,6 +7,7 @@ class SignupLocal(BaseModel):
   provider: Literal['local'] = 'local'
   email: EmailStr
   password: str
+  role: Literal['user','partner','patron'] = 'user'
   name: Optional[str] = None
   # Extended profile fields (to mirror AppSync createUser)
   nickname: Optional[str] = None

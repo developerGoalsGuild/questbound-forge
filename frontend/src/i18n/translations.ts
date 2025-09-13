@@ -1,10 +1,18 @@
-// Project translations
+// Project translations (UTF-8 clean)
 export type Language = 'en' | 'es' | 'fr';
 
 export interface Translations {
   nav: {
     home: string; features: string; community: string; pricing: string; contact: string;
     login: string; signup: string; dashboard: string; logout: string;
+  };
+  login?: {
+    title?: string;
+    emailLabel?: string; emailPlaceholder?: string;
+    passwordLabel?: string; passwordPlaceholder?: string;
+    submit?: string; forgotPassword?: string; orContinueWith?: string;
+    messages?: { loginFailed?: string };
+    validation?: { requiredEmail?: string; invalidEmail?: string; requiredPassword?: string };
   };
   hero: { title: string; subtitle: string; ctaPrimary: string; ctaSecondary: string };
   features: {
@@ -30,6 +38,16 @@ export const translations: Record<Language, Translations> = {
       home: 'Home', features: 'Features', community: 'Community', pricing: 'Pricing', contact: 'Contact',
       login: 'Sign In', signup: 'Join Guild', dashboard: 'Dashboard', logout: 'Sign Out',
     },
+    login: {
+      title: 'Sign In',
+      emailLabel: 'Email Address', emailPlaceholder: 'you@example.com',
+      passwordLabel: 'Password', passwordPlaceholder: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
+      submit: 'Sign In', forgotPassword: 'Forgot password?', orContinueWith: 'or continue with',
+      messages: { loginFailed: 'Login failed' },
+      validation: {
+        requiredEmail: 'Email is required', invalidEmail: 'Please enter a valid email address', requiredPassword: 'Password is required'
+      }
+    },
     hero: {
       title: 'Unite in Purpose, Achieve Together',
       subtitle: 'Join a medieval-inspired community where goals become quests and progress is celebrated.',
@@ -51,9 +69,12 @@ export const translations: Record<Language, Translations> = {
       title: 'User Sign-Up',
       email: 'Email Address', fullName: 'Full Name', birthDate: 'Date of Birth',
       nickname: 'Nickname', pronouns: 'Pronouns', bio: 'Bio', country: 'Country', gender: 'Gender',
+      selectPronouns: 'Select pronouns',
       selectCountry: 'Select your country', password: 'Password', confirmPassword: 'Confirm Password',
       submit: 'Create Account',
-      successMessage: 'Account created! Please check your email to confirm your address.',
+      successMessage: 'Account created!',
+      // When email confirmation is enabled, use this success text instead.
+      successConfirmMessage: 'Account created! Please check your email to confirm your address.',
       errorMessage: 'Failed to create account. Please try again.',
       options: {
         pronouns: { sheHer: 'She/Her', heHim: 'He/Him', theyThem: 'They/Them', sheThey: 'She/They', heThey: 'He/They' },
@@ -66,102 +87,129 @@ export const translations: Record<Language, Translations> = {
         invalidDate: 'Please enter a valid date (YYYY-MM-DD)', birthDateTooRecent: 'Birth date cannot be later than today minus 1 year',
         bioMaxLength: 'Bio must be 200 characters or fewer', invalidCountry: 'Please choose a country from the list',
         emailTaken: 'This email is already in use', emailAvailable: 'Available', nicknameAvailable: 'Available', nicknameTaken: 'This nickname is already in use',
+        passwordLower: 'Must include a lowercase letter', passwordUpper: 'Must include an uppercase letter', passwordDigit: 'Must include a digit', passwordSpecial: 'Must include a special character',
       },
     },
     common: { loading: 'Loading...', error: 'An error occurred', success: 'Success!', save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', view: 'View', close: 'Close' },
   },
   es: {
     nav: {
-      home: 'Inicio', features: 'Características', community: 'Comunidad', pricing: 'Precios', contact: 'Contacto',
-      login: 'Iniciar Sesión', signup: 'Unirse al Gremio', dashboard: 'Panel', logout: 'Cerrar Sesión',
+      home: 'Inicio', features: 'Funciones', community: 'Comunidad', pricing: 'Precios', contact: 'Contacto',
+      login: 'Iniciar sesiÃ³n', signup: 'Unirse al Gremio', dashboard: 'Panel', logout: 'Cerrar sesiÃ³n',
+    },
+    login: {
+      title: 'Iniciar sesiÃ³n',
+      emailLabel: 'Correo electrÃ³nico', emailPlaceholder: 'tu@ejemplo.com',
+      passwordLabel: 'ContraseÃ±a', passwordPlaceholder: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
+      submit: 'Iniciar sesiÃ³n', forgotPassword: 'Â¿Olvidaste tu contraseÃ±a?', orContinueWith: 'o continuar con',
+      messages: { loginFailed: 'Error al iniciar sesiÃ³n' },
+      validation: {
+        requiredEmail: 'El correo electrÃ³nico es obligatorio', invalidEmail: 'Introduce un correo vÃ¡lido', requiredPassword: 'La contraseÃ±a es obligatoria'
+      }
     },
     hero: {
-      title: 'Únete en Propósito, Logra Juntos',
+      title: 'Ãšnete en propÃ³sito, logra juntos',
       subtitle: 'Una comunidad inspirada en lo medieval donde las metas se vuelven misiones.',
-      ctaPrimary: 'Comienza tu Misión', ctaSecondary: 'Explorar Características',
+      ctaPrimary: 'Comienza tu misiÃ³n', ctaSecondary: 'Explorar funciones',
     },
     features: {
-      title: 'Características del Gremio', subtitle: 'Herramientas para lograr grandeza juntos.',
-      goalTracking: { title: 'Gestión de Misiones', description: 'Establece, rastrea y logra metas.' },
+      title: 'Funciones del Gremio', subtitle: 'Herramientas para lograr grandes cosas.',
+      goalTracking: { title: 'GestiÃ³n de misiones', description: 'Define, sigue y logra tus metas.' },
       community: { title: 'Comunidad del Gremio', description: 'Conecta, comparte y apoya.' },
-      gamification: { title: 'Honor y Logros', description: 'Gana insignias y celebra hitos.' },
-      patronage: { title: 'Patrocinio Noble', description: 'Apoya y desbloquea beneficios.' },
-    },
-    dashboard: {
-      user: { title: 'Salón del Aventurero', welcome: '¡Bienvenido!', goals: 'Misiones Activas', progress: 'Resumen', community: 'Actividades del Gremio', achievements: 'Honores Ganados' },
-      partner: { title: 'Cuartos del Mercader', services: 'Tus Servicios', analytics: 'Análisis de Negocio', engagement: 'Participación de Usuarios', revenue: 'Ingresos' },
-      patron: { title: 'Corte del Noble', contributions: 'Tu Patrocinio', impact: 'Impacto en la Comunidad', benefits: 'Beneficios Exclusivos', community: 'Comunidad de Patrones' },
+      gamification: { title: 'Honores y logros', description: 'Gana insignias y celebra hitos.' },
+      patronage: { title: 'Mecenazgo', description: 'Apoya a la comunidad y desbloquea beneficios.' },
     },
     signup: {
-      local: {
-        title: 'Registro de Usuario Local',
-        email: 'Correo Electrónico', fullName: 'Nombre Completo', birthDate: 'Fecha de Nacimiento',
-        nickname: 'Apodo', pronouns: 'Pronombres', bio: 'Biografía', country: 'País', gender: 'Género',
-        selectCountry: 'Selecciona tu país', password: 'Contraseña', confirmPassword: 'Confirmar Contraseña',
-        submit: 'Crear Cuenta',
-        successMessage: '¡Cuenta creada! Revisa tu correo para confirmar tu dirección.',
-        errorMessage: 'Error al crear la cuenta. Inténtalo de nuevo.',
-        options: {
-          pronouns: { sheHer: 'Ella', heHim: 'Él', theyThem: 'Elle', sheThey: 'Ella/Elle', heThey: 'Él/Elle' },
-          genders: { female: 'Mujer', male: 'Hombre', nonBinary: 'No binario', transgender: 'Transgénero' },
-          common: { other: 'Otro', preferNot: 'Prefiero no decir' },
-        },
-        validation: {
-          required: 'Este campo es obligatorio', invalidEmail: 'Introduce un correo válido',
-          passwordMismatch: 'Las contraseñas no coinciden', passwordMinLength: 'Mínimo 8 caracteres',
-          invalidDate: 'Fecha inválida (AAAA-MM-DD)', birthDateTooRecent: 'No puede ser posterior a hoy menos 1 año',
-          bioMaxLength: 'Máximo 200 caracteres', invalidCountry: 'Elige un país de la lista',
-          emailTaken: 'Este correo ya está en uso', emailAvailable: 'Disponible', nicknameAvailable: 'Disponible', nicknameTaken: 'Este apodo ya está en uso',
-        },
+      title: 'Registro de usuario',
+      email: 'Correo electrÃ³nico', fullName: 'Nombre completo', birthDate: 'Fecha de nacimiento',
+      nickname: 'Apodo', pronouns: 'Pronombres', bio: 'Bio', country: 'PaÃ­s', gender: 'GÃ©nero',
+      selectPronouns: 'Selecciona tus pronombres',
+      selectCountry: 'Selecciona tu paÃ­s', password: 'ContraseÃ±a', confirmPassword: 'Confirmar contraseÃ±a',
+      submit: 'Crear cuenta',
+      successMessage: 'Â¡Cuenta creada!',
+      // Cuando la confirmaciÃ³n por correo estÃ© habilitada, usar este texto.
+      successConfirmMessage: 'Â¡Cuenta creada! Revisa tu correo para confirmar tu direcciÃ³n.',
+      errorMessage: 'Error al crear la cuenta. IntÃ©ntalo de nuevo.',
+      options: {
+        pronouns: { sheHer: 'Ella', heHim: 'Ã‰l', theyThem: 'Elle', sheThey: 'Ella/Elle', heThey: 'Ã‰l/Elle' },
+        genders: { female: 'Femenino', male: 'Masculino', nonBinary: 'No binario', transgender: 'TransgÃ©nero' },
+        common: { other: 'Otro', preferNot: 'Prefiero no decir' },
+      },
+      validation: {
+        required: 'Este campo es obligatorio', invalidEmail: 'Introduce un correo vÃ¡lido',
+        passwordMismatch: 'Las contraseÃ±as no coinciden', passwordMinLength: 'MÃ­nimo 8 caracteres',
+        invalidDate: 'Introduce una fecha vÃ¡lida (AAAA-MM-DD)', birthDateTooRecent: 'No puede ser mayor que hoy - 1 aÃ±o',
+        bioMaxLength: 'MÃ¡ximo 200 caracteres', invalidCountry: 'Elige un paÃ­s de la lista',
+        emailTaken: 'Este correo ya estÃ¡ en uso', emailAvailable: 'Disponible', nicknameAvailable: 'Disponible', nicknameTaken: 'Este apodo ya estÃ¡ en uso',
+        passwordLower: 'Debe incluir una minÃºscula', passwordUpper: 'Debe incluir una mayÃºscula', passwordDigit: 'Debe incluir un dÃ­gito', passwordSpecial: 'Debe incluir un carÃ¡cter especial',
       },
     },
-    common: { loading: 'Cargando...', error: 'Ocurrió un error', success: '¡Éxito!', save: 'Guardar', cancel: 'Cancelar', delete: 'Eliminar', edit: 'Editar', view: 'Ver', close: 'Cerrar' },
+    dashboard: {
+      user: { title: 'Sala del Aventurero', welcome: 'Â¡Bienvenido de nuevo!', goals: 'Misiones activas', progress: 'Resumen de progreso', community: 'Actividades del gremio', achievements: 'Honores ganados' },
+      partner: { title: 'Barrio del Comerciante', services: 'Tus servicios', analytics: 'AnalÃ­ticas', engagement: 'ParticipaciÃ³n', revenue: 'Ingresos' },
+      patron: { title: 'Corte del Noble', contributions: 'Tu mecenazgo', impact: 'Impacto', benefits: 'Beneficios', community: 'Comunidad de mecenas' },
+    },
+    common: { loading: 'Cargando...', error: 'OcurriÃ³ un error', success: 'Â¡Ã‰xito!', save: 'Guardar', cancel: 'Cancelar', delete: 'Eliminar', edit: 'Editar', view: 'Ver', close: 'Cerrar' },
   },
   fr: {
     nav: {
-      home: 'Accueil', features: 'Fonctionnalités', community: 'Communauté', pricing: 'Tarifs', contact: 'Contact',
-      login: 'Se connecter', signup: 'Rejoindre la Guilde', dashboard: 'Tableau de bord', logout: 'Se déconnecter',
+      home: 'Accueil', features: 'FonctionnalitÃ©s', community: 'CommunautÃ©', pricing: 'Tarifs', contact: 'Contact',
+      login: 'Se connecter', signup: 'Rejoindre la Guilde', dashboard: 'Tableau de bord', logout: 'Se dÃ©connecter',
+    },
+    login: {
+      title: 'Se connecter',
+      emailLabel: 'Adresse e-mail', emailPlaceholder: 'vous@exemple.com',
+      passwordLabel: 'Mot de passe', passwordPlaceholder: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
+      submit: 'Se connecter', forgotPassword: 'Mot de passe oubliÃ© ?', orContinueWith: 'ou continuer avec',
+      messages: { loginFailed: "Ã‰chec de la connexion" },
+      validation: {
+        requiredEmail: "L'e-mail est requis", invalidEmail: 'Veuillez saisir une adresse e-mail valide', requiredPassword: 'Mot de passe requis'
+      }
     },
     hero: {
-      title: 'Unis dans le but, réussissez ensemble',
-      subtitle: 'Une communauté d’inspiration médiévale où les objectifs deviennent des quêtes.',
-      ctaPrimary: 'Commencer la quête', ctaSecondary: 'Découvrir',
+      title: 'Unis dans le but, rÃ©ussir ensemble',
+      subtitle: 'Une communautÃ© mÃ©diÃ©vale oÃ¹ les objectifs deviennent des quÃªtes.',
+      ctaPrimary: 'Commencer la quÃªte', ctaSecondary: 'DÃ©couvrir les fonctions',
     },
     features: {
-      title: 'Fonctionnalités de la Guilde', subtitle: 'Des outils puissants pour réussir ensemble.',
-      goalTracking: { title: 'Gestion des Quêtes', description: 'Définir, suivre, atteindre.' },
-      community: { title: 'Communauté de la Guilde', description: 'Se connecter, partager, soutenir.' },
-      gamification: { title: 'Honneurs & Succès', description: 'Gagner des badges et célébrer.' },
-      patronage: { title: 'Mécénat', description: 'Soutenir et débloquer des avantages.' },
-    },
-    dashboard: {
-      user: { title: "Salle de l’Aventurier", welcome: 'Bon retour !', goals: 'Quêtes actives', progress: 'Aperçu', community: 'Activités de la Guilde', achievements: 'Honneurs' },
-      partner: { title: 'Quartiers du Marchand', services: 'Vos services', analytics: 'Analyses', engagement: 'Engagement', revenue: 'Revenus' },
-      patron: { title: 'Cour du Noble', contributions: 'Votre mécénat', impact: 'Impact communautaire', benefits: 'Avantages exclusifs', community: 'Communauté des mécènes' },
+      title: 'FonctionnalitÃ©s de la Guilde', subtitle: 'Des outils pour rÃ©ussir ensemble.',
+      goalTracking: { title: 'Gestion des quÃªtes', description: 'DÃ©finir, suivre et rÃ©ussir.' },
+      community: { title: 'CommunautÃ© de la Guilde', description: 'Se connecter, partager, soutenir.' },
+      gamification: { title: 'Honneurs & succÃ¨s', description: 'Gagner des badges et cÃ©lÃ©brer.' },
+      patronage: { title: 'MÃ©cÃ©nat', description: 'Soutenir et dÃ©bloquer des avantages.' },
     },
     signup: {
       local: {
         title: 'Inscription locale',
         email: 'Adresse e-mail', fullName: 'Nom complet', birthDate: 'Date de naissance',
         nickname: 'Pseudo', pronouns: 'Pronoms', bio: 'Bio', country: 'Pays', gender: 'Genre',
-        selectCountry: 'Sélectionnez votre pays', password: 'Mot de passe', confirmPassword: 'Confirmer le mot de passe',
-        submit: 'Créer un compte',
-        successMessage: 'Compte créé ! Vérifiez votre e-mail pour confirmer votre adresse.',
-        errorMessage: "Échec de la création du compte. Veuillez réessayer.",
+        selectPronouns: 'SÃ©lectionnez vos pronoms',
+        selectCountry: 'SÃ©lectionnez votre pays', password: 'Mot de passe', confirmPassword: 'Confirmer le mot de passe',
+        submit: 'CrÃ©er un compte',
+        successMessage: 'Compte crÃ©Ã© !',
+        // Lorsque la confirmation e-mail est activÃ©e, utiliser ce texte.
+        successConfirmMessage: 'Compte crÃ©Ã© ! VÃ©rifiez votre e-mail pour confirmer.',
+        errorMessage: "Ã‰chec de la crÃ©ation du compte. Veuillez rÃ©essayer.",
         options: {
           pronouns: { sheHer: 'Elle', heHim: 'Il/Lui', theyThem: 'Iel', sheThey: 'Elle/Iel', heThey: 'Il/Iel' },
           genders: { female: 'Femme', male: 'Homme', nonBinary: 'Non-binaire', transgender: 'Transgenre' },
-          common: { other: 'Autre', preferNot: 'Préférer ne pas répondre' },
+          common: { other: 'Autre', preferNot: 'PrÃ©fÃ©rer ne pas rÃ©pondre' },
         },
         validation: {
           required: 'Ce champ est requis', invalidEmail: 'Adresse e-mail invalide',
-          passwordMismatch: 'Les mots de passe ne correspondent pas', passwordMinLength: 'Minimum 8 caractères',
-          invalidDate: 'Date invalide (AAAA-MM-JJ)', birthDateTooRecent: 'Ne peut pas être postérieure à (aujourd’hui - 1 an)',
-          bioMaxLength: 'Bio = 200 caractères', invalidCountry: 'Choisissez un pays dans la liste',
-          emailTaken: 'Cet e-mail est déjà utilisé', emailAvailable: 'Disponible', nicknameAvailable: 'Disponible', nicknameTaken: 'Ce pseudo est déjà utilisé',
+          passwordMismatch: 'Les mots de passe ne correspondent pas', passwordMinLength: 'Minimum 8 caractÃ¨res',
+          invalidDate: 'Date invalide (AAAA-MM-JJ)', birthDateTooRecent: 'Ne peut pas Ãªtre postÃ©rieure Ã  (aujourdâ€™hui - 1 an)',
+          bioMaxLength: 'Bio â‰¤ 200 caractÃ¨res', invalidCountry: 'Choisissez un pays dans la liste',
+          emailTaken: 'Cet e-mail est dÃ©jÃ  utilisÃ©', emailAvailable: 'Disponible', nicknameAvailable: 'Disponible', nicknameTaken: 'Ce pseudo est dÃ©jÃ  utilisÃ©',
+          passwordLower: 'Doit inclure une minuscule', passwordUpper: 'Doit inclure une majuscule', passwordDigit: 'Doit inclure un chiffre', passwordSpecial: 'Doit inclure un caractÃ¨re spÃ©cial',
         },
       },
     },
-    common: { loading: 'Chargement…', error: 'Une erreur est survenue', success: 'Succès !', save: 'Enregistrer', cancel: 'Annuler', delete: 'Supprimer', edit: 'Modifier', view: 'Voir', close: 'Fermer' },
+    dashboard: {
+      user: { title: "Salle de l'Aventurier", welcome: 'Bon retour !', goals: 'QuÃªtes actives', progress: 'AperÃ§u', community: 'ActivitÃ©s de la guilde', achievements: 'Honneurs' },
+      partner: { title: 'Quartier du marchand', services: 'Vos services', analytics: 'Analyses', engagement: 'Engagement', revenue: 'Revenus' },
+      patron: { title: 'Cour du noble', contributions: 'Votre mÃ©cÃ©nat', impact: 'Impact', benefits: 'Avantages', community: 'CommunautÃ© des mÃ©cÃ¨nes' },
+    },
+    common: { loading: 'Chargementâ€¦', error: 'Une erreur est survenue', success: 'SuccÃ¨s !', save: 'Enregistrer', cancel: 'Annuler', delete: 'Supprimer', edit: 'Modifier', view: 'Voir', close: 'Fermer' },
   },
 };

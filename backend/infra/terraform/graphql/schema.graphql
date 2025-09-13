@@ -88,6 +88,9 @@ type Query {
   me: User
   user(userId: ID!): User
   goals(userId: ID!): [Goal!]!
+  activeGoalsCount(userId: ID!): Int!
+  myGoals: [Goal!]!
+  myTasks(goalId: ID!): [Task!]!
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
   offers(tags: [String!], limit: Int = 20): [Offer!]!

@@ -112,7 +112,7 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
     JWT_ISSUER           = "https://auth.local"
     JWT_AUDIENCE           = "api://default"
     COGNITO_DOMAIN           = "goalsguild.auth.us-east-2.amazoncognito.com"
-    EMAIL_SENDER             = "no-reply@goalsguild.com"
+    SES_SENDER_EMAIL         = "no-reply@goalsguild.com"
     FRONTEND_BASE_URL        = "https://app.goalsguild.com"
     PASSWORD_KEY             = "your-encrypted-password-key" # Replace with actual secure value or SSM reference
     DYNAMODB_USERS_TABLE     = "gg_core"
@@ -128,5 +128,4 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
     Component   = "user-service"
   }
 }
-
 
