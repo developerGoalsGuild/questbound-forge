@@ -38,8 +38,7 @@ resource "aws_lambda_function" "lambda_function" {
 
   timeout       = var.timeout
   memory_size   = var.memory_size
-  tags          = var.tags
-
+  tags          = var.tags  
   environment {
     variables = {
       AWS_LAMBDA_EXEC_WRAPPER = "/opt/bootstrap"
@@ -56,9 +55,6 @@ resource "aws_lambda_permission" "apigw_invoke" {
   function_name = aws_lambda_function.lambda_function.function_name
   principal     = "apigateway.amazonaws.com"
 }
-
-
-
 
 # CloudWatch Log Group for Lambda function logs
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
@@ -80,10 +76,6 @@ resource "aws_cloudwatch_log_metric_filter" "lambda_error_filter" {
     value     = "1"
   }
 }
-
-
-
-
 
 # CloudWatch Metric Filter for Lambda Throttles
 resource "aws_cloudwatch_log_metric_filter" "lambda_throttle_filter" {

@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import LocalSignup from "./pages/signup/LocalSignUp";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
+import Goals from "./pages/goals/Goals";
 //import ConfirmEmail from "./pages/ConfirmEmail";
 import { SessionKeepAlive } from '@/lib/session';
 import { ProtectedRoute, AuthWatcher } from '@/lib/auth';
@@ -30,6 +31,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/goals" element={<Goals />} />
             <Route path="/account/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />

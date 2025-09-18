@@ -43,6 +43,8 @@ module "lambda_authorizer" {
 
   environment_variables = {
     ENVIRONMENT = var.environment
+    AUTH_LOG_ENABLED = var.auth_log_enabled
+    LOG_LEVEL = var.log_level
   }
 
   # optional
@@ -50,6 +52,7 @@ module "lambda_authorizer" {
   tags = {
     Environment = var.environment
     Project     = "goalsguild"
+    
   }
 
   # optional noise filters for change detection
@@ -356,3 +359,8 @@ module "network" {
   login_attempts_table_arn               = aws_dynamodb_table.login_attempts.arn
 
 }
+
+
+
+
+

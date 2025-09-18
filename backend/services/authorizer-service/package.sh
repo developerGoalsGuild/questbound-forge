@@ -1,21 +1,15 @@
-#!/bin/bash
-# Package the Lambda function with dependencies for deployment
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
-
-# Clean previous build
-rm -rf build
+rm -rf build authorizer.zip
 mkdir build
 
-# Install dependencies to build folder
 pip3 install -r requirements.txt -t build/
 
-# Copy source code
-cp authorizer.py build/
+# include all modules the handler imports
+cp authorizer.py cognito.py security.py ssm.py build/
 
-# Zip contents
 cd build
 zip -r ../authorizer.zip .
 cd ..
-
 echo "Packaged authorizer.zip ready for deployment."

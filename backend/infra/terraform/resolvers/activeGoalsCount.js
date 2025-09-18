@@ -7,7 +7,8 @@ export function request(ctx) {
   const userId = ctx.args?.userId;
   if (!sub) util.unauthorized();
   if (!userId) util.error('userId required', 'Validation');
-  if (String(sub) !== String(userId)) util.unauthorized();
+  // Avoid using global String() in AppSync JS runtime; coerce via concatenation
+  if (('' + sub) !== ('' + userId)) util.unauthorized();
 
   return {
     operation: 'Query',
@@ -36,4 +37,3 @@ export function response(ctx) {
   const items = (ctx.result && ctx.result.items) ? ctx.result.items : [];
   return items.length;
 }
-

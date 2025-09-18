@@ -47,6 +47,9 @@ const Header = () => {
             <a href="#contact" className="font-medium hover:text-primary transition-colors">
               {t.nav.contact}
             </a>
+            <Link to="/goals" className="font-medium hover:text-primary transition-colors">
+              {t.nav.goals || 'Quests'}
+            </Link>
           </nav>
 
           {/* Action Buttons & Language Selector */}
@@ -108,7 +111,10 @@ const Header = () => {
               <a href="#contact" className="font-medium hover:text-primary transition-colors">
                 {t.nav.contact}
               </a>
-              
+              <Link to="/goals" className="font-medium hover:text-primary transition-colors">
+                {t.nav.goals || 'Quests'}
+              </Link>
+
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
                 <Button className="btn-heraldic text-primary-foreground justify-start" variant="outline" className="justify-start" asChild>
                   <Link to="/login/Login">{t.nav.login}</Link>

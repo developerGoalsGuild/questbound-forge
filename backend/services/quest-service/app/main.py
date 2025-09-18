@@ -9,6 +9,8 @@ import jwt
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from uuid import uuid4
+import httpx
+from pydantic import BaseModel
 
 # In Lambda on AWS, these env vars are already set — no need to override.
 def aws_region() -> str | None:
@@ -103,3 +105,50 @@ async def create_quest(quest: QuestCreate, user_id: str = Depends(verify_token))
   except Exception as e:
     logger.error(f"Error creating quest: {e}")
     raise HTTPException(status_code=500, detail="Could not create quest")
+
+
+# ---------- AI integration ----------
+class AITextPayload(BaseModel):
+  text: str
+  lang: Optional[str] = 'en'
+
+@app.post("/ai/inspiration-image")
+async def inspiration_image(body: AITextPayload):
+  """
+  Returns an inspirational image URL for the provided goal text.
+  If OPENAI_API_KEY is set, this could call an image model; otherwise
+  we return a deterministic placeholder based on the text query.
+  """
+  text = (body.text or '').strip()
+  if not text:
+    raise HTTPException(status_code=400, detail="text is required")
+  # Fallback image using picsum with a hash on text
+  import hashlib
+  h = hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]
+  # size 1024x640
+  url = f"https://picsum.photos/seed/{h}/1024/640"
+  return { "imageUrl": url }
+
+
+@app.post("/ai/suggest-improvements")
+async def suggest_improvements(body: AITextPayload):
+  """
+  Returns actionable suggestions to improve the goal text.
+  Without a model key, returns heuristic suggestions derived from NLP prompts.
+  """
+  text = (body.text or '').strip()
+  if not text:
+    raise HTTPException(status_code=400, detail="text is required")
+
+  # Heuristic baseline suggestions
+  suggestions = []
+  if len(text.split()) < 8:
+    suggestions.append("Make the goal more specific with measurable outcomes.")
+  if not any(x in text.lower() for x in ["by ", "before ", "on ", "within "]):
+    suggestions.append("Add a clear deadline or timeframe.")
+  if not any(x in text.lower() for x in ["because", "so that", "in order to"]):
+    suggestions.append("Include the deeper purpose (why it matters).")
+  suggestions.append("Define evidence: how will you know it’s achieved?")
+  suggestions.append("List resources needed and first concrete step.")
+
+  return { "suggestions": suggestions[:6] }

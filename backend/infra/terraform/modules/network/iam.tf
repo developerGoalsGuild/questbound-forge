@@ -47,21 +47,6 @@ resource "aws_iam_role_policy" "lambda_ssm_read_user_service_env" {
   })
 }
 
-# IAM Role for API Gateway to write logs
-resource "aws_iam_role" "apigw_cloudwatch_role" {
-  name = "goalsguild_apigw_cloudwatch_role_${var.environment}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Service = "apigateway.amazonaws.com"
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
-}
 
 # Lets API Gateway write logs to CloudWatch Logs
 resource "aws_iam_role_policy_attachment" "apigw_push_to_cw" {

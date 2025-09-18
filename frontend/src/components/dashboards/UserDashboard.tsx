@@ -1,10 +1,14 @@
 import { Target, Users, Trophy, TrendingUp, Calendar, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUserData } from '@/hooks/useUserData';
-import { getActiveGoalsCountForUser, getUserIdFromToken } from '@/lib/api';
+
+import { getActiveGoalsCountForUser } from '@/lib/apiGoal';
+import {  getUserIdFromToken } from '@/lib/utils';
+
 import { useEffect, useState } from 'react';
 import { useCommunityActivities } from '@/hooks/useCommunityData';
 
@@ -132,8 +136,8 @@ const UserDashboard = () => {
                   </div>
                 </div>
               ))}
-              <Button className="w-full btn-heraldic text-primary-foreground">
-                Add New Quest
+              <Button asChild className="w-full btn-heraldic text-primary-foreground">
+                <Link to="/goals">Add New Quest</Link>
               </Button>
             </CardContent>
           </Card>

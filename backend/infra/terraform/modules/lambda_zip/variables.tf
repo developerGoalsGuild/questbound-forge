@@ -61,6 +61,10 @@ variable "python_builder_image" {
   default     = "public.ecr.aws/lambda/python:3.12"
 }
 
+
+
+
+
 variable "use_powershell" {
   description = "If true, use PowerShell build steps (Windows). If false, use bash (Linux/macOS)."
   type        = bool

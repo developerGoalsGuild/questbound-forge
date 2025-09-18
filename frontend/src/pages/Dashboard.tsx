@@ -6,7 +6,7 @@ import PartnerDashboard from '@/components/dashboards/PartnerDashboard';
 import PatronDashboard from '@/components/dashboards/PatronDashboard';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getAccessToken } from '@/lib/api';
+import { getAccessToken } from '@/lib/utils';
 
 type DashboardType = 'user' | 'partner' | 'patron';
 

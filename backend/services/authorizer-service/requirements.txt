@@ -1,5 +1,6 @@
 boto3
-PyJWT==2.9.0
+PyJWT[crypto]==2.9.0
 requests
 pydantic==2.8.2
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1

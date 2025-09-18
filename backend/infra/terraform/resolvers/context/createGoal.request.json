@@ -3,7 +3,8 @@
     "input": {
       "title": "Ship v1",
       "description": "Finish and ship version 1",
-      "tags": ["milestone", "release"]
+      "tags": ["milestone", "release"],
+      "deadline": 1700000000
     }
   },
   "identity": {
@@ -18,4 +19,3 @@
     "groups": []
   }
 }
-

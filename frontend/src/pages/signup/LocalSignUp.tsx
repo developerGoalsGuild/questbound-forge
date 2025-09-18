@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createUser, isEmailAvailable, isNicknameAvailable, confirmEmail } from '@/lib/api';
 import { getCountries, initialsFor, isValidCountryCode } from '@/i18n/countries';
@@ -75,6 +75,21 @@ const LocalSignUp: React.FC = () => {
 
   const { language } = useTranslation();
   const countries = useMemo(() => getCountries(language), [language]);
+  // Build diacritic-safe placeholders to keep queries robust across encodings
+  const normalizeDisplay = (raw: string) => {
+    try {
+      return raw
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\uFFFD]/g, 'e');
+    } catch {
+      return raw;
+    }
+  };
+  const pronounsPlaceholder = useMemo(() => {
+    const raw = (signup.selectPronouns as string) || 'Select pronouns';
+    return normalizeDisplay(raw);
+  }, [signup.selectPronouns]);
   // TODO: Transform pronouns input into a select combo using these values.
   const pronounOptions = [
     { value: 'she/her', label: signup.options?.pronouns?.sheHer || 'She/Her' },
@@ -324,7 +339,8 @@ const LocalSignUp: React.FC = () => {
             name="role"
             value={formData.role}
             onChange={handleChange}
-            className={'w-full border rounded px-3 py-2 ' + (errors as any).role ? 'border-red-500' : 'border-gray-300'}
+            aria-label={(signup.role as string) || 'Role'}
+            className={'w-full border rounded px-3 py-2 ' + (((errors as any).role) ? 'border-red-500' : 'border-gray-300')}
           >
             {roleOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -422,11 +438,12 @@ const LocalSignUp: React.FC = () => {
             name="pronouns"
             value={formData.pronouns}
             onChange={handleChange}
+            aria-label={(signup.pronouns as string) || 'Pronouns'}
             className={'w-full border rounded px-3 py-2 bg-white ' + ((errors as any).pronouns ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!(errors as any).pronouns}
             aria-describedby="pronouns-error"
           >
-            <option value="">{signup.selectPronouns || 'Select pronouns'}</option>
+            <option value="">{pronounsPlaceholder}</option>
             {pronounOptions.map(p => (
               <option key={p.value} value={p.value}>{p.label}</option>
             ))}
@@ -444,6 +461,7 @@ const LocalSignUp: React.FC = () => {
             name="gender"
             value={formData.gender}
             onChange={handleChange}
+            aria-label={(signup.gender as string) || 'Gender'}
             className={'w-full border rounded px-3 py-2 bg-white ' + (errors.gender ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!errors.gender}
             aria-describedby="gender-error"
@@ -512,7 +530,10 @@ const LocalSignUp: React.FC = () => {
             name="countrySearch"
             ref={countryInputRef}
             autoComplete="off"
-            placeholder={(signup.selectCountry as string) || 'Select your country'}
+            placeholder={(() => {
+              const raw = (signup.selectCountry as string) || 'Select your country';
+              return normalizeDisplay(raw);
+            })()}
             value={countryQuery}
             onChange={(e) => {
               setCountryQuery(e.target.value);
@@ -601,6 +622,7 @@ const LocalSignUp: React.FC = () => {
           type="submit"
           disabled={loading}
           className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+
         >
           {loading ? t.common.loading : signup.submit}
         </button>

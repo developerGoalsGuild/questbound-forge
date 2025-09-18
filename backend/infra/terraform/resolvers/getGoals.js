@@ -7,8 +7,8 @@ export function request(ctx) {
   const userId = ctx.args?.userId;
   if (!sub) util.unauthorized();
   if (!userId) util.error('userId required', 'Validation');
-  // Enforce that callers can only read their own goals
-  if (String(sub) !== String(userId)) util.unauthorized();
+  // Enforce that callers can only read their own goals; avoid String() in AppSync runtime
+  if (('' + sub) !== ('' + userId)) util.unauthorized();
 
   return {
     operation: 'Query',
@@ -34,6 +34,7 @@ export function response(ctx) {
     title: a.title,
     description: a.description,
     tags: a.tags || [],
+    deadline: (typeof a.deadline === 'number') ? a.deadline : null,
     status: a.status,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt

@@ -1,4 +1,13 @@
-# API Gateway REST API for GoalsGuild User-Service
+############################################
+# Locals
+############################################
+locals {
+  cors_allow_headers = "accept,content-type,authorization,x-api-key,origin,referer,x-amz-date,x-amz-security-token"
+}
+
+############################################
+# REST API
+############################################
 resource "aws_api_gateway_rest_api" "rest_api" {
   name        = "goalsguild_api_${var.environment}"
   description = "API Gateway for GoalsGuild services"
@@ -10,21 +19,38 @@ resource "aws_api_gateway_rest_api" "rest_api" {
   }
 }
 
-# Lambda Authorizer for API Gateway using user-service Lambda authorizer function
+############################################
+# Lambda Authorizer
+############################################
 resource "aws_api_gateway_authorizer" "lambda_authorizer" {
-  name                   = "goalsguild_lambda_authorizer_${var.environment}"
-  rest_api_id            = aws_api_gateway_rest_api.rest_api.id
-  authorizer_uri         = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.lambda_authorizer_arn}/invocations"
+  name                            = "goalsguild_lambda_authorizer_${var.environment}"
+  rest_api_id                     = aws_api_gateway_rest_api.rest_api.id
+  authorizer_uri                  = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.lambda_authorizer_arn}/invocations"
   authorizer_result_ttl_in_seconds = 300
-  identity_source        = "method.request.header.Authorization"
-  type                   = "TOKEN"
-  authorizer_credentials = var.api_gateway_authorizer_lambda_role_arn
+  identity_source                 = "method.request.header.Authorization"
+  type                            = "TOKEN"
+  authorizer_credentials          = var.api_gateway_authorizer_lambda_role_arn
 }
 
+############################################
+# Resources (paths)
+############################################
 resource "aws_api_gateway_resource" "user_service_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
   path_part   = "users"
+}
+
+resource "aws_api_gateway_resource" "auth_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "auth"
+}
+
+resource "aws_api_gateway_resource" "auth_renew_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.auth_resource.id
+  path_part   = "renew"
 }
 
 resource "aws_api_gateway_resource" "quest_service_resource" {
@@ -39,42 +65,38 @@ resource "aws_api_gateway_resource" "user_signup_resource" {
   path_part   = "signup"
 }
 
-# /users/login resource
 resource "aws_api_gateway_resource" "user_login_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_service_resource.id
   path_part   = "login"
 }
 
-# /users/logout resource
 resource "aws_api_gateway_resource" "user_logout_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_service_resource.id
   path_part   = "logout"
 }
 
-# /users/login/google resource (nested under /users/login)
 resource "aws_api_gateway_resource" "user_login_google_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.user_login_resource.id
   path_part   = "google"
 }
 
-# /health resource (root level)
 resource "aws_api_gateway_resource" "user_health_resource" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
   path_part   = "health"
 }
 
-# --- Methods and Integrations for User-Service API ---
-
-# POST /users/signup (public, no auth)
+############################################
+# POST /users/signup (public, API key)
+############################################
 resource "aws_api_gateway_method" "user_signup_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_signup_resource.id
-  http_method   = "POST"
-  authorization = "NONE"
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.user_signup_resource.id
+  http_method     = "POST"
+  authorization   = "NONE"
   api_key_required = true
 }
 
@@ -85,53 +107,23 @@ resource "aws_api_gateway_integration" "user_signup_post_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
-}
 
-# OPTIONS /users/signup (CORS preflight)
+  depends_on = [
+    aws_api_gateway_method.user_signup_post,
+    aws_lambda_permission.allow_api_gateway_user
+  ]
+}
+# OPTIONS /users/signup (CORS)
 resource "aws_api_gateway_method" "user_signup_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_signup_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
   request_parameters = {
-    "method.request.header.Origin" = false
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
   }
-}
-
-resource "aws_api_gateway_integration" "user_signup_options_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
-  resource_id             = aws_api_gateway_resource.user_signup_resource.id
-  http_method             = aws_api_gateway_method.user_signup_options.http_method
-  type                    = "MOCK"
-  request_templates       = { "application/json" = "{\"statusCode\": 200}" }
-
-  integration_http_method = "POST"
-
-  passthrough_behavior = "WHEN_NO_MATCH"
-
-}
-
-resource "aws_api_gateway_integration_response" "user_signup_options_200" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.user_signup_resource.id
-  http_method = aws_api_gateway_method.user_signup_options.http_method
-  status_code = 200
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
-    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
-    "method.response.header.Vary"                              = "'Origin'",
-    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
-    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
-  }
-  # Provide a concrete body so API Gateway has a valid
-  # output mapping for all Accept headers (avoids 500 with
-  # "No match for output mapping").
-  response_templates = {
-    "application/json" = "{}"
-    "text/plain"       = "{}"
-  }
-
-  depends_on = [aws_api_gateway_integration.user_signup_options_integration]
 }
 
 resource "aws_api_gateway_method_response" "user_signup_options_200" {
@@ -144,45 +136,65 @@ resource "aws_api_gateway_method_response" "user_signup_options_200" {
     "text/plain"       = "Empty"
   }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = true,
-    "method.response.header.Access-Control-Allow-Credentials"  = true,
-    "method.response.header.Vary"                              = true,
-    "method.response.header.Access-Control-Allow-Headers"      = true,
-    "method.response.header.Access-Control-Allow-Methods"      = true
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
   }
 }
 
-resource "aws_api_gateway_gateway_response" "default_4xx" {
+resource "aws_api_gateway_integration" "user_signup_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  response_type = "DEFAULT_4XX"
-  response_parameters = {
-  "gatewayresponse.header.Access-Control-Allow-Origin" = "'*'"
-  "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
-  "gatewayresponse.header.Vary" = "'Origin'"
-  "gatewayresponse.header.Access-Control-Allow-Headers" = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'"
-  "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-  }
+  resource_id = aws_api_gateway_resource.user_signup_resource.id
+  http_method = aws_api_gateway_method.user_signup_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST" # provider quirk
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
   }
 
-resource "aws_api_gateway_gateway_response" "default_5xx" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  response_type = "DEFAULT_5XX"
-  response_parameters = {
-  "gatewayresponse.header.Access-Control-Allow-Origin" = "'*'"
-  "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
-  "gatewayresponse.header.Vary" = "'Origin'"
-  "gatewayresponse.header.Access-Control-Allow-Headers" = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'"
-  "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-  }
+  depends_on = [aws_api_gateway_method.user_signup_options]
 }
 
+resource "aws_api_gateway_integration_response" "user_signup_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_signup_resource.id
+  http_method = aws_api_gateway_method.user_signup_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.user_signup_options_integration,
+    aws_api_gateway_method_response.user_signup_options_200
+  ]
+}
 
-# POST /users/login (public, no auth)
+############################################
+# POST /users/login (public, API key)
+############################################
 resource "aws_api_gateway_method" "user_login_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_login_resource.id
-  http_method   = "POST"
-  authorization = "NONE"
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.user_login_resource.id
+  http_method     = "POST"
+  authorization   = "NONE"
   api_key_required = true
 }
 
@@ -193,47 +205,23 @@ resource "aws_api_gateway_integration" "user_login_post_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
-}
 
-# OPTIONS /users/login (CORS preflight)
+  depends_on = [
+    aws_api_gateway_method.user_login_post,
+    aws_lambda_permission.allow_api_gateway_user
+  ]
+}
+# OPTIONS /users/login (CORS)
 resource "aws_api_gateway_method" "user_login_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_login_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
   request_parameters = {
-    "method.request.header.Origin" = false
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
   }
-}
-
-resource "aws_api_gateway_integration" "user_login_options_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
-  resource_id             = aws_api_gateway_resource.user_login_resource.id
-  http_method             = aws_api_gateway_method.user_login_options.http_method
-  type                    = "MOCK"
-  request_templates       = { "application/json" = "{\"statusCode\": 200}" }
-  integration_http_method = "POST"
-  passthrough_behavior    = "WHEN_NO_MATCH"
-}
-
-resource "aws_api_gateway_integration_response" "user_login_options_200" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.user_login_resource.id
-  http_method = aws_api_gateway_method.user_login_options.http_method
-  status_code = 200
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
-    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
-    "method.response.header.Vary"                              = "'Origin'",
-    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
-    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
-  }
-  response_templates = {
-    "application/json" = "{}"
-    "text/plain"       = "{}"
-  }
-
-  depends_on = [aws_api_gateway_integration.user_login_options_integration]
 }
 
 resource "aws_api_gateway_method_response" "user_login_options_200" {
@@ -246,26 +234,168 @@ resource "aws_api_gateway_method_response" "user_login_options_200" {
     "text/plain"       = "Empty"
   }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = true,
-    "method.response.header.Access-Control-Allow-Credentials"  = true,
-    "method.response.header.Vary"                              = true,
-    "method.response.header.Access-Control-Allow-Headers"      = true,
-    "method.response.header.Access-Control-Allow-Methods"      = true
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
   }
 }
 
-# POST /users/logout (requires custom auth via Lambda authorizer)
-resource "aws_api_gateway_method" "user_logout_post" {
+resource "aws_api_gateway_integration" "user_login_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_login_resource.id
+  http_method = aws_api_gateway_method.user_login_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.user_login_options]
+}
+
+resource "aws_api_gateway_integration_response" "user_login_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_login_resource.id
+  http_method = aws_api_gateway_method.user_login_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.user_login_options_integration,
+    aws_api_gateway_method_response.user_login_options_200
+  ]
+}
+
+############################################
+# POST /auth/renew (CUSTOM + authorizer)
+############################################
+resource "aws_api_gateway_method" "auth_renew_post" {
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.auth_renew_resource.id
+  http_method     = "POST"
+  authorization   = "CUSTOM"
+  authorizer_id   = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "auth_renew_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.auth_renew_resource.id
+  http_method             = aws_api_gateway_method.auth_renew_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+
+  depends_on = [
+    aws_api_gateway_method.auth_renew_post,
+    aws_lambda_permission.allow_api_gateway_user
+  ]
+}
+# OPTIONS /auth/renew (CORS)
+resource "aws_api_gateway_method" "auth_renew_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_logout_resource.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  resource_id   = aws_api_gateway_resource.auth_renew_resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
+  }
+}
+
+resource "aws_api_gateway_method_response" "auth_renew_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.auth_renew_resource.id
+  http_method = aws_api_gateway_method.auth_renew_options.http_method
+  status_code = 200
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
+  response_parameters = {
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
+  }
+}
+
+resource "aws_api_gateway_integration" "auth_renew_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.auth_renew_resource.id
+  http_method = aws_api_gateway_method.auth_renew_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.auth_renew_options]
+}
+
+resource "aws_api_gateway_integration_response" "auth_renew_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.auth_renew_resource.id
+  http_method = aws_api_gateway_method.auth_renew_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.auth_renew_options_integration,
+    aws_api_gateway_method_response.auth_renew_options_200
+  ]
+}
+
+############################################
+# POST /users/logout (CUSTOM + authorizer)
+############################################
+resource "aws_api_gateway_method" "user_logout_post" {
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.user_logout_resource.id
+  http_method     = "POST"
+  authorization   = "CUSTOM"
+  authorizer_id   = aws_api_gateway_authorizer.lambda_authorizer.id
   api_key_required = false
 
-  lifecycle {
-    create_before_destroy = false
-  }
+  lifecycle { create_before_destroy = false }
 }
 
 resource "aws_api_gateway_integration" "user_logout_post_integration" {
@@ -276,47 +406,22 @@ resource "aws_api_gateway_integration" "user_logout_post_integration" {
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 
-  depends_on = [aws_api_gateway_method.user_logout_post]
+  depends_on = [
+    aws_api_gateway_method.user_logout_post,
+    aws_lambda_permission.allow_api_gateway_user
+  ]
 }
-
-# OPTIONS /users/logout (CORS preflight)
+# OPTIONS /users/logout (CORS)
 resource "aws_api_gateway_method" "user_logout_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_logout_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
   request_parameters = {
-    "method.request.header.Origin" = false
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
   }
-}
-
-resource "aws_api_gateway_integration" "user_logout_options_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
-  resource_id             = aws_api_gateway_resource.user_logout_resource.id
-  http_method             = aws_api_gateway_method.user_logout_options.http_method
-  type                    = "MOCK"
-  request_templates       = { "application/json" = "{\"statusCode\": 200}" }
-  integration_http_method = "POST"
-  passthrough_behavior    = "WHEN_NO_MATCH"
-}
-
-resource "aws_api_gateway_integration_response" "user_logout_options_200" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.user_logout_resource.id
-  http_method = aws_api_gateway_method.user_logout_options.http_method
-  status_code = 200
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
-    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
-    "method.response.header.Vary"                              = "'Origin'",
-    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
-    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
-  }
-  response_templates = {
-    "application/json" = "{}"
-    "text/plain"       = "{}"
-  }
-  depends_on = [aws_api_gateway_integration.user_logout_options_integration]
 }
 
 resource "aws_api_gateway_method_response" "user_logout_options_200" {
@@ -329,20 +434,65 @@ resource "aws_api_gateway_method_response" "user_logout_options_200" {
     "text/plain"       = "Empty"
   }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = true,
-    "method.response.header.Access-Control-Allow-Credentials"  = true,
-    "method.response.header.Vary"                              = true,
-    "method.response.header.Access-Control-Allow-Headers"      = true,
-    "method.response.header.Access-Control-Allow-Methods"      = true
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
   }
 }
 
-# POST /users/login/google (public, no auth)
+resource "aws_api_gateway_integration" "user_logout_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_logout_resource.id
+  http_method = aws_api_gateway_method.user_logout_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.user_logout_options]
+}
+
+resource "aws_api_gateway_integration_response" "user_logout_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_logout_resource.id
+  http_method = aws_api_gateway_method.user_logout_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.user_logout_options_integration,
+    aws_api_gateway_method_response.user_logout_options_200
+  ]
+}
+
+############################################
+# POST /users/login/google (public, API key)
+############################################
 resource "aws_api_gateway_method" "user_login_google_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_login_google_resource.id
-  http_method   = "POST"
-  authorization = "NONE"
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.user_login_google_resource.id
+  http_method     = "POST"
+  authorization   = "NONE"
   api_key_required = true
 }
 
@@ -353,46 +503,23 @@ resource "aws_api_gateway_integration" "user_login_google_post_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
-}
 
-# OPTIONS /users/login/google (CORS preflight)
+  depends_on = [
+    aws_api_gateway_method.user_login_google_post,
+    aws_lambda_permission.allow_api_gateway_user
+  ]
+}
+# OPTIONS /users/login/google (CORS)
 resource "aws_api_gateway_method" "user_login_google_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.user_login_google_resource.id
   http_method   = "OPTIONS"
   authorization = "NONE"
   request_parameters = {
-    "method.request.header.Origin" = false
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
   }
-}
-
-resource "aws_api_gateway_integration" "user_login_google_options_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
-  resource_id             = aws_api_gateway_resource.user_login_google_resource.id
-  http_method             = aws_api_gateway_method.user_login_google_options.http_method
-  type                    = "MOCK"
-  request_templates       = { "application/json" = "{\"statusCode\": 200}" }
-  integration_http_method = "POST"
-  passthrough_behavior    = "WHEN_NO_MATCH"
-}
-
-resource "aws_api_gateway_integration_response" "user_login_google_options_200" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.user_login_google_resource.id
-  http_method = aws_api_gateway_method.user_login_google_options.http_method
-  status_code = 200
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = "'*'",
-    "method.response.header.Access-Control-Allow-Credentials"  = "'true'",
-    "method.response.header.Vary"                              = "'Origin'",
-    "method.response.header.Access-Control-Allow-Headers"      = "'content-type,authorization,x-api-key,x-amz-date,x-amz-security-token'",
-    "method.response.header.Access-Control-Allow-Methods"      = "'OPTIONS,POST'"
-  }
-  response_templates = {
-    "application/json" = "{}"
-    "text/plain"       = "{}"
-  }
-  depends_on = [aws_api_gateway_integration.user_login_google_options_integration]
 }
 
 resource "aws_api_gateway_method_response" "user_login_google_options_200" {
@@ -405,20 +532,65 @@ resource "aws_api_gateway_method_response" "user_login_google_options_200" {
     "text/plain"       = "Empty"
   }
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin"       = true,
-    "method.response.header.Access-Control-Allow-Credentials"  = true,
-    "method.response.header.Vary"                              = true,
-    "method.response.header.Access-Control-Allow-Headers"      = true,
-    "method.response.header.Access-Control-Allow-Methods"      = true
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
   }
 }
 
-# GET /health (public, no auth)
+resource "aws_api_gateway_integration" "user_login_google_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_login_google_resource.id
+  http_method = aws_api_gateway_method.user_login_google_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.user_login_google_options]
+}
+
+resource "aws_api_gateway_integration_response" "user_login_google_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_login_google_resource.id
+  http_method = aws_api_gateway_method.user_login_google_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.user_login_google_options_integration,
+    aws_api_gateway_method_response.user_login_google_options_200
+  ]
+}
+
+############################################
+# GET /health (public, API key) + OPTIONS
+############################################
 resource "aws_api_gateway_method" "health_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.user_health_resource.id
-  http_method   = "GET"
-  authorization = "NONE"
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.user_health_resource.id
+  http_method     = "GET"
+  authorization   = "NONE"
   api_key_required = true
 }
 
@@ -427,20 +599,97 @@ resource "aws_api_gateway_integration" "health_get_integration" {
   resource_id             = aws_api_gateway_resource.user_health_resource.id
   http_method             = aws_api_gateway_method.health_get.http_method
   type                    = "AWS_PROXY"
-  integration_http_method = "POST" # Lambda proxy requires POST even for GET method
+  integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+
+  depends_on = [
+    aws_api_gateway_method.health_get,
+    aws_lambda_permission.allow_api_gateway_user
+  ]
+}
+# OPTIONS /health (CORS) — needed if you send x-api-key from browser
+resource "aws_api_gateway_method" "health_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_health_resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
+  }
 }
 
-# Quest-Service API Gateway Methods and Integrations
+resource "aws_api_gateway_method_response" "health_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_health_resource.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  status_code = 200
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
+  response_parameters = {
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
+  }
+}
 
-# GET /quests (requires auth)
+resource "aws_api_gateway_integration" "health_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_health_resource.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  type        = "MOCK"
 
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.health_options]
+}
+
+resource "aws_api_gateway_integration_response" "health_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_health_resource.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,GET'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.health_options_integration,
+    aws_api_gateway_method_response.health_options_200
+  ]
+}
+
+############################################
+# /quests (CUSTOM + authorizer)
+############################################
 resource "aws_api_gateway_method" "quest_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quest_service_resource.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.quest_service_resource.id
+  http_method     = "GET"
+  authorization   = "CUSTOM"
+  authorizer_id   = aws_api_gateway_authorizer.lambda_authorizer.id
   api_key_required = false
 }
 
@@ -450,16 +699,19 @@ resource "aws_api_gateway_integration" "quest_get_integration" {
   http_method             = aws_api_gateway_method.quest_get.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
-}
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
 
-# POST /quests (requires auth)
+  depends_on = [
+    aws_api_gateway_method.quest_get,
+    aws_lambda_permission.allow_api_gateway_quest
+  ]
+}
 resource "aws_api_gateway_method" "quest_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quest_service_resource.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.quest_service_resource.id
+  http_method     = "POST"
+  authorization   = "CUSTOM"
+  authorizer_id   = aws_api_gateway_authorizer.lambda_authorizer.id
   api_key_required = false
 }
 
@@ -469,82 +721,185 @@ resource "aws_api_gateway_integration" "quest_post_integration" {
   http_method             = aws_api_gateway_method.quest_post.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+
+  depends_on = [
+    aws_api_gateway_method.quest_post,
+    aws_lambda_permission.allow_api_gateway_quest
+  ]
+}
+# OPTIONS /quests (CORS) — supports both GET and POST
+resource "aws_api_gateway_method" "quest_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quest_service_resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
+  }
 }
 
-# Re-deploy whenever any integration changes
+resource "aws_api_gateway_method_response" "quest_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_service_resource.id
+  http_method = aws_api_gateway_method.quest_options.http_method
+  status_code = 200
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
+  response_parameters = {
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
+  }
+}
+
+resource "aws_api_gateway_integration" "quest_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_service_resource.id
+  http_method = aws_api_gateway_method.quest_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.quest_options]
+}
+
+resource "aws_api_gateway_integration_response" "quest_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_service_resource.id
+  http_method = aws_api_gateway_method.quest_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,GET,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.quest_options_integration,
+    aws_api_gateway_method_response.quest_options_200
+  ]
+}
+
+############################################
+# Default Gateway Responses (CORS on errors)
+############################################
+resource "aws_api_gateway_gateway_response" "default_4xx" {
+  rest_api_id  = aws_api_gateway_rest_api.rest_api.id
+  response_type = "DEFAULT_4XX"
+  response_parameters = {
+    "gatewayresponse.header.Access-Control-Allow-Origin"      = "'*'"
+    "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
+    "gatewayresponse.header.Vary"                             = "'Origin'"
+    "gatewayresponse.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "gatewayresponse.header.Access-Control-Allow-Methods"     = "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+  }
+}
+
+resource "aws_api_gateway_gateway_response" "default_5xx" {
+  rest_api_id  = aws_api_gateway_rest_api.rest_api.id
+  response_type = "DEFAULT_5XX"
+  response_parameters = {
+    "gatewayresponse.header.Access-Control-Allow-Origin"      = "'*'"
+    "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
+    "gatewayresponse.header.Vary"                             = "'Origin'"
+    "gatewayresponse.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "gatewayresponse.header.Access-Control-Allow-Methods"     = "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+  }
+}
+
+############################################
+# Deployment + Stage (force redeploy on each apply)
+############################################
 resource "aws_api_gateway_deployment" "rest_api_deployment" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
 
   triggers = {
-    redeploy = sha1(jsonencode({
-      user_signup_post  = aws_api_gateway_integration.user_signup_post_integration.id
-      user_signup_options = aws_api_gateway_integration.user_signup_options_integration.id
-      cors_signup_ir    = aws_api_gateway_integration_response.user_signup_options_200.id
-      cors_signup_mr    = aws_api_gateway_method_response.user_signup_options_200.id
-      user_login_post   = aws_api_gateway_integration.user_login_post_integration.id
-      user_login_options = aws_api_gateway_integration.user_login_options_integration.id
-      cors_login_ir     = aws_api_gateway_integration_response.user_login_options_200.id
-      cors_login_mr     = aws_api_gateway_method_response.user_login_options_200.id
-      user_logout_post  = aws_api_gateway_integration.user_logout_post_integration.id
-      user_logout_options = aws_api_gateway_integration.user_logout_options_integration.id
-      cors_logout_ir    = aws_api_gateway_integration_response.user_logout_options_200.id
-      cors_logout_mr    = aws_api_gateway_method_response.user_logout_options_200.id
-      user_login_google = aws_api_gateway_integration.user_login_google_post_integration.id
-      user_login_google_options = aws_api_gateway_integration.user_login_google_options_integration.id
-      cors_google_ir    = aws_api_gateway_integration_response.user_login_google_options_200.id
-      cors_google_mr    = aws_api_gateway_method_response.user_login_google_options_200.id
-      health_get        = aws_api_gateway_integration.health_get_integration.id
-      quest_get         = aws_api_gateway_integration.quest_get_integration.id
-      quest_post        = aws_api_gateway_integration.quest_post_integration.id
-      default_4xx       = aws_api_gateway_gateway_response.default_4xx.id
-      default_5xx       = aws_api_gateway_gateway_response.default_5xx.id
-    }))
+    redeploy = timestamp()
   }
 
   depends_on = [
-    # all methods
+    # Methods
     aws_api_gateway_method.user_signup_post,
     aws_api_gateway_method.user_signup_options,
     aws_api_gateway_method.user_login_post,
     aws_api_gateway_method.user_login_options,
-    aws_api_gateway_method.user_logout_options,
-    aws_api_gateway_method.user_login_google_options,
+    aws_api_gateway_method.auth_renew_post,
+    aws_api_gateway_method.auth_renew_options,
     aws_api_gateway_method.user_logout_post,
+    aws_api_gateway_method.user_logout_options,
     aws_api_gateway_method.user_login_google_post,
+    aws_api_gateway_method.user_login_google_options,
     aws_api_gateway_method.health_get,
+    aws_api_gateway_method.health_options,
     aws_api_gateway_method.quest_get,
     aws_api_gateway_method.quest_post,
+    aws_api_gateway_method.quest_options,
 
-    # all integrations
+    # Method responses
+    aws_api_gateway_method_response.user_signup_options_200,
+    aws_api_gateway_method_response.user_login_options_200,
+    aws_api_gateway_method_response.auth_renew_options_200,
+    aws_api_gateway_method_response.user_logout_options_200,
+    aws_api_gateway_method_response.user_login_google_options_200,
+    aws_api_gateway_method_response.health_options_200,
+    aws_api_gateway_method_response.quest_options_200,
+
+    # Integrations
     aws_api_gateway_integration.user_signup_post_integration,
     aws_api_gateway_integration.user_signup_options_integration,
     aws_api_gateway_integration.user_login_post_integration,
     aws_api_gateway_integration.user_login_options_integration,
-    aws_api_gateway_integration.user_logout_options_integration,
-    aws_api_gateway_integration.user_login_google_options_integration,
+    aws_api_gateway_integration.auth_renew_post_integration,
+    aws_api_gateway_integration.auth_renew_options_integration,
     aws_api_gateway_integration.user_logout_post_integration,
+    aws_api_gateway_integration.user_logout_options_integration,
     aws_api_gateway_integration.user_login_google_post_integration,
+    aws_api_gateway_integration.user_login_google_options_integration,
     aws_api_gateway_integration.health_get_integration,
+    aws_api_gateway_integration.health_options_integration,
     aws_api_gateway_integration.quest_get_integration,
     aws_api_gateway_integration.quest_post_integration,
+    aws_api_gateway_integration.quest_options_integration,
 
-    # ensure all CORS method + integration responses exist before deployment
-    aws_api_gateway_method_response.user_signup_options_200,
+    # Integration responses
     aws_api_gateway_integration_response.user_signup_options_200,
-    aws_api_gateway_method_response.user_login_options_200,
     aws_api_gateway_integration_response.user_login_options_200,
-    aws_api_gateway_method_response.user_logout_options_200,
+    aws_api_gateway_integration_response.auth_renew_options_200,
     aws_api_gateway_integration_response.user_logout_options_200,
-    aws_api_gateway_method_response.user_login_google_options_200,
     aws_api_gateway_integration_response.user_login_google_options_200,
+    aws_api_gateway_integration_response.health_options_200,
+    aws_api_gateway_integration_response.quest_options_200,
+
+    # Default gateway responses
+    aws_api_gateway_gateway_response.default_4xx,
+    aws_api_gateway_gateway_response.default_5xx
   ]
 
   lifecycle { create_before_destroy = true }
-  
 }
 
-# Enable API Gateway Stage with Access Logging
 resource "aws_api_gateway_stage" "api_stage" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   stage_name    = var.api_stage_name
@@ -567,17 +922,19 @@ resource "aws_api_gateway_stage" "api_stage" {
   }
 
   depends_on = [
-    aws_api_gateway_account.account,         # <— ensure account setting in place
-    aws_iam_role_policy.apigw_cloudwatch_policy
+    aws_api_gateway_account.account,
+    aws_iam_role_policy_attachment.apigw_logs
   ]
 }
 
-# API Key and Usage Plan for public methods
+############################################
+# API Key + Usage Plan (for public endpoints)
+############################################
 resource "random_string" "apigw_api_key" {
   length  = 32
   upper   = false
   lower   = true
-  numeric  = true
+  numeric = true
   special = false
 }
 
@@ -616,22 +973,38 @@ resource "aws_api_gateway_usage_plan_key" "frontend_key_attachment" {
   usage_plan_id = aws_api_gateway_usage_plan.frontend_plan.id
 }
 
-# Let API Gateway assume the CW role (needed for execution logging)
-
-resource "aws_api_gateway_method_settings" "all_methods" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  stage_name  = aws_api_gateway_stage.api_stage.stage_name
-  method_path = "*/*" # or "/" to apply to entire stage
-
-  settings {
-    logging_level      = "INFO"   # or "ERROR"
-    metrics_enabled    = true
-    data_trace_enabled = true
-  }
-
-  depends_on = [aws_api_gateway_account.account]
+############################################
+# CloudWatch Logging wiring for API Gateway
+############################################
+resource "aws_cloudwatch_log_group" "apigw_access_logs" {
+  name              = "/aws/apigw/${aws_api_gateway_rest_api.rest_api.id}/access"
+  retention_in_days = 14
 }
-# Lambda permissions for API Gateway to invoke user-service Lambda
+
+resource "aws_iam_role" "apigw_cloudwatch_role" {
+  name = "APIGatewayPushToCloudWatchLogs-${var.environment}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "apigateway.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "apigw_logs" {
+  role       = aws_iam_role.apigw_cloudwatch_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_api_gateway_account" "account" {
+  cloudwatch_role_arn = aws_iam_role.apigw_cloudwatch_role.arn
+}
+
+############################################
+# Lambda permissions (invoke)
+############################################
 resource "aws_lambda_permission" "allow_api_gateway_user" {
   statement_id  = "AllowAPIGatewayInvokeUser"
   action        = "lambda:InvokeFunction"
@@ -640,7 +1013,6 @@ resource "aws_lambda_permission" "allow_api_gateway_user" {
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }
 
-# Lambda permission for API Gateway to invoke the Lambda authorizer
 resource "aws_lambda_permission" "allow_api_gateway_lambda_authorizer" {
   statement_id  = "AllowAPIGatewayInvokeLambdaAuthorizer"
   action        = "lambda:InvokeFunction"
@@ -648,7 +1020,6 @@ resource "aws_lambda_permission" "allow_api_gateway_lambda_authorizer" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/authorizers/${aws_api_gateway_authorizer.lambda_authorizer.id}"
 }
-
 
 resource "aws_lambda_permission" "allow_api_gateway_quest" {
   statement_id  = "AllowAPIGatewayInvokeQuest"

@@ -10,14 +10,16 @@ name = var.name
 authentication_type = var.auth_type
 schema = file(var.schema_path)
 
-dynamic "lambda_authorizer_config" {
+ dynamic "lambda_authorizer_config" {
     for_each = var.auth_type == "AWS_LAMBDA" ? [1] : []
     content {
-        authorizer_uri = var.lambda_authorizer_arn
-        authorizer_result_ttl_in_seconds = 900
-        identity_validation_expression = "^Bearer [-0-9a-zA-Z\\._]*$" # also works
+      authorizer_uri                   = var.lambda_authorizer_arn
+      authorizer_result_ttl_in_seconds = 300
+
+      # Accept optional "Bearer " and require a 3-part JWT
+      identity_validation_expression = "^(Bearer\\s+)?[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+$"
     }
-}
+  }
 
 
 /*dynamic "user_pool_config" {
@@ -121,6 +123,13 @@ resource "aws_appsync_datasource" "lambda_user" {
 }
 */
 ## Removed Lambda data source for persistence (using DDB in pipeline)
+resource "aws_lambda_permission" "allow_appsync_invoke_authorizer" {
+  statement_id  = "AllowAppSyncInvokeAuthorizer"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_authorizer_arn
+  principal     = "appsync.amazonaws.com"
+  source_arn    = aws_appsync_graphql_api.this.arn
+}
 
 
 locals {

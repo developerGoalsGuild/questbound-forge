@@ -71,3 +71,8 @@ variable "ok_actions" {
   type        = list(string)
   default     = []
 }
+variable "handler" {
+  description = "handler"
+  type        = string
+  default     = ""
+}

@@ -6,3 +6,4 @@ boto3==1.34.162
 pydantic_settings==2.10.1
 python-multipart
 pyjwt
+httpx>=0.24,<1.0

@@ -11,9 +11,8 @@ describe('getGoals resolver', () => {
 
   test('response maps items to Goal shape', () => {
     const out = response({ result: { items: [
-      { id: 'G1', userId: 'U1', title: 't', description: '', tags: [], status: 'active', createdAt: 1, updatedAt: 2 }
+      { id: 'G1', userId: 'U1', title: 't', description: '', tags: [], deadline: 1700000000, status: 'active', createdAt: 1, updatedAt: 2 }
     ] } });
-    expect(out[0]).toMatchObject({ id: 'G1', userId: 'U1', status: 'active' });
+    expect(out[0]).toMatchObject({ id: 'G1', userId: 'U1', status: 'active', deadline: 1700000000 });
   });
 });
-

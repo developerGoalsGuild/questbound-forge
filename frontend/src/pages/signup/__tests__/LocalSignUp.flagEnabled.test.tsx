@@ -25,7 +25,6 @@ const renderComponent = () =>
 describe('LocalSignUp (flag enabled)', () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => cleanup());
-
   test('shows banner and uses email confirmation flow', async () => {
     (api.createUser as any).mockResolvedValue({});
     (api.confirmEmail as any).mockResolvedValue(undefined);
@@ -58,4 +57,3 @@ describe('LocalSignUp (flag enabled)', () => {
     });
   });
 });
-

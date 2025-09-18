@@ -31,9 +31,9 @@ resource "aws_iam_policy" "lambda_authorizer_policy" {
           "ssm:GetParametersByPath"
         ]
         Resource = [
-          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/dev/user-service/*",
-          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/dev/crypto/*",
-          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/dev/cognito/*"
+          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/user-service/*",
+          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/crypto/*",
+          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/cognito/*"
           
         ]
       },

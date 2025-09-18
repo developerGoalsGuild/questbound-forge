@@ -98,3 +98,17 @@ variable "cognito_domain_prefix" {
   type        = string
   default     = ""
 }
+
+
+variable "log_level" {
+  description = "Log level for debbunging"
+  type        = string
+  default     = "ERROR"
+}
+
+
+variable "auth_log_enabled" {
+  description = "enabled log for authorizer"
+  type        = bool
+  default     = false
+}

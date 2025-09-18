@@ -1,6 +1,6 @@
 # Create SSM Parameter for Cognito User Pool ID
 resource "aws_ssm_parameter" "cognito_user_pool_id" {
-  name        = "/goalsguild/${var.environment}/cognito/user_pool_id"
+  name        = "/goalsguild/cognito/user_pool_id"
   description = "Cognito User Pool ID for GoalsGuild ${var.environment} environment"
   type        = "String"
   value       = aws_cognito_user_pool.user_pool.id
@@ -45,7 +45,7 @@ resource "aws_ssm_parameter" "goals_guild_jwt_secret" {
   name        = "/goalsguild/user-service/JWT_SECRET"
   description = "jwt secret for jwt generation "
   type        = "SecureString"
-  value       = "1"//aws_cognito_user_pool_client.user_pool_client.client_secret
+  value       = "@teste1234"//aws_cognito_user_pool_client.user_pool_client.client_secret
   tags = {
     Environment = var.environment
     Service     = "goalsguild"

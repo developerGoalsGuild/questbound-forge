@@ -28,7 +28,7 @@ def validate_password_strength(pwd: str) -> None:
     Raises: ValueError on failure (message safe to return as 400).
     """
     if pwd is None or len(pwd) < 8:
-        raise ValueError("Password must be at least 8 characters long.")
+        raise ValueError("Password must be at least 8 characters long. ")
     if not any(c.islower() for c in pwd):
         raise ValueError("Password must include at least one lowercase letter.")
     if not any(c.isupper() for c in pwd):

@@ -27,3 +27,33 @@ export const ACTIVE_GOALS_COUNT = gql`
     activeGoalsCount(userId: $userId)
   }
 `;
+
+export const MY_GOALS = gql`
+  query MyGoals {
+    myGoals {
+      id
+      title
+      description
+      tags
+      deadline
+      status
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const MY_TASKS = gql`
+  query MyTasks($goalId: ID!) {
+    myTasks(goalId: $goalId) {
+      id
+      goalId
+      title
+      dueAt
+      status
+      nlpPlan
+      createdAt
+      updatedAt
+    }
+  }
+`;

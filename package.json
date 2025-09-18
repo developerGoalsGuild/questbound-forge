@@ -1,0 +1,12 @@
+{
+  "name": "selenium-grid-tests",
+  "version": "1.0.0",
+  "type": "module",
+    "scripts": {
+    "test:selenium": "node tests/integration/seleniumGridTests.js"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.11.0",
+    "node-fetch": "^3.3.1"
+  }
+}

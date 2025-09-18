@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { getTokenExpiry, renewToken } from '@/lib/api';
+import { getTokenExpiry, renewToken } from '@/lib/utils';
 
 export function SessionKeepAlive() {
   const lastRef = useRef<number>(0);

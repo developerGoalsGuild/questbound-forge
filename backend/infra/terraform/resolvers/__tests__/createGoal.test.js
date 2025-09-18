@@ -4,21 +4,29 @@ describe('createGoal resolver', () => {
   test('request returns PutItem with item fields', () => {
     const ctx = {
       identity: { sub: 'USER_SUB' },
-      args: { input: { title: 'Ship v1', description: 'Finish', tags: ['milestone'] } }
+      args: { input: { title: 'Ship v1', description: 'Finish', tags: ['milestone'], deadline: 1700000000 } }
     };
     const req = request(ctx);
     expect(req.operation).toBe('PutItem');
     expect(req.item).toBeDefined();
     expect(req.item.type).toBe('Goal');
     expect(req.item.title).toBe('Ship v1');
+    expect(typeof req.item.deadline).toBe('number');
   });
 
   test('response returns normalized goal', () => {
     const attributes = {
-      id: 'G1', userId: 'U1', title: 'T', description: 'D', tags: ['x'], status: 'active', createdAt: 1, updatedAt: 2
+      id: 'G1', userId: 'U1', title: 'T', description: 'D', tags: ['x'], deadline: 1700000000, status: 'active', createdAt: 1, updatedAt: 2
     };
     const out = response({ result: { attributes } });
-    expect(out).toMatchObject({ id: 'G1', userId: 'U1', title: 'T', status: 'active' });
+    expect(out).toMatchObject({ id: 'G1', userId: 'U1', title: 'T', status: 'active', deadline: 1700000000 });
+  });
+
+  test('request throws when deadline missing', () => {
+    const ctx = {
+      identity: { sub: 'USER_SUB' },
+      args: { input: { title: 'Ship v1' } }
+    };
+    expect(() => request(ctx)).toThrow();
   });
 });
-

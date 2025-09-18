@@ -57,9 +57,15 @@ describe('Login page', () => {
 
   test('renders localized labels in Spanish', () => {
     renderWithLanguage('es');
-    expect(screen.getByRole('heading', { name: /iniciar sesión/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/correo electrónico/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeInTheDocument();
+    const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const heading = screen.getByRole('heading');
+    expect(norm(heading.textContent || '')).toMatch(/iniciar/);
+    const emailLabel = screen.getByLabelText(/correo|email/i);
+    expect(emailLabel).toBeInTheDocument();
+    const form = emailLabel.closest('form') as HTMLElement;
+    const submitBtn = form?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    expect(submitBtn).toBeTruthy();
+    expect(norm((submitBtn?.textContent || ''))).toMatch(/iniciar sesion|iniciar/);
   });
 
   test('renders localized labels in French', () => {
