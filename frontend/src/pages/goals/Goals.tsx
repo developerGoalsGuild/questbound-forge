@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { graphQLClient } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
-import { createGoal,loadGoals } from '@/lib/apiGoal';
+import { createGoal, loadGoals } from '@/lib/apiGoal';
 import { CREATE_GOAL, ADD_TASK } from '@/graphql/mutations';
 import { MY_GOALS, MY_TASKS } from '@/graphql/queries';
 import { RoleRoute } from '@/lib/auth';
@@ -12,6 +12,8 @@ import { nlpQuestionOrder, NLPAnswers } from './questions';
 import { useToast } from '@/hooks/use-toast';
 
 import { graphQLClientProtected } from '@/lib/api';
+import CreateTaskModal from '@/components/CreateTaskModal';
+
 const client = graphQLClientProtected();
 
 const toEpochSeconds = (iso: string): number => Math.floor(new Date(iso).getTime() / 1000);
@@ -45,6 +47,10 @@ const GoalsPageInner: React.FC = () => {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [visibleCount, setVisibleCount] = useState<number>(5);
+
+  // Modal state
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [modalGoalDeadline, setModalGoalDeadline] = useState<string | null>(null);
 
   // 1. Multilingual labels and hints
   const labels = useMemo(() => (t as any).goals?.questions, [t]);
@@ -132,7 +138,7 @@ const GoalsPageInner: React.FC = () => {
 
   const loadMyGoals = useCallback(async () => {
     try {
-      const myGoals = await loadGoals(MY_GOALS);
+      const myGoals = await loadGoals();
       setGoals(Array.isArray(myGoals) ? myGoals : []);
       setVisibleCount(5);
     } catch (e) {
@@ -173,13 +179,12 @@ const GoalsPageInner: React.FC = () => {
         tags: [],
         deadline: toEpochSeconds(deadline),
       };
-      
-     await createGoal({
-              title: title,
-              description: description,
-              deadline: toEpochSeconds(deadline), // ISO date string              
-              progress: 0, // 0 to 100, default 0
-              nlpAnswers: answers
+
+      await createGoal({
+        title: title,
+        description: description,
+        deadline: `${toEpochSeconds(deadline)}`, // ISO date string        
+        nlpAnswers: answers,
       });
 
       setTitle('');
@@ -189,7 +194,9 @@ const GoalsPageInner: React.FC = () => {
     } catch (e: any) {
       const desc = Array.isArray(e?.errors)
         ? e.errors.map((x: any) => x?.message || '').filter(Boolean).join(' | ')
-        : (typeof e?.message === 'string' ? e.message : String(e));
+        : typeof e?.message === 'string'
+        ? e.message
+        : String(e);
       toast({ title: (t as any).common.error, description: desc, variant: 'destructive' });
     } finally {
       setSubmitting(false);
@@ -230,169 +237,110 @@ const GoalsPageInner: React.FC = () => {
     }
   }
 
+  // New handler for opening modal with goal deadline
+  const openCreateTaskModal = (goalId: string) => {
+    setSelectedGoalId(goalId);
+    const goal = goals.find(g => g.id === goalId);
+    setModalGoalDeadline(goal?.deadline || null);
+    setIsTaskModalOpen(true);
+  };
+
+  // New handler for creating task via modal
+  const handleCreateTask = async (taskTitle: string, taskDueAt: string) => {
+    if (!selectedGoalId) return;
+    try {
+      await client.graphql({
+        query: ADD_TASK as any,
+        variables: {
+          input: {
+            goalId: selectedGoalId,
+            title: taskTitle,
+            dueAt: Math.floor(new Date(taskDueAt).getTime() / 1000),
+          },
+        },
+      });
+      toast({ title: t.goals.list?.taskCreated || 'Task created' });
+      await loadMyTasks(selectedGoalId);
+    } catch (e: any) {
+      const desc = Array.isArray(e?.errors)
+        ? e.errors.map((x: any) => x?.message || '').filter(Boolean).join(' | ')
+        : typeof e?.message === 'string'
+        ? e.message
+        : String(e);
+      toast({ title: t.common.error, description: desc, variant: 'destructive' });
+      throw e;
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{(t as any).goals.title}</h1>
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex gap-2">
-          <button onClick={loadMyGoals} className="px-3 py-2 border rounded">
-            {(t as any).goals.actions.refresh || 'Refresh'}
-          </button>
-        </div>
-        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end">
-          <div className="w-full md:w-64">
-            <div className="mb-1 flex items-center gap-2">
-              <label className="text-sm font-medium" htmlFor="goal-search">{searchLabel}</label>
-              <InfoHint targetId="goal-search" fieldLabel={searchLabel} hint={filterHints.search} />
+        <h1 className="text-2xl font-bold mb-4">{(t as any).goals.title}</h1>
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-2">
+            <button onClick={loadMyGoals} className="px-3 py-2 border rounded">
+              {(t as any).goals.actions.refresh || 'Refresh'}
+            </button>
+          </div>
+          <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end">
+            <div className="w-full md:w-64">
+              <div className="mb-1 flex items-center gap-2">
+                <label className="text-sm font-medium" htmlFor="goal-search">
+                  {searchLabel}
+                </label>
+                <InfoHint targetId="goal-search" fieldLabel={searchLabel} hint={filterHints.search} />
+              </div>
+              <input
+                id="goal-search"
+                className="w-full border rounded p-2"
+                placeholder={t.goals.list?.search || 'Search goals'}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                aria-describedby={filterHints.search ? createHintId('goal-search') : undefined}
+              />
             </div>
-            <input
-              id="goal-search"
-              className="w-full border rounded p-2"
-              placeholder={(t as any).goals.list?.search || 'Search goals'}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              aria-describedby={filterHints.search ? createHintId('goal-search') : undefined}
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <div className="mb-1 flex items-center gap-2">
-              <label className="text-sm font-medium" htmlFor="goal-status-filter">{statusLabel}</label>
-              <InfoHint targetId="goal-status-filter" fieldLabel={statusLabel} hint={filterHints.status} />
+            <div className="w-full md:w-48">
+              <div className="mb-1 flex items-center gap-2">
+                <label className="text-sm font-medium" htmlFor="goal-status-filter">
+                  {statusLabel}
+                </label>
+                <InfoHint targetId="goal-status-filter" fieldLabel={statusLabel} hint={filterHints.status} />
+              </div>
+              <select
+                id="goal-status-filter"
+                className="w-full border rounded p-2"
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                aria-describedby={filterHints.status ? createHintId('goal-status-filter') : undefined}
+              >
+                <option value="">{t.goals.list?.allStatuses || 'All'}</option>
+                <option value="active">{t.goals.list?.statusActive || 'Active'}</option>
+                <option value="paused">{t.goals.list?.statusPaused || 'Paused'}</option>
+                <option value="completed">{t.goals.list?.statusCompleted || 'Completed'}</option>
+                <option value="archived">{t.goals.list?.statusArchived || 'Archived'}</option>
+              </select>
             </div>
-            <select
-              id="goal-status-filter"
-              className="w-full border rounded p-2"
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              aria-describedby={filterHints.status ? createHintId('goal-status-filter') : undefined}
-            >
-              <option value="">{(t as any).goals.list?.allStatuses || 'All'}</option>
-              <option value="active">{(t as any).goals.list?.statusActive || 'Active'}</option>
-              <option value="paused">{(t as any).goals.list?.statusPaused || 'Paused'}</option>
-              <option value="completed">{(t as any).goals.list?.statusCompleted || 'Completed'}</option>
-              <option value="archived">{(t as any).goals.list?.statusArchived || 'Archived'}</option>
-            </select>
           </div>
         </div>
-      </div>
-      <form onSubmit={onCreateGoal} className="space-y-4">
-        <div>
-          <div className="mb-1 flex items-center gap-2">
-            <label className="text-sm font-medium" htmlFor="goal-title">{titleLabel}</label>
-            <InfoHint targetId="goal-title" fieldLabel={titleLabel} hint={fieldHints.title} />
-          </div>
-          <input
-            id="goal-title"
-            className="w-full border rounded p-2"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            aria-describedby={fieldHints.title ? createHintId('goal-title') : undefined}
-          />
-        </div>
-        <div>
-          <div className="mb-1 flex items-center gap-2">
-            <label className="text-sm font-medium" htmlFor="goal-description">{descriptionLabel}</label>
-            <InfoHint targetId="goal-description" fieldLabel={descriptionLabel} hint={fieldHints.description} />
-          </div>
-          <textarea
-            id="goal-description"
-            className="w-full border rounded p-2"
-            rows={4}
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            aria-describedby={fieldHints.description ? createHintId('goal-description') : undefined}
-          />
-        </div>
-        <div>
-          <div className="mb-1 flex items-center gap-2">
-            <label className="text-sm font-medium" htmlFor="goal-deadline">{deadlineLabel}</label>
-            <InfoHint targetId="goal-deadline" fieldLabel={deadlineLabel} hint={fieldHints.deadline} />
-          </div>
-          <input
-            id="goal-deadline"
-            type="datetime-local"
-            className="w-full border rounded p-2"
-            value={deadline}
-            onChange={e => setDeadline(e.target.value)}
-            aria-describedby={fieldHints.deadline ? createHintId('goal-deadline') : undefined}
-          />
-        </div>
-
-        <div className="mt-6" data-testid="nlp-section">
-          <h2 className="text-lg font-semibold mb-2">{(t as any).goals.section.nlpTitle}</h2>
-          <p className="text-sm text-gray-600 mb-3">{(t as any).goals.section.nlpSubtitle}</p>
-          <div className="space-y-3" data-testid="nlp-questions">
-            {nlpQuestionOrder.map((key) => {
-              const questionId = `nlp-${key}`;
-              const questionLabel = labels?.[key] || key;
-              return (
-                <div key={key}>
-                  <div className="mb-1 flex items-start gap-2">
-                    <label className="text-sm font-medium" htmlFor={questionId}>{questionLabel}</label>
-                    <InfoHint targetId={questionId} fieldLabel={questionLabel} hint={questionHints[key]} />
-                  </div>
-                  <textarea
-                    id={questionId}
-                    className="w-full border rounded p-2"
-                    rows={2}
-                    value={answers[key] || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, [key]: e.target.value }))}
-                    aria-describedby={questionHints[key] ? createHintId(questionId) : undefined}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex gap-2 mt-4">
-          <button data-testid="btn-generate-image" type="button" onClick={onGenerateImage} className="px-3 py-2 bg-indigo-600 text-white rounded">
-            {(t as any).goals.actions.generateImage}
-          </button>
-          <button data-testid="btn-suggest-improvements" type="button" onClick={onSuggestImprovements} className="px-3 py-2 bg-sky-600 text-white rounded">
-            {(t as any).goals.actions.suggestImprovements}
-          </button>
-          <button disabled={submitting} type="submit" className="px-3 py-2 bg-emerald-600 text-white rounded">
-            {submitting ? (t as any).common.loading : (t as any).goals.actions.createGoal}
-          </button>
-        </div>
-      </form>
-
-      <div className="mt-6 grid gap-4">
-        {imageUrl && (
-          <div>
-            <h3 className="font-semibold mb-2">{(t as any).goals.inspiration.title}</h3>
-            <img alt="Inspiration" src={imageUrl} className="rounded border max-h-64 object-cover" />
-          </div>
-        )}
-        {suggestions.length > 0 && (
-          <div>
-            <h3 className="font-semibold mb-2">{(t as any).goals.suggestions.title}</h3>
-            <ul className="list-disc pl-6 space-y-1">
-              {suggestions.map((s, i) => <li key={i}>{s}</li>)}
-            </ul>
-          </div>
-        )}
-        <div className="mt-8">
-          <h3 className="font-semibold mb-2">{(t as any).goals.list?.myGoals || 'My Quests'}</h3>
+        <div className="mt-8 gap-2">
+          <h3 className="font-semibold mb-2">{t.goals.list?.myGoals || 'My Quests'}</h3>
           <div className="space-y-2">
             {filteredGoals.length === 0 ? (
-              <div className="text-sm text-muted-foreground">{(t as any).goals.list?.noGoals || 'No goals yet.'}</div>
+              <div className="text-sm text-muted-foreground">{t.goals.list?.noGoals || 'No goals yet.'}</div>
             ) : (
               <div className="overflow-x-auto rounded border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left">{(t as any).goals.list?.columns?.title || 'Title'}</th>
-                      <th className="px-3 py-2 text-left">{(t as any).goals.list?.columns?.description || 'Description'}</th>
-                      <th className="px-3 py-2 text-left">{(t as any).goals.list?.columns?.deadline || 'Deadline'}</th>
-                      <th className="px-3 py-2 text-left">{(t as any).goals.list?.columns?.status || 'Status'}</th>
-                      <th className="px-3 py-2 text-right">{(t as any).goals.list?.columns?.actions || 'Actions'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.title || 'Title'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.description || 'Description'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.deadline || 'Deadline'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.status || 'Status'}</th>
+                      <th className="px-3 py-2 text-right">{t.goals.list?.columns?.actions || 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleGoals.map((g) => {
+                    {visibleGoals.map(g => {
                       const deadlineLabel = formatDeadline(g.deadline);
                       return (
                         <tr key={g.id} className="border-t">
@@ -404,15 +352,18 @@ const GoalsPageInner: React.FC = () => {
                             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                               <button
                                 className="px-2 py-1 text-xs sm:text-sm border rounded"
-                                onClick={() => { setSelectedGoalId(g.id); loadMyTasks(g.id); }}
+                                onClick={() => {
+                                  setSelectedGoalId(g.id);
+                                  loadMyTasks(g.id);
+                                }}
                               >
-                                {(t as any).goals.list?.viewTasks || 'View Tasks'}
+                                {t.goals.list?.viewTasks || 'View Tasks'}
                               </button>
                               <button
                                 className="px-2 py-1 text-xs sm:text-sm border rounded"
-                                onClick={() => { setSelectedGoalId(g.id); setTaskTitle(''); setTaskDueAt(''); }}
+                                onClick={() => openCreateTaskModal(g.id)}
                               >
-                                {(t as any).goals.list?.createTask || 'Create Task'}
+                                {t.goals.list?.createTask || 'Create Task'}
                               </button>
                             </div>
                           </td>
@@ -424,107 +375,168 @@ const GoalsPageInner: React.FC = () => {
               </div>
             )}
             {filteredGoals.length > visibleCount && (
-              <div className="pt-2 text-right">
-                <button className="px-3 py-2 border rounded" onClick={() => setVisibleCount((c) => c + 5)}>
-                  {(t as any).goals.list?.showMore || 'Show more'}
+              <div className="pt-2 text-right mb-4">
+                <button className="px-3 py-2 border rounded" onClick={() => setVisibleCount(c => c + 5)}>
+                  {t.goals.list?.showMore || 'Show more'}
                 </button>
               </div>
             )}
           </div>
         </div>
+        <form onSubmit={onCreateGoal} className="space-y-4">
+          <div className="max-w-3xl mx-auto p-6">
+            <h3 className="font-semibold">{t.goals.list?.newGoal || 'New Goal'}</h3>
+          </div>
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-sm font-medium" htmlFor="goal-title">
+                {titleLabel}
+              </label>
+              <InfoHint targetId="goal-title" fieldLabel={titleLabel} hint={fieldHints.title} />
+            </div>
+            <input
+              id="goal-title"
+              className="w-full border rounded p-2"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              aria-describedby={fieldHints.title ? createHintId('goal-title') : undefined}
+            />
+          </div>
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-sm font-medium" htmlFor="goal-description">
+                {descriptionLabel}
+              </label>
+              <InfoHint targetId="goal-description" fieldLabel={descriptionLabel} hint={fieldHints.description} />
+            </div>
+            <textarea
+              id="goal-description"
+              className="w-full border rounded p-2"
+              rows={4}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              aria-describedby={fieldHints.description ? createHintId('goal-description') : undefined}
+            />
+          </div>
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <label className="text-sm font-medium" htmlFor="goal-deadline">
+                {deadlineLabel}
+              </label>
+              <InfoHint targetId="goal-deadline" fieldLabel={deadlineLabel} hint={fieldHints.deadline} />
+            </div>
+            <input
+              id="goal-deadline"
+              type="datetime-local"
+              className="w-full border rounded p-2"
+              value={deadline}
+              onChange={e => setDeadline(e.target.value)}
+              aria-describedby={fieldHints.deadline ? createHintId('goal-deadline') : undefined}
+            />
+          </div>
 
-        {selectedGoalId && (
-          <div className="mt-4">
-            <h4 className="font-semibold mb-2">{(t as any).goals.list?.tasks || 'Tasks'}</h4>
-            {(tasks || []).length === 0 ? (
-              <div className="text-sm text-muted-foreground">{(t as any).goals.list?.noTasks || 'No tasks yet.'}</div>
-            ) : (
-              <ul className="list-disc pl-6 space-y-1">
-                {tasks.map((tItem) => (
-                  <li key={tItem.id}>
-                    {tItem.title}{tItem.dueAt ? ` - ${new Date(tItem.dueAt * 1000).toLocaleString()}` : ''}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Create Task inline */}
-            <div className="mt-4 border-t pt-4">
-              <div className="grid gap-3 md:grid-cols-3">
-                <div>
-                  <div className="mb-1 flex items-center gap-2">
-                    <label className="text-sm font-medium" htmlFor="task-title-input">{taskTitleLabel}</label>
-                    <InfoHint targetId="task-title-input" fieldLabel={taskTitleLabel} hint={taskHints.title} />
+          <div className="mt-6" data-testid="nlp-section">
+            <h2 className="text-lg font-semibold mb-2">{t.goals.section.nlpTitle}</h2>
+            <p className="text-sm text-gray-600 mb-3">{t.goals.section.nlpSubtitle}</p>
+            <div className="space-y-3" data-testid="nlp-questions">
+              {nlpQuestionOrder.map(key => {
+                const questionId = `nlp-${key}`;
+                const questionLabel = labels?.[key] || key;
+                return (
+                  <div key={key}>
+                    <div className="mb-1 flex items-start gap-2">
+                      <label className="text-sm font-medium" htmlFor={questionId}>
+                        {questionLabel}
+                      </label>
+                      <InfoHint targetId={questionId} fieldLabel={questionLabel} hint={questionHints[key]} />
+                    </div>
+                    <textarea
+                      id={questionId}
+                      className="w-full border rounded p-2"
+                      rows={2}
+                      value={answers[key] || ''}
+                      onChange={e => setAnswers(prev => ({ ...prev, [key]: e.target.value }))}
+                      aria-describedby={questionHints[key] ? createHintId(questionId) : undefined}
+                    />
                   </div>
-                  <input
-                    id="task-title-input"
-                    className="w-full border rounded p-2"
-                    placeholder={(t as any).goals.list?.taskTitle || 'Task title'}
-                    value={taskTitle}
-                    onChange={e => setTaskTitle(e.target.value)}
-                    aria-describedby={taskHints.title ? createHintId('task-title-input') : undefined}
-                  />
-                </div>
-                <div>
-                  <div className="mb-1 flex items-center gap-2">
-                    <label className="text-sm font-medium" htmlFor="task-due-input">{taskDueLabel}</label>
-                    <InfoHint targetId="task-due-input" fieldLabel={taskDueLabel} hint={taskHints.dueAt} />
-                  </div>
-                  <input
-                    id="task-due-input"
-                    type="datetime-local"
-                    className="w-full border rounded p-2"
-                    value={taskDueAt}
-                    onChange={e => setTaskDueAt(e.target.value)}
-                    aria-describedby={taskHints.dueAt ? createHintId('task-due-input') : undefined}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    className="w-full px-3 py-2 bg-primary text-primary-foreground rounded"
-                    onClick={async () => {
-                      if (!selectedGoalId || !taskTitle.trim()) return;
-                      try {
-                        await client.graphql({
-                          query: ADD_TASK as any,
-                          variables: {
-                            input: {
-                              goalId: selectedGoalId,
-                              title: taskTitle.trim(),
-                              dueAt: taskDueAt ? Math.floor(new Date(taskDueAt).getTime() / 1000) : undefined,
-                              nlpPlan: answers && Object.keys(answers).length ? answers : undefined,
-                            }
-                          }
-                        });
-                        setTaskTitle('');
-                        setTaskDueAt('');
-                        await loadMyTasks(selectedGoalId);
-                        toast({ title: (t as any).goals.list?.taskCreated || 'Task created' });
-                      } catch (e: any) {
-                        const desc = Array.isArray(e?.errors)
-                          ? e.errors.map((x: any) => x?.message || '').filter(Boolean).join(' | ')
-                          : (typeof e?.message === 'string' ? e.message : String(e));
-                        toast({ title: (t as any).common.error, description: desc, variant: 'destructive' });
-                      }
-                    }}
-                  >
-                    {(t as any).goals.list?.createTask || 'Create Task'}
-                  </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
-        )}
 
-      </div>
+          <div className="flex gap-2 mt-4">
+            <button
+              data-testid="btn-generate-image"
+              type="button"
+              onClick={onGenerateImage}
+              className="px-3 py-2 bg-indigo-600 text-white rounded"
+            >
+              {t.goals.actions.generateImage}
+            </button>
+            <button
+              data-testid="btn-suggest-improvements"
+              type="button"
+              onClick={onSuggestImprovements}
+              className="px-3 py-2 bg-sky-600 text-white rounded"
+            >
+              {t.goals.actions.suggestImprovements}
+            </button>
+            <button disabled={submitting} type="submit" className="px-3 py-2 bg-emerald-600 text-white rounded">
+              {submitting ? t.common.loading : t.goals.actions.createGoal}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-6 grid gap-4">
+          {imageUrl && (
+            <div>
+              <h3 className="font-semibold mb-2">{t.goals.inspiration.title}</h3>
+              <img alt="Inspiration" src={imageUrl} className="rounded border max-h-64 object-cover" />
+            </div>
+          )}
+          {suggestions.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2">{t.goals.suggestions.title}</h3>
+              <ul className="list-disc pl-6 space-y-1">
+                {suggestions.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {selectedGoalId && (
+            <div className="mt-4">
+              <h4 className="font-semibold mb-2">{t.goals.list?.tasks || 'Tasks'}</h4>
+              {(tasks || []).length === 0 ? (
+                <div className="text-sm text-muted-foreground">{t.goals.list?.noTasks || 'No tasks yet.'}</div>
+              ) : (
+                <ul className="list-disc pl-6 space-y-1">
+                  {tasks.map(tItem => (
+                    <li key={tItem.id}>
+                      {tItem.title}
+                      {tItem.dueAt ? ` - ${new Date(tItem.dueAt * 1000).toLocaleString()}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        <CreateTaskModal
+          isOpen={isTaskModalOpen}
+          onClose={() => setIsTaskModalOpen(false)}
+          onCreate={handleCreateTask}
+          goalDeadline={modalGoalDeadline}
+        />
       </div>
     </TooltipProvider>
   );
 };
 
 const GoalsPage: React.FC = () => (
-  <RoleRoute allow={["user"]}>
+  <RoleRoute allow={['user']}>
     <GoalsPageInner />
   </RoleRoute>
 );

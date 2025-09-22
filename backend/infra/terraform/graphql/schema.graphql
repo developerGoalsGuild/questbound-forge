@@ -72,17 +72,16 @@ type Goal {
   answers: [Answer!]
 }
 
+# Task type (simplified for example)
 type Task {
   id: ID!
   goalId: ID!
-  ownerId: ID!
   title: String!
-  nlpPlan: AWSJSON
-  dueAt: AWSTimestamp
-  status: TaskStatus!
-  assignees: [ID!]
-  createdAt: AWSTimestamp
-  updatedAt: AWSTimestamp
+  dueAt: Int!
+  status: String!
+  createdAt: Int!
+  updatedAt: Int!
+  tags: [String!]!
 }
 
 type Message {
@@ -132,15 +131,8 @@ type Mutation {
   """
   createUser(input: CreateUserInput!): User! @aws_api_key
 
-  """
-  Create a goal for the current user (from JWT).
-  """
-  createGoal(input: GoalInput!): Goal!
-
-  """
-  Add a task under a goal owned by the current user.
-  """
-  addTask(input: TaskInput!): Task!
+  
+  
 
   """
   Post a message to a chat room.
@@ -188,14 +180,37 @@ input GoalInput {
   answers: [AnswerInput!]
 }
 
+
+
+
+# Input type for Task creation, including tags consistent with goals
 input TaskInput {
   goalId: ID!
   title: String!
-  # If you store epoch milliseconds internally, convert to seconds or adjust resolver to return seconds.
-  dueAt: AWSTimestamp
-  nlpPlan: AWSJSON
-  assignees: [ID!]
+  dueAt: Int! # epoch seconds
+  tags: [String!]! # tags consistent with goals
 }
+
+
+
+# Non-public mutation for creating a task
+extend type Mutation {
+  """
+  Non-public mutation to create a new task associated with a goal.
+  Requires authentication.
+  """
+  #  Add a task under a goal owned by the current user.
+  createTask(input: TaskInput!): Task!
+
+  """
+  Create a goal for the current user (from JWT).
+  """
+  createGoal(input: GoalInput!): Goal!
+
+
+
+}
+
 
 # ----------------
 # Root Schema

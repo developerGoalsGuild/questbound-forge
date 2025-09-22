@@ -681,6 +681,114 @@ resource "aws_api_gateway_integration_response" "health_options_200" {
   ]
 }
 
+# Add resource and method for createTask mutation under /quests path
+
+# Create a new resource for createTask mutation under /quests
+resource "aws_api_gateway_resource" "quest_create_task_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quest_service_resource.id
+  path_part   = "createTask"
+}
+
+# POST /quests/createTask (CUSTOM + authorizer) - requires authentication
+resource "aws_api_gateway_method" "quest_create_task_post" {
+  rest_api_id     = aws_api_gateway_rest_api.rest_api.id
+  resource_id     = aws_api_gateway_resource.quest_create_task_resource.id
+  http_method     = "POST"
+  authorization   = "CUSTOM"
+  authorizer_id   = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = false
+}
+
+resource "aws_api_gateway_integration" "quest_create_task_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quest_create_task_resource.id
+  http_method             = aws_api_gateway_method.quest_create_task_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+
+  depends_on = [
+    aws_api_gateway_method.quest_create_task_post,
+    aws_lambda_permission.allow_api_gateway_quest
+  ]
+}
+
+# OPTIONS /quests/createTask (CORS)
+resource "aws_api_gateway_method" "quest_create_task_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quest_create_task_resource.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Origin"                         = false
+    "method.request.header.Access-Control-Request-Method"  = false
+    "method.request.header.Access-Control-Request-Headers" = false
+  }
+}
+
+resource "aws_api_gateway_method_response" "quest_create_task_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_create_task_resource.id
+  http_method = aws_api_gateway_method.quest_create_task_options.http_method
+  status_code = 200
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain"       = "Empty"
+  }
+  response_parameters = {
+    "method.response.header.Content-Type"                     = true
+    "method.response.header.Access-Control-Allow-Origin"      = true
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Vary"                             = true
+    "method.response.header.Access-Control-Allow-Headers"     = true
+    "method.response.header.Access-Control-Allow-Methods"     = true
+    "method.response.header.Access-Control-Max-Age"           = true
+  }
+}
+
+resource "aws_api_gateway_integration" "quest_create_task_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_create_task_resource.id
+  http_method = aws_api_gateway_method.quest_create_task_options.http_method
+  type        = "MOCK"
+
+  integration_http_method = "POST"
+
+  request_templates = {
+    "application/json"                  = "{\"statusCode\": 200}"
+    "text/plain"                        = "{\"statusCode\": 200}"
+    "application/x-www-form-urlencoded" = "{\"statusCode\": 200}"
+  }
+
+  depends_on = [aws_api_gateway_method.quest_create_task_options]
+}
+
+resource "aws_api_gateway_integration_response" "quest_create_task_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_create_task_resource.id
+  http_method = aws_api_gateway_method.quest_create_task_options.http_method
+  status_code = 200
+  response_parameters = {
+    "method.response.header.Content-Type"                     = "'application/json'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
+    "method.response.header.Vary"                             = "'Origin'"
+    "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods"     = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Max-Age"           = "'600'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain"       = "{}"
+  }
+  depends_on = [
+    aws_api_gateway_integration.quest_create_task_options_integration,
+    aws_api_gateway_method_response.quest_create_task_options_200
+  ]
+}
+
+
 ############################################
 # /quests (CUSTOM + authorizer)
 ############################################

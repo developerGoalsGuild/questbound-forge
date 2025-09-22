@@ -142,6 +142,7 @@ export interface Translations {
     suggestions: { title: string };
     list: {
       myGoals: string;
+      newGoal: string;
       tasks: string;
       viewTasks: string;
       noGoals: string;
@@ -364,6 +365,7 @@ export const translations: Record<Language, Translations> = {
       suggestions: { title: 'AI Suggestions' },
       list: {
         myGoals: 'My Quests',
+        newGoal: 'New Goal',
         tasks: 'Tasks',
         viewTasks: 'View Tasks',
         noGoals: 'No goals yet.',
@@ -585,6 +587,7 @@ export const translations: Record<Language, Translations> = {
       suggestions: { title: 'Sugerencias de IA' },
       list: {
         myGoals: 'Mis misiones',
+        newGoal: 'Nueva mision',
         tasks: 'Tareas',
         viewTasks: 'Ver tareas',
         noGoals: 'Aún no hay objetivos.',
@@ -806,6 +809,7 @@ export const translations: Record<Language, Translations> = {
       suggestions: { title: 'Suggestions IA' },
       list: {
         myGoals: 'Mes quêtes',
+        newGoal: 'quête',
         tasks: 'Tâches',
         viewTasks: 'Voir les tâches',
         noGoals: 'Aucun objectif.',

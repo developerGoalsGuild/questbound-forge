@@ -116,7 +116,7 @@ const Header = () => {
               </Link>
 
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button className="btn-heraldic text-primary-foreground justify-start" variant="outline" className="justify-start" asChild>
+                <Button className="btn-heraldic text-primary-foreground justify-start" variant="outline">
                   <Link to="/login/Login">{t.nav.login}</Link>
                 </Button>
                 <Button className="btn-heraldic text-primary-foreground justify-start" asChild>

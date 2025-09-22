@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import hashlib
 import os
 import sys
@@ -12,11 +13,14 @@ from uuid import uuid4
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from .models import AnswerInput,TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, TaskInput
+from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
+
 
 _SERVICES_DIR = Path(__file__).resolve().parents[2]
 if str(_SERVICES_DIR) not in sys.path:
@@ -31,18 +35,7 @@ from .settings import Settings
 # ---------- Logging ----------
 logger = get_structured_logger("quest-service", env_flag="QUEST_LOG_ENABLED", default_enabled=True)
 
-# ---------- Static configuration ----------
-NLP_QUESTION_ORDER = [
-    "positive",
-    "specific",
-    "evidence",
-    "resources",
-    "obstacles",
-    "ecology",
-    "timeline",
-    "firstStep",
-]
-CANONICAL_MAP = {key.lower(): key for key in NLP_QUESTION_ORDER}
+
 
 
 # ---------- Settings & FastAPI app ----------
@@ -202,114 +195,9 @@ async def authenticate(request: Request) -> AuthContext:
 
 
 # ---------- Request/response models ----------
-class AnswerInput(BaseModel):
-    key: str
-    answer: Optional[str] = ""
 
 
-class GoalCreatePayload(BaseModel):
-    title: str
-    description: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    deadline: str
-    answers: List[AnswerInput] = Field(default_factory=list)
 
-
-class AnswerOutput(BaseModel):
-    key: str
-    answer: str
-
-
-class GoalResponse(BaseModel):
-    id: str
-    userId: str
-    title: str
-    description: str
-    tags: List[str]
-    answers: List[AnswerOutput]
-    deadline: Optional[str]
-    status: str
-    createdAt: int
-    updatedAt: int
-
-
-# ---------- Validation helpers ----------
-def _digits_only(value: str) -> bool:
-    return value.isdigit()
-
-
-def _normalize_date_only(value: Optional[str]) -> Optional[str]:
-    if not value or not isinstance(value, str):
-        return None
-    trimmed = value.strip()
-    if len(trimmed) != 10 or trimmed[4] != '-' or trimmed[7] != '-':
-        return None
-    y, m, d = trimmed[:4], trimmed[5:7], trimmed[8:10]
-    if not (_digits_only(y) and _digits_only(m) and _digits_only(d)):
-        return None
-    if not ("01" <= m <= "12"):
-        return None
-    if not ("01" <= d <= "31"):
-        return None
-    return f"{y}-{m}-{d}"
-
-
-def _sanitize_string(value: Optional[str]) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
-def _validate_tags(raw_tags: List[str]) -> List[str]:
-    tags: List[str] = []
-    for idx, tag in enumerate(raw_tags):
-        if not isinstance(tag, str):
-            raise HTTPException(status_code=400, detail=f"Tag at index {idx} must be a string")
-        trimmed = tag.strip()
-        if trimmed:
-            tags.append(trimmed)
-    return tags
-
-
-def _validate_answers(raw_answers: List[AnswerInput]) -> List[Dict[str, str]]:
-    for index, entry in enumerate(raw_answers):
-        if entry is None or not isinstance(entry.key, str) or not entry.key.strip():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Answer at index {index} is missing a valid key",
-            )
-    filled = {key: "" for key in NLP_QUESTION_ORDER}
-    for entry in raw_answers:
-        canonical = CANONICAL_MAP.get(entry.key.strip().lower())
-        if not canonical:
-            continue
-        filled[canonical] = _sanitize_string(entry.answer)
-    return [{"key": key, "answer": filled[key]} for key in NLP_QUESTION_ORDER]
-
-
-def _serialize_answers(raw_answers: List[Dict]) -> List[Dict[str, str]]:
-    sanitized: List[Dict[str, str]] = []
-    for entry in raw_answers or []:
-        if not isinstance(entry, dict):
-            continue
-        key = _sanitize_string(entry.get("key"))
-        if not key:
-            continue
-        sanitized.append({"key": key, "answer": _sanitize_string(entry.get("answer"))})
-    return sanitized
-
-
-def _normalize_deadline_output(value) -> Optional[str]:
-    if isinstance(value, str) and len(value) == 10:
-        return value
-    if isinstance(value, (int, float)):
-        try:
-            from datetime import datetime
-
-            return datetime.utcfromtimestamp(value / 1000).strftime("%Y-%m-%d")
-        except Exception:  # pragma: no cover - defensive
-            return None
-    return None
 
 
 def _build_goal_item(user_id: str, payload: GoalCreatePayload) -> Dict:
@@ -447,5 +335,95 @@ async def suggest_improvements(body: AITextPayload):
 
     return {"suggestions": suggestions[:6]}
 
+
+# Helper to build task item for single table pattern
+def _build_task_item(user_id: str, payload: TaskInput) -> Dict:
+  now_ms = int(time.time() * 1000)
+  task_id = str(uuid4())
+  title = payload.title.strip()
+
+  item = {
+    "PK": f"USER#{user_id}",
+    "SK": f"TASK#{task_id}",
+    "type": "Task",
+    "id": task_id,
+    "goalId": payload.goalId,
+    "title": title,
+    "dueAt": payload.dueAt,
+    "status": "active",
+    "createdAt": now_ms,
+    "updatedAt": now_ms,
+    "tags": payload.tags,
+    # GSI for querying tasks by user and creation time
+    "GSI1PK": f"USER#{user_id}",
+    "GSI1SK": f"ENTITY#Task#{now_ms}",
+  }
+  return item
+
+# Helper to convert DynamoDB item to TaskResponse
+def _task_to_response(item: Dict) -> TaskResponse:
+  return TaskResponse(
+    id=str(item.get("id")),
+    goalId=str(item.get("goalId")),
+    title=str(item.get("title")),
+    dueAt=int(item.get("dueAt")),
+    status=str(item.get("status")),
+    createdAt=int(item.get("createdAt")),
+    updatedAt=int(item.get("updatedAt")),
+    tags=item.get("tags", []),
+  )
+
+# GraphQL resolver for createTask mutation
+@app.post("/quests/createTask", response_model=TaskResponse, status_code=201)
+async def create_task(
+  payload: TaskInput = Body(...),
+  auth: AuthContext = Depends(authenticate),
+  gg_core_table=get_goals_table,
+):
+  user_id = auth.user_id
+
+  # Validate user owns the goal and goal is active
+  try:
+    response = gg_core_table.get_item(
+      Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{payload.goalId}"}
+    )
+  except (ClientError, BotoCoreError) as exc:
+    raise HTTPException(status_code=500, detail="Internal server error")
+
+  goal_item = response.get("Item")
+  if not goal_item:
+    raise HTTPException(status_code=404, detail="Goal not found")
+
+  if goal_item.get("status") != "active":
+    raise HTTPException(status_code=400, detail="Cannot add task to inactive goal")
+
+  # Validate task dueAt <= goal deadline
+  goal_deadline_str = goal_item.get("deadline")
+  if not goal_deadline_str:
+    raise HTTPException(status_code=400, detail="Goal deadline is missing")
+
+  try:
+    goal_deadline_date = datetime.strptime(goal_deadline_str, "%Y-%m-%d")
+  except Exception:
+    raise HTTPException(status_code=400, detail="Goal deadline format invalid")
+
+  task_due_date = datetime.utcfromtimestamp(payload.dueAt)
+  if task_due_date > goal_deadline_date:
+    raise HTTPException(
+      status_code=400,
+      detail="Task due date cannot exceed goal deadline",
+    )
+
+  # Build and save task item
+  item = _build_task_item(user_id, payload)
+  try:
+    gg_core_table.put_item(
+      Item=item,
+      ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
+    )
+  except (ClientError, BotoCoreError) as exc:
+    raise HTTPException(status_code=500, detail="Could not create task at this time")
+
+  return _task_to_response(item)
 
 __all__ = ["app"]
