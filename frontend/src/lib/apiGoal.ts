@@ -1,131 +1,131 @@
 import { nlpQuestionOrder, NLPAnswers } from '@/pages/goals/questions';
-import { getAccessToken } from '@/lib/utils';
-import { graphQLClient } from '@/lib/utils';
+import { getAccessToken, getApiBase, graphQLClient } from '@/lib/utils';
 import { ACTIVE_GOALS_COUNT } from '@/graphql/queries';
+import { graphqlRaw } from './api';
 
-
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface GoalInput {
   title: string;
   description?: string;
-  deadline: number; // timestamp in seconds
+  deadline: string;
   category?: string;
   nlpAnswers: NLPAnswers;
 }
 
-// GraphQL mutation string for creating a goal
-const CREATE_GOAL_MUTATION = `
-  mutation createGoal($input: GoalInput!) {
-    createGoal(input: $input) {
-      id
-      userId
-      title
-      description
-      tags
-      deadline
-      status
-      createdAt
-      updatedAt
-      answers {              # <— NEW
-        key
-        answer
-      }
-    }
-  }
-`;
-
-
-interface CreateGoalInput {
-  title: string;
-  description?: string;
-  deadline: number;
-  tags: string[];
-  answers: { [key: string]: string };
+export interface GoalAnswer {
+  key: string;
+  answer: string;
 }
 
+export interface GoalResponse {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  tags: string[];
+  answers: GoalAnswer[];
+  deadline: string | null;
+  status: string;
+  createdAt: number;
+  updatedAt: number;
+}
 
-export async function createGoal(input: GoalInput) {
-  const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT;
-  if (!endpoint) throw new Error('AppSync endpoint not configured');
+function buildAnswers(nlpAnswers: NLPAnswers): GoalAnswer[] {
+  return nlpQuestionOrder.map((key) => ({
+    key,
+    answer: (nlpAnswers[key] || '').trim(),
+  }));
+}
 
-  // Prepare tags array from category string
-  const tags = input.category ? [input.category] : [];
+function buildTags(category?: string): string[] {
+  if (!category) return [];
+  const trimmed = category.trim();
+  return trimmed ? [trimmed] : [];
+}
 
-  // Prepare answers object with all keys from nlpQuestionOrder, filling missing with empty string
-  const answers: { [key: string]: string } = {};
-  nlpQuestionOrder.forEach((key) => {
-    answers[key] = input.nlpAnswers[key] || '';
-  });
+function assertValidDeadline(deadline: string): string {
+  const trimmed = deadline?.trim?.() ?? '';
+  if (!DATE_ONLY_REGEX.test(trimmed)) {
+    throw new Error('Deadline must follow YYYY-MM-DD format.');
+  }
+  const parsed = Date.parse(`${trimmed}T00:00:00Z`);
+  if (Number.isNaN(parsed)) {
+    throw new Error('Deadline must be a valid calendar date.');
+  }
+  return trimmed;
+}
 
-  // Construct input object for mutation
-  const variables = {
-    input: {
-      title: input.title,
-      description: input.description,
-      deadline: input.deadline,
-      tags,
-      answers,
-    } as CreateGoalInput,
+export async function createGoal(input: GoalInput): Promise<GoalResponse> {
+  const base = getApiBase();
+  const url = base.replace(/\/$/, '') + '/quests';
+
+  const deadline = assertValidDeadline(input.deadline);
+  const payload = {
+    title: input.title,
+    description: input.description?.trim?.() ?? '',
+    deadline,
+    tags: buildTags(input.category),
+    answers: buildAnswers(input.nlpAnswers),
   };
 
-  // Prepare headers
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
   const token = getAccessToken();
-  if (token) {
-    headers['Authorization'] = `${token}`;
+  if (!token) {
+    throw new Error('You must be signed in to create a goal.');
   }
 
-  // Send POST request to AppSync GraphQL endpoint
-  const res = await fetch(endpoint, {
+  const response = await fetch(url, {
     method: 'POST',
-    headers,
-    body: JSON.stringify({
-      query: CREATE_GOAL_MUTATION,
-      variables,
-      operationName: 'createGoal',
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
+  const text = await response.text();
   let body: any = {};
   try {
     body = text ? JSON.parse(text) : {};
-  } catch {}
-
-  if (!res.ok || body.errors) {
-    const msg = body.errors?.map((e: any) => e.message).join(' | ') || text || 'Goal creation failed';
-    console.error('Error creating goal:', msg);
-    throw new Error(msg);
+  } catch {
+    body = {};
   }
 
-  return body.data.createGoal;
+  if (!response.ok) {
+    const detail = body?.detail || text || 'Goal creation failed';
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+
+  return body as GoalResponse;
 }
-
-
-
-// ---- Goals / Quests ----
 
 export async function getActiveGoalsCountForUser(userId: string): Promise<number> {
   try {
-    const { data, errors } = await graphQLClient().graphql({
-      query: ACTIVE_GOALS_COUNT as any,
-      variables: { userId },
-    });
-    if (errors?.length) throw new Error(errors.map((e) => e.message).join(' | '));
-    return Number((data as any)?.activeGoalsCount ?? 0);
-  } catch (e) {
+    const QUERY = /* GraphQL */ `
+      query ActiveGoalsCount($userId: ID!) {
+        activeGoalsCount(userId: $userId)
+      }
+    `;
+
+    const data = await graphqlRaw<{ activeGoalsCount: number }>(QUERY, { userId });
+    return Number(data?.activeGoalsCount ?? 0);
+  } catch (e: any) {
+    console.error('[getActiveGoalsCountForUser] GraphQL error:', e?.errors || e?.message || e);
     return 0;
   }
 }
 
-export async function loadGoals(MY_GOALS: any) {
+
+
+export async function loadGoals() {
   try {
-    const { data, errors } = await graphQLClient().graphql({ query: MY_GOALS as any });
-    if (errors?.length) throw new Error(errors.map((e: any) => e.message).join(' | '));
-    return data.myGoals || [];
-  } catch (e) {
-    // noop UI fallback
+    const data = await graphqlRaw<{
+      myGoals: Array<{ id: string; title: string; status: string; deadline: string | null }>;
+    }>(`query MyGoals { myGoals { id title description status deadline } }`);
+
+    return data?.myGoals ?? [];
+  } catch (e: any) {
+    console.error('[loadGoals] GraphQL error:', e?.errors || e?.message || e);
+    return []; // safe fallback for UI
   }
 }

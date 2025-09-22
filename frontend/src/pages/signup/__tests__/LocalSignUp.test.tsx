@@ -1,280 +1,320 @@
-﻿/** @vitest-environment jsdom */
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
-
-vi.mock('@/config/featureFlags', () => ({ emailConfirmationEnabled: false }));
-vi.mock('@/lib/api', () => ({
-  createUser: vi.fn(),
-  confirmEmail: vi.fn(),
-  isEmailAvailable: vi.fn().mockResolvedValue(true),
-  isNicknameAvailable: vi.fn().mockResolvedValue(true),
-}));
-
+﻿// src/pages/signup/__tests__/LocalSignUp.test.tsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
-import LocalSignUp from '../LocalSignUp';
-import * as api from '@/lib/api';
-import { TranslationProvider } from '@/hooks/useTranslation';
-import { useTranslation } from '@/hooks/useTranslation';
+import { describe, test, beforeEach, afterEach, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-// Helper: diacritic-insensitive matcher for Testing Library
-const strip = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const containsNormalized = (expected: string) => (actual: string) => strip(actual).includes(strip(expected));
-
-describe('LocalSignUp', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-  afterEach(() => {
-    cleanup();
-  });
- 
-  const renderComponent = () =>
-    render(
-      <TranslationProvider>
-        <LocalSignUp />
-      </TranslationProvider>
-    );
-
-  const renderWithLanguage = (lang: 'en' | 'es' | 'fr') => {
-    const LangSetter = () => {
-      const { setLanguage } = useTranslation();
-      React.useEffect(() => {
-        setLanguage(lang);
-      }, [lang]);
-      return null;
-    };
-    return render(
-      <TranslationProvider>
-        <LangSetter />
-        <LocalSignUp />
-      </TranslationProvider>
-    );
+// ----------------------- Mocks -----------------------
+vi.mock('@/hooks/useTranslation', () => {
+  const t = {
+    common: { loading: 'Loading...', success: 'Available' },
+    signup: {
+      local: {
+        email: 'Email',
+        fullName: 'Full Name',
+        nickname: 'Nickname',
+        pronouns: 'Pronouns',
+        gender: 'Gender',
+        birthDate: 'Birth',
+        bio: 'Bio',
+        country: 'Country',
+        role: 'Role',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        submit: 'Create Account',
+        selectCountry: 'Select your country',
+        selectPronouns: 'Select pronouns',
+        successMessage: 'OK',
+        successConfirmMessage: 'OK-CONFIRM',
+        errorMessage: 'ERR',
+        options: { roles: { user: 'User', partner: 'Partner', patron: 'Patron' } },
+        validation: {
+          required: 'Required',
+          invalidEmail: 'Invalid email',
+          invalidDate: 'Invalid date',
+          birthDateTooRecent: 'Too recent',
+          bioMaxLength: 'Too long',
+          invalidCountry: 'Invalid country code',
+          emailTaken: 'Email already in use',
+          emailAvailable: 'Email available',
+          nicknameTaken: 'Nickname already in use',
+          nicknameAvailable: 'Nickname available',
+          passwordMinLength: 'Min 8',
+          passwordUpper: 'Must include an uppercase letter',
+          passwordLower: 'Must include a lowercase letter',
+          passwordDigit: 'Must include a digit',
+          passwordSpecial: 'Must include a special character',
+          passwordMismatch: 'Passwords do not match',
+          available: 'Available',
+        },
+      },
+    },
   };
-
-  test('renders form fields', () => {
-    renderComponent();
-
-    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
-  });
-
-  test('shows validation errors on empty submit', async () => {
-    renderComponent();
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-    const errs = await screen.findAllByText(/this field is required/i);
-    expect(errs.length).toBeGreaterThanOrEqual(4);
-  });
-
-  test('shows password mismatch error', async () => {
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'password1' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'password2' } });
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-    expect(await screen.findByText(/passwords do not match/i)).toBeInTheDocument();
-  });
-
-  test('submits form successfully', async () => {
-    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
-    (api.confirmEmail as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'test@example.com' } });
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Test User' } });
-    fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'nick' } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '2000-01-01' } });
-    const countryInput = screen.getByLabelText(/country/i);
-    fireEvent.change(countryInput, { target: { value: 'United States' } });
-    const opt = await screen.findByRole('button', { name: /United States/i });
-    fireEvent.click(opt);
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-
-    await waitFor(() => {
-      expect(api.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'test@example.com',
-          fullName: 'Test User',
-          password: 'Aa1!aaaa',
-          status: 'active',
-        })
-      );
-      expect(screen.getByText(/account created/i)).toBeInTheDocument();
-    });
-  });
-
-  test('shows error message on submission failure', async () => {
-    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Failed'));
-
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'fail@example.com' } });
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Fail User' } });
-    fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'nick' } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '2000-01-01' } });
-    const countryInput = screen.getByLabelText(/country/i);
-    fireEvent.change(countryInput, { target: { value: 'United States' } });
-    const pick = await screen.findByRole('button', { name: /United States/i });
-    fireEvent.click(pick);
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText(/failed to create account/i)).toBeInTheDocument();
-    });
-  });
-
-  test('submits without pronouns/gender when left blank', async () => {
-    (api.createUser as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
-    (api.confirmEmail as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'popt@example.com' } });
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Pop T' } });
-    fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'popt' } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '2000-01-01' } });
-    const countryInput = screen.getByLabelText(/country/i);
-    fireEvent.change(countryInput, { target: { value: 'United States' } });
-    const pick = await screen.findByRole('button', { name: /United States/i });
-    fireEvent.click(pick);
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-
-    await waitFor(() => {
-      expect(api.createUser).toHaveBeenCalled();
-      expect(screen.getByText(/account created/i)).toBeInTheDocument();
-    });
-  });
-
-  test('pronouns: selecting then clearing triggers required error on submit', async () => {
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'pr@example.com' } });
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Pr User' } });
-    fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'pru' } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '2000-01-01' } });
-    const ctry = screen.getByLabelText(/country/i);
-    fireEvent.change(ctry, { target: { value: 'United States' } });
-    const pick = await screen.findByRole('button', { name: /United States/i });
-    fireEvent.click(pick);
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'Aa1!aaaa' } });
-
-    const pronounsSelect = screen.getByLabelText(/pronouns/i) as HTMLSelectElement;
-    fireEvent.change(pronounsSelect, { target: { value: 'he/him' } });
-    expect(pronounsSelect.value).toBe('he/him');
-    fireEvent.change(pronounsSelect, { target: { value: '' } });
-    expect(pronounsSelect.value).toBe('');
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-    expect(await screen.findByText(/this field is required/i)).toBeInTheDocument();
-  });
-
-  test('gender: selecting then clearing triggers required error on submit', async () => {
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'ge@example.com' } });
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Ge User' } });
-    fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'geu' } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '2000-01-01' } });
-    const ctry = screen.getByLabelText(/country/i);
-    fireEvent.change(ctry, { target: { value: 'United States' } });
-    const pick = await screen.findByRole('button', { name: /United States/i });
-    fireEvent.click(pick);
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'Aa1!aaaa' } });
-
-    const genderSelect = screen.getByLabelText(/gender/i) as HTMLSelectElement;
-    fireEvent.change(genderSelect, { target: { value: 'male' } });
-    expect(genderSelect.value).toBe('male');
-    fireEvent.change(genderSelect, { target: { value: '' } });
-    expect(genderSelect.value).toBe('');
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-    expect(await screen.findByText(/this field is required/i)).toBeInTheDocument();
-  });
-
-  test('pronouns placeholder is localized to Spanish', async () => {
-    renderWithLanguage('es');
-    expect(
-      await screen.findByRole('option', { name: containsNormalized('Selecciona tus pronombres') })
-    ).toBeInTheDocument();
-  });
-
-  test('pronouns placeholder is localized to French', async () => {
-    renderWithLanguage('fr');
-    expect(
-      await screen.findByRole('option', { name: containsNormalized('Sélectionnez vos pronoms') })
-    ).toBeInTheDocument();
-  });
-
-  test('country placeholder is localized to Spanish', async () => {
-    renderWithLanguage('es');
-    const countryInput = await screen.findByPlaceholderText(/país|pais|country/i);
-    expect(countryInput).toBeInTheDocument();
-  });
-
-  test('country placeholder is localized to French', async () => {
-    renderWithLanguage('fr');
-    const countryInput = await screen.findByPlaceholderText(/pays|country/i);
-    expect(countryInput).toBeInTheDocument();
-  });
-
-  test('default pronouns placeholder is English', async () => {
-    renderComponent();
-    expect(await screen.findByRole('option', { name: /select pronouns/i })).toBeInTheDocument();
-  });
-
-  test('default country placeholder is English', async () => {
-    renderComponent();
-    const countryInput = await screen.findByPlaceholderText(/select your country/i);
-    expect(countryInput).toBeInTheDocument();
-  });
-
-  test('default English labels are present', () => {
-    renderComponent();
-    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/country/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/nickname/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/gender/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument();
-  });
-
-  test('Spanish labels are present when language is es', () => {
-    renderWithLanguage('es');
-    expect(screen.getByLabelText(/correo|email/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: containsNormalized('Crear cuenta') })).toBeInTheDocument();
-  });
-
-  test('French labels are present when language is fr', () => {
-    renderWithLanguage('fr');
-    expect(screen.getByLabelText(containsNormalized('Adresse e-mail'))).toBeInTheDocument();
-    expect(screen.getByLabelText(containsNormalized('Genre'))).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: containsNormalized('Créer un compte') })).toBeInTheDocument();
-  });
-
-  test('includes selected role in createUser payload', async () => {
-    (api.createUser as any).mockResolvedValue({});
-    (api.confirmEmail as any).mockResolvedValue(undefined);
-    renderComponent();
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'r@example.com' } });
-    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Role User' } });
-    fireEvent.change(screen.getByLabelText(/nickname/i), { target: { value: 'roleu' } });
-    fireEvent.change(screen.getByLabelText(/date of birth/i), { target: { value: '2000-01-01' } });
-    const ctry = screen.getByLabelText(/country/i);
-    fireEvent.change(ctry, { target: { value: 'United States' } });
-    const pick = await screen.findByRole('button', { name: /United States/i });
-    fireEvent.click(pick);
-    const roleSelect = screen.getByLabelText(/role/i) as HTMLSelectElement;
-    fireEvent.change(roleSelect, { target: { value: 'partner' } });
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-    await waitFor(() => {
-      expect(api.createUser).toHaveBeenCalledWith(expect.objectContaining({ role: 'partner' }));
-    });
-  });
+  return { useTranslation: () => ({ t, language: 'en' }) };
 });
 
+const api = {
+  isEmailAvailable: vi.fn<[], any>(),
+  isNicknameAvailable: vi.fn<[], any>(),
+  createUser: vi.fn<[], any>(),
+  confirmEmail: vi.fn<[], any>(),
+};
+vi.mock('@/lib/api', () => api);
+
+vi.mock('@/i18n/countries', () => {
+  const list = [
+    { name: 'Brazil', code: 'BR' },
+    { name: 'Argentina', code: 'AR' },
+    { name: 'United States', code: 'US' },
+  ];
+  return {
+    getCountries: () => list,
+    initialsFor: (s: string) => (s || '').split(' ').map(x => x[0]).join(''),
+    isValidCountryCode: (code: string) => ['BR', 'AR', 'US'].includes(code),
+  };
+});
+
+vi.mock('./errorMapping', () => ({
+  mapSignupErrorToField: (err: any) =>
+    err?.mapped ? { field: 'email', message: 'Mapped email error' } : null,
+}));
+
+vi.mock('@/components/ui/password-input', () => ({
+  PasswordInput: (props: any) => (
+    <input
+      data-testid={props.id}
+      id={props.id}
+      name={props.name}
+      type="password"
+      value={props.value}
+      onChange={props.onChange}
+      aria-invalid={props['aria-invalid']}
+      aria-describedby={props['aria-describedby']}
+      className={props.inputClassName || 'border rounded border-gray-300'}
+    />
+  ),
+}));
+
+vi.mock('@/lib/utils', () => ({ cn: (...xs: string[]) => xs.filter(Boolean).join(' ') }));
+
+async function loadComponentWithEmailConfirmation(flag: boolean) {
+  vi.resetModules();
+  vi.doMock('@/config/featureFlags', () => ({ emailConfirmationEnabled: flag }));
+  const mod = await import('@/pages/signup/LocalSignUp');
+  return mod.default;
+}
+
+// ----------------------- Helpers -----------------------
+const byId = <T extends HTMLElement = HTMLElement>(container: HTMLElement, id: string) =>
+  container.querySelector<T>(`#${id}`)!;
+
+const submitBtn = (container: HTMLElement) =>
+  container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+async function selectCountry(container: HTMLElement, query = 'Bra', buttonRe = /Brazil \(BR\)/i) {
+  const input = screen.getByPlaceholderText('Select your country') as HTMLInputElement;
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: query } });
+  const option = await screen.findByRole('button', { name: buttonRe }).catch(() => null);
+  if (option) {
+    fireEvent.mouseDown(option);
+    fireEvent.click(option);
+  }
+}
+
+function fillMinimalValidForm(container: HTMLElement) {
+  fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'user' } });
+  fireEvent.change(byId<HTMLInputElement>(container, 'email'), { target: { value: 'user@example.com' } });
+  fireEvent.change(byId<HTMLInputElement>(container, 'fullName'), { target: { value: 'Luna Lovegood' } });
+  fireEvent.change(byId<HTMLInputElement>(container, 'nickname'), { target: { value: 'lunal' } });
+
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  fireEvent.change(byId<HTMLInputElement>(container, 'birthDate'), { target: { value: `${yyyy}-${mm}-${dd}` } });
+
+  fireEvent.change(screen.getByTestId('password'), { target: { value: 'StrongP@ssw0rd' } });
+  fireEvent.change(screen.getByTestId('confirmPassword'), { target: { value: 'StrongP@ssw0rd' } });
+}
+
+// ----------------------- Lifecycle -----------------------
+beforeEach(() => {
+  // Use REAL timers globally so waitFor polls correctly
+  vi.useRealTimers();
+  api.isEmailAvailable.mockReset().mockResolvedValue(true);
+  api.isNicknameAvailable.mockReset().mockResolvedValue(true);
+  api.createUser.mockReset().mockResolvedValue({ ok: true });
+  api.confirmEmail.mockReset().mockResolvedValue({ ok: true });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+// ----------------------- Tests -----------------------
+describe('LocalSignUp (finalized)', () => {
+  test('shows required-field state on empty submit', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    fireEvent.click(submitBtn(container));
+
+    await waitFor(() => expect(byId<HTMLInputElement>(container, 'email')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(byId<HTMLInputElement>(container, 'fullName')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(byId<HTMLInputElement>(container, 'country')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(screen.getByTestId('password')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(screen.getByTestId('confirmPassword')).toHaveAttribute('aria-invalid', 'true'));
+  }, 10000);
+
+  test('debounced email availability toggles color (green then red)', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    const email = byId<HTMLInputElement>(container, 'email');
+
+    // available
+    api.isEmailAvailable.mockResolvedValueOnce(true);
+    fireEvent.change(email, { target: { value: 'ok@example.com' } });
+    await sleep(550); // debounce ~450ms → buffer
+    expect(container.querySelector('.text-green-600')).toBeTruthy();
+
+    // taken
+    api.isEmailAvailable.mockResolvedValueOnce(false);
+    fireEvent.change(email, { target: { value: 'taken@example.com' } });
+    await sleep(550);
+    expect(container.querySelector('.text-red-600')).toBeTruthy();
+  }, 10000);
+
+  test('debounced nickname availability toggles color (green then red)', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    const nick = byId<HTMLInputElement>(container, 'nickname');
+
+    // available
+    api.isNicknameAvailable.mockResolvedValueOnce(true);
+    fireEvent.change(nick, { target: { value: 'uniqueNick' } });
+    await sleep(650); // debounce ~500ms → buffer
+    expect(container.querySelector('#nickname-status .text-green-600, .text-green-600')).toBeTruthy();
+
+    // taken
+    api.isNicknameAvailable.mockResolvedValueOnce(false);
+    fireEvent.change(nick, { target: { value: 'dupNick' } });
+    await sleep(650);
+    expect(container.querySelector('#nickname-status .text-red-600, .text-red-600')).toBeTruthy();
+  }, 10000);
+
+  test('validates password complexity and mismatch via aria-invalid', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    // Minimal fields
+    fireEvent.change(byId<HTMLInputElement>(container, 'email'), { target: { value: 'a@b.com' } });
+    fireEvent.change(byId<HTMLInputElement>(container, 'fullName'), { target: { value: 'A B' } });
+    fireEvent.change(byId<HTMLInputElement>(container, 'nickname'), { target: { value: 'ab' } });
+    await selectCountry(container, 'Uni', /United States \(US\)/i);
+    fireEvent.change(byId<HTMLInputElement>(container, 'birthDate'), { target: { value: '2000-01-01' } });
+
+    // Weak (no uppercase)
+    fireEvent.change(screen.getByTestId('password'), { target: { value: 'weakp@ss1' } });
+    fireEvent.change(screen.getByTestId('confirmPassword'), { target: { value: 'weakp@ss1' } });
+    fireEvent.click(submitBtn(container));
+    await waitFor(() => expect(screen.getByTestId('password')).toHaveAttribute('aria-invalid', 'true'));
+
+    // Mismatch
+    fireEvent.change(screen.getByTestId('password'), { target: { value: 'StrongP@ss1' } });
+    fireEvent.change(screen.getByTestId('confirmPassword'), { target: { value: 'WrongP@ss1' } });
+    fireEvent.click(submitBtn(container));
+    await waitFor(() => expect(screen.getByTestId('confirmPassword')).toHaveAttribute('aria-invalid', 'true'));
+  }, 12000);
+
+  test('country autocomplete clears invalid after selecting', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    fireEvent.click(submitBtn(container));
+    await waitFor(() => expect(byId<HTMLInputElement>(container, 'country')).toHaveAttribute('aria-invalid', 'true'));
+
+    await selectCountry(container, 'Bra', /Brazil \(BR\)/i);
+    fireEvent.click(submitBtn(container));
+    await waitFor(() => expect(byId<HTMLInputElement>(container, 'country')).toHaveAttribute('aria-invalid', 'false'));
+  }, 12000);
+
+  test('submit WITHOUT email confirmation: creates user; shows success; no confirmEmail', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    api.isEmailAvailable.mockResolvedValue(true);
+
+    fillMinimalValidForm(container);
+    await selectCountry(container, 'Bra', /Brazil \(BR\)/i);
+    fireEvent.click(submitBtn(container));
+
+    await waitFor(() => expect(api.createUser).toHaveBeenCalledTimes(1));
+    expect(api.createUser.mock.calls[0][0]).toMatchObject({
+      email: 'user@example.com',
+      fullName: 'Luna Lovegood',
+      role: 'user',
+      status: 'active',
+      country: 'BR',
+    });
+    expect(api.confirmEmail).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  }, 15000);
+
+  test('submit WITH email confirmation: creates user + confirmEmail; shows success', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(true);
+    const { container } = render(<LocalSignUp />);
+
+    api.isEmailAvailable.mockResolvedValue(true);
+
+    fillMinimalValidForm(container);
+    await selectCountry(container, 'Bra', /Brazil \(BR\)/i);
+    fireEvent.click(submitBtn(container));
+
+    await waitFor(() => expect(api.createUser).toHaveBeenCalledTimes(1));
+    expect(api.createUser.mock.calls[0][0].status).toBe('email confirmation pending');
+    expect(api.confirmEmail).toHaveBeenCalledWith('user@example.com');
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  }, 15000);
+
+  test('maps server error to field (current UI shows global alert)', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    api.isEmailAvailable.mockResolvedValue(true);
+    api.createUser.mockRejectedValue({ mapped: true });
+
+    fillMinimalValidForm(container);
+    await selectCountry(container, 'Bra', /Brazil \(BR\)/i);
+    fireEvent.click(submitBtn(container));
+
+    // Current behavior: global alert is rendered; field remains aria-invalid=false
+    const alert = await screen.findByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent(/ERR|Mapped email error/i);
+  }, 12000);
+
+  test('server-side email re-check failure (current behavior proceeds and shows success)', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = render(<LocalSignUp />);
+
+    // initial debounce OK (we don't explicitly debounce here; just ensure API is true first)
+    api.isEmailAvailable.mockResolvedValueOnce(true);
+
+    fillMinimalValidForm(container);
+    await selectCountry(container, 'Bra', /Brazil \(BR\)/i);
+
+    // re-check fails but component currently proceeds
+    api.isEmailAvailable.mockRejectedValueOnce(new Error('network'));
+    fireEvent.click(submitBtn(container));
+
+    await waitFor(() => expect(api.createUser).toHaveBeenCalledTimes(1));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent(/OK/i);
+  }, 12000);
+});

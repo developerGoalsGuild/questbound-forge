@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-
+setx PYTHON_EXE "C:\Program Files\Python313\python.exe"
 function Resolve-RepoRoot {
   param(
     [string]$Hint
@@ -46,16 +46,58 @@ function Get-VenvPython($projDir) {
 }
 
 function Get-SystemPython {
-  # Prefer Windows launcher `py.exe` when available
-  try {
-    $pyLauncher = (Get-Command py -ErrorAction Stop).Source
-    if ($pyLauncher -and (Test-Path $pyLauncher)) { return $pyLauncher }
-  } catch {}
-  try {
-    $pyCmd = (Get-Command python -ErrorAction Stop).Source
-    # Guard against msys/git pseudo paths like /usr/bin/python
-    if ($pyCmd -and (Test-Path $pyCmd) -and ($pyCmd -match '^[A-Za-z]:\\')) { return $pyCmd }
-  } catch {}
+  $preferred = @($env:PYTHON_EXE, $env:PYTHON_PATH, $env:PYTHONHOME) | Where-Object { $_ }
+  foreach ($cand in $preferred) {
+    $exe = if ($cand -and $cand.ToLower().EndsWith('python.exe')) { $cand } elseif ($cand) { Join-Path $cand 'python.exe' } else { $null }
+    if ($exe -and (Test-Path $exe)) { return (Resolve-Path $exe).Path }
+  }
+
+  $pyLauncher = $null
+  $commands = @('python', 'py')
+  foreach ($cmd in $commands) {
+    try {
+      $source = (Get-Command $cmd -ErrorAction Stop).Source
+    } catch { continue }
+    if (-not $source) { continue }
+    if (-not (Test-Path $source)) { continue }
+    $resolved = (Resolve-Path $source).Path
+    if ($resolved -match '(?i)[\/](?:WindowsApps|AppData\Local\Microsoft\WindowsApps)[\/]python(?:\.exe)?$') { continue }
+    if ($resolved -match '(?i)[\/]Git[\/](?:usr|mingw64)[\/]bin[\/](?:python|py)(?:\.exe)?$') { continue }
+    if ($resolved -match '(?i)[\/](?:usr|mingw64)[\/]bin[\/](?:python|py)(?:\.exe)?$') { continue }
+    if ($resolved -notmatch '^[A-Za-z]:\') { continue }
+    if ($resolved.ToLower().EndsWith('py.exe')) { $pyLauncher = $resolved; continue }
+    return $resolved
+  }
+
+  $searchRoots = @()
+  if ($env:LOCALAPPDATA) { $searchRoots += Join-Path $env:LOCALAPPDATA 'Programs/Python' }
+  foreach ($pf in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+    if ($pf) {
+      $searchRoots += (Join-Path $pf 'Python')
+      $searchRoots += (Join-Path $pf 'Python310')
+      $searchRoots += (Join-Path $pf 'Python311')
+      $searchRoots += (Join-Path $pf 'Python312')
+      $searchRoots += (Join-Path $pf 'Python313')
+    }
+  }
+  foreach ($root in $searchRoots) {
+    if (-not (Test-Path $root)) { continue }
+    $exe = Get-ChildItem -Path $root -Filter python.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    if ($exe) { return (Resolve-Path $exe).Path }
+  }
+
+  if ($pyLauncher) {
+    try {
+      $versions = & $pyLauncher -0p 2>$null
+      foreach ($line in $versions) {
+        if ($line -match '(?i)([A-Za-z]:\\[^\s]+python.exe)') {
+          $candidate = $matches[1]
+          if (Test-Path $candidate) { return (Resolve-Path $candidate).Path }
+        }
+      }
+    } catch {}
+  }
+
   return $null
 }
 
@@ -63,7 +105,11 @@ function Ensure-Venv($projDir) {
   $venvPy = Get-VenvPython $projDir
   if ($venvPy) { return $venvPy }
   $sysPy = Get-SystemPython
-  if (-not $sysPy) { return $null }
+  if (-not $sysPy) {
+    Write-Host "[test-all] No suitable Python interpreter found. Set PYTHON_EXE or install Python 3." -ForegroundColor Yellow
+    return $null
+  }
+  Write-Host "[test-all] Using Python interpreter: $sysPy" -ForegroundColor DarkGray
   Push-Location $projDir
   try {
     if ($sysPy.ToLower().EndsWith('py.exe')) {
@@ -83,44 +129,47 @@ if ($RunPython) {
   if (-not (Test-PythonAvailable)) {
     Write-Host "[test-all] Python not found. Skipping Python test suites." -ForegroundColor Yellow
   } else {
-  $root = Resolve-RepoRoot
-  $svc = Join-Path $root 'backend/services/user-service'
-  if (Test-Path $svc) {
-    $svcPy = Ensure-Venv $svc
-    if (-not $svcPy) {
-      Write-Host "[test-all] No Python available for user-service (no system Python, no venv). Skipping." -ForegroundColor Yellow
+    $root = Resolve-RepoRoot
+    $svc = Join-Path $root 'backend/services/user-service'
+    if (Test-Path $svc) {
+      $svcPy = Ensure-Venv $svc
+      Write-Host $svcPy
+      if (-not $svcPy) {
+        Write-Host "[test-all] No Python available for user-service (no system Python, no venv). Skipping." -ForegroundColor Yellow
+      } else {
+        Push-Location $svc
+        try {
+          & $svcPy -m pip install --upgrade pip | Out-Null
+          & $svcPy -m pip install -r requirements.txt | Out-Null
+          Write-Host "[test-all] Python tests (user-service)..." -ForegroundColor DarkCyan
+          & $svcPy -m pytest --cov=app --cov-report=term-missing --cov-report=xml --ignore tests/test_repository.py --ignore tests/test_service.py
+          if ($LASTEXITCODE -ne 0) { throw "user-service tests failed" }
+        } finally { Pop-Location }
+      }
     } else {
-      Push-Location $svc
-      try {
-        & $svcPy -m pip install --upgrade pip | Out-Null
-        & $svcPy -m pip install -r requirements.txt | Out-Null
-        Write-Host "[test-all] Python tests (user-service)..." -ForegroundColor DarkCyan
-        & $svcPy -m pytest -q --ignore tests/test_repository.py --ignore tests/test_service.py
-      } finally { Pop-Location }
+      Write-Host "[test-all] Could not find user-service under $root. Skipping." -ForegroundColor Yellow
     }
-  } else {
-    Write-Host "[test-all] Could not find user-service under $root. Skipping." -ForegroundColor Yellow
-  }
 
-  # quest-service (FastAPI) tests
-  $quest = Join-Path $root 'backend/services/quest-service'
-  if (Test-Path $quest) {
-    $questPy = Ensure-Venv $quest
-    if (-not $questPy) {
-      Write-Host "[test-all] No Python available for quest-service (no system Python, no venv). Skipping." -ForegroundColor Yellow
+    # quest-service (FastAPI) tests
+    $quest = Join-Path $root 'backend/services/quest-service'
+    if (Test-Path $quest) {
+      $questPy = Ensure-Venv $quest
+      if (-not $questPy) {
+        Write-Host "[test-all] No Python available for quest-service (no system Python, no venv). Skipping." -ForegroundColor Yellow
+      } else {
+        Push-Location $quest
+        try {
+          & $questPy -m pip install --upgrade pip | Out-Null
+          & $questPy -m pip install -r requirements.txt | Out-Null
+          & $questPy -m pip install pytest pytest-cov | Out-Null
+          Write-Host "[test-all] Python tests (quest-service)..." -ForegroundColor DarkCyan
+          & $questPy -m pytest --cov=app --cov-report=term-missing --cov-report=xml
+          if ($LASTEXITCODE -ne 0) { throw "quest-service tests failed" }
+        } finally { Pop-Location }
+      }
     } else {
-      Push-Location $quest
-      try {
-        & $questPy -m pip install --upgrade pip | Out-Null
-        & $questPy -m pip install -r requirements.txt | Out-Null
-        & $questPy -m pip install pytest | Out-Null
-        Write-Host "[test-all] Python tests (quest-service)..." -ForegroundColor DarkCyan
-        & $questPy -m pytest -q
-      } finally { Pop-Location }
+      Write-Host "[test-all] Could not find quest-service under $root. Skipping." -ForegroundColor Yellow
     }
-  } else {
-    Write-Host "[test-all] Could not find quest-service under $root. Skipping." -ForegroundColor Yellow
-  }
   }
 }
 
@@ -185,3 +234,4 @@ try {
     Get-ChildItem -Path (Join-Path $Root $pattern) -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item -Force -ErrorAction SilentlyContinue $_.FullName }
   }
 } catch {}
+

@@ -71,6 +71,13 @@ variable "ok_actions" {
   type        = list(string)
   default     = []
 }
+
+variable "environment_variables" {
+  description = "Additional environment variables to inject into the Lambda function"
+  type        = map(string)
+  default     = {}
+}
+
 variable "handler" {
   description = "handler"
   type        = string

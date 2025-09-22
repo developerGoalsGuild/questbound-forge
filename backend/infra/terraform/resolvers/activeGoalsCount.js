@@ -2,13 +2,12 @@
 import { util } from '@aws-appsync/utils';
 
 export function request(ctx) {
-  const identity = ctx.identity || {};
-  const sub = identity.sub;
-  const userId = ctx.args?.userId;
+  const sub =
+    ctx.identity?.resolverContext?.sub || // Lambda authorizer
+    ctx.identity?.sub;                    // (fallback for Cognito if ever used)
+
   if (!sub) util.unauthorized();
-  if (!userId) util.error('userId required', 'Validation');
-  // Avoid using global String() in AppSync JS runtime; coerce via concatenation
-  if (('' + sub) !== ('' + userId)) util.unauthorized();
+
 
   return {
     operation: 'Query',
@@ -16,7 +15,7 @@ export function request(ctx) {
       expression: '#pk = :pk AND begins_with(#sk, :sk)',
       expressionNames: { '#pk': 'PK', '#sk': 'SK', '#st': 'status' },
       expressionValues: util.dynamodb.toMapValues({
-        ':pk': 'USER#' + userId,
+        ':pk': `USER#${sub}`,
         ':sk': 'GOAL#',
         ':active': 'active'
       }),

@@ -1,16 +1,16 @@
 /** @vitest-environment jsdom */
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { SessionKeepAlive } from '@/lib/session';
 
-vi.mock('@/lib/api', () => ({
+vi.mock('@/lib/utils', () => ({
   getTokenExpiry: vi.fn(),
   renewToken: vi.fn(),
 }));
 
-import * as api from '@/lib/api';
+import * as api from '@/lib/utils';
 
 describe('SessionKeepAlive', () => {
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe('SessionKeepAlive', () => {
     render(<SessionKeepAlive />);
     window.dispatchEvent(new Event('click'));
     // renew should be called once
-    expect(api.renewToken).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(api.renewToken).toHaveBeenCalledTimes(1));
   });
 
   test('does not renew when no token expiry available', async () => {
@@ -45,7 +45,6 @@ describe('SessionKeepAlive', () => {
     window.dispatchEvent(new Event('mousemove'));
     window.dispatchEvent(new Event('keydown'));
     window.dispatchEvent(new Event('touchstart'));
-    expect(api.renewToken).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(api.renewToken).toHaveBeenCalledTimes(1));
   });
 });
-

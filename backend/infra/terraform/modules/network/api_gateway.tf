@@ -3,6 +3,7 @@
 ############################################
 locals {
   cors_allow_headers = "accept,content-type,authorization,x-api-key,origin,referer,x-amz-date,x-amz-security-token"
+  cors_allow_origin  = length(var.frontend_allowed_origins) > 0 ? var.frontend_allowed_origins[0] : "*"
 }
 
 ############################################
@@ -29,7 +30,6 @@ resource "aws_api_gateway_authorizer" "lambda_authorizer" {
   authorizer_result_ttl_in_seconds = 300
   identity_source                 = "method.request.header.Authorization"
   type                            = "TOKEN"
-  authorizer_credentials          = var.api_gateway_authorizer_lambda_role_arn
 }
 
 ############################################
@@ -170,7 +170,7 @@ resource "aws_api_gateway_integration_response" "user_signup_options_200" {
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -268,7 +268,7 @@ resource "aws_api_gateway_integration_response" "user_login_options_200" {
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -367,7 +367,7 @@ resource "aws_api_gateway_integration_response" "auth_renew_options_200" {
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -468,7 +468,7 @@ resource "aws_api_gateway_integration_response" "user_logout_options_200" {
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -566,7 +566,7 @@ resource "aws_api_gateway_integration_response" "user_login_google_options_200" 
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -664,7 +664,7 @@ resource "aws_api_gateway_integration_response" "health_options_200" {
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -785,7 +785,7 @@ resource "aws_api_gateway_integration_response" "quest_options_200" {
   status_code = 200
   response_parameters = {
     "method.response.header.Content-Type"                     = "'application/json'"
-    "method.response.header.Access-Control-Allow-Origin"      = "'*'"
+    "method.response.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Vary"                             = "'Origin'"
     "method.response.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -809,7 +809,7 @@ resource "aws_api_gateway_gateway_response" "default_4xx" {
   rest_api_id  = aws_api_gateway_rest_api.rest_api.id
   response_type = "DEFAULT_4XX"
   response_parameters = {
-    "gatewayresponse.header.Access-Control-Allow-Origin"      = "'*'"
+    "gatewayresponse.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
     "gatewayresponse.header.Vary"                             = "'Origin'"
     "gatewayresponse.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"
@@ -821,7 +821,7 @@ resource "aws_api_gateway_gateway_response" "default_5xx" {
   rest_api_id  = aws_api_gateway_rest_api.rest_api.id
   response_type = "DEFAULT_5XX"
   response_parameters = {
-    "gatewayresponse.header.Access-Control-Allow-Origin"      = "'*'"
+    "gatewayresponse.header.Access-Control-Allow-Origin"      = "'${local.cors_allow_origin}'"
     "gatewayresponse.header.Access-Control-Allow-Credentials" = "'true'"
     "gatewayresponse.header.Vary"                             = "'Origin'"
     "gatewayresponse.header.Access-Control-Allow-Headers"     = "'${local.cors_allow_headers}'"

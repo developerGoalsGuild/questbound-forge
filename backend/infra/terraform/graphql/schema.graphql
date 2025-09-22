@@ -1,5 +1,7 @@
 # ---------------------------------------
-# schema.graphql  (AppSync-compatible)
+# schema.graphql (AppSync-compatible)
+# Default auth: AWS Lambda (Lambda Authorizer)
+# Additional auth: API Key (for the few public ops below)
 # ---------------------------------------
 
 # AWS Scalars
@@ -28,12 +30,12 @@ enum TaskStatus {
 # ----------------
 
 type User {
-  id: ID! @aws_api_key
-  email: String @aws_api_key
+  id: ID!
+  email: String
   fullName: String
   nickname: String
   birthDate: AWSDate
-  status: String @aws_api_key
+  status: String
   country: String
   language: String
   gender: String
@@ -63,7 +65,7 @@ type Goal {
   title: String!
   description: String
   tags: [String!]
-  deadline: AWSTimestamp
+  deadline: AWSDate
   status: GoalStatus!
   createdAt: AWSTimestamp
   updatedAt: AWSTimestamp
@@ -113,6 +115,8 @@ type Query {
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
   offers(tags: [String!], limit: Int = 20): [Offer!]!
+
+  # Public checks (API key)
   isEmailAvailable(email: String!): Boolean! @aws_api_key
   isNicknameAvailable(nickname: String!): Boolean! @aws_api_key
 }
@@ -180,7 +184,7 @@ input GoalInput {
   title: String!
   description: String
   tags: [String!]
-  deadline: AWSTimestamp!    # required to match resolver validation
+  deadline: AWSDate!    # required to match resolver validation
   answers: [AnswerInput!]
 }
 

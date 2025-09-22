@@ -9,8 +9,10 @@ from ssm import settings
 
 
 # Load secret key from environment variable
-JWT_SECRET =  settings.jwt_secret
+JWT_SECRET = settings.jwt_secret
 JWT_ALGORITHM = "HS256"
+JWT_AUDIENCE = settings.jwt_audience
+JWT_ISSUER = settings.jwt_issuer
 
 JWT_EXP_DELTA_SECONDS = 3600  # 1 hour token expiration
 
@@ -60,11 +62,15 @@ def verify_local_jwt(token: str) -> dict:
     "require_sub": True,
     "require_iat": True,
     "require_exp": True,
+    "require_aud": True,
+    "require_iss": True,
   }
   payload = jwt.decode(
     token,
     JWT_SECRET,
     algorithms=[JWT_ALGORITHM],
     options=options,
+    audience=JWT_AUDIENCE,
+    issuer=JWT_ISSUER,
   )
   return payload

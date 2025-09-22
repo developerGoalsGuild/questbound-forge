@@ -112,3 +112,30 @@ variable "auth_log_enabled" {
   type        = bool
   default     = false
 }
+
+variable "user_log_enabled" {
+  description = "enable structured logging for user-service"
+  type        = bool
+  default     = false
+}
+
+variable "quest_log_enabled" {
+  description = "enable structured logging for quest-service"
+  type        = bool
+  default     = false
+}
+
+variable "frontend_base_url" {
+  description = "Primary frontend base URL used for CORS and redirects"
+  type        = string
+  default     = "https://app.goalsguild.com"
+}
+
+variable "frontend_allowed_origins" {
+  description = "Allowed browser origins for API Gateway CORS"
+  type        = list(string)
+  default     = [
+    "http://localhost:8080",
+    "https://app.goalsguild.com",
+  ]
+}

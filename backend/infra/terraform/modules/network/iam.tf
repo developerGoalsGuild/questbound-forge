@@ -40,7 +40,8 @@ resource "aws_iam_role_policy" "lambda_ssm_read_user_service_env" {
           "ssm:GetParameter"
         ],
         Resource = [
-          aws_ssm_parameter.user_service_env_vars.arn
+          aws_ssm_parameter.user_service_env_vars.arn,
+          aws_ssm_parameter.quest_service_env_vars.arn
         ]
       }
     ]
@@ -104,8 +105,10 @@ resource "aws_iam_role_policy" "lambda_ssm_read_policy" {
           aws_ssm_parameter.goals_guild_email_token_secret.arn,
           aws_ssm_parameter.goals_guild_google_client_id.arn,
           aws_ssm_parameter.goals_guild_google_client_secret.arn,
+          aws_ssm_parameter.quest_service_env_vars.arn,
           # Future-proof: allow all user-service params under this path
-          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/user-service/*"
+          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/user-service/*",
+          "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter/goalsguild/quest-service/*"
         ]
       }
     ]

@@ -9,3 +9,5 @@ enable_appsync_waf_logging  = false
 enable_waf_logging_stream   = false
 log_level                   =  "DEBUG"
 auth_log_enabled            = true
+user_log_enabled            = true
+quest_log_enabled           = true

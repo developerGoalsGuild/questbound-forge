@@ -34,7 +34,7 @@ export function response(ctx) {
     title: a.title,
     description: a.description,
     tags: a.tags || [],
-    deadline: (typeof a.deadline === 'number') ? a.deadline : null,
+    deadline: (typeof a.deadline === 'string' && a.deadline) ? a.deadline : null,
     status: a.status,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt

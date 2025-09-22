@@ -65,3 +65,15 @@ backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
 backend/infra/terraform/terraform.tfstate.backup
 testlog.txt
 package-lock.json
+testconsole*.txt
+backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
+backend/infra/terraform/terraform.tfstate.backup
+.terraform.*.*
+backend/services/quest-service/app/__pycache__/auth.cpython-313.pyc
+backend/services/quest-service/app/__pycache__/settings.cpython-313.pyc
+backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.2.pyc
+backend/services/common/__pycache__/__init__.cpython-313.pyc
+backend/services/common/__pycache__/logging.cpython-313.pyc
+backend/services/common/__init__.py
+backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
+backend/infra/terraform/terraform.tfstate.backup

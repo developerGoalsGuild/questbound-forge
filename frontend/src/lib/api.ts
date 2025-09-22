@@ -3,7 +3,7 @@ import awsConfigDev from '@/config/aws-exports.dev';
 import awsConfigProd from '@/config/aws-exports.prod';
 import { IS_EMAIL_AVAILABLE, IS_NICKNAME_AVAILABLE, GOALS_BY_USER, ACTIVE_GOALS_COUNT } from "@/graphql/queries";
 import { emailConfirmationEnabled } from "@/config/featureFlags";
-import { getAccessToken,graphQLClient,getApiBase,getTokenExpiry }  from '@/lib/utils'
+import { getAccessToken, graphQLClient, getApiBase, getTokenExpiry, renewToken, getUserIdFromToken } from '@/lib/utils';
 
 
 export interface CreateUserInput {
@@ -18,38 +18,67 @@ export interface CreateUserInput {
 
 // GraphQL client with Lambda auth. The token comes from our local storage auth.
 export function graphQLClientProtected() {
-  const cfg = import.meta.env.PROD ? awsConfigProd : awsConfigDev;
-  try {
-    // Log the resolved GraphQL endpoint used by Amplify
-    console.info('[AppSync] GraphQL endpoint:', cfg?.API?.GraphQL?.endpoint);
-  } catch {}
-
-  const haveApiKey = !!(import.meta.env.VITE_APPSYNC_API_KEY as string | undefined);
-  
-   
-  const client =  generateClient({
-        authMode: 'lambda',
-        authToken: () => {
-          const tok = getAccessToken();
-          return tok ? `Bearer ${tok}` : '';
-        },
-      });
+  const client = generateClient({
+    authMode: 'lambda',
+    authToken: () => {
+      const tok = getAccessToken();
+      if (!tok) {
+        console.error('[AuthToken] missing token');
+        throw new Error('NO_TOKEN');
+      }
+      return tok; // raw JWT
+    },
+  });
 
   const originalGraphql = client.graphql.bind(client);
+
   (client as any).graphql = async (args: any) => {
+    const opName =
+      (args?.query as any)?.definitions?.[0]?.name?.value || 'anonymous';
     try {
-      const opName = (args?.query as any)?.definitions?.[0]?.name?.value || 'anonymous';
-      console.info('[GraphQL] request:', cfg?.API?.GraphQL?.endpoint, 'op:', opName, 'authMode:', args?.authMode || 'lambda');
-    } catch {}
-    return originalGraphql(args);
+      console.info('[GraphQL] →', opName, 'authMode:', args?.authMode || 'lambda');
+      const res = await originalGraphql(args);
+      if (res?.errors?.length) {
+        console.warn('[GraphQL errors]', opName, res.errors);
+      }
+      return res;
+    } catch (err: any) {
+      // Amplify often throws TypeError for network/preflight and rich objects otherwise
+      console.error('[GraphQL] ✖', opName, err?.name || err, err?.message);
+      if (err?.errors) console.error('errors:', err.errors);
+      if (err?.response && typeof err.response.text === 'function') {
+        try {
+          const text = await err.response.text();
+          console.error('raw response:', text);
+        } catch {}
+      }
+      console.error('stack:', err?.stack);
+      throw err;
+    }
   };
 
   return client;
 }
 
 
+export async function graphqlRaw<T = any>(query: string, variables: any = {}) {
+  //TODO: CHANGE endpoint FOr the env variable
+  const endpoint = 'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql';
+  const tok = JSON.parse(localStorage.getItem('auth') || '{}')?.access_token;
+  if (!tok) throw new Error('NO_TOKEN');
 
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: tok },
+    body: JSON.stringify({ query, variables }),
+  });
 
+  const json = await res.json();
+  if (!res.ok || json.errors?.length) {
+    throw Object.assign(new Error('GraphQL error'), { response: res, errors: json.errors, data: json.data });
+  }
+  return json.data as T;
+}
 
 
 
@@ -231,3 +260,6 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
   if (token) headers.set('authorization', `Bearer ${token}`);
   return fetch(url, { ...init, headers });
 }
+
+export { getAccessToken, renewToken, getTokenExpiry, getUserIdFromToken } from '@/lib/utils';;
+export { getActiveGoalsCountForUser } from '@/lib/apiGoal';

@@ -1,154 +1,451 @@
+from __future__ import annotations
+
+import hashlib
 import os
-import logging
-from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+import sys
+import time
+from functools import lru_cache
+from pathlib import Path
+from typing import Dict, List, Optional
+from uuid import uuid4
+
 import boto3
 from boto3.dynamodb.conditions import Key
-import jwt
-from typing import Optional, List
+from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from uuid import uuid4
-import httpx
-from pydantic import BaseModel
 
-# In Lambda on AWS, these env vars are already set — no need to override.
-def aws_region() -> str | None:
-    # Prefer AWS_REGION, then AWS_DEFAULT_REGION; return None to let boto3 decide.
-    return os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION")
+_SERVICES_DIR = Path(__file__).resolve().parents[2]
+if str(_SERVICES_DIR) not in sys.path:
+    sys.path.append(str(_SERVICES_DIR))
 
+from common.logging import get_structured_logger, log_event
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)    
-logger = logging.getLogger("quest-service")
-# Environment variables
-QUESTS_TABLE = os.getenv("QUESTS_TABLE", "goalsguild_quests")
-
-# Initialize DynamoDB client
-dynamodb = boto3.resource("dynamodb",aws_region())
-quests_table = dynamodb.Table(QUESTS_TABLE)
+from .auth import TokenVerificationError, TokenVerifier
+from .settings import Settings
 
 
-ROOT_PATH =f"/DEV"
-print(f'ROOTPATH: {ROOT_PATH}')
-app = FastAPI(root_path=ROOT_PATH,title="Quest Service", version="1.0.1")
+# ---------- Logging ----------
+logger = get_structured_logger("quest-service", env_flag="QUEST_LOG_ENABLED", default_enabled=True)
+
+# ---------- Static configuration ----------
+NLP_QUESTION_ORDER = [
+    "positive",
+    "specific",
+    "evidence",
+    "resources",
+    "obstacles",
+    "ecology",
+    "timeline",
+    "firstStep",
+]
+CANONICAL_MAP = {key.lower(): key for key in NLP_QUESTION_ORDER}
 
 
-# CORS middleware (adjust origins as needed)
+# ---------- Settings & FastAPI app ----------
+settings = Settings()
+root_path = os.getenv("QUEST_SERVICE_ROOT_PATH", f"/{settings.environment.upper()}")
+app = FastAPI(root_path=root_path, title="Quest Service", version="2.0.0")
+
+def _norm_origin(origin: Optional[str]) -> Optional[str]:
+    if not origin:
+        return None
+    return origin.rstrip('/')
+
+_origin_candidates: List[str] = []
+for candidate in settings.allowed_origins or []:
+    normalized = _norm_origin(candidate)
+    if normalized and normalized not in _origin_candidates:
+        _origin_candidates.append(normalized)
+
+_dev_origin = _norm_origin(os.getenv("DEV_FRONTEND_ORIGIN", "http://localhost:8080"))
+if _dev_origin and _dev_origin not in _origin_candidates:
+    _origin_candidates.append(_dev_origin)
+
+_allowed_origins = _origin_candidates or ["*"]
+_allowed_origin_set = {origin for origin in _allowed_origins if origin != "*"}
+
 app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Pydantic models
-class QuestCreate(BaseModel):
-  title: str
-  description: Optional[str] = ""
 
-class QuestResponse(BaseModel):
-  quest_id: str
-  title: str
-  description: Optional[str] = ""
-  created_at: Optional[str] = None
+@app.middleware("http")
+async def ensure_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    origin = request.headers.get("origin")
+    normalized = _norm_origin(origin)
+    allow_any = "*" in _allowed_origins
+    if origin and (allow_any or (normalized and normalized in _allowed_origin_set)):
+        if "access-control-allow-origin" not in response.headers:
+            response.headers["access-control-allow-origin"] = origin
+        if "access-control-allow-credentials" not in response.headers:
+            response.headers["access-control-allow-credentials"] = "true"
+        vary = response.headers.get("vary") or ""
+        vary_parts = [part.strip() for part in vary.split(",") if part.strip()]
+        if "Origin" not in vary_parts:
+            vary_parts.append("Origin")
+            response.headers["vary"] = ", ".join(vary_parts)
+    return response
 
-# JWT token verification dependency
-def verify_token(request: Request):
-  auth_header = request.headers.get("authorization")
-  if not auth_header:
-    logger.warning("Missing Authorization header")
-    raise HTTPException(status_code=401, detail="Missing Authorization header")
-  parts = auth_header.split(" ")
-  if len(parts) != 2 or parts[0].lower() != "bearer":
-    logger.warning("Invalid Authorization header format")
-    raise HTTPException(status_code=401, detail="Invalid Authorization header format")
-  token = parts[1]
-  try:
-    # Decode without verification (as per original)
-    decoded = jwt.decode(token, options={"verify_signature": False})
-    user_id = decoded.get("sub")
+
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    detail = "Invalid request payload"
+    if errors:
+        first = errors[0]
+        loc = [str(part) for part in first.get("loc", []) if part not in {"body"}]
+        message = first.get("msg", detail)
+        detail = f"{'/'.join(loc)}: {message}" if loc else message
+    return JSONResponse(status_code=400, content={"detail": detail})
+
+
+# ---------- Dependencies ----------
+@lru_cache(maxsize=1)
+def _dynamodb_resource():
+    return boto3.resource("dynamodb", region_name=settings.aws_region)
+
+
+def get_goals_table():
+    return _dynamodb_resource().Table(settings.core_table_name)
+
+
+@lru_cache(maxsize=1)
+def _token_verifier() -> TokenVerifier:
+    return TokenVerifier(settings)
+
+
+class AuthContext(BaseModel):
+    user_id: str
+    claims: Dict
+    provider: str
+
+
+async def authenticate(request: Request) -> AuthContext:
+    path = request.url.path if request.url else ""
+    client_host = request.client.host if request.client else None
+    log_event(
+        logger,
+        'auth.request_received',
+        method=request.method,
+        path=path,
+        client=client_host,
+    )
+
+    auth_header = request.headers.get('authorization') or request.headers.get('Authorization')
+    if not auth_header:
+        logger.warning(
+            'auth.header_missing',
+            extra={'method': request.method, 'path': path, 'client': client_host},
+        )
+        raise HTTPException(status_code=401, detail='Authorization header is required')
+
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != 'bearer':
+        logger.warning(
+            'auth.header_invalid',
+            extra={
+                'method': request.method,
+                'path': path,
+                'client': client_host,
+                'scheme': parts[0] if parts else None,
+            },
+        )
+        raise HTTPException(status_code=401, detail='Authorization header must use Bearer token')
+
+    token = parts[1]
+    try:
+        claims, provider = _token_verifier().verify(token)
+    except TokenVerificationError as exc:
+        logger.warning(
+            'auth.token_verification_failed',
+            extra={
+                'method': request.method,
+                'path': path,
+                'client': client_host,
+                'error_type': type(exc).__name__,
+                'token_length': len(token),
+            },
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=401, detail='Unauthorized: token verification failed') from exc
+
+    user_id = claims.get('sub')
     if not user_id:
-      logger.warning("Token missing sub claim")
-      raise HTTPException(status_code=401, detail="Invalid token payload")
-    return user_id
-  except Exception as e:
-    logger.error(f"Token verification failed: {e}")
-    raise HTTPException(status_code=401, detail="Token verification failed")
+        logger.warning(
+            'auth.subject_missing',
+            extra={'method': request.method, 'path': path, 'provider': provider},
+        )
+        raise HTTPException(status_code=401, detail='Unauthorized: subject claim missing')
 
-@app.get("/quests", response_model=List[QuestResponse])
-async def list_quests(user_id: str = Depends(verify_token)):
-  try:
-    response = quests_table.scan()
+    log_event(
+        logger,
+        'auth.success',
+        method=request.method,
+        path=path,
+        provider=provider,
+        user_id=str(user_id),
+    )
+
+    return AuthContext(user_id=str(user_id), claims=claims, provider=provider)
+
+
+
+# ---------- Request/response models ----------
+class AnswerInput(BaseModel):
+    key: str
+    answer: Optional[str] = ""
+
+
+class GoalCreatePayload(BaseModel):
+    title: str
+    description: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    deadline: str
+    answers: List[AnswerInput] = Field(default_factory=list)
+
+
+class AnswerOutput(BaseModel):
+    key: str
+    answer: str
+
+
+class GoalResponse(BaseModel):
+    id: str
+    userId: str
+    title: str
+    description: str
+    tags: List[str]
+    answers: List[AnswerOutput]
+    deadline: Optional[str]
+    status: str
+    createdAt: int
+    updatedAt: int
+
+
+# ---------- Validation helpers ----------
+def _digits_only(value: str) -> bool:
+    return value.isdigit()
+
+
+def _normalize_date_only(value: Optional[str]) -> Optional[str]:
+    if not value or not isinstance(value, str):
+        return None
+    trimmed = value.strip()
+    if len(trimmed) != 10 or trimmed[4] != '-' or trimmed[7] != '-':
+        return None
+    y, m, d = trimmed[:4], trimmed[5:7], trimmed[8:10]
+    if not (_digits_only(y) and _digits_only(m) and _digits_only(d)):
+        return None
+    if not ("01" <= m <= "12"):
+        return None
+    if not ("01" <= d <= "31"):
+        return None
+    return f"{y}-{m}-{d}"
+
+
+def _sanitize_string(value: Optional[str]) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _validate_tags(raw_tags: List[str]) -> List[str]:
+    tags: List[str] = []
+    for idx, tag in enumerate(raw_tags):
+        if not isinstance(tag, str):
+            raise HTTPException(status_code=400, detail=f"Tag at index {idx} must be a string")
+        trimmed = tag.strip()
+        if trimmed:
+            tags.append(trimmed)
+    return tags
+
+
+def _validate_answers(raw_answers: List[AnswerInput]) -> List[Dict[str, str]]:
+    for index, entry in enumerate(raw_answers):
+        if entry is None or not isinstance(entry.key, str) or not entry.key.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Answer at index {index} is missing a valid key",
+            )
+    filled = {key: "" for key in NLP_QUESTION_ORDER}
+    for entry in raw_answers:
+        canonical = CANONICAL_MAP.get(entry.key.strip().lower())
+        if not canonical:
+            continue
+        filled[canonical] = _sanitize_string(entry.answer)
+    return [{"key": key, "answer": filled[key]} for key in NLP_QUESTION_ORDER]
+
+
+def _serialize_answers(raw_answers: List[Dict]) -> List[Dict[str, str]]:
+    sanitized: List[Dict[str, str]] = []
+    for entry in raw_answers or []:
+        if not isinstance(entry, dict):
+            continue
+        key = _sanitize_string(entry.get("key"))
+        if not key:
+            continue
+        sanitized.append({"key": key, "answer": _sanitize_string(entry.get("answer"))})
+    return sanitized
+
+
+def _normalize_deadline_output(value) -> Optional[str]:
+    if isinstance(value, str) and len(value) == 10:
+        return value
+    if isinstance(value, (int, float)):
+        try:
+            from datetime import datetime
+
+            return datetime.utcfromtimestamp(value / 1000).strftime("%Y-%m-%d")
+        except Exception:  # pragma: no cover - defensive
+            return None
+    return None
+
+
+def _build_goal_item(user_id: str, payload: GoalCreatePayload) -> Dict:
+    title = _sanitize_string(payload.title)
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required and must be a non-empty string")
+
+    normalized_deadline = _normalize_date_only(payload.deadline)
+    if not normalized_deadline:
+        raise HTTPException(status_code=400, detail="Deadline must be provided in YYYY-MM-DD format")
+
+    answers = _validate_answers(payload.answers)
+    tags = _validate_tags(payload.tags)
+    description = _sanitize_string(payload.description)
+
+    now_ms = int(time.time() * 1000)
+    goal_id = str(uuid4())
+
+    item = {
+        "PK": f"USER#{user_id}",
+        "SK": f"GOAL#{goal_id}",
+        "type": "Goal",
+        "id": goal_id,
+        "userId": user_id,
+        "title": title,
+        "description": description,
+        "tags": tags,
+        "answers": answers,
+        "deadline": normalized_deadline,
+        "status": "active",
+        "createdAt": now_ms,
+        "updatedAt": now_ms,
+        "GSI1PK": f"USER#{user_id}",
+        "GSI1SK": f"ENTITY#Goal#{now_ms}",
+    }
+    return item
+
+
+def _to_response(item: Dict) -> GoalResponse:
+    return GoalResponse(
+        id=str(item.get("id")),
+        userId=str(item.get("userId")),
+        title=str(item.get("title", "")),
+        description=_sanitize_string(item.get("description")),
+        tags=[str(tag) for tag in item.get("tags", []) if isinstance(tag, str)],
+        answers=[AnswerOutput(**a) for a in _serialize_answers(item.get("answers"))],
+        deadline=_normalize_deadline_output(item.get("deadline")),
+        status=str(item.get("status", "active")),
+        createdAt=int(item.get("createdAt", 0)),
+        updatedAt=int(item.get("updatedAt", 0)),
+    )
+
+
+# ---------- Routes ----------
+@app.get("/quests", response_model=List[GoalResponse])
+async def list_goals(
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    log_event(logger, 'quests.list_start', user_id=auth.user_id)
+    try:
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"USER#{auth.user_id}") & Key("SK").begins_with("GOAL#"),
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.list_failed',
+            extra={'user_id': auth.user_id, 'table': settings.core_table_name},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Unable to load goals") from exc
+
     items = response.get("Items", [])
-    return [QuestResponse(**item) for item in items]
-  except Exception as e:
-    logger.error(f"Error retrieving quests: {e}")
-    raise HTTPException(status_code=500, detail="Could not retrieve quests")
-
-@app.post("/quests", response_model=QuestResponse, status_code=201)
-async def create_quest(quest: QuestCreate, user_id: str = Depends(verify_token)):
-  quest_id = str(uuid4())
-  new_quest = {
-    "quest_id": quest_id,
-    "title": quest.title,
-    "description": quest.description or "",
-    "created_at":  None,
-  }
-  from datetime import datetime
-  new_quest["created_at"] = datetime.utcnow().isoformat() + "Z"
-
-  try:
-    quests_table.put_item(Item=new_quest)
-    return QuestResponse(**new_quest)
-  except Exception as e:
-    logger.error(f"Error creating quest: {e}")
-    raise HTTPException(status_code=500, detail="Could not create quest")
+    log_event(logger, 'quests.list_success', user_id=auth.user_id, item_count=len(items))
+    return [_to_response(item) for item in items]
 
 
-# ---------- AI integration ----------
+@app.post("/quests", response_model=GoalResponse, status_code=201)
+async def create_goal(
+    payload: GoalCreatePayload,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    item = _build_goal_item(auth.user_id, payload)
+    log_event(logger, 'quests.create_start', user_id=auth.user_id, goal_id=item['id'])
+    try:
+        table.put_item(
+            Item=item,
+            ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.create_failed',
+            extra={'user_id': auth.user_id, 'goal_id': item['id']},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Could not create goal at this time") from exc
+
+    log_event(logger, 'quests.create_success', user_id=auth.user_id, goal_id=item['id'])
+    return _to_response(item)
+
+
+
 class AITextPayload(BaseModel):
-  text: str
-  lang: Optional[str] = 'en'
+    text: str
+    lang: Optional[str] = "en"
+
 
 @app.post("/ai/inspiration-image")
 async def inspiration_image(body: AITextPayload):
-  """
-  Returns an inspirational image URL for the provided goal text.
-  If OPENAI_API_KEY is set, this could call an image model; otherwise
-  we return a deterministic placeholder based on the text query.
-  """
-  text = (body.text or '').strip()
-  if not text:
-    raise HTTPException(status_code=400, detail="text is required")
-  # Fallback image using picsum with a hash on text
-  import hashlib
-  h = hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]
-  # size 1024x640
-  url = f"https://picsum.photos/seed/{h}/1024/640"
-  return { "imageUrl": url }
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    h = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    url = f"https://picsum.photos/seed/{h}/1024/640"
+    return {"imageUrl": url}
 
 
 @app.post("/ai/suggest-improvements")
 async def suggest_improvements(body: AITextPayload):
-  """
-  Returns actionable suggestions to improve the goal text.
-  Without a model key, returns heuristic suggestions derived from NLP prompts.
-  """
-  text = (body.text or '').strip()
-  if not text:
-    raise HTTPException(status_code=400, detail="text is required")
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
 
-  # Heuristic baseline suggestions
-  suggestions = []
-  if len(text.split()) < 8:
-    suggestions.append("Make the goal more specific with measurable outcomes.")
-  if not any(x in text.lower() for x in ["by ", "before ", "on ", "within "]):
-    suggestions.append("Add a clear deadline or timeframe.")
-  if not any(x in text.lower() for x in ["because", "so that", "in order to"]):
-    suggestions.append("Include the deeper purpose (why it matters).")
-  suggestions.append("Define evidence: how will you know it’s achieved?")
-  suggestions.append("List resources needed and first concrete step.")
+    suggestions: List[str] = []
+    if len(text.split()) < 8:
+        suggestions.append("Make the goal more specific with measurable outcomes.")
+    lower = text.lower()
+    if not any(token in lower for token in ("by ", "before ", "on ", "within ")):
+        suggestions.append("Add a clear deadline or timeframe.")
+    if not any(token in lower for token in ("because", "so that", "in order to")):
+        suggestions.append("Include the deeper purpose (why it matters).")
+    suggestions.append("Define evidence: how will you know it’s achieved?")
+    suggestions.append("List resources needed and first concrete step.")
 
-  return { "suggestions": suggestions[:6] }
+    return {"suggestions": suggestions[:6]}
+
+
+__all__ = ["app"]

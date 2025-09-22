@@ -40,12 +40,15 @@ resource "aws_lambda_function" "lambda_function" {
   memory_size   = var.memory_size
   tags          = var.tags  
   environment {
-    variables = {
-      AWS_LAMBDA_EXEC_WRAPPER = "/opt/bootstrap"
-      AWS_LWA_PORT            = "8080"
-      PORT                    = "8080"
-      RUST_LOG                = "info"
-    }
+    variables = merge(
+      {
+        AWS_LAMBDA_EXEC_WRAPPER = "/opt/bootstrap"
+        AWS_LWA_PORT            = "8080"
+        PORT                    = "8080"
+        RUST_LOG                = "info"
+      },
+      var.environment_variables,
+    )
   }
 }
 # Allow API Gateway to invoke

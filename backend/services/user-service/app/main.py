@@ -1,10 +1,10 @@
 from __future__ import annotations
-import json
-import logging
+
 import os
+import sys
 import time
 import uuid
-import traceback
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
 import boto3
@@ -17,6 +17,12 @@ from fastapi.requests import Request
 from fastapi.exceptions import RequestValidationError
 
 from pydantic import ValidationError
+
+_SERVICES_DIR = Path(__file__).resolve().parents[2]
+if str(_SERVICES_DIR) not in sys.path:
+    sys.path.append(str(_SERVICES_DIR))
+
+from common.logging import get_structured_logger, log_event
 
 from .models import (
     ConfirmEmailResponse,
@@ -50,43 +56,11 @@ CHANGE_CHALLENGE_TTL = 60 * 10  # 10m
 BLOCK_THRESHOLD = 3
 
 # -------------------------
-# Logging setup (structured)
+# Logging
 # -------------------------
-def _json_default(obj):
-    try:
-        return str(obj)
-    except Exception:
-        return "<unserializable>"
+logger = get_structured_logger("user-service", env_flag="USER_LOG_ENABLED", default_enabled=True)
 
-class JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        payload = {
-            "ts": int(time.time()),
-            "level": record.levelname,
-            "logger": record.name,
-            "msg": record.getMessage(),
-        }
-        # Merge extra fields if present
-        if hasattr(record, "extra") and isinstance(record.extra, dict):
-            payload.update(record.extra)
-        # Include exception info if present
-        if record.exc_info:
-            payload["exc_type"] = record.exc_info[0].__name__ if record.exc_info[0] else None
-            payload["stack"] = "".join(traceback.format_exception(*record.exc_info))
-        return json.dumps(payload, default=_json_default)
 
-def _build_logger() -> logging.Logger:
-    logger = logging.getLogger("auth")
-    if not logger.handlers:
-        level = os.getenv("LOG_LEVEL", "INFO").upper()
-        logger.setLevel(level)
-        handler = logging.StreamHandler()
-        handler.setFormatter(JsonFormatter())
-        logger.addHandler(handler)
-        logger.propagate = False
-    return logger
-
-logger = _build_logger()
 
 def _mask_email(email: Optional[str]) -> Optional[str]:
     if not email or "@" not in email:
@@ -98,7 +72,9 @@ def _mask_email(email: Optional[str]) -> Optional[str]:
         masked = name[0] + "*" * (len(name) - 2) + name[-1]
     return f"{masked}@{domain}"
 
-def _safe_event(msg: str, **kwargs):
+
+
+def _safe_event(event: str, **kwargs):
     # NEVER log secrets, passwords or tokens
     if "password" in kwargs:
         kwargs["password"] = "<redacted>"
@@ -114,7 +90,8 @@ def _safe_event(msg: str, **kwargs):
         kwargs["access_token"] = "<redacted>"
     if "refresh_token" in kwargs:
         kwargs["refresh_token"] = "<redacted>"
-    logger.info(msg, extra={"extra": kwargs})
+    log_event(logger, event, **kwargs)
+
 
 def _detect_conflict(email: Optional[str] = None, nickname: Optional[str] = None) -> dict | None:
     """Return a structured conflict descriptor if email/nickname locks exist.
@@ -229,12 +206,12 @@ async def access_log_middleware(request: Request, call_next: Callable):
         dt = int((time.time() - t0) * 1000)
         logger.error(
             "request.error",
-            extra={"extra": {
+            extra={
                 "cid": cid,
                 "method": request.method,
                 "path": request.url.path,
                 "dur_ms": dt,
-            }},
+            },
             exc_info=True,
         )
         # Let the global exception handlers render the response
@@ -245,22 +222,22 @@ async def access_log_middleware(request: Request, call_next: Callable):
 # -------------------------
 @app.exception_handler(RequestValidationError)
 async def _handle_request_validation(_: Request, exc: RequestValidationError):
-    logger.warning("validation.request", extra={"extra": {"errors": exc.errors()}})
+    logger.warning("validation.request ", extra={"errors": exc.errors()})
     return JSONResponse(status_code=400, content={"detail": exc.errors()})
 
 @app.exception_handler(ValidationError)
 async def _handle_pydantic_validation(_: Request, exc: ValidationError):
-    logger.warning("validation.model", extra={"extra": {"errors": exc.errors()}})
+    logger.warning("validation.model ", extra={"errors": exc.errors()})
     return JSONResponse(status_code=400, content={"detail": exc.errors()})
 
 @app.exception_handler(HTTPException)
 async def _handle_http_exc(_: Request, exc: HTTPException):
-    logger.info("http.exception", extra={"extra": {"status": exc.status_code, "detail": exc.detail}})
+    logger.info("http.exception", extra={"status": exc.status_code, "detail": exc.detail})
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 @app.exception_handler(Exception)
 async def _handle_unexpected(_: Request, exc: Exception):
-    logger.error("unhandled.exception", extra={"extra": {"type": type(exc).__name__}}, exc_info=True)
+    logger.error("unhandled.exception", extra={"type": type(exc).__name__}, exc_info=True)
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 # -------------------------
@@ -289,16 +266,16 @@ def _ddb_call(fn: Callable, *, op: str, max_retries: int = 2, **kwargs):
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code")
             msg = e.response.get("Error", {}).get("Message")
-            logger.warning("ddb.client_error", extra={"extra": {"op": op, "code": code, "message": msg, "attempt": attempt}})
+            logger.warning("ddb.client_error.", extra={"op": op, "code": code, "message": msg, "attempt": attempt})
             # Conditional checks & validation shouldn't retry
             if code in {"ConditionalCheckFailedException", "ValidationException"} or attempt >= max_retries:
                 raise
         except BotoCoreError as e:
-            logger.warning("ddb.boto_error", extra={"extra": {"op": op, "type": type(e).__name__, "attempt": attempt}})
+            logger.warning("ddb.boto_error", extra={"op": op, "type": type(e).__name__, "attempt": attempt})
             if attempt >= max_retries:
                 raise
         except Exception:
-            logger.error("ddb.unknown_error", extra={"extra": {"op": op, "attempt": attempt}}, exc_info=True)
+            logger.error("ddb.unknown_error", extra={"op": op, "attempt": attempt}, exc_info=True)
             if attempt >= max_retries:
                 raise
         attempt += 1

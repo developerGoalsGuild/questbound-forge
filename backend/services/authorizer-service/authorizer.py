@@ -96,6 +96,44 @@ def _httpapi_simple_response(authorized: bool, context: Dict[str, Any]) -> dict:
     return {"isAuthorized": authorized, "context": context}
 
 
+def _is_appsync_event(event: dict) -> bool:
+    rc = event.get("requestContext") or {}
+    # Any API Gateway-style event has methodArn → NOT AppSync
+    if event.get("methodArn"):
+        return False
+
+    # AppSync signals
+    if "apiId" in rc:
+        return True
+    if "resolverArn" in rc or rc.get("graphqlSchemaVersion"):
+        return True
+    # Some shapes include these on requestContext (or top-level in older forms)
+    if rc.get("typeName") or rc.get("fieldName"):
+        return True
+
+    # Heuristic via headers
+    headers = event.get("headers") or {}
+    try:
+        lower_keys = {str(k).lower() for k in headers.keys()}
+        if "x-amzn-appsync-is-vpce-request" in lower_keys:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def _appsync_response(authorized: bool, context: dict) -> dict:
+    if not authorized:
+        return {"isAuthorized": False, "resolverContext": context, "deniedFields": [], "ttlOverride": 300}
+    denied = []
+    if "goal:write" not in (context.get("scope") or ""):
+        denied = ["Mutation.*"]  # or specific fields: ["Mutation.createGoal","Mutation.updateGoal"]
+    return {"isAuthorized": True, "resolverContext": context, "deniedFields": denied, "ttlOverride": 300}
+
+
+
+
 def handler(event, context):
     req_meta = {
         "version": event.get("version"),
@@ -104,6 +142,16 @@ def handler(event, context):
         "aws_request_id": getattr(context, "aws_request_id", None),
         "stage": (event.get("requestContext") or {}).get("stage"),
     }
+    is_httpapi = event.get("version") == "2.0" and "routeKey" in event
+    is_appsync = _is_appsync_event(event)
+    if is_appsync:
+        rc = event.get("requestContext") or {}
+        req_meta = {
+            **req_meta,
+            "operationName": rc.get("operationName"),
+            "typeName": rc.get("typeName"),
+            "fieldName": rc.get("fieldName"),
+        }
     _dbg(
         "auth_start",
         **req_meta,
@@ -139,9 +187,12 @@ def handler(event, context):
                 )
             except Exception as e_cog:
                 _dbg("cognito_verify_failed", error_type=type(e_cog).__name__, error=str(e_cog), token=token)
-                if event.get("version") == "2.0" and "routeKey" in event:
+                if is_httpapi:
                     _dbg("auth_deny_httpapi", reason="verify_failed", **req_meta)
                     return _httpapi_simple_response(False, {"error": "Unauthorized"})
+                if is_appsync:
+                    _dbg("auth_deny_appsync", reason="verify_failed", **req_meta)
+                    return _appsync_response(False, {"error": "Unauthorized"})
                 raise Unauthorized("Unauthorized")
 
         principal = claims.get("sub", "user")
@@ -153,17 +204,25 @@ def handler(event, context):
         }
 
         # HTTP API v2 simple response
-        if event.get("version") == "2.0" and "routeKey" in event:
+        if is_httpapi:
             _dbg("auth_allow_httpapi", principal=principal, **req_meta)
             return _httpapi_simple_response(True, ctx)
 
+        if is_appsync:
+            _dbg("auth_allow_appsync", principal=principal, **req_meta)
+            return _appsync_response(True, ctx)
+
         # REST authorizer policy response
         method_arn = event.get("methodArn", "*")
-        _dbg("auth_allow_rest", principal=principal, methodArn=method_arn, **req_meta)
+        req_meta_with_method = {**req_meta, "methodArn": method_arn}
+        _dbg("auth_allow_rest", principal=principal, **req_meta_with_method)
         return _allow_policy(principal, method_arn, ctx)
 
     except Exception as e:
         _dbg("auth_exception", error_type=type(e).__name__, error=str(e), **req_meta)
-        if event.get("version") == "2.0" and "routeKey" in event:
+        if is_httpapi:
             return _httpapi_simple_response(False, {"error": "Unauthorized"})
+        if is_appsync:
+            return _appsync_response(False, {"error": "Unauthorized"})
         raise Unauthorized("Unauthorized")
+

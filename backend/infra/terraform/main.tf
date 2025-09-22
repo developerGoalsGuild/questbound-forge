@@ -90,8 +90,8 @@ module "user_service_image" {
   aws_region          = var.aws_region
   environment         = var.environment
   current_version     = var.user_service_current_version
-  dockerfile_path     = "../../../backend/services/user-service/Dockerfile"
-  context_path        = "../../../backend/services/user-service"
+  dockerfile_path     = "user-service/Dockerfile"
+  context_path        = "../../../backend/services"
   
 }
 
@@ -103,8 +103,8 @@ module "quest_service_image" {
   aws_region          = var.aws_region
   environment         = var.environment
   current_version     = var.quest_service_current_version
-  dockerfile_path     = "../../../backend/services/quest-service/Dockerfile"
-  context_path        = "../../../backend/services/quest-service"
+  dockerfile_path     = "quest-service/Dockerfile"
+  context_path        = "../../../backend/services"
 
 }
 
@@ -318,6 +318,11 @@ module "lambda_user_service" {
     Environment = var.environment
     Project     = "goalsguild"
   }
+  environment_variables = {
+    SETTINGS_SSM_PREFIX = "/goalsguild/user-service/"
+    ENVIRONMENT         = var.environment
+    USER_LOG_ENABLED    = var.user_log_enabled
+  }
   depends_on = [module.user_service_image]
 
 }
@@ -338,6 +343,12 @@ module "lambda_quest_service" {
     Environment = var.environment
     Project     = "goalsguild"
   }
+  environment_variables = {
+    SETTINGS_SSM_PREFIX     = "/goalsguild/quest-service/"
+    ENVIRONMENT             = var.environment
+    QUEST_SERVICE_ROOT_PATH = "/${upper(var.environment)}"
+    QUEST_LOG_ENABLED       = var.quest_log_enabled
+  }
   depends_on = [module.quest_service_image]
 
 }
@@ -352,11 +363,12 @@ module "network" {
   quest_service_lambda_arn               = module.lambda_quest_service.lambda_function_arn
   api_stage_name                         = var.api_stage_name
   lambda_authorizer_arn                  = module.lambda_authorizer.lambda_arn
-  api_gateway_authorizer_lambda_role_arn = module.iam.lambda_authorizer_role_arn
   cognito_domain_prefix                  = var.cognito_domain_prefix
   ddb_table_arn                          = module.ddb.arn
   ddb_table_name                         = module.ddb.table_name
   login_attempts_table_arn               = aws_dynamodb_table.login_attempts.arn
+  frontend_base_url                     = var.frontend_base_url
+  frontend_allowed_origins              = var.frontend_allowed_origins
 
 }
 

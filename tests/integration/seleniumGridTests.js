@@ -86,24 +86,289 @@ async function appendLog(lines) {
 
 
 
+const MAX_BODY_PREVIEW = 4096;
+const networkCaptureState = new WeakMap();
+
+function normalizeBodyForLog(body, base64Encoded = false) {
+  if (body == null) {
+    return null;
+  }
+  const textValue = String(body);
+  const truncated = textValue.length > MAX_BODY_PREVIEW;
+  return {
+    base64Encoded: Boolean(base64Encoded),
+    length: textValue.length,
+    truncated,
+    content: truncated ? textValue.slice(0, MAX_BODY_PREVIEW) : textValue,
+  };
+}
+
+function mergeHeaders(existing = {}, incoming = {}) {
+  const merged = { ...existing };
+  for (const [key, value] of Object.entries(incoming)) {
+    merged[key] = value;
+  }
+  return merged;
+}
+
+async function attachNetworkCapture(driver) {
+  if (networkCaptureState.has(driver)) {
+    return networkCaptureState.get(driver);
+  }
+
+  const state = {
+    enabled: false,
+    entries: [],
+    byRequestId: new Map(),
+    pending: new Set(),
+    errors: [],
+    error: null,
+    errorLogged: false,
+  };
+  networkCaptureState.set(driver, state);
+
+  const supportsCdp =
+    typeof driver.sendDevToolsCommand === 'function' &&
+    typeof driver.onDevToolsEvent === 'function';
+
+  if (!supportsCdp) {
+    state.error = 'DevTools protocol not supported by this driver/grid.';
+    return state;
+  }
+
+  try {
+    await driver.sendDevToolsCommand('Network.enable', {});
+    state.enabled = true;
+  } catch (err) {
+    state.error = 'Network.enable failed: ' + (err && err.message ? err.message : err);
+    return state;
+  }
+
+  const trackAsync = (promise) => {
+    if (!promise || typeof promise.finally !== 'function') {
+      return;
+    }
+    state.pending.add(promise);
+    promise.finally(() => state.pending.delete(promise));
+  };
+
+  driver.onDevToolsEvent('Network.requestWillBeSent', (params) => {
+    try {
+      const { requestId, request, type, wallTime, redirectResponse } = params || {};
+      if (!requestId || !request) {
+        return;
+      }
+
+      let entry = state.byRequestId.get(requestId);
+      if (entry && redirectResponse) {
+        entry.redirectResponse = {
+          status: redirectResponse.status,
+          statusText: redirectResponse.statusText,
+          headers: redirectResponse.headers || {},
+          url: redirectResponse.url,
+        };
+      }
+
+      if (entry && !redirectResponse) {
+        return;
+      }
+
+      entry = {
+        requestId,
+        request: {
+          method: request.method,
+          url: request.url,
+          headers: { ...(request.headers || {}) },
+          body: request.postData ? normalizeBodyForLog(request.postData) : null,
+        },
+        response: null,
+        error: null,
+        resourceType: type || null,
+        wallTime: wallTime || null,
+      };
+
+      state.entries.push(entry);
+      state.byRequestId.set(requestId, entry);
+
+      if (!entry.request.body) {
+        const promise = driver
+          .sendDevToolsCommand('Network.getRequestPostData', { requestId })
+          .then((result) => {
+            if (result && result.postData && !entry.request.body) {
+              entry.request.body = normalizeBodyForLog(result.postData);
+            }
+          })
+          .catch((err) => {
+            const msg = err && err.message ? err.message : String(err);
+            if (!/No resource with given identifier|No post data/i.test(msg)) {
+              state.errors.push('getRequestPostData failed for ' + request.url + ': ' + msg);
+            }
+          });
+        trackAsync(promise);
+      }
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      state.errors.push('requestWillBeSent handler: ' + msg);
+    }
+  });
+
+  driver.onDevToolsEvent('Network.requestWillBeSentExtraInfo', (params) => {
+    try {
+      const entry = params ? state.byRequestId.get(params.requestId) : null;
+      if (!entry) return;
+      entry.request.headers = mergeHeaders(entry.request.headers, params.headers || {});
+      if (params.headersText && !entry.request.rawHeaders) {
+        entry.request.rawHeaders = params.headersText;
+      }
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      state.errors.push('requestWillBeSentExtraInfo handler: ' + msg);
+    }
+  });
+
+  driver.onDevToolsEvent('Network.responseReceived', (params) => {
+    try {
+      const entry = params ? state.byRequestId.get(params.requestId) : null;
+      const response = params ? params.response : null;
+      if (!entry || !response) return;
+      entry.response = entry.response || {};
+      entry.response.status = response.status;
+      entry.response.statusText = response.statusText;
+      entry.response.url = response.url;
+      entry.response.headers = mergeHeaders(entry.response.headers, response.headers || {});
+      entry.response.mimeType = response.mimeType || null;
+      entry.response.remoteAddress = response.remoteIPAddress || null;
+      entry.response.fromDiskCache = Boolean(response.fromDiskCache);
+      entry.response.fromServiceWorker = Boolean(response.fromServiceWorker);
+      entry.response.timing = response.timing || null;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      state.errors.push('responseReceived handler: ' + msg);
+    }
+  });
+
+  driver.onDevToolsEvent('Network.responseReceivedExtraInfo', (params) => {
+    try {
+      const entry = params ? state.byRequestId.get(params.requestId) : null;
+      if (!entry) return;
+      entry.response = entry.response || {};
+      entry.response.headers = mergeHeaders(entry.response.headers, params.headers || {});
+      if (params.headersText && !entry.response.rawHeaders) {
+        entry.response.rawHeaders = params.headersText;
+      }
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      state.errors.push('responseReceivedExtraInfo handler: ' + msg);
+    }
+  });
+
+  driver.onDevToolsEvent('Network.loadingFinished', (params) => {
+    try {
+      const entry = params ? state.byRequestId.get(params.requestId) : null;
+      if (!entry) return;
+      entry.response = entry.response || {};
+      entry.response.encodedDataLength = params ? params.encodedDataLength : null;
+
+      const promise = driver
+        .sendDevToolsCommand('Network.getResponseBody', { requestId: params.requestId })
+        .then((result) => {
+          if (!result) return;
+          entry.response.body = normalizeBodyForLog(result.body, result.base64Encoded);
+        })
+        .catch((err) => {
+          const msg = err && err.message ? err.message : String(err);
+          entry.response = entry.response || {};
+          entry.response.bodyError = msg;
+        });
+
+      trackAsync(promise);
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      state.errors.push('loadingFinished handler: ' + msg);
+    }
+  });
+
+  driver.onDevToolsEvent('Network.loadingFailed', (params) => {
+    try {
+      const entry = params ? state.byRequestId.get(params.requestId) : null;
+      if (!entry) return;
+      entry.error = {
+        errorText: params.errorText,
+        canceled: Boolean(params.canceled),
+        type: params.type || null,
+      };
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      state.errors.push('loadingFailed handler: ' + msg);
+    }
+  });
+
+  return state;
+}
+
 /* ------------------------ Helpers for robust JSON ------------------------ */
 
-function isoOneYearFromTodayUTC() {
+function dateOneYearFromTodayUTC() {
   const now = new Date();
   const y = now.getUTCFullYear() + 1;
   const m = now.getUTCMonth();
   const d = now.getUTCDate();
-  const dt = new Date(Date.UTC(y, m, d, 0, 0, 0));
-  return dt.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return new Date(Date.UTC(y, m, d, 0, 0, 0)).toISOString().slice(0, 10);
 }
 
-function buildGoalPrompt(userContext = '') {
-  const deadline = isoOneYearFromTodayUTC();
+function isDigits(str) {
+  if (!str) return false;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code < 48 || code > 57) return false;
+  }
+  return true;
+}
+
+function toDateOnlyString(value, fallback = dateOneYearFromTodayUTC()) {
+  if (value == null) return fallback;
+  const trimmed = String(value).trim();
+  if (trimmed.length === 10 && trimmed[4] === '-' && trimmed[7] === '-') {
+    const y = trimmed.slice(0, 4);
+    const m = trimmed.slice(5, 7);
+    const d = trimmed.slice(8, 10);
+    if (isDigits(y) && isDigits(m) && isDigits(d)) {
+      const year = Number(y);
+      const month = Number(m);
+      const day = Number(d);
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const date = new Date(Date.UTC(year, month - 1, day));
+        const valid = date.getUTCFullYear() === year && (date.getUTCMonth() + 1) === month && date.getUTCDate() === day;
+        if (valid) {
+          return `${y}-${m}-${d}`;
+        }
+      }
+    }
+  }
+  const parsed = Date.parse(trimmed);
+  if (Number.isNaN(parsed)) return fallback;
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function buildGoalPrompt({ idea, context, deadline } = {}) {
+  const targetDeadline = toDateOnlyString(deadline, dateOneYearFromTodayUTC());
+  const ideaTitle = idea ? sanitizeString(idea.title) : '';
+  const ideaDescription = idea ? sanitizeString(idea.description) : '';
+  const ideaContext = idea && (ideaTitle || ideaDescription)
+    ? `
+Seed idea:
+- title: ${ideaTitle || '(unspecified)'}
+- description: ${ideaDescription || '(unspecified)'}
+Use this idea as the creative foundation for the goal.`
+    : '';
+  const extraContext = context ? `
+Additional context:
+${sanitizeString(context)}` : '';
   return `
 Generate a JSON object representing a new goal creation with the following fields:
 - title: concise, realistic (string, no newlines)
 - description: detailed, related to the title (string, no newlines)
-- deadline: EXACTLY this value -> "${deadline}"
+- deadline: EXACTLY this value -> "${targetDeadline}"
 - nlpAnswers: object with these keys (strings, no newlines): positive, specific, evidence, resources, obstacles, ecology, timeline, firstStep
 - "ecology" must include BOTH a positive and a negative consideration in the same string.
 - All fields must be logically consistent and realistic.
@@ -113,7 +378,7 @@ STRICT OUTPUT RULES:
 {
   "title": "string",
   "description": "string",
-  "deadline": "YYYY-MM-DDTHH:MM:SSZ",
+  "deadline": "YYYY-MM-DD",
   "nlpAnswers": {
     "positive": "string",
     "specific": "string",
@@ -128,7 +393,7 @@ STRICT OUTPUT RULES:
 - No trailing commas.
 - Do not put raw newline characters in strings; replace them with spaces.
 - Output ONLY the JSON object, no prose.
-${userContext ? `\nContext:\n${userContext}\n` : ''}`.trim();
+${ideaContext}${extraContext}`.trim();
 }
 
 function sanitizeString(v) {
@@ -171,10 +436,137 @@ function normalizeGoalData(o) {
   o = o || {};
   o.title = sanitizeString(o.title);
   o.description = sanitizeString(o.description);
-  o.deadline = typeof o.deadline === 'string' ? o.deadline : isoOneYearFromTodayUTC();
+  o.deadline = toDateOnlyString(o.deadline);
   o.nlpAnswers = o.nlpAnswers || {};
   keys.forEach(k => { o.nlpAnswers[k] = sanitizeString(o.nlpAnswers[k]); });
   return o;
+}
+function formatDeadlineForInput(raw, inputType) {
+  const fallback = toDateOnlyString(raw);
+  const baseValue = fallback ? new Date(`${fallback}T00:00:00Z`) : new Date();
+  if (inputType === "datetime-local") {
+    return `${fallback}T00:00`;
+  }
+  if (inputType === "date") {
+    return fallback;
+  }
+  const day = String(baseValue.getDate()).padStart(2, '0');
+  const month = String(baseValue.getMonth() + 1).padStart(2, '0');
+  const year = String(baseValue.getFullYear());
+  return `${day}/${month}/${year}`;
+}
+
+
+
+function buildGoalIdeasPrompt(limit = 100) {
+  return `
+Generate a JSON array with exactly ${limit} objects.
+Each object must contain: {
+  \"title\": \"string\",
+  \"description\": \"string\"
+}
+Guidelines:
+- The title must a goal that a person has for his life
+- Keep entries realistic, diverse, and action-oriented.
+- Avoid duplicates or near-duplicates.
+- Do not include additional commentary or formatting.
+Return ONLY the JSON array.`.trim();
+}
+
+function normalizeGoalIdeas(raw, limit) {
+  if (!Array.isArray(raw)) return [];
+  const items = raw.map((idea) => ({
+    title: sanitizeString(idea?.title),
+    description: sanitizeString(idea?.description)
+  })).filter((idea) => idea.title);
+  return items.slice(0, limit);
+}
+
+function extractIdeasFromText(text, limit) {
+  if (!text) return [];
+  const result = [];
+  const pattern = /\{[^{}]*"title"\s*:\s*"([^"]+)"[^{}]*"description"\s*:\s*"([^"]+)"[^{}]*\}/g;
+  let match;
+  while (result.length < limit && (match = pattern.exec(text))) {
+    result.push({ title: sanitizeString(match[1]), description: sanitizeString(match[2]) });
+  }
+  return result;
+}
+
+// Fetch a deterministic-sized batch of candidate goals we can sample from.
+async function generateGoalIdeas(limit = 100) {
+  const prompt = buildGoalIdeasPrompt(limit);
+  const body = {
+    model: OLLAMA_MODEL,
+    prompt,
+    stream: false,
+    format: 'json',
+    keep_alive: '10m',
+    options: {
+      temperature: 0.1,
+      top_p: 0.9,
+      num_predict: 2048
+    }
+  };
+
+  const res = await fetch(`${OLLAMA_API_URL}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Ollama idea generator error: ${res.status} ${res.statusText}
+${text}`);
+  }
+
+  const data = await res.json();
+  let payload = data?.response ?? '';
+  if (!payload) {
+    throw new Error(`Empty response when generating goal ideas. Full payload: ${JSON.stringify(data)}`);
+  }
+
+  let ideas;
+  try {
+    ideas = JSON.parse(payload);
+  } catch (err) {
+    const repaired = extractLikelyJson(payload);
+    if (repaired) {
+      try {
+        ideas = JSON.parse(repaired);
+      } catch {}
+    }
+    if (!ideas) {
+      const softened = payload
+        .replace(/\r?\n+/g, ' ')
+        .replace(/,\s*([\}\]])/g, '$1');
+      try {
+        ideas = JSON.parse(softened);
+      } catch {}
+    }
+    if (!ideas) {
+      const extracted = extractIdeasFromText(payload, limit);
+      if (extracted.length) {
+        ideas = extracted;
+      } else {
+        throw new Error(`Failed to parse goal ideas JSON: ${err.message}
+Response text:
+${payload}`);
+      }
+    }
+  }
+
+  const explain = payload ? payload.slice(0, 200) : "\\";
+  const normalized = normalizeGoalIdeas(ideas, limit);
+  if (!normalized.length) {
+    const extracted = extractIdeasFromText(payload, limit);
+    if (extracted.length) {
+      return extracted;
+    }
+    throw new Error('Goal idea generator returned no usable entries.');
+  }
+  return normalized;
 }
 
 // Finds the longest balanced {...} or [...] block in a string.
@@ -203,10 +595,13 @@ function extractLikelyJson(s) {
 /**
  * Generate goal data with Ollama. If called without args, we build a strict prompt on the fly.
  */
-async function generateGoalData(promptOverride) {
+async function generateGoalData(options) {
+  const isStringPrompt = typeof options === 'string';
+  const config = (!isStringPrompt && options) ? options : {};
+  const prompt = isStringPrompt ? options : buildGoalPrompt(config);
   const body = {
     model: OLLAMA_MODEL,
-    prompt: promptOverride || buildGoalPrompt(), // <-- FIX: safe default when caller passes nothing
+    prompt, // safe default when caller passes nothing
     stream: false,
     format: 'json',
     keep_alive: '10m',
@@ -285,7 +680,7 @@ async function viewUserDashboard(driver) {
 
 async function createNewGoal(driver, goalData) {
   await driver.get(`${BASE_URL}/goals`);
-
+  console.log(goalData);
   // Wait for the form area to exist
   const form = await driver.wait(
     until.elementLocated(
@@ -334,14 +729,20 @@ async function createNewGoal(driver, goalData) {
   }
   await typeSafely(descriptionInput, goalData.description || '');
 
-  // --- DEADLINE (datetime-local expects yyyy-MM-ddTHH:mm local time) ---
-  const deadlineInput = await driver.findElement(By.css('input[type="datetime-local"]'));
-  const deadlineDate = new Date(goalData.deadline);
-  const pad = n => n.toString().padStart(2, '0');
-  const localISO =
-    `${deadlineDate.getFullYear()}-${pad(deadlineDate.getMonth() + 1)}-${pad(deadlineDate.getDate())}` +
-    `T${pad(deadlineDate.getHours())}:${pad(deadlineDate.getMinutes())}`;
-  await typeSafely(deadlineInput, localISO);
+  // --- DEADLINE (prefer date-only inputs; fall back gracefully) ---
+  const deadlineSelectors = [
+    'input[type="date"]',
+    'input[name="deadline"]',
+    '#deadline',
+    'input[type="datetime-local"]'
+  ];
+  const deadlineInput = await findFirstVisible(driver, deadlineSelectors);
+  if (!deadlineInput) {
+    throw new Error('Goal deadline input not found on the page.');
+  }
+  const deadlineType = (await deadlineInput.getAttribute('type') || '').toLowerCase();
+  const formattedDeadline = '31/12/2026';
+  await typeSafely(deadlineInput, formattedDeadline);
 
   // --- NLP answers ---
   const nlpKeys = [
@@ -404,6 +805,7 @@ async function runTests() {
    .withCapabilities(capabilities)
    .build();
 
+  await attachNetworkCapture(driver);
 
   try {
     console.log('Starting login test...');
@@ -415,8 +817,13 @@ async function runTests() {
     await viewUserDashboard(driver);
     console.log('User dashboard view test passed.');
 
-    console.log('Generating goal data from Ollama AI...');
-    const goalData = await generateGoalData(); // <-- works with default prompt now
+    // Generate a larger idea pool to keep UI flows varied between runs.
+    console.log('Generating goal ideas from Ollama AI (first 100)...');
+    const goalIdeas = await generateGoalIdeas(100);
+    console.log(`Received ${goalIdeas.length} ideas.`);
+    const seedIdea = goalIdeas[Math.floor(Math.random() * goalIdeas.length)] || null;
+    console.log('Selected seed idea for goal generation:', seedIdea);
+    const goalData = await generateGoalData({ idea: seedIdea });
     console.log('Generated goal data:', goalData);
     console.log('Starting create new goal test...');
     await createNewGoal(driver, goalData);
@@ -454,51 +861,105 @@ function parsePerfLogMessage(msg) {
   try { return JSON.parse(msg).message; } catch { return null; }
 }
 
-async function dumpNetwork(driver, { onlyErrors = true } = {}) {
+async function dumpNetworkFallbackFromPerformance(driver, { onlyErrors = true } = {}) {
   try {
     const perf = await driver.manage().logs().get('performance');
-    if (!perf.length) return;
+    if (!perf.length) {
+      return false;
+    }
 
-    const requests = new Map(); // requestId -> { url, method }
+    const requests = new Map();
     const responses = [];
 
     for (const entry of perf) {
-      const m = parsePerfLogMessage(entry.message);
-      if (!m) continue;
+      const message = parsePerfLogMessage(entry.message);
+      if (!message) continue;
 
-      if (m.method === 'Network.requestWillBeSent') {
-        const { requestId, request } = m.params || {};
+      if (message.method === 'Network.requestWillBeSent') {
+        const { requestId, request } = message.params || {};
         if (requestId && request) {
           requests.set(requestId, { url: request.url, method: request.method });
         }
       }
-      if (m.method === 'Network.responseReceived') {
-        const { requestId, response } = m.params || {};
-        const meta = requests.get(requestId) || {};
+
+      if (message.method === 'Network.responseReceived') {
+        const { requestId, response } = message.params || {};
+        const meta = requestId ? requests.get(requestId) : null;
         if (response) {
           responses.push({
             status: response.status,
-            url: response.url || meta.url,
-            method: meta.method || '',
+            url: response.url || (meta && meta.url),
+            method: (meta && meta.method) || '',
           });
         }
       }
     }
 
     const filtered = onlyErrors ? responses.filter(r => r.status >= 400) : responses;
-    const header = `\n===== NETWORK ${onlyErrors ? '(errors only)' : '(all)'} @ ${new Date().toISOString()} =====`;
+    const header = '\n===== NETWORK ' + (onlyErrors ? '(errors only)' : '(all)') + ' @ ' + new Date().toISOString() + ' =====';
+
+    const lines = [header];
     if (!filtered.length) {
-      await appendLog([header, '(no entries)', '']);
-      return;
+      lines.push('(no entries)');
+    } else {
+      lines.push(...filtered.map(r => r.status + ' ' + r.method + ' ' + r.url));
     }
-    await appendLog([
-      header,
-      ...filtered.map(r => `${r.status} ${r.method} ${r.url}`),
-      ''
-    ]);
+    lines.push('');
+
+    await appendLog(lines);
+    return true;
   } catch (err) {
-    await appendLog(`network log capture not supported: ${err.message || err}`);
+    await appendLog('network log capture not supported: ' + (err && err.message ? err.message : err));
+    return false;
   }
+}
+
+async function dumpNetwork(driver, { onlyErrors = true } = {}) {
+  const state = networkCaptureState.get(driver);
+  if (state && state.enabled) {
+    if (state.pending.size) {
+      await Promise.all(Array.from(state.pending));
+    }
+
+    const entries = onlyErrors
+      ? state.entries.filter(entry => entry.error || (entry.response && entry.response.status >= 400))
+      : state.entries;
+
+    const header = '\n===== NETWORK CAPTURE ' + (onlyErrors ? '(errors only)' : '(all)') + ' @ ' + new Date().toISOString() + ' =====';
+    const lines = [header];
+
+    if (!entries.length) {
+      lines.push('(no entries)');
+    } else {
+      for (const entry of entries) {
+        const record = {
+          request: entry.request,
+          response: entry.response,
+        };
+        if (entry.error) {
+          record.error = entry.error;
+        }
+        lines.push(JSON.stringify(record, null, 2));
+      }
+    }
+
+    if (state.errors.length) {
+      lines.push('Capture warnings:');
+      lines.push(JSON.stringify(state.errors, null, 2));
+      state.errors = [];
+    }
+
+    lines.push('');
+    await appendLog(lines);
+    return;
+  }
+
+  if (state && state.error && !state.errorLogged) {
+    await appendLog('network capture unavailable: ' + state.error);
+    state.errorLogged = true;
+  }
+
+  await dumpNetworkFallbackFromPerformance(driver, { onlyErrors });
 }
 
 

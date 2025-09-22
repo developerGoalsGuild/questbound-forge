@@ -35,11 +35,6 @@ variable "lambda_authorizer_arn" {
   description = "ARN of the authorizer-service Lambda function"
   type        = string
 }
-variable "api_gateway_authorizer_lambda_role_arn" {
-  description = "ARN of the authorizer-service Lambda function"
-  type        = string
-}
-
 variable "cognito_domain_prefix" {
   description = "Optional domain prefix for Cognito Hosted UI (must be globally unique per region)"
   type        = string
@@ -62,3 +57,12 @@ variable "login_attempts_table_arn" {
 }
 
 
+variable "frontend_base_url" {
+  description = "Primary frontend base URL used for CORS"
+  type        = string
+}
+
+variable "frontend_allowed_origins" {
+  description = "List of browser origins allowed via CORS"
+  type        = list(string)
+}

@@ -108,24 +108,49 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
     COGNITO_USER_POOL_ID     = aws_cognito_user_pool.user_pool.id
     COGNITO_CLIENT_ID        = aws_cognito_user_pool_client.user_pool_client.id
     COGNITO_CLIENT_SECRET    = aws_cognito_user_pool_client.user_pool_client.client_secret
-    COGNITO_REGION           = var.aws_region	  
-    JWT_ISSUER           = "https://auth.local"
-    JWT_AUDIENCE           = "api://default"
+    COGNITO_REGION           = var.aws_region
+    JWT_ISSUER               = "https://auth.local"
+    JWT_AUDIENCE             = "api://default"
     COGNITO_DOMAIN           = "goalsguild.auth.us-east-2.amazoncognito.com"
     SES_SENDER_EMAIL         = "no-reply@goalsguild.com"
-    FRONTEND_BASE_URL        = "https://app.goalsguild.com"
-    PASSWORD_KEY             = "your-encrypted-password-key" # Replace with actual secure value or SSM reference
+    FRONTEND_BASE_URL        = var.frontend_base_url
+    ALLOWED_ORIGINS          = var.frontend_allowed_origins
+    PASSWORD_KEY             = "your-encrypted-password-key"
     DYNAMODB_USERS_TABLE     = "gg_core"
     CORE_TABLE               = var.ddb_table_name
-    APP_BASE_URL              = "http://localhost:5050"
-    LOGIN_ATTEMPTS_TABLE = "goalsguild_login_attempts"
-
+    APP_BASE_URL             = "http://localhost:5050"
+    LOGIN_ATTEMPTS_TABLE     = "goalsguild_login_attempts"
+    ENVIRONMENT              = var.environment
   })
 
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
     Component   = "user-service"
+  }
+}
+
+resource "aws_ssm_parameter" "quest_service_env_vars" {
+  name        = "/goalsguild/quest-service/env_vars"
+  description = "JSON object of environment variables for Quest Service"
+  type        = "String"
+  value       = jsonencode({
+    CORE_TABLE           = var.ddb_table_name
+    JWT_ISSUER           = "https://auth.local"
+    JWT_AUDIENCE         = "api://default"
+    COGNITO_REGION       = var.aws_region
+    COGNITO_USER_POOL_ID = aws_cognito_user_pool.user_pool.id
+    COGNITO_CLIENT_ID    = aws_cognito_user_pool_client.user_pool_client.id
+    FRONTEND_BASE_URL    = var.frontend_base_url
+    ALLOWED_ORIGINS      = var.frontend_allowed_origins
+    JWT_SECRET_PARAM     = aws_ssm_parameter.goals_guild_jwt_secret.name
+    ENVIRONMENT          = var.environment
+  })
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "quest-service"
   }
 }
 
