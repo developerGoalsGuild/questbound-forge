@@ -18,8 +18,10 @@ os.environ.setdefault(
 os.environ.setdefault("QUEST_SERVICE_JWT_SECRET", "test-secret")
 
 from fastapi.testclient import TestClient
+import importlib
 
-from app.main import app
+main_module = importlib.import_module('app.main')
+app = main_module.app
 
 client = TestClient(app)
 

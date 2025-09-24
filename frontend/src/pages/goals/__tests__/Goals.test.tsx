@@ -81,6 +81,29 @@ vi.mock('@/hooks/useTranslation', () => {
         aiImageFailed: 'AI image failed',
         aiSuggestFailed: 'AI suggestions failed',
       },
+      modals: {
+        createTask: {
+          title: 'Create New Task',
+          descriptionLabel: 'Task Description',
+          dueDateLabel: 'Due Date',
+          submitButton: 'Add Task',
+          cancelButton: 'Cancel',
+          validation: {
+            titleRequired: 'Task title is required',
+            dueDateRequired: 'Due date is required',
+            dueDateInvalid: 'Please enter a valid due date',
+          },
+        },
+        viewTask: {
+          title: 'Task Details',
+          descriptionLabel: 'Description',
+          dueDateLabel: 'Due Date',
+          statusLabel: 'Status',
+          closeButton: 'Close',
+          editButton: 'Edit',
+          deleteButton: 'Delete',
+        },
+      },
     },
   };
   return { useTranslation: () => ({ t, language: 'en' }) };
@@ -104,6 +127,7 @@ vi.mock('lucide-react', () => ({ Info: (props: any) => <svg aria-hidden="true" {
 // GraphQL client
 vi.mock('@/lib/utils', () => ({
   graphQLClient: () => ({ graphql: graphqlMock }),
+  cn: (...inputs: any[]) => inputs.filter(Boolean).join(' '),
 }));
 
 // API helpers for goals

@@ -101,14 +101,17 @@ export async function createGoal(input: GoalInput): Promise<GoalResponse> {
 
 export async function getActiveGoalsCountForUser(userId: string): Promise<number> {
   try {
-    const QUERY = /* GraphQL */ `
-      query ActiveGoalsCount($userId: ID!) {
-        activeGoalsCount(userId: $userId)
-      }
-    `;
+    const { data, errors } = await graphQLClient().graphql({
+      query: ACTIVE_GOALS_COUNT,
+      variables: { userId },
+      authMode: 'apiKey',
+    });
 
-    const data = await graphqlRaw<{ activeGoalsCount: number }>(QUERY, { userId });
-    return Number(data?.activeGoalsCount ?? 0);
+    if (errors?.length) {
+      throw new Error(errors.map(e => e.message).join(" | "));
+    }
+
+    return Number((data as any)?.activeGoalsCount ?? 0);
   } catch (e: any) {
     console.error('[getActiveGoalsCountForUser] GraphQL error:', e?.errors || e?.message || e);
     return 0;

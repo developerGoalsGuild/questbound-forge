@@ -5,12 +5,14 @@ Overview
 - Goal creation includes a mandatory deadline and a guided “Well‑formed Outcome (NLP)” question set.
 - AI integration provides an inspirational image and actionable improvement suggestions.
 - Backend access control enforced via AppSync resolvers (identity.sub) and route guard.
+- queries are executed  using aws appsync framework
+- Transactions uses a containerized 
 
 Key Files
 - Frontend
   - `frontend/src/pages/goals/Goals.tsx` – UI with form, NLP questions, AI actions, create-goal and add-task wiring.
   - `frontend/src/lib/auth.tsx` – `RoleRoute` guard for role‑based access.
-  - `frontend/src/graphql/{mutations,queries}.ts` – `CREATE_GOAL`, `ADD_TASK`, `MY_GOALS`, `MY_TASKS`.
+  - `frontend/src/graphql/{mutations,queries}.ts` –  `MY_GOALS`, `MY_TASKS`.
   - `frontend/src/pages/goals/questions.ts` – NLP question keys/order.
   - `frontend/src/i18n/translations.ts` – i18n strings for goals page (en/es/fr).
   - Tests: `frontend/src/pages/goals/__tests__/Goals.test.tsx`.
@@ -34,7 +36,7 @@ Routing & Access Control
 Goal Creation Flow
 1) User fills Title, Description, Deadline (required) and NLP questions.
 2) `createGoal` mutation is called with `deadline` (epoch seconds).
-3) If NLP answers are provided, a planning task is created via `addTask` with `nlpPlan` set to answers.
+3) Create task for each goal with tags
 
 AI Integration
 - Image: `POST /ai/inspiration-image` with `{ text, lang }` returns `{ imageUrl }`.

@@ -23,7 +23,10 @@ os.environ.setdefault(
 os.environ.setdefault("QUEST_SERVICE_JWT_SECRET", "test-secret")
 
 
-from app.main import app, get_goals_table  # noqa: E402  (import after env setup)
+import importlib
+main_module = importlib.import_module('app.main')
+app = main_module.app
+get_goals_table = main_module.get_goals_table
 
 
 class FakeTable:
