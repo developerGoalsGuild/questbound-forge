@@ -53,8 +53,7 @@ API Summary
   - `isEmailAvailable(email: String!): Boolean!`
   - `isNicknameAvailable(nickname: String!): Boolean!`
 - Authenticated (Lambda/Cognito):
-  - `createGoal(input: GoalInput!): Goal!` — must have `identity.sub`.
-  - `addTask(input: TaskInput!): Task!` — must have `identity.sub`.
+  - `createGoal(input: GoalInput!): Goal!` — must have `identity.sub`.  
   - `goals(userId: ID!): [Goal!]!` — only same `userId` as `identity.sub`.
   - `activeGoalsCount(userId: ID!): Int!` — only same `userId`, counts active.
   - `tasks(goalId: ID!): [Task!]!` — only tasks with `ownerId = identity.sub`.

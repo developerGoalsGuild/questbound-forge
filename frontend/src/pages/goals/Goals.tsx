@@ -4,8 +4,8 @@ import { graphQLClient } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { createGoal, loadGoals } from '@/lib/apiGoal';
-import { CREATE_GOAL, ADD_TASK } from '@/graphql/mutations';
-import { MY_GOALS, MY_TASKS } from '@/graphql/queries';
+
+
 import { RoleRoute } from '@/lib/auth';
 import { useTranslation } from '@/hooks/useTranslation';
 import { nlpQuestionOrder, NLPAnswers } from './questions';
@@ -13,6 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 
 import { graphQLClientProtected } from '@/lib/api';
 import CreateTaskModal from '@/components/CreateTaskModal';
+import TasksModal from '@/components/TasksModal';
+
+// Import new createTask API call
+import { createTask as createTaskApi, loadTasks as loadTasksApi } from '@/lib/apiTask';
 
 const client = graphQLClientProtected();
 
@@ -42,8 +46,6 @@ const GoalsPageInner: React.FC = () => {
   const [goals, setGoals] = useState<any[]>([]);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskDueAt, setTaskDueAt] = useState<string>('');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [visibleCount, setVisibleCount] = useState<number>(5);
@@ -51,6 +53,9 @@ const GoalsPageInner: React.FC = () => {
   // Modal state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [modalGoalDeadline, setModalGoalDeadline] = useState<string | null>(null);
+
+  // New TasksModal state
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
 
   // 1. Multilingual labels and hints
   const labels = useMemo(() => (t as any).goals?.questions, [t]);
@@ -117,8 +122,6 @@ const GoalsPageInner: React.FC = () => {
   const titleLabel = fields.title || 'Title';
   const descriptionLabel = fields.description || 'Description';
   const deadlineLabel = fields.deadline || 'Deadline';
-  const taskTitleLabel = goalsList.taskTitle || 'Task title';
-  const taskDueLabel = goalsList.taskDueAtLabel || goalsList.taskDueAt || 'Due date';
 
   // 5. Filtering
   const filteredGoals = useMemo(() => {
@@ -153,9 +156,15 @@ const GoalsPageInner: React.FC = () => {
 
   async function loadMyTasks(goalId: string) {
     try {
-      const { data, errors } = await client.graphql({ query: MY_TASKS as any, variables: { goalId } });
-      if (errors?.length) throw new Error(errors.map((e: any) => e.message).join(' | '));
-      setTasks((data as any)?.myTasks || []);
+
+
+        let cancelled = false;
+        (async () => {
+          const tasks = await loadTasksApi(goalId);
+          if (!cancelled) setTasks((tasks as any) || []);
+        })();
+        return () => { cancelled = true; };
+      
     } catch (e) {
       setTasks([]);
     }
@@ -173,17 +182,11 @@ const GoalsPageInner: React.FC = () => {
     }
     setSubmitting(true);
     try {
-      const input: any = {
-        title: title.trim(),
-        description: description.trim(),
-        tags: [],
-        deadline: toEpochSeconds(deadline),
-      };
-
       await createGoal({
         title: title,
         description: description,
-        deadline: `${toEpochSeconds(deadline)}`, // ISO date string        
+        deadline: toEpochSeconds(deadline),
+        progress: 0,
         nlpAnswers: answers,
       });
 
@@ -245,33 +248,63 @@ const GoalsPageInner: React.FC = () => {
     setIsTaskModalOpen(true);
   };
 
-  // New handler for creating task via modal
-  const handleCreateTask = async (taskTitle: string, taskDueAt: string) => {
+  // Updated handler for creating task via modal using API Gateway endpoint
+  const handleCreateTask = async (taskTitle: string, taskDueAt: string,taskTags:string[], taskStatus: string) => {
     if (!selectedGoalId) return;
     try {
-      await client.graphql({
-        query: ADD_TASK as any,
-        variables: {
-          input: {
-            goalId: selectedGoalId,
-            title: taskTitle,
-            dueAt: Math.floor(new Date(taskDueAt).getTime() / 1000),
-          },
-        },
+      const dueAtEpoch = Math.floor(new Date(taskDueAt).getTime() / 1000);
+      // For tags, pass empty array or extend UI to collect tags if needed
+      await createTaskApi({
+        goalId: selectedGoalId,
+        title: taskTitle,
+        dueAt: dueAtEpoch,
+        tags: taskTags,
+        status: taskStatus
       });
       toast({ title: t.goals.list?.taskCreated || 'Task created' });
       await loadMyTasks(selectedGoalId);
     } catch (e: any) {
-      const desc = Array.isArray(e?.errors)
-        ? e.errors.map((x: any) => x?.message || '').filter(Boolean).join(' | ')
-        : typeof e?.message === 'string'
-        ? e.message
-        : String(e);
+      const desc = e?.message || String(e);
       toast({ title: t.common.error, description: desc, variant: 'destructive' });
       throw e;
     }
   };
 
+// New handlers for TasksModal
+  const handleUpdateTask = async (updatedTask: any) => {
+    try {
+      // Call API to update task - implement your API call here
+      // Example: await updateTaskApi(updatedTask);
+      // For demo, just update local state
+      setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
+      toast({ title: t.goals.list?.taskUpdated || 'Task updated' });
+    } catch (e: any) {
+      toast({ title: t.common.error, description: e?.message || String(e), variant: 'destructive' });
+      throw e;
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      // Call API to delete task - implement your API call here
+      // Example: await deleteTaskApi(taskId);
+      // For demo, just update local state
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      toast({ title: t.goals.list?.taskDeleted || 'Task deleted' });
+    } catch (e: any) {
+      toast({ title: t.common.error, description: e?.message || String(e), variant: 'destructive' });
+      throw e;
+    }
+  };
+
+  // New handler to open TasksModal and load tasks for a goal
+  const openTasksModal = async (goalId: string) => {
+    setSelectedGoalId(goalId);
+    await loadMyTasks(goalId);
+    setIsTasksModalOpen(true);
+  };
+  
+  
   return (
     <TooltipProvider delayDuration={150}>
       <div className="max-w-3xl mx-auto p-4">
@@ -332,9 +365,9 @@ const GoalsPageInner: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.title || 'Title'}</th>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.description || 'Description'}</th>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.deadline || 'Deadline'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.title || 'Goal'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.description || 'Descriptions'}</th>
+                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.deadline || 'Due Date'}</th>
                       <th className="px-3 py-2 text-left">{t.goals.list?.columns?.status || 'Status'}</th>
                       <th className="px-3 py-2 text-right">{t.goals.list?.columns?.actions || 'Actions'}</th>
                     </tr>
@@ -354,7 +387,7 @@ const GoalsPageInner: React.FC = () => {
                                 className="px-2 py-1 text-xs sm:text-sm border rounded"
                                 onClick={() => {
                                   setSelectedGoalId(g.id);
-                                  loadMyTasks(g.id);
+                                  openTasksModal(g.id);
                                 }}
                               >
                                 {t.goals.list?.viewTasks || 'View Tasks'}
@@ -524,6 +557,13 @@ const GoalsPageInner: React.FC = () => {
           )}
         </div>
 
+        <TasksModal
+                isOpen={isTasksModalOpen}
+                onClose={() => setIsTasksModalOpen(false)}
+                tasks={tasks}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTask}
+              />
         <CreateTaskModal
           isOpen={isTaskModalOpen}
           onClose={() => setIsTaskModalOpen(false)}

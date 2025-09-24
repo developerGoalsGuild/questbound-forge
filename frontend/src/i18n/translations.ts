@@ -13,16 +13,18 @@
     - Fixed encoding issues (e.g., accented characters, question marks, etc.).
     - Removed all `@ts-ignore` and `any` usage.
 
-  3. Formatting & Documentation
+  3. Added new modal labels for "Create Task" and "View Task" modals under `goals.modals` for better organization and clarity.
+
+  4. Formatting & Documentation
     - Improved formatting for readability.
     - Added comments to clarify sections and usage.
     - Ensured all fields are documented and match the localization framework's requirements.
 
-  4. Compatibility
+  5. Compatibility
     - The file is now fully compatible with the localization framework and TypeScript.
     - All keys are present for all supported languages (`en`, `es`, `fr`).
 
-  5. Notes
+  6. Notes
     - If you add new keys, update the `Translations` interface and all language objects.
     - If you need to support more languages, copy the structure from an existing language.
 
@@ -171,6 +173,29 @@ export interface Translations {
       titleRequired: string;
       deadlineRequired: string;
     };
+    modals: {
+      createTask: {
+        title: string;
+        descriptionLabel: string;
+        dueDateLabel: string;
+        submitButton: string;
+        cancelButton: string;
+        validation: {
+          titleRequired: string;
+          dueDateRequired: string;
+          dueDateInvalid: string;
+        };
+      };
+      viewTask: {
+        title: string;
+        descriptionLabel: string;
+        dueDateLabel: string;
+        statusLabel: string;
+        closeButton: string;
+        editButton: string;
+        deleteButton: string;
+      };
+    };
   };
   signup: {
     local: {
@@ -243,7 +268,7 @@ export interface Translations {
   };
 }
 
-// --- ENGLISH ---
+// --- TRANSLATIONS ---
 export const translations: Record<Language, Translations> = {
   en: {
     nav: {
@@ -394,6 +419,29 @@ export const translations: Record<Language, Translations> = {
         titleRequired: 'Title is required',
         deadlineRequired: 'Deadline is required',
       },
+      modals: {
+        createTask: {
+          title: 'Create New Task',
+          descriptionLabel: 'Task Description',
+          dueDateLabel: 'Due Date',
+          submitButton: 'Add Task',
+          cancelButton: 'Cancel',
+          validation: {
+            titleRequired: 'Task title is required',
+            dueDateRequired: 'Due date is required',
+            dueDateInvalid: 'Please enter a valid due date',
+          },
+        },
+        viewTask: {
+          title: 'Task Details',
+          descriptionLabel: 'Description',
+          dueDateLabel: 'Due Date',
+          statusLabel: 'Status',
+          closeButton: 'Close',
+          editButton: 'Edit',
+          deleteButton: 'Delete',
+        },
+      },
     },
     signup: {
       local: {
@@ -466,7 +514,6 @@ export const translations: Record<Language, Translations> = {
     },
   },
 
-  // --- SPANISH ---
   es: {
     nav: {
       home: 'Inicio',
@@ -616,6 +663,29 @@ export const translations: Record<Language, Translations> = {
         titleRequired: 'El título es obligatorio',
         deadlineRequired: 'La fecha límite es obligatoria',
       },
+      modals: {
+        createTask: {
+          title: 'Crear nueva tarea',
+          descriptionLabel: 'Descripción de la tarea',
+          dueDateLabel: 'Fecha límite',
+          submitButton: 'Agregar tarea',
+          cancelButton: 'Cancelar',
+          validation: {
+            titleRequired: 'El título de la tarea es obligatorio',
+            dueDateRequired: 'La fecha límite es obligatoria',
+            dueDateInvalid: 'Por favor ingresa una fecha válida',
+          },
+        },
+        viewTask: {
+          title: 'Detalles de la tarea',
+          descriptionLabel: 'Descripción',
+          dueDateLabel: 'Fecha límite',
+          statusLabel: 'Estado',
+          closeButton: 'Cerrar',
+          editButton: 'Editar',
+          deleteButton: 'Eliminar',
+        },
+      },
     },
     signup: {
       local: {
@@ -688,7 +758,6 @@ export const translations: Record<Language, Translations> = {
     },
   },
 
-  // --- FRENCH ---
   fr: {
     nav: {
       home: 'Accueil',
@@ -837,6 +906,29 @@ export const translations: Record<Language, Translations> = {
       validation: {
         titleRequired: 'Le titre est requis',
         deadlineRequired: "L'échéance est requise",
+      },
+      modals: {
+        createTask: {
+          title: 'Créer une nouvelle tâche',
+          descriptionLabel: 'Description de la tâche',
+          dueDateLabel: 'Date limite',
+          submitButton: 'Ajouter la tâche',
+          cancelButton: 'Annuler',
+          validation: {
+            titleRequired: 'Le titre de la tâche est requis',
+            dueDateRequired: 'La date limite est requise',
+            dueDateInvalid: 'Veuillez saisir une date limite valide',
+          },
+        },
+        viewTask: {
+          title: 'Détails de la tâche',
+          descriptionLabel: 'Description',
+          dueDateLabel: 'Date limite',
+          statusLabel: 'Statut',
+          closeButton: 'Fermer',
+          editButton: 'Modifier',
+          deleteButton: 'Supprimer',
+        },
       },
     },
     signup: {

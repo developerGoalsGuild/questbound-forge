@@ -69,7 +69,7 @@ export async function graphqlRaw<T = any>(query: string, variables: any = {}) {
 
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: tok },
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${tok}` },
     body: JSON.stringify({ query, variables }),
   });
 

@@ -1,10 +1,14 @@
 import { getAccessToken } from './utils';
+import {  MY_TASKS } from '@/graphql/queries';
+import { graphqlRaw } from './api';
+
 
 interface CreateTaskInput {
   goalId: string;
   title: string;
   dueAt: number; // epoch seconds
   tags: string[];
+  status: string;
 }
 
 interface TaskResponse {
@@ -31,7 +35,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
   const url = baseUrl.replace(/\/$/, '') + '/quests/createTask';
 
-  const response = await fetch(url, {
+  const response = await fetch(url, {                                         
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -48,4 +52,31 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
 
   const data = await response.json();
   return data as TaskResponse;
+}
+
+
+export async function loadTasks(goalId: string): Promise<TaskResponse> {
+  try {
+    const QUERY = /* GraphQL */ `
+        query myTasks($goalId: ID!) {
+          myTasks(goalId: $goalId) {
+            id
+            goalId
+            title
+            dueAt
+            tags
+            status            
+            createdAt
+            updatedAt
+          }
+        }
+      `;
+
+    const data = await graphqlRaw<{ MyTasks: TaskResponse }>(QUERY, { goalId });
+    return data.MyTasks as TaskResponse;
+    
+  } catch (e: any) {
+    console.error('[loadTasks] GraphQL error:', e?.errors || e?.message || e);
+    return null;
+  }
 }

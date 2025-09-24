@@ -378,13 +378,14 @@ def _task_to_response(item: Dict) -> TaskResponse:
 async def create_task(
   payload: TaskInput = Body(...),
   auth: AuthContext = Depends(authenticate),
-  gg_core_table=get_goals_table,
+  table=Depends(get_goals_table),
+
 ):
   user_id = auth.user_id
 
   # Validate user owns the goal and goal is active
   try:
-    response = gg_core_table.get_item(
+    response = table.get_item(
       Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{payload.goalId}"}
     )
   except (ClientError, BotoCoreError) as exc:
@@ -403,11 +404,12 @@ async def create_task(
     raise HTTPException(status_code=400, detail="Goal deadline is missing")
 
   try:
-    goal_deadline_date = datetime.strptime(goal_deadline_str, "%Y-%m-%d")
-  except Exception:
-    raise HTTPException(status_code=400, detail="Goal deadline format invalid")
+    goal_deadline_date = datetime.datetime.strptime(goal_deadline_str, "%Y-%m-%d")
 
-  task_due_date = datetime.utcfromtimestamp(payload.dueAt)
+  except Exception as ex:
+    raise HTTPException(status_code=400, detail=f"Goal deadline format invalid. '{goal_deadline_str}':{ex}")
+
+  task_due_date =  datetime.datetime.utcfromtimestamp(payload.dueAt)
   if task_due_date > goal_deadline_date:
     raise HTTPException(
       status_code=400,
@@ -417,7 +419,7 @@ async def create_task(
   # Build and save task item
   item = _build_task_item(user_id, payload)
   try:
-    gg_core_table.put_item(
+    table.put_item(
       Item=item,
       ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
     )

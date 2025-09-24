@@ -2,21 +2,29 @@
 import { util } from '@aws-appsync/utils';
 
 export function request(ctx) {
-  const sub = ctx.identity?.sub;
-  const goalId = ctx.args?.goalId;
+const sub =
+  ctx.identity?.resolverContext?.sub || // Lambda authorizer
+  ctx.identity?.sub;                    // (fallback for Cognito if ever used)
+
   if (!sub) util.unauthorized();
+
+  const goalId = ctx.args?.goalId;  
   if (!goalId) util.error('goalId required', 'Validation');
   return {
     operation: 'Query',
     query: {
       expression: '#pk = :pk AND begins_with(#sk, :sk)',
       expressionNames: { '#pk': 'PK', '#sk': 'SK' },
-      expressionValues: util.dynamodb.toMapValues({ ':pk': 'GOAL#' + goalId, ':sk': 'TASK#' })
+      expressionValues: util.dynamodb.toMapValues(
+        { 
+          ':pk': `USER#${sub}`,
+          ':sk': 'TASK#'
+         })
     },
     filter: {
-      expression: '#owner = :me',
-      expressionNames: { '#owner': 'ownerId' },
-      expressionValues: util.dynamodb.toMapValues({ ':me': sub })
+      expression: '#goalId = :goalId',
+      expressionNames: { '#goalId': `${goalId}` },
+      expressionValues: util.dynamodb.toMapValues({ ':goalId': `${goalId}` })
     },
     scanIndexForward: true,
     consistentRead: false,

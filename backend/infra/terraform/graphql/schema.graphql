@@ -129,10 +129,7 @@ type Mutation {
   Create a user profile. Accepts a bcrypt password hash (NEVER plaintext).
   The resolver sets tier to 'free' by default.
   """
-  createUser(input: CreateUserInput!): User! @aws_api_key
-
-  
-  
+  createUser(input: CreateUserInput!): User! @aws_api_key 
 
   """
   Post a message to a chat room.
@@ -149,7 +146,8 @@ type Subscription {
   Subscribe to new messages for a room. Requires the same roomId as in sendMessage.
   """
   onMessage(roomId: ID!): Message!
-    @aws_subscribe(mutations: ["sendMessage"])
+  @aws_subscribe(mutations: ["sendMessage"])
+  
 }
 
 # ----------------
@@ -201,12 +199,6 @@ extend type Mutation {
   """
   #  Add a task under a goal owned by the current user.
   createTask(input: TaskInput!): Task!
-
-  """
-  Create a goal for the current user (from JWT).
-  """
-  createGoal(input: GoalInput!): Goal!
-
 
 
 }

@@ -177,18 +177,6 @@ module "appsync" {
 
 
   resolvers = {
-    "Mutation.createGoal" = {
-      type        = "Mutation"
-      field       = "createGoal"
-      data_source = "DDB"
-      code_path   = "${local.resolvers_dir}/createGoal.js"
-    }
-    "Mutation.addTask" = {
-      type        = "Mutation"
-      field       = "addTask"
-      data_source = "DDB"
-      code_path   = "${local.resolvers_dir}/addTask.js"
-    }
     "Mutation.sendMessage" = {
       type        = "Mutation"
       field       = "sendMessage"
