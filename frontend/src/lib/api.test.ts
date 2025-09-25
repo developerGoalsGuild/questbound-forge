@@ -8,12 +8,6 @@ vi.mock('aws-amplify/api', () => {
     if (query === 'IS_NICKNAME_AVAILABLE') {
       return { data: { isNicknameAvailable: variables?.nickname !== 'neo' }, errors: [] };
     }
-    if (query === 'ACTIVE_GOALS_COUNT') {
-      if (variables?.userId === 'ERR') {
-        return { data: {}, errors: [{ message: 'boom' }] } as any;
-      }
-      return { data: { activeGoalsCount: 2 }, errors: [] };
-    }
     return { data: {}, errors: [] };
   });
   return { generateClient: () => ({ graphql: graph }) };
@@ -28,9 +22,14 @@ vi.mock('@/graphql/queries', () => ({
 import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken, getActiveGoalsCountForUser } from './api';
 
 describe('frontend api lib', () => {
+  let fetchSpy: any;
+
   beforeEach(() => {
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
+    // Mock fetch for graphqlRaw calls
+    fetchSpy = vi.spyOn(globalThis, 'fetch' as any);
   });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
@@ -220,10 +219,15 @@ describe('frontend api lib', () => {
   });
 
   it('getActiveGoalsCountForUser counts active goals', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { activeGoalsCount: 2 } })
+    });
     await expect(getActiveGoalsCountForUser('U1')).resolves.toBe(2);
   });
 
   it('getActiveGoalsCountForUser returns 0 on error', async () => {
+    fetchSpy.mockRejectedValue(new Error('Network error'));
     await expect(getActiveGoalsCountForUser('ERR')).resolves.toBe(0);
   });
 });

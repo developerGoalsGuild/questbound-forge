@@ -1,4 +1,4 @@
-import { getAccessToken } from './utils';
+import { getAccessToken, graphQLClient } from './utils';
 import {  MY_TASKS } from '@/graphql/queries';
 import { graphqlRaw } from './api';
 
@@ -54,7 +54,6 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
   return data as TaskResponse;
 }
 
-
 export async function loadTasks(goalId: string): Promise<TaskResponse> {
   try {
     const QUERY = /* GraphQL */ `
@@ -80,3 +79,4 @@ export async function loadTasks(goalId: string): Promise<TaskResponse> {
     return null;
   }
 }
+

@@ -261,5 +261,66 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
   return fetch(url, { ...init, headers });
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'user' | 'partner' | 'patron';
+  fullName?: string;
+  nickname?: string;
+  birthDate?: string;
+  status: string;
+  country?: string;
+  language: string;
+  gender?: string;
+  pronouns?: string;
+  bio?: string;
+  tags: string[];
+  tier: string;
+  provider: string;
+  email_confirmed: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProfileUpdateInput {
+  fullName?: string;
+  nickname?: string;
+  birthDate?: string;
+  country?: string;
+  language?: string;
+  gender?: string;
+  pronouns?: string;
+  bio?: string;
+  tags?: string[];
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  const res = await authFetch('/profile', {
+    method: 'GET',
+  });
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    const msg = body?.detail || body?.message || text || 'Failed to get profile';
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  return body as UserProfile;
+}
+
+export async function updateUserProfile(input: ProfileUpdateInput): Promise<UserProfile> {
+  const res = await authFetch('/profile', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    const msg = body?.detail || body?.message || text || 'Failed to update profile';
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  return body as UserProfile;
+}
+
 export { getAccessToken, renewToken, getTokenExpiry, getUserIdFromToken } from '@/lib/utils';;
 export { getActiveGoalsCountForUser } from '@/lib/apiGoal';

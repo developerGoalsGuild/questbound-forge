@@ -37,7 +37,7 @@ const Features = () => {
   ];
 
   return (
-    <section id="features" className="py-24 spacing-medieval bg-gradient-parchment">
+    <section id="features" data-testid="features-section" className="py-24 spacing-medieval bg-gradient-parchment" role="region">
       <div className="container mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16 animate-fade-in">
@@ -100,13 +100,13 @@ const Features = () => {
         <div className="text-center mt-16">
           <div className="medieval-banner p-8 max-w-2xl mx-auto">
             <h3 className="font-cinzel text-2xl font-bold mb-4 text-gradient-royal">
-              Ready to Begin Your Adventure?
+              {t.features.cta.title}
             </h3>
             <p className="text-muted-foreground mb-6">
-              Join thousands of adventurers already achieving their goals together.
+              {t.features.cta.subtitle}
             </p>
             <button className="btn-heraldic text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:shadow-royal transition-all duration-300">
-              Start Your Journey
+              {t.features.cta.button}
             </button>
           </div>
         </div>

@@ -77,3 +77,13 @@ backend/services/common/__pycache__/logging.cpython-313.pyc
 backend/services/common/__init__.py
 backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
 backend/infra/terraform/terraform.tfstate.backup
+backend/services/authorizer-service/__pycache__/authorizer.cpython-313.pyc
+backend/services/authorizer-service/__pycache__/cognito.cpython-313.pyc
+backend/services/authorizer-service/__pycache__/security.cpython-313.pyc
+backend/services/authorizer-service/__pycache__/ssm.cpython-313.pyc
+backend/services/authorizer-service/tests/__pycache__/test_authorizer.cpython-313-pytest-8.4.1.pyc
+backend/services/quest-service/tests/__pycache__/conftest.cpython-313-pytest-8.4.1.pyc
+backend/services/quest-service/tests/__pycache__/test_ai.cpython-313-pytest-8.4.1.pyc
+backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
+frontend/package-lock.json
+backend/services/quest-service/tests/__pycache__/conftest.cpython-313-pytest-8.4.1.pyc

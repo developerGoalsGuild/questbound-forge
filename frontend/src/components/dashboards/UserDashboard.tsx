@@ -76,7 +76,7 @@ const UserDashboard = () => {
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? userData.stats.activeQuests}</div>
-              <div className="text-sm text-muted-foreground">Active Quests</div>
+              <div className="text-sm text-muted-foreground">{t.dashboard.user.stats.activeQuests}</div>
             </CardContent>
           </Card>
           
@@ -84,7 +84,7 @@ const UserDashboard = () => {
             <CardContent className="p-6 text-center">
               <Trophy className="h-8 w-8 text-secondary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData.stats.achievements}</div>
-              <div className="text-sm text-muted-foreground">Achievements</div>
+              <div className="text-sm text-muted-foreground">{t.dashboard.user.stats.achievements}</div>
             </CardContent>
           </Card>
 
@@ -92,7 +92,7 @@ const UserDashboard = () => {
             <CardContent className="p-6 text-center">
               <Users className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData.stats.guildPoints}</div>
-              <div className="text-sm text-muted-foreground">Guild Points</div>
+              <div className="text-sm text-muted-foreground">{t.dashboard.user.stats.guildPoints}</div>
             </CardContent>
           </Card>
 

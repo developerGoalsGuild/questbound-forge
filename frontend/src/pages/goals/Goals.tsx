@@ -12,8 +12,8 @@ import { nlpQuestionOrder, NLPAnswers } from './questions';
 import { useToast } from '@/hooks/use-toast';
 
 import { graphQLClientProtected } from '@/lib/api';
-import CreateTaskModal from '@/components/CreateTaskModal';
-import TasksModal from '@/components/TasksModal';
+import CreateTaskModal from '@/components/modals/CreateTaskModal';
+import TasksModal from '@/components/modals/TasksModal';
 
 // Import new createTask API call
 import { createTask as createTaskApi, loadTasks as loadTasksApi } from '@/lib/apiTask';

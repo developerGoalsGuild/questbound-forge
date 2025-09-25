@@ -75,17 +75,23 @@ export const usePatronData = (): UsePatronDataReturn => {
     try {
       setData(prevData => {
         if (!prevData) return prevData;
-        
-        const updatedContributions = prevData.contributions.map(contribution => 
-          contribution.id === contributionId ? processContribution(contribution) : contribution
-        );
-        
-        return {
-          ...prevData,
-          contributions: updatedContributions,
-        };
+
+        try {
+          const updatedContributions = prevData.contributions.map(contribution =>
+            contribution.id === contributionId ? processContribution(contribution) : contribution
+          );
+
+          return {
+            ...prevData,
+            contributions: updatedContributions,
+          };
+        } catch (err) {
+          // Handle synchronous errors in state update
+          setError(err instanceof Error ? err.message : 'Failed to process contribution');
+          return prevData;
+        }
       });
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 200));
     } catch (err) {
@@ -107,8 +113,8 @@ export const usePatronData = (): UsePatronDataReturn => {
     monthlyTrend: 0,
   };
 
-  const patronTier = data ? calculatePatronTier(data.impact.totalContributed) : 'Community Friend';
-  const nextTier = data ? getNextTierRequirement(data.impact.totalContributed) : { tier: 'Guild Benefactor', required: 200 };
+  const patronTier = data?.impact?.totalContributed ? calculatePatronTier(data.impact.totalContributed) : 'Community Friend';
+  const nextTier = data?.impact?.totalContributed ? getNextTierRequirement(data.impact.totalContributed) : { tier: 'Guild Benefactor', required: 200 };
 
   useEffect(() => {
     fetchData();

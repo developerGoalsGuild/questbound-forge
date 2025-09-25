@@ -14,6 +14,7 @@ import Goals from "./pages/goals/Goals";
 import { SessionKeepAlive } from '@/lib/session';
 import { ProtectedRoute, AuthWatcher } from '@/lib/auth';
 import ChangePassword from './pages/account/ChangePassword';
+import ProfileView from './pages/profile/ProfileView';
 
 
 
@@ -31,6 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfileView /></ProtectedRoute>} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/account/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />

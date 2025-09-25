@@ -279,3 +279,255 @@ def test_google_signup_creates_core_profile_and_lock(app_client, monkeypatch):
     assert it['SK']['S'] == 'PROFILE#google-sub-123'
     assert it['GSI1PK']['S'] == 'USER#google-sub-123'
     assert it['GSI1SK']['S'].startswith('ENTITY#User#')
+
+
+def test_health_ok(app_client):
+    r = app_client.get('/health')
+    assert r.status_code == 200
+    assert r.json().get('ok') is True
+
+
+def test_login_missing_fields(app_client):
+    # Test missing email
+    r = app_client.post('/users/login', json={'password': 'test'})
+    assert r.status_code == 422
+
+    # Test missing password
+    r = app_client.post('/users/login', json={'email': 'test@example.com'})
+    assert r.status_code == 422
+
+
+def test_login_invalid_credentials(app_client):
+    # First signup a user
+    email = 'login-test@example.com'
+    password = 'Aa1!aaaa'
+    payload = {
+        'provider': 'local',
+        'email': email,
+        'fullName': 'Login Test',
+        'password': password,
+        'country': 'US'
+    }
+    r = app_client.post('/users/signup', json=payload)
+    assert r.status_code == 200
+
+    # Try login with wrong password
+    r = app_client.post('/users/login', json={'email': email, 'password': 'wrong'})
+    assert r.status_code == 401
+    assert 'Invalid credentials' in r.json()['detail']
+
+    # Try login with non-existent email
+    r = app_client.post('/users/login', json={'email': 'nonexistent@example.com', 'password': 'test'})
+    assert r.status_code == 401
+
+
+def test_login_success_after_confirmation(app_client):
+    import boto3
+    # Signup first
+    email = 'confirmed-login@example.com'
+    password = 'Aa1!aaaa'
+    payload = {
+        'provider': 'local',
+        'email': email,
+        'fullName': 'Confirmed Login',
+        'password': password,
+        'country': 'US'
+    }
+    r = app_client.post('/users/signup', json=payload)
+    assert r.status_code == 200
+
+    # Mark email as confirmed
+    c = boto3.client('dynamodb')
+    q = c.query(TableName='gg_core', IndexName='GSI3',
+                KeyConditionExpression='#p = :v',
+                ExpressionAttributeNames={'#p': 'GSI3PK'},
+                ExpressionAttributeValues={':v': {'S': f'EMAIL#{email}'}})
+    it = q['Items'][0]
+    pk = it['PK']['S']; sk = it['SK']['S']
+    tbl = boto3.resource('dynamodb').Table('gg_core')
+    tbl.update_item(Key={'PK': pk, 'SK': sk},
+                    UpdateExpression='SET email_confirmed=:t',
+                    ExpressionAttributeValues={':t': True})
+
+    # Now login should succeed
+    r = app_client.post('/users/login', json={'email': email, 'password': password})
+    assert r.status_code == 200
+    response_data = r.json()
+    assert 'access_token' in response_data
+    assert 'expires_in' in response_data
+
+
+def test_confirm_email_invalid_token(app_client):
+    r = app_client.get('/users/confirm-email?token=invalid')
+    assert r.status_code == 400
+    assert 'Invalid or expired token' in r.json()['detail']
+
+
+def test_confirm_email_success(app_client):
+    import boto3
+    from app.tokens import issue_link_token, TokenPurpose
+
+    # First create a user
+    email = 'confirm-test@example.com'
+    payload = {
+        'provider': 'local',
+        'email': email,
+        'fullName': 'Confirm Test',
+        'password': 'Aa1!aaaa',
+        'country': 'US'
+    }
+    r = app_client.post('/users/signup', json=payload)
+    assert r.status_code == 200
+
+    # Get user ID
+    c = boto3.client('dynamodb')
+    q = c.query(TableName='gg_core', IndexName='GSI3',
+                KeyConditionExpression='#p = :v',
+                ExpressionAttributeNames={'#p': 'GSI3PK'},
+                ExpressionAttributeValues={':v': {'S': f'EMAIL#{email}'}})
+    user_id = q['Items'][0]['PK']['S'].replace('USER#', '')
+
+    # Generate confirmation token
+    token = issue_link_token(user_id, TokenPurpose.CONFIRM_EMAIL)
+
+    # Confirm email
+    r = app_client.get(f'/users/confirm-email?token={token}')
+    assert r.status_code == 200
+    assert r.json()['email_confirmed'] is True
+
+    # Verify in database
+    tbl = boto3.resource('dynamodb').Table('gg_core')
+    response = tbl.get_item(Key={'PK': f'USER#{user_id}', 'SK': f'PROFILE#{user_id}'})
+    item = response['Item']
+    assert item['email_confirmed'] is True
+
+
+def test_password_change_invalid_token(app_client):
+    payload = {
+        'token': 'invalid',
+        'new_password': 'NewAa1!aaaa'
+    }
+    r = app_client.post('/password/change', json=payload)
+    assert r.status_code == 400
+
+
+def test_password_change_success(app_client):
+    import boto3
+    from app.tokens import issue_link_token, TokenPurpose
+
+    # First create and confirm a user
+    email = 'password-change@example.com'
+    old_password = 'Aa1!aaaa'
+    payload = {
+        'provider': 'local',
+        'email': email,
+        'fullName': 'Password Change',
+        'password': old_password,
+        'country': 'US'
+    }
+    r = app_client.post('/users/signup', json=payload)
+    assert r.status_code == 200
+
+    # Get user ID and confirm email
+    c = boto3.client('dynamodb')
+    q = c.query(TableName='gg_core', IndexName='GSI3',
+                KeyConditionExpression='#p = :v',
+                ExpressionAttributeNames={'#p': 'GSI3PK'},
+                ExpressionAttributeValues={':v': {'S': f'EMAIL#{email}'}})
+    user_id = q['Items'][0]['PK']['S'].replace('USER#', '')
+
+    # Confirm email
+    tbl = boto3.resource('dynamodb').Table('gg_core')
+    tbl.update_item(Key={'PK': f'USER#{user_id}', 'SK': f'PROFILE#{user_id}'},
+                    UpdateExpression='SET email_confirmed=:t',
+                    ExpressionAttributeValues={':t': True})
+
+    # Generate password change token
+    token = issue_link_token(user_id, TokenPurpose.CHANGE_PASSWORD)
+
+    # Change password
+    new_password = 'NewAa1!aaaa'
+    payload = {
+        'token': token,
+        'new_password': new_password
+    }
+    r = app_client.post('/password/change', json=payload)
+    assert r.status_code == 200
+
+    # Verify login with new password works
+    r = app_client.post('/users/login', json={'email': email, 'password': new_password})
+    assert r.status_code == 200
+
+
+def test_temp_password_invalid_email(app_client):
+    payload = {'email': 'nonexistent@example.com'}
+    r = app_client.post('/password/temp', json=payload)
+    assert r.status_code == 404
+
+
+def test_temp_password_success(app_client):
+    # First create a user
+    email = 'temp-password@example.com'
+    payload = {
+        'provider': 'local',
+        'email': email,
+        'fullName': 'Temp Password',
+        'password': 'Aa1!aaaa',
+        'country': 'US'
+    }
+    r = app_client.post('/users/signup', json=payload)
+    assert r.status_code == 200
+
+    # Request temp password
+    payload = {'email': email}
+    r = app_client.post('/password/temp', json=payload)
+    assert r.status_code == 200
+
+
+def test_auth_renew_invalid_token(app_client):
+    r = app_client.post('/auth/renew', json={'access_token': 'invalid'})
+    assert r.status_code == 401
+
+
+def test_auth_renew_success(app_client):
+    import boto3
+    from app.security import issue_local_jwt
+
+    # First create and confirm a user
+    email = 'renew-test@example.com'
+    password = 'Aa1!aaaa'
+    payload = {
+        'provider': 'local',
+        'email': email,
+        'fullName': 'Renew Test',
+        'password': password,
+        'country': 'US'
+    }
+    r = app_client.post('/users/signup', json=payload)
+    assert r.status_code == 200
+
+    # Get user ID and confirm email
+    c = boto3.client('dynamodb')
+    q = c.query(TableName='gg_core', IndexName='GSI3',
+                KeyConditionExpression='#p = :v',
+                ExpressionAttributeNames={'#p': 'GSI3PK'},
+                ExpressionAttributeValues={':v': {'S': f'EMAIL#{email}'}})
+    user_id = q['Items'][0]['PK']['S'].replace('USER#', '')
+
+    # Confirm email
+    tbl = boto3.resource('dynamodb').Table('gg_core')
+    tbl.update_item(Key={'PK': f'USER#{user_id}', 'SK': f'PROFILE#{user_id}'},
+                    UpdateExpression='SET email_confirmed=:t',
+                    ExpressionAttributeValues={':t': True})
+
+    # Login to get initial token
+    r = app_client.post('/users/login', json={'email': email, 'password': password})
+    assert r.status_code == 200
+    initial_token = r.json()['access_token']
+
+    # Renew token
+    r = app_client.post('/auth/renew', json={'access_token': initial_token})
+    assert r.status_code == 200
+    renewed_response = r.json()
+    assert 'access_token' in renewed_response
+    assert renewed_response['access_token'] != initial_token  # Should be a new token

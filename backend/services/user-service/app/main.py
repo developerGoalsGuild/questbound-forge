@@ -33,6 +33,8 @@ from .models import (
     LoginLocal,
     TokenResponse,
     PublicUser,
+    UserProfile,
+    ProfileUpdate,
 )
 from .ssm import settings
 from .security import (
@@ -1097,3 +1099,226 @@ def change_password(
     _safe_event("password_changed", cid=cid, email=_mask_email(email))
     token = issue_local_jwt(item["user_id"], email)
     return TokenResponse(**token).model_dump()
+
+
+# ---------- Profile CRUD Endpoints ----------
+
+@app.get("/profile", response_model=UserProfile)
+async def get_profile(auth: AuthContext = Depends(authenticate)):
+    """Get current user's profile"""
+    log_event(logger, 'profile.get_start', user_id=auth.user_id)
+
+    try:
+        response = _ddb_call(
+            core.get_item,
+            op="core.get_item.profile",
+            Key={"PK": f"USER#{auth.user_id}", "SK": f"PROFILE#{auth.user_id}"}
+        )
+    except Exception:
+        logger.error("profile.get.ddb_error", extra={"user_id": auth.user_id}, exc_info=True)
+        raise HTTPException(status_code=500, detail="Unable to load profile")
+
+    item = response.get("Item")
+    if not item:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Convert DynamoDB item to UserProfile model
+    profile_data = {
+        "id": item.get("id"),
+        "email": item.get("email"),
+        "role": item.get("role", "user"),
+        "fullName": item.get("fullName"),
+        "nickname": item.get("nickname"),
+        "birthDate": item.get("birthDate"),
+        "status": item.get("status", "ACTIVE"),
+        "country": item.get("country"),
+        "language": item.get("language", "en"),
+        "gender": item.get("gender"),
+        "pronouns": item.get("pronouns"),
+        "bio": item.get("bio"),
+        "tags": item.get("tags", []),
+        "tier": item.get("tier", "free"),
+        "provider": item.get("provider", "local"),
+        "email_confirmed": item.get("email_confirmed", False),
+        "createdAt": item.get("createdAt", 0),
+        "updatedAt": item.get("updatedAt", 0),
+    }
+
+    log_event(logger, 'profile.get_success', user_id=auth.user_id)
+    return UserProfile(**profile_data)
+
+
+@app.put("/profile", response_model=UserProfile)
+async def update_profile(
+    payload: ProfileUpdate,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Update current user's profile"""
+    log_event(logger, 'profile.update_start', user_id=auth.user_id)
+
+    # Validate nickname uniqueness if provided
+    if payload.nickname:
+        nickname = payload.nickname.strip()
+        if len(nickname) < 3 or len(nickname) > 32:
+            raise HTTPException(status_code=400, detail="Nickname must be 3-32 characters")
+
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9_\-]+", nickname):
+            raise HTTPException(status_code=400, detail="Nickname can only contain letters, numbers, underscores, and hyphens")
+
+        # Check if nickname is taken by another user
+        try:
+            response = core.query(
+                IndexName="GSI2",
+                KeyConditionExpression="#pk = :v",
+                ExpressionAttributeNames={"#pk": "GSI2PK"},
+                ExpressionAttributeValues={":v": f"NICK#{nickname}"},
+                Limit=1,
+            )
+            items = response.get("Items", [])
+            if items and items[0].get("id") != auth.user_id:
+                raise HTTPException(status_code=409, detail="Nickname already taken")
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") != "ValidationException":
+                raise HTTPException(status_code=500, detail="Unable to validate nickname")
+
+    # Validate country if provided
+    if payload.country:
+        allowed_countries = {"US","CA","MX","BR","AR","CL","CO","PE","VE","UY","PY","BO","EC","GT","CR","PA","DO","CU","HN","NI","SV","JM","TT",
+            "GB","IE","FR","DE","ES","PT","IT","NL","BE","LU","CH","AT","DK","SE","NO","FI","IS","PL","CZ","SK","HU","RO","BG","GR","HR","SI","RS","BA","MK","AL","ME","UA","BY","LT","LV","EE","MD","TR","CY","MT","RU",
+            "CN","JP","KR","IN","PK","BD","LK","NP","BT","MV","TH","MY","SG","ID","PH","VN","KH","LA","MM","BN","TL",
+            "AE","SA","QA","BH","KW","OM","YE","IR","IQ","JO","LB","SY","IL","PS","AF","KZ","KG","UZ","TM","TJ","MN",
+            "AU","NZ","PG","FJ","SB","VU","WS","TO","TV","KI","FM","MH","NR","PW"}
+        if payload.country.upper() not in allowed_countries:
+            raise HTTPException(status_code=400, detail="Invalid country")
+
+    # Validate birthdate if provided
+    if payload.birthDate:
+        try:
+            y, m, d = map(int, payload.birthDate.split("-"))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid birthDate format, expected YYYY-MM-DD")
+        if not (1 <= m <= 12 and 1 <= d <= 31 and y > 1900):
+            raise HTTPException(status_code=400, detail="Invalid birthDate")
+        now_iso = time.strftime("%Y-%m-%d", time.gmtime())
+        cy, cm, cd = map(int, now_iso.split("-"))
+        cutoff_y = cy - 1
+        if y > cutoff_y or (y == cutoff_y and (m > cm or (m == cm and d > cd))):
+            raise HTTPException(status_code=400, detail="birthDate too recent")
+
+    # Build update expression
+    update_expression_parts = []
+    expression_attribute_names = {}
+    expression_attribute_values = {}
+    attr_counter = 0
+
+    # Handle nickname changes (need to update GSI)
+    current_profile = None
+    nickname_changed = False
+
+    if payload.nickname is not None:
+        # Get current profile to check if nickname changed
+        try:
+            response = _ddb_call(
+                core.get_item,
+                op="core.get_item.profile_current",
+                Key={"PK": f"USER#{auth.user_id}", "SK": f"PROFILE#{auth.user_id}"}
+            )
+            current_profile = response.get("Item")
+        except Exception:
+            pass
+
+        current_nickname = current_profile.get("nickname") if current_profile else None
+        if current_nickname != payload.nickname:
+            nickname_changed = True
+
+    # Prepare update fields
+    update_fields = {}
+    if payload.fullName is not None:
+        update_fields["fullName"] = payload.fullName
+    if payload.nickname is not None:
+        update_fields["nickname"] = payload.nickname
+    if payload.birthDate is not None:
+        update_fields["birthDate"] = payload.birthDate
+    if payload.country is not None:
+        update_fields["country"] = payload.country.upper() if payload.country else None
+    if payload.language is not None:
+        update_fields["language"] = payload.language
+    if payload.gender is not None:
+        update_fields["gender"] = payload.gender
+    if payload.pronouns is not None:
+        update_fields["pronouns"] = payload.pronouns
+    if payload.bio is not None:
+        update_fields["bio"] = payload.bio
+    if payload.tags is not None:
+        update_fields["tags"] = payload.tags
+
+    update_fields["updatedAt"] = int(time.time() * 1000)
+
+    # Build update expression
+    for key, value in update_fields.items():
+        attr_name = f"#{key}"
+        attr_value = f":val{attr_counter}"
+        update_expression_parts.append(f"{attr_name} = {attr_value}")
+        expression_attribute_names[attr_name] = key
+        expression_attribute_values[attr_value] = value
+        attr_counter += 1
+
+    # Handle nickname GSI updates
+    if nickname_changed and payload.nickname:
+        if current_nickname:
+            # Remove old nickname GSI
+            try:
+                _ddb_call(
+                    core.delete_item,
+                    op="core.delete_item.old_nickname_lock",
+                    Key={"PK": f"NICK#{current_nickname}", "SK": "UNIQUE#USER"}
+                )
+            except Exception:
+                logger.warning("profile.update.old_nickname_cleanup_failed", extra={"user_id": auth.user_id}, exc_info=True)
+
+        # Add new nickname GSI
+        try:
+            _ddb_call(
+                core.put_item,
+                op="core.put_item.new_nickname_lock",
+                Item={
+                    "PK": f"NICK#{payload.nickname}",
+                    "SK": "UNIQUE#USER",
+                    "type": "NicknameUnique",
+                    "nickname": payload.nickname,
+                    "userId": auth.user_id,
+                    "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                },
+                ConditionExpression="attribute_not_exists(PK)"
+            )
+
+            # Update profile GSIs
+            update_expression_parts.append("GSI2PK = :gsi2pk")
+            update_expression_parts.append("GSI2SK = :gsi2sk")
+            expression_attribute_values[":gsi2pk"] = f"NICK#{payload.nickname}"
+            expression_attribute_values[":gsi2sk"] = f"PROFILE#{auth.user_id}"
+
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                raise HTTPException(status_code=409, detail="Nickname already taken")
+            raise HTTPException(status_code=500, detail="Unable to update nickname")
+
+    if update_expression_parts:
+        update_expression = f"SET {', '.join(update_expression_parts)}"
+
+        try:
+            _ddb_call(
+                core.update_item,
+                op="core.update_item.profile",
+                Key={"PK": f"USER#{auth.user_id}", "SK": f"PROFILE#{auth.user_id}"},
+                UpdateExpression=update_expression,
+                ExpressionAttributeNames=expression_attribute_names or None,
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+        except Exception:
+            logger.error("profile.update.ddb_error", extra={"user_id": auth.user_id}, exc_info=True)
+            raise HTTPException(status_code=500, detail="Unable to update profile")
+
+    # Return updated profile
+    return await get_profile(auth)

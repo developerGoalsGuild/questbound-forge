@@ -31,28 +31,37 @@ export interface GoalResponse {
   updatedAt: number;
 }
 
-function buildAnswers(nlpAnswers: NLPAnswers): GoalAnswer[] {
+export function buildAnswers(nlpAnswers: NLPAnswers): GoalAnswer[] {
   return nlpQuestionOrder.map((key) => ({
     key,
     answer: (nlpAnswers[key] || '').trim(),
   }));
 }
 
-function buildTags(category?: string): string[] {
+export function buildTags(category?: string): string[] {
   if (!category) return [];
   const trimmed = category.trim();
   return trimmed ? [trimmed] : [];
 }
 
-function assertValidDeadline(deadline: string): string {
+export function assertValidDeadline(deadline: string): string {
   const trimmed = deadline?.trim?.() ?? '';
   if (!DATE_ONLY_REGEX.test(trimmed)) {
     throw new Error('Deadline must follow YYYY-MM-DD format.');
   }
-  const parsed = Date.parse(`${trimmed}T00:00:00Z`);
-  if (Number.isNaN(parsed)) {
+
+  // Create a Date object and verify it represents the same date
+  const date = new Date(`${trimmed}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
     throw new Error('Deadline must be a valid calendar date.');
   }
+
+  // Verify the date components match (to catch invalid dates like Feb 30)
+  const [year, month, day] = trimmed.split('-').map(Number);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) {
+    throw new Error('Deadline must be a valid calendar date.');
+  }
+
   return trimmed;
 }
 
@@ -101,17 +110,14 @@ export async function createGoal(input: GoalInput): Promise<GoalResponse> {
 
 export async function getActiveGoalsCountForUser(userId: string): Promise<number> {
   try {
-    const { data, errors } = await graphQLClient().graphql({
-      query: ACTIVE_GOALS_COUNT,
-      variables: { userId },
-      authMode: 'apiKey',
-    });
+    const QUERY = /* GraphQL */ `
+      query ActiveGoalsCount($userId: ID!) {
+        activeGoalsCount(userId: $userId)
+      }
+    `;
 
-    if (errors?.length) {
-      throw new Error(errors.map(e => e.message).join(" | "));
-    }
-
-    return Number((data as any)?.activeGoalsCount ?? 0);
+    const data = await graphqlRaw<{ activeGoalsCount: number }>(QUERY, { userId });
+    return Number(data?.activeGoalsCount ?? 0);
   } catch (e: any) {
     console.error('[getActiveGoalsCountForUser] GraphQL error:', e?.errors || e?.message || e);
     return 0;

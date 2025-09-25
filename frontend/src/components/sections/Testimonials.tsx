@@ -30,7 +30,7 @@ const Testimonials = () => {
   ];
 
   return (
-    <section className="py-24 spacing-medieval bg-background">
+    <section data-testid="testimonials-section" className="py-24 spacing-medieval bg-background">
       <div className="container mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16 animate-fade-in">

@@ -70,17 +70,26 @@ export const useUserData = (): UseUserDataReturn => {
     try {
       setData(prevData => {
         if (!prevData) return prevData;
-        
-        const updatedGoals = prevData.goals.map(goal => 
-          goal.id === goalId ? updateGoalProgress(goal, progress) : goal
-        );
-        
+
+        const updatedGoals = prevData.goals.map(goal => {
+          if (goal.id === goalId) {
+            try {
+              return updateGoalProgress(goal, progress);
+            } catch (err) {
+              // Handle error within map callback
+              setError(err instanceof Error ? err.message : 'Failed to update goal');
+              return goal; // Return original goal if update fails
+            }
+          }
+          return goal;
+        });
+
         return {
           ...prevData,
           goals: updatedGoals,
         };
       });
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 200));
     } catch (err) {

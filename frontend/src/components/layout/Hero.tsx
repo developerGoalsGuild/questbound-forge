@@ -7,7 +7,7 @@ const Hero = () => {
   const { t } = useTranslation();
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden" role="banner" data-testid="hero-section">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <img
@@ -59,15 +59,15 @@ const Hero = () => {
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div className="animate-scale-in" style={{ animationDelay: '0.2s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">10K+</div>
-              <div className="text-primary-foreground/80">Active Adventurers</div>
+              <div className="text-primary-foreground/80">{t.hero.stats.activeAdventurers}</div>
             </div>
             <div className="animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">50K+</div>
-              <div className="text-primary-foreground/80">Goals Achieved</div>
+              <div className="text-primary-foreground/80">{t.hero.stats.goalsAchieved}</div>
             </div>
             <div className="animate-scale-in" style={{ animationDelay: '0.6s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">100+</div>
-              <div className="text-primary-foreground/80">Partner Guilds</div>
+              <div className="text-primary-foreground/80">{t.hero.stats.partnerGuilds}</div>
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@ function collectJsonFiles(dir: string, files: string[] = []): string[] {
     '.git',
     '.vite',
     'coverage',
+    '.pytest_cache',
   ])
 
   for (const entry of readdirSync(dir)) {

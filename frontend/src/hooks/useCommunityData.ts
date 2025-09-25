@@ -65,23 +65,25 @@ export const useCommunityData = (limit?: number): UseCommunityDataReturn => {
   }, [limit]);
 
   const addActivity = useCallback(async (
-    userName: string, 
-    activity: string, 
-    type: CommunityActivity['type'], 
+    userName: string,
+    activity: string,
+    type: CommunityActivity['type'],
     details?: string
   ) => {
     try {
       const newActivity = generateCommunityActivity(userName, activity, type, details);
-      
+
       // Optimistically update the UI
       setActivities(prevActivities => [newActivity, ...prevActivities]);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 200));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add activity');
-      // Revert on error
-      fetchData();
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add activity';
+      setError(errorMessage);
+      // Revert on error - fetchData clears error, so we need to re-set it
+      await fetchData();
+      setError(errorMessage);
     }
   }, [fetchData]);
 

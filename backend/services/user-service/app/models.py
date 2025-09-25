@@ -58,3 +58,36 @@ class PasswordChangeRequest(BaseModel):
 
 class ConfirmEmailResponse(BaseModel):
   message: str
+
+
+class UserProfile(BaseModel):
+  id: str
+  email: EmailStr
+  role: Literal['user','partner','patron'] = 'user'
+  fullName: Optional[str] = None
+  nickname: Optional[str] = None
+  birthDate: Optional[str] = None  # YYYY-MM-DD
+  status: str = 'ACTIVE'
+  country: Optional[str] = None
+  language: str = 'en'
+  gender: Optional[str] = None
+  pronouns: Optional[str] = None
+  bio: Optional[str] = None
+  tags: list[str] = []
+  tier: str = 'free'
+  provider: str
+  email_confirmed: bool = False
+  createdAt: int
+  updatedAt: int
+
+
+class ProfileUpdate(BaseModel):
+  fullName: Optional[str] = None
+  nickname: Optional[str] = None
+  birthDate: Optional[str] = None  # YYYY-MM-DD
+  country: Optional[str] = None
+  language: Optional[str] = None
+  gender: Optional[str] = None
+  pronouns: Optional[str] = None
+  bio: Optional[str] = None
+  tags: Optional[list[str]] = None

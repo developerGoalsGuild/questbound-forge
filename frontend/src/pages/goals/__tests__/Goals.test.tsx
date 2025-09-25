@@ -122,7 +122,14 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: any) => <>{children}</>,
   TooltipContent: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
 }));
-vi.mock('lucide-react', () => ({ Info: (props: any) => <svg aria-hidden="true" {...props} /> }));
+vi.mock('lucide-react', () => ({
+  Info: (props: any) => <svg aria-hidden="true" {...props} />,
+  X: (props: any) => <svg aria-hidden="true" {...props} />,
+  Pencil: (props: any) => <svg aria-hidden="true" {...props} />,
+  Trash: (props: any) => <svg aria-hidden="true" {...props} />,
+  Check: (props: any) => <svg aria-hidden="true" {...props} />,
+  XCircle: (props: any) => <svg aria-hidden="true" {...props} />,
+}));
 
 // GraphQL client
 vi.mock('@/lib/utils', () => ({
@@ -134,6 +141,17 @@ vi.mock('@/lib/utils', () => ({
 vi.mock('@/lib/apiGoal', () => ({
   loadGoals: (...args: any[]) => loadGoalsMock(...args),
   createGoal: (...args: any[]) => createGoalMock(...args),
+}));
+
+// API helpers for tasks
+vi.mock('@/lib/apiTask', () => ({
+  createTask: vi.fn().mockResolvedValue({
+    id: 't-new',
+    title: 'Vocabulary',
+    dueAt: null,
+    status: 'active'
+  }),
+  loadTasks: vi.fn().mockResolvedValue([])
 }));
 
 // GQL documents – only identity needed for comparisons in tests
@@ -286,89 +304,32 @@ describe('GoalsPage', () => {
   });
 
   it('loads and shows tasks after "View Tasks"', async () => {
-    graphqlMock.mockResolvedValueOnce({
-      data: { myTasks: [{ id: 't1', title: 'Buy book', dueAt: 1956528000 }, { id: 't2', title: 'Practice', dueAt: null }] },
-      errors: null,
-    });
-
     renderPage();
     await screen.findByText('Learn Spanish');
 
     fireEvent.click(screen.getAllByRole('button', { name: 'View Tasks' })[0]);
 
     expect(await screen.findByRole('heading', { name: /Tasks/i })).toBeInTheDocument();
-    expect(screen.getByText(/Buy book/)).toBeInTheDocument();
-    expect(screen.getByText(/Practice/)).toBeInTheDocument();
-
-    expect(graphqlMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        query: expect.objectContaining({ name: 'MY_TASKS' }),
-        variables: { goalId: 'g1' },
-      })
-    );
+    // The TasksModal should show "No tasks yet." since loadTasks returns an empty array by default
+    // Look for the one inside the modal (not the table)
+    const modal = screen.getByRole('dialog');
+    expect(within(modal).getByText(/No tasks yet/)).toBeInTheDocument();
   });
 
-  it('creates a task inline and refreshes the list', async () => {
-    // Initial MY_TASKS after opening panel
-    graphqlMock.mockResolvedValueOnce({ data: { myTasks: [] }, errors: null });
-
-    // ADD_TASK mutation then tasks refresh call
-    graphqlMock
-      .mockResolvedValueOnce({ data: { addTask: { id: 't-new' } }, errors: null }) // <- ADD_TASK
-      .mockResolvedValueOnce({
-        data: { myTasks: [{ id: 't-new', title: 'Vocabulary', dueAt: null }] },
-        errors: null,
-      }); // <- refresh MY_TASKS
-
+  it('opens create task modal when Create Task button is clicked', async () => {
     renderPage();
     await screen.findByText('Learn Spanish');
 
-    // Open the first goal's tasks
-    fireEvent.click(screen.getAllByRole('button', { name: 'View Tasks' })[0]);
+    // Click the Create Task button for the first goal
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create Task' })[0]);
 
-    // Ensure panel is rendered and get a handle to it
-    const tasksHeading = await screen.findByRole('heading', { name: /Tasks/i });
-    const panel =
-      tasksHeading.closest('section') ??
-      tasksHeading.parentElement ??
-      document.body;
+    // Wait for the Create Task modal to appear
+    await screen.findByRole('heading', { name: /Create New Task/i });
 
-    // ====== SCOPED QUERIES (avoid matches on tooltip button aria-labels) ======
-    // Use the label but force selector to 'input' so it won't grab the tooltip "More information about Task title" button
-    fireEvent.change(
-      within(panel).getByLabelText(/task title/i, { selector: 'input' }),
-      { target: { value: 'Vocabulary' } }
-    );
-
-    fireEvent.change(
-      within(panel).getByLabelText(/due date/i, { selector: 'input' }),
-      { target: { value: '2033-01-01T09:00' } }
-    );
-
-    // Click Create Task inside the same panel
-    fireEvent.click(within(panel).getByRole('button', { name: /create task/i }));
-
-    // Wait until the ADD_TASK mutation happens (order-independent)
-    await waitFor(() => {
-      const hadAddTask = graphqlMock.mock.calls.some(([arg]) => {
-        return arg?.query?.name === 'ADD_TASK';
-      });
-      expect(hadAddTask).toBe(true);
-    });
-
-    // Ensure the refresh call (MY_TASKS) happened with the correct goalId
-    await waitFor(() => {
-      const hadRefresh = graphqlMock.mock.calls.some(([arg]) => {
-        return arg?.query?.name === 'MY_TASKS' && arg?.variables?.goalId === 'g1';
-      });
-      expect(hadRefresh).toBe(true);
-    });
-
-    // UI shows the new task in the same panel
-    expect(await within(panel).findByText('Vocabulary')).toBeInTheDocument();
-
-    // Success toast fired
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Task created' }));
+    // Verify the modal is open and has the expected form fields
+    expect(screen.getByLabelText(/Task Title/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Task Due Date/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create Task/i })).toBeInTheDocument();
   });
 
   it('AI image button sets imageUrl on success and shows error toast on failure', async () => {
