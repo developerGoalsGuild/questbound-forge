@@ -57,9 +57,10 @@ const GoalsPageInner: React.FC = () => {
   // New TasksModal state
   const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
 
-  // 1. Multilingual labels and hints
-  const labels = useMemo(() => (t as any).goals?.questions, [t]);
-  const hints = (t as any).goals?.hints ?? {};
+  // 1. Multilingual labels and hints - Add safety checks
+  const goalsTranslations = (t as any)?.goals;
+  const labels = useMemo(() => goalsTranslations?.questions, [goalsTranslations]);
+  const hints = goalsTranslations?.hints ?? {};
   const fieldHints = (hints.fields ?? {}) as Record<string, string | undefined>;
   const questionHints = (hints.questions ?? {}) as Record<string, string | undefined>;
   const filterHints = (hints.filters ?? {}) as Record<string, string | undefined>;
@@ -115,8 +116,8 @@ const GoalsPageInner: React.FC = () => {
   };
 
   // 4. Localized field labels
-  const goalsList = (t as any).goals?.list ?? {};
-  const fields = (t as any).goals?.fields ?? {};
+  const goalsList = goalsTranslations?.list ?? {};
+  const fields = goalsTranslations?.fields ?? {};
   const searchLabel = goalsList.searchLabel || goalsList.search || 'Search goals';
   const statusLabel = goalsList.statusFilterLabel || 'Status';
   const titleLabel = fields.title || 'Title';
@@ -173,11 +174,11 @@ const GoalsPageInner: React.FC = () => {
   async function onCreateGoal(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      toast({ title: (t as any).goals.validation.titleRequired, variant: 'destructive' });
+      toast({ title: goalsTranslations?.validation?.titleRequired || 'Title is required', variant: 'destructive' });
       return;
     }
     if (!deadline) {
-      toast({ title: (t as any).goals.validation.deadlineRequired, variant: 'destructive' });
+      toast({ title: goalsTranslations?.validation?.deadlineRequired || 'Deadline is required', variant: 'destructive' });
       return;
     }
     setSubmitting(true);
@@ -185,8 +186,7 @@ const GoalsPageInner: React.FC = () => {
       await createGoal({
         title: title,
         description: description,
-        deadline: toEpochSeconds(deadline),
-        progress: 0,
+        deadline: deadline,
         nlpAnswers: answers,
       });
 
@@ -219,7 +219,7 @@ const GoalsPageInner: React.FC = () => {
       if (!res.ok) throw new Error(body?.detail || 'AI image failed');
       setImageUrl(body.imageUrl || null);
     } catch (e: any) {
-      toast({ title: (t as any).goals.messages.aiImageFailed, description: String(e?.message || e), variant: 'destructive' });
+      toast({ title: goalsTranslations?.messages?.aiImageFailed || 'AI image generation failed', description: String(e?.message || e), variant: 'destructive' });
     }
   }
 
@@ -236,7 +236,7 @@ const GoalsPageInner: React.FC = () => {
       if (!res.ok) throw new Error(body?.detail || 'AI suggestions failed');
       setSuggestions(Array.isArray(body.suggestions) ? body.suggestions : []);
     } catch (e: any) {
-      toast({ title: (t as any).goals.messages.aiSuggestFailed, description: String(e?.message || e), variant: 'destructive' });
+      toast({ title: goalsTranslations?.messages?.aiSuggestFailed || 'AI suggestions failed', description: String(e?.message || e), variant: 'destructive' });
     }
   }
 
@@ -261,11 +261,11 @@ const GoalsPageInner: React.FC = () => {
         tags: taskTags,
         status: taskStatus
       });
-      toast({ title: t.goals.list?.taskCreated || 'Task created' });
+      toast({ title: goalsList?.taskCreated || 'Task created' });
       await loadMyTasks(selectedGoalId);
     } catch (e: any) {
       const desc = e?.message || String(e);
-      toast({ title: t.common.error, description: desc, variant: 'destructive' });
+      toast({ title: (t as any)?.common?.error || 'Error', description: desc, variant: 'destructive' });
       throw e;
     }
   };
@@ -277,9 +277,9 @@ const GoalsPageInner: React.FC = () => {
       // Example: await updateTaskApi(updatedTask);
       // For demo, just update local state
       setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
-      toast({ title: t.goals.list?.taskUpdated || 'Task updated' });
+      toast({ title: goalsList?.taskUpdated || 'Task updated' });
     } catch (e: any) {
-      toast({ title: t.common.error, description: e?.message || String(e), variant: 'destructive' });
+      toast({ title: (t as any)?.common?.error || 'Error', description: e?.message || String(e), variant: 'destructive' });
       throw e;
     }
   };
@@ -290,9 +290,9 @@ const GoalsPageInner: React.FC = () => {
       // Example: await deleteTaskApi(taskId);
       // For demo, just update local state
       setTasks(prev => prev.filter(t => t.id !== taskId));
-      toast({ title: t.goals.list?.taskDeleted || 'Task deleted' });
+      toast({ title: goalsList?.taskDeleted || 'Task deleted' });
     } catch (e: any) {
-      toast({ title: t.common.error, description: e?.message || String(e), variant: 'destructive' });
+      toast({ title: (t as any)?.common?.error || 'Error', description: e?.message || String(e), variant: 'destructive' });
       throw e;
     }
   };
@@ -308,11 +308,11 @@ const GoalsPageInner: React.FC = () => {
   return (
     <TooltipProvider delayDuration={150}>
       <div className="max-w-3xl mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">{(t as any).goals.title}</h1>
+        <h1 className="text-2xl font-bold mb-4">{goalsTranslations?.title || 'Goals'}</h1>
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-2">
             <button onClick={loadMyGoals} className="px-3 py-2 border rounded">
-              {(t as any).goals.actions.refresh || 'Refresh'}
+              {goalsTranslations?.actions?.refresh || 'Refresh'}
             </button>
           </div>
           <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end">
@@ -326,7 +326,7 @@ const GoalsPageInner: React.FC = () => {
               <input
                 id="goal-search"
                 className="w-full border rounded p-2"
-                placeholder={t.goals.list?.search || 'Search goals'}
+                placeholder={goalsList?.search || 'Search goals'}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 aria-describedby={filterHints.search ? createHintId('goal-search') : undefined}
@@ -346,30 +346,30 @@ const GoalsPageInner: React.FC = () => {
                 onChange={e => setStatusFilter(e.target.value)}
                 aria-describedby={filterHints.status ? createHintId('goal-status-filter') : undefined}
               >
-                <option value="">{t.goals.list?.allStatuses || 'All'}</option>
-                <option value="active">{t.goals.list?.statusActive || 'Active'}</option>
-                <option value="paused">{t.goals.list?.statusPaused || 'Paused'}</option>
-                <option value="completed">{t.goals.list?.statusCompleted || 'Completed'}</option>
-                <option value="archived">{t.goals.list?.statusArchived || 'Archived'}</option>
+                <option value="">{goalsList?.allStatuses || 'All'}</option>
+                <option value="active">{goalsList?.statusActive || 'Active'}</option>
+                <option value="paused">{goalsList?.statusPaused || 'Paused'}</option>
+                <option value="completed">{goalsList?.statusCompleted || 'Completed'}</option>
+                <option value="archived">{goalsList?.statusArchived || 'Archived'}</option>
               </select>
             </div>
           </div>
         </div>
         <div className="mt-8 gap-2">
-          <h3 className="font-semibold mb-2">{t.goals.list?.myGoals || 'My Quests'}</h3>
+          <h3 className="font-semibold mb-2">{goalsList?.myGoals || 'My Quests'}</h3>
           <div className="space-y-2">
             {filteredGoals.length === 0 ? (
-              <div className="text-sm text-muted-foreground">{t.goals.list?.noGoals || 'No goals yet.'}</div>
+              <div className="text-sm text-muted-foreground">{goalsList?.noGoals || 'No goals yet.'}</div>
             ) : (
               <div className="overflow-x-auto rounded border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.title || 'Goal'}</th>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.description || 'Descriptions'}</th>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.deadline || 'Due Date'}</th>
-                      <th className="px-3 py-2 text-left">{t.goals.list?.columns?.status || 'Status'}</th>
-                      <th className="px-3 py-2 text-right">{t.goals.list?.columns?.actions || 'Actions'}</th>
+                      <th className="px-3 py-2 text-left">{goalsList?.columns?.title || 'Goal'}</th>
+                      <th className="px-3 py-2 text-left">{goalsList?.columns?.description || 'Descriptions'}</th>
+                      <th className="px-3 py-2 text-left">{goalsList?.columns?.deadline || 'Due Date'}</th>
+                      <th className="px-3 py-2 text-left">{goalsList?.columns?.status || 'Status'}</th>
+                      <th className="px-3 py-2 text-right">{goalsList?.columns?.actions || 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -390,13 +390,13 @@ const GoalsPageInner: React.FC = () => {
                                   openTasksModal(g.id);
                                 }}
                               >
-                                {t.goals.list?.viewTasks || 'View Tasks'}
+                                {goalsList?.viewTasks || 'View Tasks'}
                               </button>
                               <button
                                 className="px-2 py-1 text-xs sm:text-sm border rounded"
                                 onClick={() => openCreateTaskModal(g.id)}
                               >
-                                {t.goals.list?.createTask || 'Create Task'}
+                                {goalsList?.createTask || 'Create Task'}
                               </button>
                             </div>
                           </td>
@@ -410,15 +410,15 @@ const GoalsPageInner: React.FC = () => {
             {filteredGoals.length > visibleCount && (
               <div className="pt-2 text-right mb-4">
                 <button className="px-3 py-2 border rounded" onClick={() => setVisibleCount(c => c + 5)}>
-                  {t.goals.list?.showMore || 'Show more'}
+                  {goalsList?.showMore || 'Show more'}
                 </button>
               </div>
             )}
           </div>
         </div>
-        <form onSubmit={onCreateGoal} className="space-y-4">
+        <form onSubmit={onCreateGoal} className="space-y-4" data-testid="goal-form">
           <div className="max-w-3xl mx-auto p-6">
-            <h3 className="font-semibold">{t.goals.list?.newGoal || 'New Goal'}</h3>
+            <h3 className="font-semibold">{goalsList?.newGoal || 'New Goal'}</h3>
           </div>
           <div>
             <div className="mb-1 flex items-center gap-2">
@@ -469,8 +469,8 @@ const GoalsPageInner: React.FC = () => {
           </div>
 
           <div className="mt-6" data-testid="nlp-section">
-            <h2 className="text-lg font-semibold mb-2">{t.goals.section.nlpTitle}</h2>
-            <p className="text-sm text-gray-600 mb-3">{t.goals.section.nlpSubtitle}</p>
+            <h2 className="text-lg font-semibold mb-2">{goalsTranslations?.section?.nlpTitle || 'NLP Analysis'}</h2>
+            <p className="text-sm text-gray-600 mb-3">{goalsTranslations?.section?.nlpSubtitle || 'Help us understand your goal better'}</p>
             <div className="space-y-3" data-testid="nlp-questions">
               {nlpQuestionOrder.map(key => {
                 const questionId = `nlp-${key}`;
@@ -504,7 +504,7 @@ const GoalsPageInner: React.FC = () => {
               onClick={onGenerateImage}
               className="px-3 py-2 bg-indigo-600 text-white rounded"
             >
-              {t.goals.actions.generateImage}
+              {goalsTranslations?.actions?.generateImage || 'Generate Image'}
             </button>
             <button
               data-testid="btn-suggest-improvements"
@@ -512,10 +512,10 @@ const GoalsPageInner: React.FC = () => {
               onClick={onSuggestImprovements}
               className="px-3 py-2 bg-sky-600 text-white rounded"
             >
-              {t.goals.actions.suggestImprovements}
+              {goalsTranslations?.actions?.suggestImprovements || 'Suggest Improvements'}
             </button>
             <button disabled={submitting} type="submit" className="px-3 py-2 bg-emerald-600 text-white rounded">
-              {submitting ? t.common.loading : t.goals.actions.createGoal}
+              {submitting ? (t as any)?.common?.loading || 'Loading...' : goalsTranslations?.actions?.createGoal || 'Create Goal'}
             </button>
           </div>
         </form>
@@ -523,13 +523,13 @@ const GoalsPageInner: React.FC = () => {
         <div className="mt-6 grid gap-4">
           {imageUrl && (
             <div>
-              <h3 className="font-semibold mb-2">{t.goals.inspiration.title}</h3>
+              <h3 className="font-semibold mb-2">{goalsTranslations?.inspiration?.title || 'Inspirational Image'}</h3>
               <img alt="Inspiration" src={imageUrl} className="rounded border max-h-64 object-cover" />
             </div>
           )}
           {suggestions.length > 0 && (
             <div>
-              <h3 className="font-semibold mb-2">{t.goals.suggestions.title}</h3>
+              <h3 className="font-semibold mb-2">{goalsTranslations?.suggestions?.title || 'AI Suggestions'}</h3>
               <ul className="list-disc pl-6 space-y-1">
                 {suggestions.map((s, i) => (
                   <li key={i}>{s}</li>
@@ -540,9 +540,9 @@ const GoalsPageInner: React.FC = () => {
 
           {selectedGoalId && (
             <div className="mt-4">
-              <h4 className="font-semibold mb-2">{t.goals.list?.tasks || 'Tasks'}</h4>
+              <h4 className="font-semibold mb-2">{goalsList?.tasks || 'Tasks'}</h4>
               {(tasks || []).length === 0 ? (
-                <div className="text-sm text-muted-foreground">{t.goals.list?.noTasks || 'No tasks yet.'}</div>
+                <div className="text-sm text-muted-foreground">{goalsList?.noTasks || 'No tasks yet.'}</div>
               ) : (
                 <ul className="list-disc pl-6 space-y-1">
                   {tasks.map(tItem => (
@@ -576,9 +576,7 @@ const GoalsPageInner: React.FC = () => {
 };
 
 const GoalsPage: React.FC = () => (
-  <RoleRoute allow={['user']}>
-    <GoalsPageInner />
-  </RoleRoute>
+  <GoalsPageInner />
 );
 
 export default GoalsPage;

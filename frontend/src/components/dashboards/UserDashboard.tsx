@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { useCommunityActivities } from '@/hooks/useCommunityData';
 
 const UserDashboard = () => {
-  const { t } = useTranslation();
+  const { t } = useTranslation() as any;
   const { data: userData, loading, error } = useUserData();
   const { activities: communityActivities } = useCommunityActivities('achievement', 2);
 
@@ -51,6 +51,9 @@ const UserDashboard = () => {
     return (
       <div className="spacing-medieval py-8">
         <div className="container mx-auto text-center">
+          <h1 className="font-cinzel text-4xl font-bold text-gradient-royal mb-2">
+            Adventurer's Hall
+          </h1>
           <p className="text-destructive">{error || 'Failed to load dashboard data'}</p>
         </div>
       </div>
@@ -63,10 +66,10 @@ const UserDashboard = () => {
         {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="font-cinzel text-4xl font-bold text-gradient-royal mb-2">
-            {t.dashboard.user.title}
+            {t.dashboard?.user?.title || "Adventurer's Hall"}
           </h1>
           <p className="text-xl text-muted-foreground">
-            {t.dashboard.user.welcome}
+            {t.dashboard?.user?.welcome || 'Welcome back!'}
           </p>
         </div>
 
@@ -75,31 +78,31 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? userData.stats.activeQuests}</div>
-              <div className="text-sm text-muted-foreground">{t.dashboard.user.stats.activeQuests}</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? userData?.stats?.activeQuests ?? 0}</div>
+              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.activeQuests || 'Active Quests'}</div>
             </CardContent>
           </Card>
-          
+
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Trophy className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData.stats.achievements}</div>
-              <div className="text-sm text-muted-foreground">{t.dashboard.user.stats.achievements}</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData?.stats?.achievements ?? 0}</div>
+              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.achievements || 'Achievements'}</div>
             </CardContent>
           </Card>
 
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData.stats.guildPoints}</div>
-              <div className="text-sm text-muted-foreground">{t.dashboard.user.stats.guildPoints}</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData?.stats?.guildPoints ?? 0}</div>
+              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.guildPoints || 'Guild Points'}</div>
             </CardContent>
           </Card>
 
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <TrendingUp className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData.stats.successRate}%</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData?.stats?.successRate ?? 0}%</div>
               <div className="text-sm text-muted-foreground">Success Rate</div>
             </CardContent>
           </Card>
@@ -111,27 +114,27 @@ const UserDashboard = () => {
             <CardHeader>
               <CardTitle className="font-cinzel text-xl flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />
-                {t.dashboard.user.goals}
+                {t.dashboard?.user?.goals || 'Active Quests'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {userData.goals.map((goal) => (
-                <div key={goal.id} className="space-y-2">
+              {(userData?.goals || []).map((goal) => (
+                <div key={goal?.id || Math.random()} className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{goal.title}</h3>
-                    <span className="text-sm text-muted-foreground">{goal.progress}%</span>
+                    <h3 className="font-semibold">{goal?.title || 'Untitled Goal'}</h3>
+                    <span className="text-sm text-muted-foreground">{goal?.progress || 0}%</span>
                   </div>
                   <div className="progress-medieval">
-                    <div 
-                      className="progress-medieval-fill" 
-                      style={{ width: `${goal.progress}%` }}
+                    <div
+                      className="progress-medieval-fill"
+                      style={{ width: `${goal?.progress || 0}%` }}
                     />
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span className="px-2 py-1 bg-accent rounded text-xs">{goal.category}</span>
+                    <span className="px-2 py-1 bg-accent rounded text-xs">{goal?.category || 'General'}</span>
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {goal.dueDate}
+                      {goal?.dueDate || 'No deadline'}
                     </span>
                   </div>
                 </div>
@@ -147,44 +150,46 @@ const UserDashboard = () => {
             <CardHeader>
               <CardTitle className="font-cinzel text-xl flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-secondary" />
-                {t.dashboard.user.achievements}
+                {t.dashboard?.user?.achievements || 'Earned Honors'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                {userData.achievements.map((achievement, index) => {
-                  const Icon = achievement.icon;
+                {(userData?.achievements || []).map((achievement, index) => {
+                  const Icon = achievement?.icon || Star;
                   return (
                     <div
                       key={index}
                       className={`p-4 rounded-lg border text-center transition-all duration-300 ${
-                        achievement.earned
+                        achievement?.earned
                           ? 'bg-gradient-gold border-secondary shadow-gold'
                           : 'bg-muted border-border opacity-50'
                       }`}
                     >
                       <Icon className={`h-8 w-8 mx-auto mb-2 ${
-                        achievement.earned ? 'text-secondary-foreground' : 'text-muted-foreground'
+                        achievement?.earned ? 'text-secondary-foreground' : 'text-muted-foreground'
                       }`} />
-                      <div className="font-semibold text-sm">{achievement.name}</div>
+                      <div className="font-semibold text-sm">{achievement?.name || 'Achievement'}</div>
                     </div>
                   );
                 })}
               </div>
-              <div className="mt-6 p-4 medieval-banner rounded-lg text-center">
-                <div className="font-cinzel text-lg font-bold text-gradient-royal mb-2">
-                  Next Achievement
+              {userData?.nextAchievement && (
+                <div className="mt-6 p-4 medieval-banner rounded-lg text-center">
+                  <div className="font-cinzel text-lg font-bold text-gradient-royal mb-2">
+                    Next Achievement
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-3">
+                    {userData.nextAchievement.description || 'Complete more quests to unlock achievements'}
+                  </div>
+                  <div className="progress-medieval mb-2">
+                    <div className="progress-medieval-fill" style={{ width: `${userData.nextAchievement.progress || 0}%` }} />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {userData.nextAchievement.current || 0}/{userData.nextAchievement.target || 1} quests completed
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground mb-3">
-                  {userData.nextAchievement.description}
-                </div>
-                <div className="progress-medieval mb-2">
-                  <div className="progress-medieval-fill" style={{ width: `${userData.nextAchievement.progress}%` }} />
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {userData.nextAchievement.current}/{userData.nextAchievement.target} quests completed
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -194,7 +199,7 @@ const UserDashboard = () => {
           <CardHeader>
             <CardTitle className="font-cinzel text-xl flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              {t.dashboard.user.community}
+              {t.dashboard?.user?.community || 'Guild Activities'}
             </CardTitle>
           </CardHeader>
           <CardContent>

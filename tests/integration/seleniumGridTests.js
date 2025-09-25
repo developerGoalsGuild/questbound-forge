@@ -77,7 +77,7 @@ function tsSuffix() {
          `${sign}${hh}${mm}`;
 }
 
-const LOG_FILE = `testlogconsole_${tsSuffix()}.log`;
+const LOG_FILE = `logs/testlogconsole_${tsSuffix()}.log`;
 
 async function appendLog(lines) {
   const text = Array.isArray(lines) ? lines.join('\n') : String(lines);
@@ -650,27 +650,36 @@ async function generateGoalData(options) {
 /* ------------------------ Selenium test helpers ------------------------ */
 
 async function login(driver) {
+  console.log('Navigating to login page...');
   await driver.get(`${BASE_URL}/login/Login`);
 
+  console.log('Waiting for email input...');
   const emailInput = await driver.wait(until.elementLocated(By.id('email')), 10000);
   await emailInput.sendKeys(TEST_USER_EMAIL);
 
+  console.log('Entering password...');
   const passwordInput = await driver.findElement(By.id('password'));
   await passwordInput.sendKeys(TEST_USER_PASSWORD);
 
+  console.log('Submitting login form...');
   const submitButton = await driver.findElement(By.css('button[type="submit"]'));
   await submitButton.click();
 
+  console.log('Waiting for dashboard redirect...');
   await driver.wait(until.urlContains('/dashboard'), 10000);
 }
 
 async function viewUserDashboard(driver) {
+  console.log('Navigating to user dashboard...');
   await driver.get(`${BASE_URL}/dashboard?type=user`);
 
+  console.log('Waiting for dashboard heading elements...');
   await driver.wait(until.elementLocated(By.css('h1, h2, h3')), 10000);
 
+  console.log('Verifying dashboard heading...');
   const heading = await driver.findElement(By.css('h1, h2, h3'));
   const text = await heading.getText();
+  console.log(`Dashboard heading found: "${text}"`);
   if (!text.toLowerCase().includes('adventurer') && !text.toLowerCase().includes('dashboard')) {
     throw new Error('User dashboard heading not found or unexpected');
   }
@@ -679,15 +688,18 @@ async function viewUserDashboard(driver) {
 
 
 async function createNewGoal(driver, goalData) {
+  console.log('Navigating to goals page...');
   await driver.get(`${BASE_URL}/goals`);
-  console.log(goalData);
-  // Wait for the form area to exist
+  console.log('Goal data to create:', goalData);
+
+  console.log('Waiting for goal form to load...');
   const form = await driver.wait(
     until.elementLocated(
       By.css('form[data-testid="goal-form"], form#goal-form, form[action*="goal"], form')
     ),
     10000
   );
+  console.log('Goal form found, starting form filling...');
 
   // --- TITLE (reliable selectors + label fallback) ---
   const titleSelectors = [
@@ -773,14 +785,17 @@ async function createNewGoal(driver, goalData) {
   }
 
   // Submit
+  console.log('Submitting goal creation form...');
   const submitButton = await driver.findElement(By.css('button[type="submit"], [data-testid="save-goal"]'));
   await submitButton.click();
 
   // Verify title appears somewhere (list, toast, detail view)
+  console.log('Verifying goal was created successfully...');
   await driver.wait(
     until.elementLocated(By.xpath(`//*[contains(normalize-space(.), "${titleFallback(goalData)}")]`)),
     10000
   );
+  console.log('Goal creation completed successfully');
 }
 
 
@@ -809,13 +824,17 @@ async function runTests() {
 
   try {
     console.log('Starting login test...');
+    await dumpBrowserConsole(driver, 'BEFORE LOGIN');
     await driver.get('https://www.example.com');
     await login(driver);
     console.log('Login test passed.');
+    await dumpBrowserConsole(driver, 'AFTER LOGIN');
 
     console.log('Starting user dashboard view test...');
+    await dumpBrowserConsole(driver, 'BEFORE DASHBOARD');
     await viewUserDashboard(driver);
     console.log('User dashboard view test passed.');
+    await dumpBrowserConsole(driver, 'AFTER DASHBOARD');
 
     // Generate a larger idea pool to keep UI flows varied between runs.
     console.log('Generating goal ideas from Ollama AI (first 100)...');
@@ -826,6 +845,7 @@ async function runTests() {
     const goalData = await generateGoalData({ idea: seedIdea });
     console.log('Generated goal data:', goalData);
     console.log('Starting create new goal test...');
+    await dumpBrowserConsole(driver, 'BEFORE CREATE GOAL');
     await createNewGoal(driver, goalData);
     console.log('Create new goal test passed.');
     await dumpBrowserConsole(driver, 'AFTER CREATE GOAL');

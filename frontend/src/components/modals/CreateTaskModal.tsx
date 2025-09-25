@@ -18,6 +18,10 @@ const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
 const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCreate, goalDeadline }) => {
   const { t } = useTranslation();
+
+  // Safe translation access
+  const goalsTranslations = (t as any)?.goals;
+  const commonTranslations = (t as any)?.common;
   const [title, setTitle] = useState('');
   const [dueAt, setDueAt] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -43,10 +47,10 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
   const validate = (): boolean => {
     const newErrors: { title?: string; dueAt?: string; tags?: string; status?: string } = {};
     if (!title.trim()) {
-      newErrors.title = t.goals.validation.taskTitleRequired || 'Task title is required';
+      newErrors.title = goalsTranslations?.validation?.taskTitleRequired || 'Task title is required';
     }
     if (!dueAt) {
-      newErrors.dueAt = t.goals.validation.taskDueAtRequired || 'Task due date is required';
+      newErrors.dueAt = goalsTranslations?.validation?.taskDueAtRequired || 'Task due date is required';
     } else if (goalDeadline) {
       // Validate dueAt <= goalDeadline
       const dueDate = new Date(dueAt);
@@ -55,17 +59,17 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
       dueDate.setHours(0, 0, 0, 0);
       goalDate.setHours(0, 0, 0, 0);
       if (dueDate > goalDate) {
-        newErrors.dueAt = t.goals.validation.taskDueAtExceedsGoalDeadline || 'Task due date cannot exceed goal deadline';
+        newErrors.dueAt = goalsTranslations?.validation?.taskDueAtExceedsGoalDeadline || 'Task due date cannot exceed goal deadline';
       }
     }
     if (tags.length === 0) {
-      newErrors.tags = t.goals.validation.taskTagsRequired || 'At least one tag is required';
+      newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
     }
     if (tags.some(tag => !TAG_REGEX.test(tag))) {
-      newErrors.tags = t.goals.validation.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores';
+      newErrors.tags = goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores';
     }
     if (!STATUS_OPTIONS.includes(status)) {
-      newErrors.status = t.goals.validation.taskStatusInvalid || 'Invalid status selected';
+      newErrors.status = goalsTranslations?.validation?.taskStatusInvalid || 'Invalid status selected';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -76,11 +80,11 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
     const newTag = tagInput.trim();
     if (!newTag) return;
     if (!TAG_REGEX.test(newTag)) {
-      setErrors(prev => ({ ...prev, tags: t.goals.validation.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores' }));
+      setErrors(prev => ({ ...prev, tags: goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores' }));
       return;
     }
     if (tags.includes(newTag)) {
-      setErrors(prev => ({ ...prev, tags: t.goals.validation.taskTagsDuplicate || 'Duplicate tags are not allowed' }));
+      setErrors(prev => ({ ...prev, tags: goalsTranslations?.validation?.taskTagsDuplicate || 'Duplicate tags are not allowed' }));
       return;
     }
     setTags(prev => [...prev, newTag]);
@@ -125,7 +129,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
 
   const createHintId = (id: string) => `${id}-hint`;
   const formatHintLabel = (fieldLabel: string) => {
-    const iconLabelTemplate = t.goals.hints?.iconLabel || 'More information about {field}';
+    const iconLabelTemplate = goalsTranslations?.hints?.iconLabel || 'More information about {field}';
     const safeLabel = fieldLabel && fieldLabel.trim().length > 0 ? fieldLabel.trim() : 'this field';
     if (iconLabelTemplate.includes('{field}')) {
       return iconLabelTemplate.replace('{field}', safeLabel);
@@ -137,29 +141,29 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
     <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t.goals.modal?.createTaskTitle || 'Create New Task'}</DialogTitle>
+          <DialogTitle>{goalsTranslations?.modal?.createTaskTitle || 'Create New Task'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-4">
             {/* Task Title */}
             <div>
               <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                {t.goals.fields?.taskTitle || 'Task Title'}
-                {t.goals.hints?.taskTitle && (
+                {goalsTranslations?.fields?.taskTitle || 'Task Title'}
+                {goalsTranslations?.hints?.taskTitle && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           type="button"
                           className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          aria-label={formatHintLabel(t.goals.fields?.taskTitle || 'Task Title')}
+                          aria-label={formatHintLabel(goalsTranslations?.fields?.taskTitle || 'Task Title')}
                           aria-describedby={createHintId('task-title')}
                         >
                           <Info className="h-3 w-3" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent id={createHintId('task-title')} role="tooltip" side="top" align="start" aria-labelledby={createHintId('task-title')}>
-                        <p className="max-w-xs text-xs leading-relaxed">{t.goals.hints.taskTitle}</p>
+                        <p className="max-w-xs text-xs leading-relaxed">{goalsTranslations?.hints?.taskTitle}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -185,22 +189,22 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
             {/* Task Due Date (date only) */}
             <div>
               <label htmlFor="task-dueAt" className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                {t.goals.fields?.taskDueAt || 'Task Due Date'}
-                {t.goals.hints?.taskDueAt && (
+                {goalsTranslations?.fields?.taskDueAt || 'Task Due Date'}
+                {goalsTranslations?.hints?.taskDueAt && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           type="button"
                           className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          aria-label={formatHintLabel(t.goals.fields?.taskDueAt || 'Task Due Date')}
+                          aria-label={formatHintLabel(goalsTranslations?.fields?.taskDueAt || 'Task Due Date')}
                           aria-describedby={createHintId('task-dueAt')}
                         >
                           <Info className="h-3 w-3" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent id={createHintId('task-dueAt')} role="tooltip" side="top" align="start" aria-labelledby={createHintId('task-dueAt')}>
-                        <p className="max-w-xs text-xs leading-relaxed">{t.goals.hints.taskDueAt}</p>
+                        <p className="max-w-xs text-xs leading-relaxed">{goalsTranslations?.hints?.taskDueAt}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -227,22 +231,22 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
             {/* Tags input */}
             <div>
               <label htmlFor="task-tags" className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                {t.goals.fields?.taskTags || 'Tags'}
-                {t.goals.hints?.taskTags && (
+                {goalsTranslations?.fields?.taskTags || 'Tags'}
+                {goalsTranslations?.hints?.taskTags && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           type="button"
                           className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          aria-label={formatHintLabel(t.goals.fields?.taskTags || 'Tags')}
+                          aria-label={formatHintLabel(goalsTranslations?.fields?.taskTags || 'Tags')}
                           aria-describedby={createHintId('task-tags')}
                         >
                           <Info className="h-3 w-3" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent id={createHintId('task-tags')} role="tooltip" side="top" align="start" aria-labelledby={createHintId('task-tags')}>
-                        <p className="max-w-xs text-xs leading-relaxed">{t.goals.hints.taskTags}</p>
+                        <p className="max-w-xs text-xs leading-relaxed">{goalsTranslations?.hints?.taskTags}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -270,7 +274,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
                 id="task-tags"
                 type="text"
                 className={`mt-2 block w-full rounded border p-2 ${errors.tags ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder={t.goals.placeholders?.taskTags || 'Add tag and press Enter'}
+                placeholder={goalsTranslations?.placeholders?.taskTags || 'Add tag and press Enter'}
                 value={tagInput}
                 onChange={e => setTagInput(e.target.value)}
                 onKeyDown={onTagInputKeyDown}
@@ -287,22 +291,22 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
             {/* Status dropdown */}
             <div>
               <label htmlFor="task-status" className="block text-sm font-medium text-gray-700 flex items-center gap-1">
-                {t.goals.fields?.taskStatus || 'Status'}
-                {t.goals.hints?.taskStatus && (
+                {goalsTranslations?.fields?.taskStatus || 'Status'}
+                {goalsTranslations?.hints?.taskStatus && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           type="button"
                           className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          aria-label={formatHintLabel(t.goals.fields?.taskStatus || 'Status')}
+                          aria-label={formatHintLabel(goalsTranslations?.fields?.taskStatus || 'Status')}
                           aria-describedby={createHintId('task-status')}
                         >
                           <Info className="h-3 w-3" aria-hidden="true" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent id={createHintId('task-status')} role="tooltip" side="top" align="start" aria-labelledby={createHintId('task-status')}>
-                        <p className="max-w-xs text-xs leading-relaxed">{t.goals.hints.taskStatus}</p>
+                        <p className="max-w-xs text-xs leading-relaxed">{goalsTranslations?.hints?.taskStatus}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -319,7 +323,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
               >
                 {STATUS_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>
-                    {t.goals.statusLabels?.[opt] || opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    {goalsTranslations?.statusLabels?.[opt] || opt.charAt(0).toUpperCase() + opt.slice(1)}
                   </option>
                 ))}
               </select>
@@ -333,10 +337,10 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
 
           <DialogFooter className="mt-6 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-              {t.common.cancel || 'Cancel'}
+              {commonTranslations?.cancel || 'Cancel'}
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? t.common.loading || 'Loading...' : t.goals.actions.createTask || 'Create Task'}
+              {submitting ? commonTranslations?.loading || 'Loading...' : goalsTranslations?.actions?.createTask || 'Create Task'}
             </Button>
           </DialogFooter>
         </form>

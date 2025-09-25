@@ -5,10 +5,7 @@
 
 # Ensure environment variables are set in your PowerShell session:
 # $env:SELENIUM_GRID_URL = "http://localhost:4444/wd/hub"
-# $env:BASE_URL = "http://localhost:3000"
-# $env:TEST_USER_EMAIL = "testuser@example.com"
-# $env:TEST_USER_PASSWORD = "TestPassword123!"
-# $env:OLLAMA_API_URL = "http://localhost:11434"
+
 
 Write-Host "Running Selenium Grid integration tests..."
 

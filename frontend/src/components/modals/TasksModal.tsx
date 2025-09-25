@@ -29,6 +29,10 @@ const STATUS_OPTIONS = ['active', 'paused', 'completed', 'archived'];
 const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask }) => {
   const { t } = useTranslation();
 
+  // Safe translation access
+  const goalsTranslations = (t as any)?.goals;
+  const commonTranslations = (t as any)?.common;
+
   // Pagination state
   const ITEMS_PER_PAGE = 20;
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,26 +115,26 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!editData.title || !editData.title.trim()) {
-      newErrors.title = t.goals.validation.taskTitleRequired || 'Task title is required';
+      newErrors.title = goalsTranslations?.validation?.taskTitleRequired || 'Task title is required';
     }
     if (!editData.dueAt) {
-      newErrors.dueAt = t.goals.validation.taskDueAtRequired || 'Task due date is required';
+      newErrors.dueAt = goalsTranslations?.validation?.taskDueAtRequired || 'Task due date is required';
     } else {
       // Validate date format and not invalid date
       const date = new Date(editData.dueAt);
       if (isNaN(date.getTime())) {
-        newErrors.dueAt = t.goals.validation.taskDueAtInvalid || 'Invalid due date';
+        newErrors.dueAt = goalsTranslations?.validation?.taskDueAtInvalid || 'Invalid due date';
       }
     }
     if (!editData.status || !STATUS_OPTIONS.includes(editData.status)) {
-      newErrors.status = t.goals.validation.taskStatusInvalid || 'Invalid status';
+      newErrors.status = goalsTranslations?.validation?.taskStatusInvalid || 'Invalid status';
     }
     if (!editData.tags || !Array.isArray(editData.tags)) {
-      newErrors.tags = t.goals.validation.taskTagsRequired || 'At least one tag is required';
+      newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
     } else if (editData.tags.length === 0) {
-      newErrors.tags = t.goals.validation.taskTagsRequired || 'At least one tag is required';
+      newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
     } else if (editData.tags.some(tag => !/^[a-zA-Z0-9-_]+$/.test(tag))) {
-      newErrors.tags = t.goals.validation.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores';
+      newErrors.tags = goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -176,7 +180,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
 
   // Delete task handler with confirmation
   const onDelete = async (taskId: string) => {
-    if (!window.confirm(t.goals.confirmDeleteTask || 'Are you sure you want to delete this task?')) return;
+    if (!window.confirm(goalsTranslations?.confirmDeleteTask || 'Are you sure you want to delete this task?')) return;
     try {
       await onDeleteTask(taskId);
       // If deleting last item on page and page > 1, go back a page
@@ -192,9 +196,9 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   const renderSortIcon = (column: keyof Task) => {
     if (sortColumn !== column) return null;
     return sortDirection === 'asc' ? (
-      <span aria-label={t.common.ascending || 'Ascending'}>▲</span>
+      <span aria-label={commonTranslations?.ascending || 'Ascending'}>▲</span>
     ) : (
-      <span aria-label={t.common.descending || 'Descending'}>▼</span>
+      <span aria-label={commonTranslations?.descending || 'Descending'}>▼</span>
     );
   };
 
@@ -205,10 +209,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} size="lg" aria-label={t.goals.modals.viewTask.title || 'Tasks'}>
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} size="lg" aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}>
       <DialogContent className="max-w-5xl max-h-[80vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>{t.goals.modals.viewTask.title || 'My Tasks'}</DialogTitle>
+          <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
         </DialogHeader>
 
         <Table className="min-w-full">
@@ -221,7 +225,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                   onClick={() => onSort('title')}
                   aria-sort={sortColumn === 'title' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
-                  {t.goals.list?.columns?.title || 'Title'}
+                  {goalsTranslations?.list?.columns?.title || 'Title'}
                   {renderSortIcon('title')}
                 </button>
               </TableHead>
@@ -232,7 +236,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                   onClick={() => onSort('dueAt')}
                   aria-sort={sortColumn === 'dueAt' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
-                  {t.goals.list?.columns?.deadline || 'Deadline'}
+                  {goalsTranslations?.list?.columns?.deadline || 'Deadline'}
                   {renderSortIcon('dueAt')}
                 </button>
               </TableHead>
@@ -243,7 +247,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                   onClick={() => onSort('status')}
                   aria-sort={sortColumn === 'status' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
-                  {t.goals.list?.columns?.status || 'Status'}
+                  {goalsTranslations?.list?.columns?.status || 'Status'}
                   {renderSortIcon('status')}
                 </button>
               </TableHead>
@@ -254,11 +258,11 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                   onClick={() => onSort('tags')}
                   aria-sort={sortColumn === 'tags' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
                 >
-                  {t.goals.list?.columns?.tags || 'Tags'}
+                  {goalsTranslations?.list?.columns?.tags || 'Tags'}
                   {renderSortIcon('tags')}
                 </button>
               </TableHead>
-              <TableHead className="text-right">{t.goals.list?.columns?.actions || 'Actions'}</TableHead>
+              <TableHead className="text-right">{goalsTranslations?.list?.columns?.actions || 'Actions'}</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -266,7 +270,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
             {paginatedTasks.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
-                  {t.goals.list?.noTasks || 'No tasks available.'}
+                  {goalsTranslations?.list?.noTasks || 'No tasks available.'}
                 </TableCell>
               </TableRow>
             ) : (
@@ -327,7 +331,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                           >
                             {STATUS_OPTIONS.map(opt => (
                               <option key={opt} value={opt}>
-                                {t.goals.statusLabels?.[opt] || opt.charAt(0).toUpperCase() + opt.slice(1)}
+                                {goalsTranslations?.statusLabels?.[opt] || opt.charAt(0).toUpperCase() + opt.slice(1)}
                               </option>
                             ))}
                           </Select>
@@ -338,7 +342,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                           )}
                         </>
                       ) : (
-                        t.goals.statusLabels?.[task.status] || task.status
+                        goalsTranslations?.statusLabels?.[task.status] || task.status
                       )}
                     </TableCell>
 
@@ -351,7 +355,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             onChange={e => onChangeTags(e.target.value)}
                             aria-invalid={!!errors.tags}
                             aria-describedby={errors.tags ? `error-tags-${task.id}` : undefined}
-                            placeholder={t.goals.placeholders?.taskTags || 'Comma separated tags'}
+                            placeholder={goalsTranslations?.placeholders?.taskTags || 'Comma separated tags'}
                           />
                           {errors.tags && (
                             <p id={`error-tags-${task.id}`} className="text-xs text-red-600 mt-1">
@@ -371,8 +375,8 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="outline"
                             size="sm"
                             onClick={cancelEditing}
-                            aria-label={t.common.cancel || 'Cancel'}
-                            title={t.common.cancel || 'Cancel'}
+                            aria-label={commonTranslations?.cancel || 'Cancel'}
+                            title={commonTranslations?.cancel || 'Cancel'}
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -380,8 +384,8 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="default"
                             size="sm"
                             onClick={onSave}
-                            aria-label={t.common.save || 'Save'}
-                            title={t.common.save || 'Save'}
+                            aria-label={commonTranslations?.save || 'Save'}
+                            title={commonTranslations?.save || 'Save'}
                           >
                             <Check className="h-4 w-4" />
                           </Button>
@@ -392,8 +396,8 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="outline"
                             size="sm"
                             onClick={() => startEditing(task)}
-                            aria-label={t.common.edit || 'Edit'}
-                            title={t.common.edit || 'Edit'}
+                            aria-label={commonTranslations?.edit || 'Edit'}
+                            title={commonTranslations?.edit || 'Edit'}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -401,8 +405,8 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="destructive"
                             size="sm"
                             onClick={() => onDelete(task.id)}
-                            aria-label={t.common.delete || 'Delete'}
-                            title={t.common.delete || 'Delete'}
+                            aria-label={commonTranslations?.delete || 'Delete'}
+                            title={commonTranslations?.delete || 'Delete'}
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
@@ -418,13 +422,13 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-4 select-none" role="navigation" aria-label={t.goals.paginationLabel || 'Pagination'}>
+          <div className="flex justify-center items-center gap-2 mt-4 select-none" role="navigation" aria-label={goalsTranslations?.paginationLabel || 'Pagination'}>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}
-              aria-label={t.goals.paginationFirst || 'First Page'}
+              aria-label={goalsTranslations?.paginationFirst || 'First Page'}
             >
               «
             </Button>
@@ -433,19 +437,19 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              aria-label={t.goals.paginationPrevious || 'Previous Page'}
+              aria-label={goalsTranslations?.paginationPrevious || 'Previous Page'}
             >
               ‹
             </Button>
             <span aria-live="polite" aria-atomic="true" className="px-2">
-              {t.goals.paginationPage || 'Page'} {currentPage} {t.goals.paginationOf || 'of'} {totalPages}
+              {goalsTranslations?.paginationPage || 'Page'} {currentPage} {goalsTranslations?.paginationOf || 'of'} {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              aria-label={t.goals.paginationNext || 'Next Page'}
+              aria-label={goalsTranslations?.paginationNext || 'Next Page'}
             >
               ›
             </Button>
@@ -454,7 +458,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
               size="sm"
               onClick={() => setCurrentPage(totalPages)}
               disabled={currentPage === totalPages}
-              aria-label={t.goals.paginationLast || 'Last Page'}
+              aria-label={goalsTranslations?.paginationLast || 'Last Page'}
             >
               »
             </Button>
@@ -463,7 +467,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
 
         <DialogFooter className="mt-6 flex justify-end">
           <Button variant="outline" onClick={onClose}>
-            {t.common.close || 'Close'}
+            {commonTranslations?.close || 'Close'}
           </Button>
         </DialogFooter>
       </DialogContent>
