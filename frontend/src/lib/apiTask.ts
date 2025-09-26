@@ -54,7 +54,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
   return data as TaskResponse;
 }
 
-export async function loadTasks(goalId: string): Promise<TaskResponse> {
+export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
   try {
     const QUERY = /* GraphQL */ `
         query myTasks($goalId: ID!) {
@@ -71,8 +71,8 @@ export async function loadTasks(goalId: string): Promise<TaskResponse> {
         }
       `;
 
-    const data = await graphqlRaw<{ MyTasks: TaskResponse }>(QUERY, { goalId });
-    return data.MyTasks as TaskResponse;
+    const data = await graphqlRaw<{ myTasks: TaskResponse[] }>(QUERY, { goalId });
+    return data.myTasks;
     
   } catch (e: any) {
     console.error('[loadTasks] GraphQL error:', e?.errors || e?.message || e);

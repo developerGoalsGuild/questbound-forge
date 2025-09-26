@@ -33,6 +33,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   const goalsTranslations = (t as any)?.goals;
   const commonTranslations = (t as any)?.common;
 
+  // Debug logging
+  console.log('TasksModal received tasks:', tasks);
+  console.log('TasksModal tasks length:', tasks?.length);
+
   // Pagination state
   const ITEMS_PER_PAGE = 20;
   const [currentPage, setCurrentPage] = useState(1);

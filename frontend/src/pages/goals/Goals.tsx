@@ -157,16 +157,13 @@ const GoalsPageInner: React.FC = () => {
 
   async function loadMyTasks(goalId: string) {
     try {
-
-
-        let cancelled = false;
-        (async () => {
-          const tasks = await loadTasksApi(goalId);
-          if (!cancelled) setTasks((tasks as any) || []);
-        })();
-        return () => { cancelled = true; };
-      
+      console.log('Loading tasks for goalId:', goalId);
+      const tasks = await loadTasksApi(goalId);
+      console.log('Loaded tasks:', tasks);
+      setTasks(tasks || []);
+      console.log('Set tasks state');
     } catch (e) {
+      console.error('Error loading tasks:', e);
       setTasks([]);
     }
   }

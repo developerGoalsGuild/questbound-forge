@@ -10,13 +10,13 @@ from typing import Any, Callable, Dict, Optional, Tuple
 import boto3
 from botocore.exceptions import ClientError, BotoCoreError
 
-from fastapi import FastAPI, HTTPException, Header, Query
+from fastapi import Depends, FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.requests import Request
 from fastapi.exceptions import RequestValidationError
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 _SERVICES_DIR = Path(__file__).resolve().parents[2]
 if str(_SERVICES_DIR) not in sys.path:
@@ -116,6 +116,54 @@ def _detect_conflict(email: Optional[str] = None, nickname: Optional[str] = None
     except Exception:
         pass
     return None
+
+# -------------------------
+# Auth Context & Middleware
+# -------------------------
+
+class AuthContext(BaseModel):
+    user_id: str
+    claims: Dict[str, Any]
+    provider: str
+
+
+async def authenticate(request: Request) -> AuthContext:
+    """Authenticate user from JWT token in Authorization header"""
+    path = request.url.path if request.url else ""
+    client_host = request.client.host if request.client else None
+    log_event(
+        logger,
+        'auth.request_received',
+        method=request.method,
+        path=path,
+        client=client_host,
+    )
+
+    auth_header = request.headers.get('authorization') or request.headers.get('Authorization')
+    if not auth_header:
+        log_event(logger, 'auth.missing_header', path=path, client=client_host, status=401)
+        raise HTTPException(status_code=401, detail="Authorization header required")
+
+    if not auth_header.startswith('Bearer '):
+        log_event(logger, 'auth.invalid_format', path=path, client=client_host, status=401)
+        raise HTTPException(status_code=401, detail="Authorization header must be Bearer token")
+
+    token = auth_header[7:]  # Remove 'Bearer ' prefix
+
+    # Try local JWT first (for development/testing), then Cognito JWT for production
+    try:
+        claims = verify_local_jwt(token, settings.jwt_secret_key, settings.jwt_algorithm, settings.jwt_issuer)
+        log_event(logger, 'auth.local_jwt_success', user_id=claims.get('sub'), path=path, client=client_host, status=200)
+        return AuthContext(user_id=claims['sub'], claims=claims, provider='local')
+    except Exception as e_local:
+        try:
+            claims = verify_cognito_jwt(token, settings.cognito_user_pool_id, settings.cognito_region, request.url.netloc if request.url else None)
+            log_event(logger, 'auth.cognito_jwt_success', user_id=claims.get('sub'), path=path, client=client_host, status=200)
+            return AuthContext(user_id=claims['sub'], claims=claims, provider='cognito')
+        except Exception as e_cognito:
+            log_event(logger, 'auth.jwt_verification_failed', path=path, client=client_host, status=401, local_error=str(e_local), cognito_error=str(e_cognito))
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 
 # -------------------------
 # FastAPI app & middleware

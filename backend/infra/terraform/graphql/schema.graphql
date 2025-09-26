@@ -79,8 +79,8 @@ type Task {
   title: String!
   dueAt: Int!
   status: String!
-  createdAt: Int!
-  updatedAt: Int!
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp!
   tags: [String!]!
 }
 

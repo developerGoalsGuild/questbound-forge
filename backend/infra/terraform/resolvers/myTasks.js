@@ -23,8 +23,8 @@ const sub =
     },
     filter: {
       expression: '#goalId = :goalId',
-      expressionNames: { '#goalId': `${goalId}` },
-      expressionValues: util.dynamodb.toMapValues({ ':goalId': `${goalId}` })
+      expressionNames: { '#goalId': 'goalId' },
+      expressionValues: util.dynamodb.toMapValues({ ':goalId': goalId })
     },
     scanIndexForward: true,
     consistentRead: false,
@@ -38,12 +38,11 @@ export function response(ctx) {
     id: a.id,
     goalId: a.goalId,
     title: a.title,
-    nlpPlan: a.nlpPlan || {},
     dueAt: (typeof a.dueAt === 'number') ? a.dueAt : null,
     status: a.status,
-    assignees: a.assignees || [],
     createdAt: a.createdAt,
-    updatedAt: a.updatedAt
+    updatedAt: a.updatedAt,
+    tags: a.tags || []
   }));
 }
 
