@@ -15,8 +15,8 @@ import { graphQLClientProtected } from '@/lib/api';
 import CreateTaskModal from '@/components/modals/CreateTaskModal';
 import TasksModal from '@/components/modals/TasksModal';
 
-// Import new createTask API call
-import { createTask as createTaskApi, loadTasks as loadTasksApi } from '@/lib/apiTask';
+// Import task API calls
+import { createTask as createTaskApi, loadTasks as loadTasksApi, updateTask, deleteTask } from '@/lib/apiTask';
 
 const client = graphQLClientProtected();
 
@@ -270,9 +270,15 @@ const GoalsPageInner: React.FC = () => {
 // New handlers for TasksModal
   const handleUpdateTask = async (updatedTask: any) => {
     try {
-      // Call API to update task - implement your API call here
-      // Example: await updateTaskApi(updatedTask);
-      // For demo, just update local state
+      // Call API to update task
+      await updateTask(updatedTask.id, {
+        title: updatedTask.title,
+        dueAt: updatedTask.dueAt,
+        tags: updatedTask.tags,
+        status: updatedTask.status,
+        goalId: updatedTask.goalId
+      });
+      // Update local state after successful API call
       setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
       toast({ title: goalsList?.taskUpdated || 'Task updated' });
     } catch (e: any) {
@@ -283,9 +289,9 @@ const GoalsPageInner: React.FC = () => {
 
   const handleDeleteTask = async (taskId: string) => {
     try {
-      // Call API to delete task - implement your API call here
-      // Example: await deleteTaskApi(taskId);
-      // For demo, just update local state
+      // Call API to delete task
+      await deleteTask(taskId);
+      // Update local state after successful API call
       setTasks(prev => prev.filter(t => t.id !== taskId));
       toast({ title: goalsList?.taskDeleted || 'Task deleted' });
     } catch (e: any) {

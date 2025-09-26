@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { X, Pencil, Trash, Check, XCircle } from 'lucide-react';
 
@@ -14,6 +13,14 @@ interface Task {
   dueAt: number; // epoch seconds
   status: string;
   tags: string[];
+}
+
+interface EditTaskData {
+  id?: string;
+  title?: string;
+  dueAt?: string; // date string for input field
+  status?: string;
+  tags?: string[];
 }
 
 interface TasksModalProps {
@@ -47,7 +54,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
 
   // Editing state: map taskId to editable task data or null if not editing
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<Task>>({});
+  const [editData, setEditData] = useState<EditTaskData>({});
 
   // Error state for inline validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -213,7 +220,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} size="lg" aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}>
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}>
       <DialogContent className="max-w-5xl max-h-[80vh] overflow-auto">
         <DialogHeader>
           <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
@@ -327,9 +334,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                     <TableCell>
                       {isEditing ? (
                         <>
-                          <Select
+                          <select
                             value={editData.status || ''}
                             onChange={e => onChangeField('status', e.target.value)}
+                            className={`w-full rounded border p-2 ${errors.status ? 'border-red-500' : 'border-gray-300'}`}
                             aria-invalid={!!errors.status}
                             aria-describedby={errors.status ? `error-status-${task.id}` : undefined}
                           >
@@ -338,7 +346,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                                 {goalsTranslations?.statusLabels?.[opt] || opt.charAt(0).toUpperCase() + opt.slice(1)}
                               </option>
                             ))}
-                          </Select>
+                          </select>
                           {errors.status && (
                             <p id={`error-status-${task.id}`} className="text-xs text-red-600 mt-1">
                               {errors.status}
