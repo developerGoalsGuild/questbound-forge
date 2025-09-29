@@ -6,33 +6,36 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 const Features = () => {
   const { t } = useTranslation();
+  const featuresT = t.features || {};
+  const cta = featuresT.cta || {};
 
   const features = [
     {
       icon: Target,
-      title: t.features.goalTracking.title,
-      description: t.features.goalTracking.description,
+      title: featuresT.goalTracking?.title || 'Advanced Goal Tracking',
+      description: featuresT.goalTracking?.description || 'Track your progress with detailed analytics and milestone celebrations.',
       gradient: 'from-primary to-primary-glow',
     },
     {
       icon: Users,
-      title: t.features.community.title,
-      description: t.features.community.description,
+      title: featuresT.community?.title || 'Community Support',
+      description: featuresT.community?.description || 'Connect with like-minded adventurers for mutual encouragement and accountability.',
       gradient: 'from-secondary to-secondary-hover',
-      image: '',//collaborationImage,
+      image: '',
     },
     {
       icon: Trophy,
-      title: t.features.gamification.title,
-      description: t.features.gamification.description,
-      gradient: 'from-secondary to-secondary-hover',
-      image: '',//achievementsImage,
+      title: featuresT.gamification?.title || 'Gamified Experience',
+      description: featuresT.gamification?.description || 'Earn achievements, unlock rewards, and level up your goal-setting skills.',
+      gradient: 'from-accent to-accent-glow',
+      image: '',
     },
     {
       icon: Crown,
-      title: t.features.patronage.title,
-      description: t.features.patronage.description,
-      gradient: 'from-primary to-primary-glow',
+      title: featuresT.patronage?.title || 'Patronage System',
+      description: featuresT.patronage?.description || 'Support the platform and gain exclusive benefits while helping others succeed.',
+      gradient: 'from-gold to-gold-glow',
+      image: '',
     },
   ];
 
@@ -42,10 +45,10 @@ const Features = () => {
         {/* Section Header */}
         <div className="text-center mb-16 animate-fade-in">
           <h2 className="font-cinzel text-4xl md:text-5xl font-bold mb-6 text-gradient-royal">
-            {t.features.title}
+            {featuresT.title || 'Powerful Features for Goal Achievement'}
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            {t.features.subtitle}
+            {featuresT.subtitle || 'Everything you need to turn your aspirations into achievements'}
           </p>
         </div>
 
@@ -100,13 +103,13 @@ const Features = () => {
         <div className="text-center mt-16">
           <div className="medieval-banner p-8 max-w-2xl mx-auto">
             <h3 className="font-cinzel text-2xl font-bold mb-4 text-gradient-royal">
-              {t.features.cta.title}
+              {cta.title || 'Ready to Begin Your Adventure?'}
             </h3>
             <p className="text-muted-foreground mb-6">
-              {t.features.cta.subtitle}
+              {cta.subtitle || 'Join thousands of adventurers already achieving their goals together.'}
             </p>
             <button className="btn-heraldic text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:shadow-royal transition-all duration-300">
-              {t.features.cta.button}
+              {cta.button || 'Start Your Journey'}
             </button>
           </div>
         </div>

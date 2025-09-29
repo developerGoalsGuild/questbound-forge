@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { X, Pencil, Trash, Check, XCircle } from 'lucide-react';
+import { X, Pencil, Trash, Check, XCircle, Loader2 } from 'lucide-react';
+import { updateTask, deleteTask } from '@/lib/apiTask';
 
 interface Task {
   id: string;
@@ -29,12 +31,14 @@ interface TasksModalProps {
   tasks: Task[];
   onUpdateTask: (task: Task) => Promise<void>;
   onDeleteTask: (taskId: string) => Promise<void>;
+  onTasksChange?: () => void; // Callback to refresh tasks after changes
 }
 
 const STATUS_OPTIONS = ['active', 'paused', 'completed', 'archived'];
 
-const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask }) => {
+const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask, onTasksChange }) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
 
   // Safe translation access
   const goalsTranslations = (t as any)?.goals;
@@ -59,6 +63,9 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   // Error state for inline validation
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Loading states for async operations
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+
   // Reset pagination and sorting when tasks change
   useEffect(() => {
     setCurrentPage(1);
@@ -67,6 +74,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setEditingTaskId(null);
     setEditData({});
     setErrors({});
+    setLoadingStates({});
   }, [tasks]);
 
   // Sort tasks
@@ -170,36 +178,100 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   // Save edited task
   const onSave = async () => {
     if (!validate() || !editingTaskId) return;
+    
+    setLoadingStates(prev => ({ ...prev, [`update-${editingTaskId}`]: true }));
+    
     try {
       // Convert dueAt date string to epoch seconds
       const dueAtEpoch = Math.floor(new Date(editData.dueAt as string).getTime() / 1000);
-      const updatedTask: Task = {
+      
+      // Prepare update payload with only changed fields
+      const updatePayload: Partial<{
+        title: string;
+        dueAt: number;
+        status: string;
+        tags: string[];
+      }> = {};
+
+      if (editData.title !== undefined) updatePayload.title = (editData.title as string).trim();
+      if (editData.dueAt !== undefined) updatePayload.dueAt = dueAtEpoch;
+      if (editData.status !== undefined) updatePayload.status = editData.status as string;
+      if (editData.tags !== undefined) updatePayload.tags = editData.tags as string[];
+
+      // Call the API directly
+      const updatedTask = await updateTask(editingTaskId, updatePayload);
+      // Merge the updated fields with the original task for the callback
+      const originalTask = tasks.find(t => t.id === editingTaskId);
+      const mergedTask = {
+        ...originalTask,
+        ...updatePayload,
         id: editingTaskId,
-        title: (editData.title as string).trim(),
-        dueAt: dueAtEpoch,
-        status: editData.status as string,
-        tags: editData.tags as string[],
       };
-      await onUpdateTask(updatedTask);
+      await onUpdateTask(mergedTask);
+      
+      // Refresh tasks if callback provided
+      if (onTasksChange) {
+        onTasksChange();
+      }
+      
       setEditingTaskId(null);
       setEditData({});
       setErrors({});
+      
+      toast({
+        title: "Task Updated",
+        description: "Task has been successfully updated.",
+        variant: "default",
+      });
     } catch (error) {
-      // Could add toast or error handling here
+      console.error('Error updating task:', error);
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update task. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`update-${editingTaskId}`]: false }));
     }
   };
 
   // Delete task handler with confirmation
   const onDelete = async (taskId: string) => {
     if (!window.confirm(goalsTranslations?.confirmDeleteTask || 'Are you sure you want to delete this task?')) return;
+    
+    setLoadingStates(prev => ({ ...prev, [`delete-${taskId}`]: true }));
+    
     try {
+      // Call the API directly
+      await deleteTask(taskId);
+      
+      // Update the parent component
       await onDeleteTask(taskId);
+      
+      // Refresh tasks if callback provided
+      if (onTasksChange) {
+        onTasksChange();
+      }
+      
       // If deleting last item on page and page > 1, go back a page
       if (paginatedTasks.length === 1 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
       }
+      
+      toast({
+        title: "Task Deleted",
+        description: "Task has been successfully deleted.",
+        variant: "default",
+      });
     } catch (error) {
-      // Could add toast or error handling here
+      console.error('Error deleting task:', error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete task. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`delete-${taskId}`]: false }));
     }
   };
 
@@ -335,6 +407,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                       {isEditing ? (
                         <>
                           <select
+                            data-testid="select"
                             value={editData.status || ''}
                             onChange={e => onChangeField('status', e.target.value)}
                             className={`w-full rounded border p-2 ${errors.status ? 'border-red-500' : 'border-gray-300'}`}
@@ -387,6 +460,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="outline"
                             size="sm"
                             onClick={cancelEditing}
+                            disabled={loadingStates[`update-${task.id}`]}
                             aria-label={commonTranslations?.cancel || 'Cancel'}
                             title={commonTranslations?.cancel || 'Cancel'}
                           >
@@ -396,10 +470,15 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="default"
                             size="sm"
                             onClick={onSave}
+                            disabled={loadingStates[`update-${task.id}`]}
                             aria-label={commonTranslations?.save || 'Save'}
                             title={commonTranslations?.save || 'Save'}
                           >
-                            <Check className="h-4 w-4" />
+                            {loadingStates[`update-${task.id}`] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4" />
+                            )}
                           </Button>
                         </>
                       ) : (
@@ -408,6 +487,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="outline"
                             size="sm"
                             onClick={() => startEditing(task)}
+                            disabled={loadingStates[`delete-${task.id}`]}
                             aria-label={commonTranslations?.edit || 'Edit'}
                             title={commonTranslations?.edit || 'Edit'}
                           >
@@ -417,10 +497,15 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="destructive"
                             size="sm"
                             onClick={() => onDelete(task.id)}
+                            disabled={loadingStates[`delete-${task.id}`]}
                             aria-label={commonTranslations?.delete || 'Delete'}
                             title={commonTranslations?.delete || 'Delete'}
                           >
-                            <Trash className="h-4 w-4" />
+                            {loadingStates[`delete-${task.id}`] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash className="h-4 w-4" />
+                            )}
                           </Button>
                         </>
                       )}

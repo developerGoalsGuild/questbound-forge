@@ -66,3 +66,9 @@ variable "frontend_allowed_origins" {
   description = "List of browser origins allowed via CORS"
   type        = list(string)
 }
+
+variable "deployment_hash" {
+  description = "Change this value to trigger an API Gateway redeploy when API config changes"
+  type        = string
+  default     = "static"
+}

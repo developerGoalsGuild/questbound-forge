@@ -1,3 +1,36 @@
+GoalsGuild Terraform Modularization
+
+Layout
+- stacks/
+  - database/           → gg_core + login_attempts
+  - security/           → IAM roles/policies used across stacks
+  - services-user/      → user-service Lambda + ECR image
+  - services-quest/     → quest-service Lambda + ECR image
+  - appsync/            → AppSync GraphQL and resolvers
+  - apigateway/         → API Gateway REST + Cognito + CORS
+
+Preserve gg_core
+- The `database` stack provisions `gg_core` with `prevent_destroy = true`, so `terraform destroy` and accidental replacements are blocked.
+- Existing data is preserved. Any schema/GSI changes should be performed via migrations, not table replacement.
+
+Per-stack deployment
+1) cd stacks/security && terraform init && terraform apply -auto-approve
+2) cd stacks/database && terraform init && terraform apply -auto-approve
+3) cd stacks/services-user && terraform init && terraform apply -auto-approve
+4) cd stacks/services-quest && terraform init && terraform apply -auto-approve
+5) cd stacks/appsync && terraform init && terraform apply -auto-approve
+6) cd stacks/apigateway && terraform init && terraform apply -auto-approve
+
+Targeted changes
+- Re-run only the stack that changed. Example: API changes → apply only `stacks/apigateway`.
+- Docker image updates for services → apply their corresponding `services-*` stacks.
+
+API Gateway redeploy
+- `stacks/apigateway` exposes variable `deployment_hash`. Bump it to force a redeploy when API config changes without resource identity changes.
+
+Environment
+- Each stack uses the same provider and remote/local backend as configured. If you switch to a remote state (S3+DynamoDB), configure it per stack.
+
 # Infrastructure (Terraform) Notes
 
 ## Public GraphQL operations with API Key
@@ -94,10 +127,10 @@ Notes:
 - Sampled requests: Available in the WAF console for quick inspection even without Firehose.
 ## Optional: Auto-provision Firehose->S3 for WAF logs (disabled by default)
 - Flags (all default to false):
-  - `enable_appsync_waf` � create WAF and associate to AppSync
-  - `waf_enforce` � enforce (block) vs monitor (count)
-  - `enable_appsync_waf_logging` � turn on WAF logging
-  - `enable_waf_logging_stream` � create a Kinesis Data Firehose stream to S3 for logs
+  - `enable_appsync_waf` � create WAF and associate to AppSync
+  - `waf_enforce` � enforce (block) vs monitor (count)
+  - `enable_appsync_waf_logging` � turn on WAF logging
+  - `enable_waf_logging_stream` � create a Kinesis Data Firehose stream to S3 for logs
 - To enable end-to-end logging without preexisting Firehose:
   1) `enable_appsync_waf           = true`
   2) `waf_enforce                  = false`   # start in monitor mode

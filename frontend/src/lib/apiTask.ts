@@ -72,11 +72,12 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
       `;
 
     const data = await graphqlRaw<{ myTasks: TaskResponse[] }>(QUERY, { goalId });
-    return data.myTasks;
+    const tasks = (data as any)?.myTasks ?? (data as any)?.MyTasks;
+    return Array.isArray(tasks) ? tasks : [];
 
   } catch (e: any) {
     console.error('[loadTasks] GraphQL error:', e?.errors || e?.message || e);
-    return null;
+    return [];
   }
 }
 
@@ -91,7 +92,7 @@ export async function updateTask(taskId: string, updates: Partial<CreateTaskInpu
   }
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
-  const url = baseUrl.replace(/\/$/, '') + '/quests/updateTask';
+  const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}`;
 
   const response = await fetch(url, {
     method: 'PUT',
@@ -99,7 +100,7 @@ export async function updateTask(taskId: string, updates: Partial<CreateTaskInpu
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ id: taskId, ...updates }),
+    body: JSON.stringify(updates),
   });
 
   if (!response.ok) {
@@ -123,14 +124,16 @@ export async function deleteTask(taskId: string): Promise<void> {
   }
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
-  const url = baseUrl.replace(/\/$/, '') + '/quests/deleteTask';
+  const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}`;
 
   const response = await fetch(url, {
     method: 'DELETE',
     headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ id: taskId }),
+     'Authorization': `Bearer ${token}`,
+      'Accept': '*/*',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive'
+    } as Record<string, string>,
   });
 
   if (!response.ok) {

@@ -5,6 +5,10 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import App from '@/App';
 
+vi.mock('aws-amplify', () => ({
+  Amplify: { configure: vi.fn() }
+}));
+
 describe('App router guard placement', () => {
   const origError = console.error;
   beforeEach(() => {

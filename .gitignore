@@ -87,3 +87,9 @@ backend/services/quest-service/tests/__pycache__/test_ai.cpython-313-pytest-8.4.
 backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
 frontend/package-lock.json
 backend/services/quest-service/tests/__pycache__/conftest.cpython-313-pytest-8.4.1.pyc
+backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
+backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
+backend/infra/terraform/terraform.tfstate.backup
+backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
+backend/services/quest-service/app/__pycache__/models.cpython-313.pyc
+backend/services/quest-service/tests/__pycache__/test_goals.cpython-313.pyc

@@ -14,6 +14,9 @@ import { Language } from '@/i18n/translations';
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { language, setLanguage, t } = useTranslation();
+  const nav = (t as any).nav || {};
+  const auth = (t as any).auth || {};
+  const goalsLabel = (t as any).goals || 'Quests';
 
   const languages: { code: Language; name: string; flag: string }[] = [
     { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -36,19 +39,19 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="font-medium hover:text-primary transition-colors">
-              {t.nav.features}
+              {nav.features || 'Features'}
             </a>
             <a href="#community" className="font-medium hover:text-primary transition-colors">
-              {t.nav.community}
+              {nav.community || 'Community'}
             </a>
             <a href="#pricing" className="font-medium hover:text-primary transition-colors">
-              {t.nav.pricing}
+              {nav.pricing || 'Pricing'}
             </a>
             <a href="#contact" className="font-medium hover:text-primary transition-colors">
-              {t.nav.contact}
+              {nav.contact || 'Contact'}
             </a>
             <Link to="/goals" className="font-medium hover:text-primary transition-colors">
-              {t.nav.goals || 'Quests'}
+              {goalsLabel}
             </Link>
           </nav>
 
@@ -76,12 +79,12 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button className="btn-heraldic text-primary-foreground" variant="outline" asChild>
-              <Link to="/login/Login">{t.nav.login}</Link>
-            </Button>
-            <Button className="btn-heraldic text-primary-foreground" asChild>
-              <Link to="/signup/LocalSignUp">{t.nav.signup}</Link>
-            </Button>
+            <a data-testid="link" href="/login/Login">
+              {auth.login || 'Login'}
+            </a>
+            <a data-testid="link" href="/signup/LocalSignUp">
+              {auth.signup || 'Sign Up'}
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -100,28 +103,28 @@ const Header = () => {
           <div className="md:hidden mt-4 py-4 border-t border-border animate-fade-in">
             <nav className="flex flex-col gap-4">
               <a href="#features" className="font-medium hover:text-primary transition-colors">
-                {t.nav.features}
+                {nav.features || 'Features'}
               </a>
               <a href="#community" className="font-medium hover:text-primary transition-colors">
-                {t.nav.community}
+                {nav.community || 'Community'}
               </a>
               <a href="#pricing" className="font-medium hover:text-primary transition-colors">
-                {t.nav.pricing}
+                {nav.pricing || 'Pricing'}
               </a>
               <a href="#contact" className="font-medium hover:text-primary transition-colors">
-                {t.nav.contact}
+                {nav.contact || 'Contact'}
               </a>
               <Link to="/goals" className="font-medium hover:text-primary transition-colors">
-                {t.nav.goals || 'Quests'}
+                {goalsLabel}
               </Link>
 
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button className="btn-heraldic text-primary-foreground justify-start" variant="outline">
-                  <Link to="/login/Login">{t.nav.login}</Link>
-                </Button>
-                <Button className="btn-heraldic text-primary-foreground justify-start" asChild>
-                  <Link to="/signup/LocalSignUp">{t.nav.signup}</Link>
-                </Button>
+                <a data-testid="link" href="/login/Login" className="btn-heraldic text-primary-foreground justify-start">
+                  {auth.login || 'Login'}
+                </a>
+                <a data-testid="link" href="/signup/LocalSignUp">
+                  {auth.signup || 'Sign Up'}
+                </a>
               </div>
             </nav>
           </div>

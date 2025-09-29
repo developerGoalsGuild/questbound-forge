@@ -25,6 +25,27 @@ class TaskResponse(BaseModel):
     tags: List[str]
 
 
+class TaskUpdateInput(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, description="Title of the task")
+    dueAt: Optional[int] = Field(None, description="Task due date as epoch seconds")
+    status: Optional[str] = Field(None, description="Task status (active, completed, cancelled)")
+    tags: Optional[List[str]] = Field(None, description="Tags associated with the task")
+
+    @field_validator("tags")
+    @classmethod
+    def tags_must_not_be_empty(cls, v):
+        if v is not None and (not v or not all(isinstance(tag, str) and tag.strip() for tag in v)):
+            raise ValueError("Tags must be a non-empty list of non-empty strings")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v is not None and v not in ["active", "completed", "cancelled"]:
+            raise ValueError("Status must be one of: active, completed, cancelled")
+        return v
+
+
 
 class AnswerInput(BaseModel):
     key: str

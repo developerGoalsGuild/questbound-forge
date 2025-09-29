@@ -6,6 +6,20 @@ import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import TasksModal from '../TasksModal';
 
+// Mock the API functions
+vi.mock('@/lib/apiTask', () => ({
+  updateTask: vi.fn(),
+  deleteTask: vi.fn(),
+}));
+
+// Mock the toast hook
+const mockToast = vi.fn();
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
+}));
+
 // Mock UI components
 vi.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open, onOpenChange }: any) => open ? <div data-testid="dialog" onClick={() => onOpenChange?.(false)}>{children}</div> : null,
@@ -71,7 +85,8 @@ vi.mock('lucide-react', () => ({
   Pencil: () => <div data-testid="pencil-icon" />,
   Trash: () => <div data-testid="trash-icon" />,
   Check: () => <div data-testid="check-icon" />,
-  XCircle: () => <div data-testid="x-circle-icon" />
+  XCircle: () => <div data-testid="x-circle-icon" />,
+  Loader2: () => <div data-testid="loader2-icon" />,
 }));
 
 vi.mock('@/lib/utils', () => ({
@@ -139,6 +154,7 @@ describe('TasksModal', () => {
   const mockOnClose = vi.fn();
   const mockOnUpdateTask = vi.fn();
   const mockOnDeleteTask = vi.fn();
+  const mockOnTasksChange = vi.fn();
 
   const mockTasks = [
     {
@@ -162,7 +178,8 @@ describe('TasksModal', () => {
     onClose: mockOnClose,
     tasks: mockTasks,
     onUpdateTask: mockOnUpdateTask,
-    onDeleteTask: mockOnDeleteTask
+    onDeleteTask: mockOnDeleteTask,
+    onTasksChange: mockOnTasksChange
   };
 
   beforeEach(() => {
@@ -342,19 +359,19 @@ describe('TasksModal', () => {
 
     render(<TasksModal {...defaultProps} />);
 
-    // Find and click edit button for Task 1 (second in sorted list due to dueAt sorting)
-    const taskRows = screen.getAllByText('Task 1').map(el => el.closest('tr')).filter(Boolean);
-    const task1Row = taskRows[0];
-    const editButton = task1Row?.querySelector('[aria-label="Edit"]') as HTMLElement;
-    await user.click(editButton);
+    // Click the first edit button (Task 2 comes first due to sorting)
+    const editButtons = screen.getAllByRole('button', { name: /Edit/ });
+    await user.click(editButtons[0]);
+
+    // Wait for edit mode to be activated
+    await waitFor(() => {
+      expect(screen.getAllByTestId('input')).toHaveLength(3); // title, due date, tags
+    });
 
     // Modify title
-    const inputs = screen.getAllByTestId('input');
-    const titleInput = inputs.find(input => input.value === 'Task 1');
-    if (titleInput) {
-      await user.clear(titleInput);
-      await user.type(titleInput, 'Updated Task 1');
-    }
+    const titleInput = screen.getByDisplayValue('Task 2');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Updated Task');
 
     const saveButton = screen.getByRole('button', { name: /Save/ });
     await user.click(saveButton);
@@ -362,10 +379,10 @@ describe('TasksModal', () => {
     await waitFor(() => {
       expect(mockOnUpdateTask).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: '1',
-          title: 'Updated Task 1',
-          status: 'active',
-          tags: ['tag1', 'tag2']
+          id: '2',
+          title: 'Updated Task',
+          status: 'completed',
+          tags: ['tag3']
         })
       );
     });
@@ -444,6 +461,190 @@ describe('TasksModal', () => {
     await user.click(closeButton);
 
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  test('shows loading state during task update', async () => {
+    const user = userEvent.setup();
+    const { updateTask } = await import('@/lib/apiTask');
+    
+    // Mock a slow API response
+    vi.mocked(updateTask).mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({
+        id: '1',
+        title: 'Updated Task',
+        dueAt: Math.floor(new Date('2024-12-31').getTime() / 1000),
+        status: 'completed',
+        tags: ['tag1', 'tag2'],
+        createdAt: 1609459200000,
+        updatedAt: 1609459200000,
+      }), 100))
+    );
+
+    render(<TasksModal {...defaultProps} />);
+
+    // Start editing
+    const editButtons = screen.getAllByRole('button', { name: /Edit/ });
+    await user.click(editButtons[0]);
+
+    // Update title (Task 2 comes first due to sorting by dueAt)
+    const titleInput = screen.getByDisplayValue('Task 2');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Updated Task');
+
+    // Click save
+    const saveButton = screen.getByRole('button', { name: /Save/ });
+    await user.click(saveButton);
+
+    // Check loading state
+    expect(screen.getByRole('button', { name: /Save/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Save/ })).toHaveTextContent('');
+
+    // Wait for completion
+    await waitFor(() => {
+      expect(updateTask).toHaveBeenCalledWith('2', {
+        title: 'Updated Task',
+        dueAt: expect.any(Number),
+        status: 'completed',
+        tags: ['tag3']
+      });
+    });
+  });
+
+  test('shows loading state during task delete', async () => {
+    const user = userEvent.setup();
+    const { deleteTask } = await import('@/lib/apiTask');
+    
+    // Mock a slow API response
+    vi.mocked(deleteTask).mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve(), 100))
+    );
+
+    render(<TasksModal {...defaultProps} />);
+
+    // Click delete
+    const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });
+    await user.click(deleteButtons[0]);
+
+    // Check loading state
+    expect(deleteButtons[0]).toBeDisabled();
+    expect(deleteButtons[0]).toHaveTextContent('');
+
+    // Wait for completion
+    await waitFor(() => {
+      expect(deleteTask).toHaveBeenCalledWith('2');
+    });
+  });
+
+  test('handles API errors gracefully during update', async () => {
+    const user = userEvent.setup();
+    const { updateTask } = await import('@/lib/apiTask');
+    
+    vi.mocked(updateTask).mockRejectedValue(new Error('API Error'));
+
+    render(<TasksModal {...defaultProps} />);
+
+    // Start editing
+    const editButtons = screen.getAllByRole('button', { name: /Edit/ });
+    await user.click(editButtons[0]);
+
+    // Update title (Task 2 comes first due to sorting by dueAt)
+    const titleInput = screen.getByDisplayValue('Task 2');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Updated Task');
+
+    // Click save
+    const saveButton = screen.getByRole('button', { name: /Save/ });
+    await user.click(saveButton);
+
+    // Wait for error handling
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Update Failed",
+        description: "API Error",
+        variant: "destructive",
+      });
+    });
+
+    // Should still be in edit mode
+    expect(screen.getByDisplayValue('Updated Task')).toBeInTheDocument();
+  });
+
+  test('handles API errors gracefully during delete', async () => {
+    const user = userEvent.setup();
+    const { deleteTask } = await import('@/lib/apiTask');
+    
+    vi.mocked(deleteTask).mockRejectedValue(new Error('Delete failed'));
+
+    render(<TasksModal {...defaultProps} />);
+
+    // Click delete
+    const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });
+    await user.click(deleteButtons[0]);
+
+    // Wait for error handling
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Delete Failed",
+        description: "Delete failed",
+        variant: "destructive",
+      });
+    });
+
+    // Task should still be visible
+    expect(screen.getByText('Task 2')).toBeInTheDocument();
+  });
+
+  test('calls onTasksChange after successful update', async () => {
+    const user = userEvent.setup();
+    const { updateTask } = await import('@/lib/apiTask');
+    
+    vi.mocked(updateTask).mockResolvedValue({
+      id: '1',
+      title: 'Updated Task',
+      dueAt: Math.floor(new Date('2024-12-31').getTime() / 1000),
+      status: 'completed',
+      tags: ['tag1', 'tag2'],
+      createdAt: 1609459200000,
+      updatedAt: 1609459200000,
+    });
+
+    render(<TasksModal {...defaultProps} />);
+
+    // Start editing
+    const editButtons = screen.getAllByRole('button', { name: /Edit/ });
+    await user.click(editButtons[0]);
+
+    // Update title (Task 2 comes first due to sorting by dueAt)
+    const titleInput = screen.getByDisplayValue('Task 2');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Updated Task');
+
+    // Click save
+    const saveButton = screen.getByRole('button', { name: /Save/ });
+    await user.click(saveButton);
+
+    // Wait for completion
+    await waitFor(() => {
+      expect(mockOnTasksChange).toHaveBeenCalled();
+    });
+  });
+
+  test('calls onTasksChange after successful delete', async () => {
+    const user = userEvent.setup();
+    const { deleteTask } = await import('@/lib/apiTask');
+    
+    vi.mocked(deleteTask).mockResolvedValue(undefined);
+
+    render(<TasksModal {...defaultProps} />);
+
+    // Click delete
+    const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });
+    await user.click(deleteButtons[0]);
+
+    // Wait for completion
+    await waitFor(() => {
+      expect(mockOnTasksChange).toHaveBeenCalled();
+    });
   });
 
   test('closes modal when clicking outside', () => {

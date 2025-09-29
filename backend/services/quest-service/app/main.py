@@ -18,7 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput,TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, TaskInput
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, TaskInput, TaskUpdateInput
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
 
 
@@ -427,5 +427,129 @@ async def create_task(
     raise HTTPException(status_code=500, detail="Could not create task at this time")
 
   return _task_to_response(item)
+
+
+@app.put("/quests/tasks/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: str,
+    payload: TaskUpdateInput,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    user_id = auth.user_id
+
+    # Verify task exists and belongs to user
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    task_item = response.get("Item")
+    if not task_item:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # If updating dueAt, validate it doesn't exceed goal deadline
+    if payload.dueAt is not None:
+        goal_id = task_item.get("goalId")
+        if goal_id:
+            try:
+                goal_response = table.get_item(
+                    Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{goal_id}"}
+                )
+                goal_item = goal_response.get("Item")
+                if goal_item:
+                    goal_deadline_str = goal_item.get("deadline")
+                    if goal_deadline_str:
+                        import datetime
+                        goal_deadline_date = datetime.datetime.strptime(goal_deadline_str, "%Y-%m-%d")
+                        task_due_date = datetime.datetime.utcfromtimestamp(payload.dueAt)
+                        if task_due_date > goal_deadline_date:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Task due date cannot exceed goal deadline",
+                            )
+            except (ClientError, BotoCoreError):
+                pass  # Continue with update if goal validation fails
+
+    # Prepare update expression
+    update_expression = "SET updatedAt = :updatedAt"
+    expression_attribute_values = {":updatedAt": int(time.time() * 1000)}
+    expression_attribute_names = {}
+
+    if payload.title is not None:
+        update_expression += ", #title = :title"
+        expression_attribute_values[":title"] = _sanitize_string(payload.title)
+        expression_attribute_names["#title"] = "title"
+
+    if payload.dueAt is not None:
+        update_expression += ", dueAt = :dueAt"
+        expression_attribute_values[":dueAt"] = payload.dueAt
+
+    if payload.status is not None:
+        update_expression += ", #status = :status"
+        expression_attribute_values[":status"] = payload.status
+        expression_attribute_names["#status"] = "status"
+
+    if payload.tags is not None:
+        update_expression += ", tags = :tags"
+        expression_attribute_values[":tags"] = payload.tags
+
+    try:
+        table.update_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names if expression_attribute_names else None,
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise HTTPException(status_code=500, detail="Could not update task at this time")
+
+    # Fetch updated task
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    updated_task = response.get("Item")
+    if not updated_task:
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    return _task_to_response(updated_task)
+
+
+@app.delete("/quests/tasks/{task_id}")
+async def delete_task(
+    task_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    user_id = auth.user_id
+
+    # Verify task exists and belongs to user
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    task_item = response.get("Item")
+    if not task_item:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Delete the task
+    try:
+        table.delete_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise HTTPException(status_code=500, detail="Could not delete task at this time")
+
+    return {"message": "Task deleted successfully"}
+
 
 __all__ = ["app"]

@@ -722,6 +722,25 @@ async function updateTask(driver, taskRow, newTitle) {
   const saveButton = await actionsCell.findElement(By.css('button:nth-child(2)')); // Second button (save)
   await saveButton.click();
 
+  // Wait for the update to complete and check for loading state
+  try {
+    // Wait for loading spinner to disappear (if present)
+    await driver.wait(async () => {
+      const loadingSpinners = await driver.findElements(By.css('[data-testid="loader"], .animate-spin'));
+      return loadingSpinners.length === 0;
+    }, 10000);
+  } catch (e) {
+    console.log('No loading spinner found or timeout waiting for it to disappear');
+  }
+
+  // Wait for success toast or error message
+  try {
+    await driver.wait(until.elementLocated(By.css('[role="alert"], .toast, .notification')), 5000);
+    console.log('Toast notification appeared after update');
+  } catch (e) {
+    console.log('No toast notification found after update');
+  }
+
   console.log(`Task updated to "${newTitle}" successfully`);
 }
 
@@ -755,6 +774,25 @@ async function deleteTask(driver, taskRow) {
     } catch (e2) {
       console.log('No confirmation dialog found, task may be deleted directly');
     }
+  }
+
+  // Wait for the delete to complete and check for loading state
+  try {
+    // Wait for loading spinner to disappear (if present)
+    await driver.wait(async () => {
+      const loadingSpinners = await driver.findElements(By.css('[data-testid="loader"], .animate-spin'));
+      return loadingSpinners.length === 0;
+    }, 10000);
+  } catch (e) {
+    console.log('No loading spinner found or timeout waiting for it to disappear');
+  }
+
+  // Wait for success toast or error message
+  try {
+    await driver.wait(until.elementLocated(By.css('[role="alert"], .toast, .notification')), 5000);
+    console.log('Toast notification appeared after delete');
+  } catch (e) {
+    console.log('No toast notification found after delete');
   }
 
   console.log('Task deleted successfully');

@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 const Hero = () => {
   const { t } = useTranslation();
+  const heroT = (t as any).hero || {};
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" role="banner" data-testid="hero-section">
@@ -24,12 +25,12 @@ const Hero = () => {
         <div className="max-w-4xl mx-auto animate-fade-in">
           {/* Main Heading */}
           <h1 className="font-cinzel text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            {t.hero.title}
+            {heroT.title || 'Unite in Purpose, Achieve Together'}
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl md:text-2xl mb-8 text-primary-foreground/90 leading-relaxed max-w-3xl mx-auto">
-            {t.hero.subtitle}
+            {heroT.subtitle || 'Join a medieval-inspired community where goals become quests, progress is celebrated, and mutual support leads to extraordinary achievements.'}
           </p>
 
           {/* Call to Action Buttons */}
@@ -40,7 +41,7 @@ const Hero = () => {
               asChild
             >
               <a href="/dashboard">
-                {t.hero.ctaPrimary}
+                {heroT.ctaPrimary || 'Begin Your Quest'}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
             </Button>
@@ -51,7 +52,7 @@ const Hero = () => {
               className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary px-8 py-4 text-lg group"
             >
               <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-              {t.hero.ctaSecondary}
+              {heroT.ctaSecondary || 'Explore Features'}
             </Button>
           </div>
 
@@ -59,15 +60,15 @@ const Hero = () => {
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div className="animate-scale-in" style={{ animationDelay: '0.2s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">10K+</div>
-              <div className="text-primary-foreground/80">{t.hero.stats.activeAdventurers}</div>
+              <div className="text-primary-foreground/80">{heroT.activeAdventurers || 'Active Adventurers'}</div>
             </div>
             <div className="animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">50K+</div>
-              <div className="text-primary-foreground/80">{t.hero.stats.goalsAchieved}</div>
+              <div className="text-primary-foreground/80">{heroT.goalsAchieved || 'Goals Achieved'}</div>
             </div>
             <div className="animate-scale-in" style={{ animationDelay: '0.6s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">100+</div>
-              <div className="text-primary-foreground/80">{t.hero.stats.partnerGuilds}</div>
+              <div className="text-primary-foreground/80">{heroT.partnerGuilds || 'Partner Guilds'}</div>
             </div>
           </div>
         </div>

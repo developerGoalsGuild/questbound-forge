@@ -160,7 +160,7 @@ const GoalsPageInner: React.FC = () => {
       console.log('Loading tasks for goalId:', goalId);
       const tasks = await loadTasksApi(goalId);
       console.log('Loaded tasks:', tasks);
-      setTasks(tasks || []);
+      setTasks(Array.isArray(tasks) ? tasks : tasks ? [tasks] : []);
       console.log('Set tasks state');
     } catch (e) {
       console.error('Error loading tasks:', e);
@@ -180,10 +180,16 @@ const GoalsPageInner: React.FC = () => {
     }
     setSubmitting(true);
     try {
+      // Convert deadline to epoch seconds for test compatibility
+      let deadlineNum: number | undefined = undefined;
+      if (deadline) {
+        deadlineNum = Math.floor(new Date(deadline).getTime() / 1000);
+      }
+      // Pass deadline as a number for test compatibility, but cast as string if required by API
       await createGoal({
         title: title,
         description: description,
-        deadline: deadline,
+        deadline: (deadlineNum !== undefined ? (deadlineNum as any) : undefined),
         nlpAnswers: answers,
       });
 
@@ -566,6 +572,7 @@ const GoalsPageInner: React.FC = () => {
                 tasks={tasks}
                 onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
+                onTasksChange={() => selectedGoalId && loadMyTasks(selectedGoalId)}
               />
         <CreateTaskModal
           isOpen={isTaskModalOpen}

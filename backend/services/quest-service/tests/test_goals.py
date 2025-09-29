@@ -60,6 +60,52 @@ class FakeTable:
             return {"Item": self.items[key]}
         return {}
 
+    def update_item(self, Key, UpdateExpression=None, ExpressionAttributeValues=None, ExpressionAttributeNames=None):  # noqa: N802 - boto interface
+        key = (Key["PK"], Key["SK"])
+        if key not in self.items:
+            from botocore.exceptions import ClientError
+            raise ClientError(
+                {
+                    "Error": {
+                        "Code": "ValidationException",
+                        "Message": "Item does not exist",
+                    }
+                },
+                "UpdateItem",
+            )
+
+        item = self.items[key].copy()
+
+        # Simple update expression parsing for SET operations
+        if UpdateExpression and UpdateExpression.startswith("SET "):
+            set_part = UpdateExpression[4:]  # Remove "SET "
+            assignments = [part.strip() for part in set_part.split(",")]
+
+            for assignment in assignments:
+                if "=" in assignment:
+                    attr_part, value_key = assignment.split("=", 1)
+                    attr_part = attr_part.strip()
+                    value_key = value_key.strip()
+
+                    # Handle expression attribute names
+                    if attr_part.startswith("#") and ExpressionAttributeNames:
+                        attr_name = ExpressionAttributeNames.get(attr_part)
+                        if attr_name:
+                            attr_part = attr_name
+
+                    # Get the value
+                    if value_key.startswith(":"):
+                        value = ExpressionAttributeValues.get(value_key)
+                        if value is not None:
+                            item[attr_part] = value
+
+        self.items[key] = item
+
+    def delete_item(self, Key):  # noqa: N802 - boto interface
+        key = (Key["PK"], Key["SK"])
+        if key in self.items:
+            del self.items[key]
+
     def query(self, **kwargs):  # noqa: N802 - boto interface
         # Return all stored items for simplicity; the handler filters by PK/SK when building.
         return {"Items": list(self.items.values())}
@@ -352,5 +398,299 @@ def test_create_task_requires_auth():
         }
         response = client.post("/quests/createTask", json=task_payload)
         assert response.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_success():
+    table = FakeTable()
+    # Pre-populate with a goal and task
+    goal_item = {
+        "PK": "USER#user-123",
+        "SK": "GOAL#goal-123",
+        "type": "Goal",
+        "id": "goal-123",
+        "userId": "user-123",
+        "title": "Test Goal",
+        "deadline": "2025-12-31",
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+    }
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Original Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["original"]
+    }
+    table.items[("USER#user-123", "GOAL#goal-123")] = goal_item
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        update_payload = {
+            "title": "Updated Task",
+            "status": "completed",
+            "tags": ["updated", "important"]
+        }
+        response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        updated_task = response.json()
+        assert updated_task["id"] == "task-123"
+        assert updated_task["title"] == "Updated Task"
+        assert updated_task["status"] == "completed"
+        assert updated_task["tags"] == ["updated", "important"]
+        assert updated_task["updatedAt"] > updated_task["createdAt"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_partial_update():
+    table = FakeTable()
+    # Pre-populate with a task
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Original Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["original"]
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        update_payload = {
+            "title": "Partially Updated Task"
+            # Only updating title, other fields should remain unchanged
+        }
+        response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        updated_task = response.json()
+        assert updated_task["title"] == "Partially Updated Task"
+        assert updated_task["status"] == "active"  # Unchanged
+        assert updated_task["tags"] == ["original"]  # Unchanged
+        assert updated_task["dueAt"] == 1735689600  # Unchanged
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_not_found():
+    table = FakeTable()
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        update_payload = {"title": "Updated Task"}
+        response = client.put("/quests/tasks/nonexistent-task", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 404
+        assert "Task not found" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_due_date_exceeds_goal_deadline():
+    table = FakeTable()
+    # Pre-populate with a goal and task
+    goal_item = {
+        "PK": "USER#user-123",
+        "SK": "GOAL#goal-123",
+        "type": "Goal",
+        "id": "goal-123",
+        "userId": "user-123",
+        "title": "Test Goal",
+        "deadline": "2025-01-01",  # Earlier deadline
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+    }
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Test Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["test"]
+    }
+    table.items[("USER#user-123", "GOAL#goal-123")] = goal_item
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        update_payload = {
+            "dueAt": 1738368000  # 2025-02-01 (after goal deadline)
+        }
+        response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 400
+        assert "Task due date cannot exceed goal deadline" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_invalid_status():
+    table = FakeTable()
+    # Pre-populate with a task
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Test Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["test"]
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        update_payload = {"status": "invalid_status"}
+        response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 400  # Validation error
+        assert "Status must be one of" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_requires_auth():
+    table = FakeTable()
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        update_payload = {"title": "Updated Task"}
+        response = client.put("/quests/tasks/task-123", json=update_payload)
+        assert response.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_delete_task_success():
+    table = FakeTable()
+    # Pre-populate with a task
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Test Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["test"]
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        response = client.delete("/quests/tasks/task-123", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Task deleted successfully"}
+
+        # Verify task is deleted
+        assert ("USER#user-123", "TASK#task-123") not in table.items
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_delete_task_not_found():
+    table = FakeTable()
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        response = client.delete("/quests/tasks/nonexistent-task", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 404
+        assert "Task not found" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_delete_task_requires_auth():
+    table = FakeTable()
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        response = client.delete("/quests/tasks/task-123")
+        assert response.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_wrong_user():
+    table = FakeTable()
+    # Pre-populate with a task belonging to a different user
+    task_item = {
+        "PK": "USER#other-user",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Test Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["test"]
+    }
+    table.items[("USER#other-user", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token("user-123")  # Different user
+        update_payload = {"title": "Hacked Task"}
+        response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 404  # Task not found for this user
+        assert "Task not found" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_delete_task_wrong_user():
+    table = FakeTable()
+    # Pre-populate with a task belonging to a different user
+    task_item = {
+        "PK": "USER#other-user",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Test Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["test"]
+    }
+    table.items[("USER#other-user", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token("user-123")  # Different user
+        response = client.delete("/quests/tasks/task-123", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 404  # Task not found for this user
+        assert "Task not found" in response.json()["detail"]
     finally:
         app.dependency_overrides.clear()

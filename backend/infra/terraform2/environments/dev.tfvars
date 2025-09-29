@@ -1,0 +1,21 @@
+environment = "dev"
+aws_region  = "us-east-2"
+frontend_base_url = "http://localhost:8080"
+frontend_allowed_origins = [
+  "http://localhost:8080",
+]
+appsync_auth_type = "AWS_LAMBDA"
+enable_appsync_api_key = false
+enable_appsync_waf = false
+waf_enforce = false
+enable_appsync_waf_logging = false
+enable_waf_logging_stream = false
+api_stage_name = "v1"
+
+# API Gateway overrides (to avoid remote_state dependency in dev)
+lambda_authorizer_arn_override   = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_authorizer_dev"
+user_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_user_service_dev"
+quest_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_quest_service_dev"
+
+# Security stack: reuse existing Lambda exec role in dev
+existing_lambda_exec_role_name = "goalsguild_lambda_exec_role_dev"
