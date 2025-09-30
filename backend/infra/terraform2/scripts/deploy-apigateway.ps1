@@ -1,4 +1,4 @@
-param(
+﻿param(
   [ValidateSet("dev","staging","prod")] [string]$Env = "dev",
   [switch]$PlanOnly,
   [switch]$SkipInit,
@@ -14,13 +14,25 @@ $LogFile = "$LogDir\tf2.log"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 
 # Set Terraform logging environment variable
-$env:TF_LOG_PATH = "D:\terraformLogs\tf3.log"
+$env:TF_LOG_PATH = "D:\terraformLogs\tf4.log"
+
+# Clean up existing terraform log file
+$TerraformLogFile = "D:\terraformLogs\tf4.log"
+# Enable Terraform DEBUG logs to file
+try {
+  $logDir = Split-Path -Parent $TerraformLogFile
+  if ($logDir -and -not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+  if (Test-Path $TerraformLogFile) { Clear-Content $TerraformLogFile -ErrorAction SilentlyContinue } else { New-Item -ItemType File -Path $TerraformLogFile | Out-Null }
+  $env:TF_LOG = 'DEBUG'
+  $env:TF_LOG_PATH = $TerraformLogFile
+  Write-Host "[deploy] TF_LOG=DEBUG, TF_LOG_PATH=$TerraformLogFile" -ForegroundColor DarkGray
+} catch {}
 
 function Write-Log {
   param([string]$Message, [string]$Level = "INFO")
   $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
   $LogEntry = "[$Timestamp] [$Level] [apigateway] $Message"
-  Write-Host $LogEntry
+  Microsoft.PowerShell.Utility\Write-Host $LogEntry
   Add-Content -Path $LogFile -Value $LogEntry
 }
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -46,14 +58,14 @@ if ($QuestLambdaArn -ne "") {
 try {
   if (-not $SkipInit) { 
     Write-Log "Running terraform init" "INFO"
-    terraform init -upgrade 2>&1 | Tee-Object -FilePath $LogFile -Append
+    terraform init -upgrade 
   }
   if ($PSBoundParameters.ContainsKey('PlanOnly')) {
     Write-Log "Running terraform plan" "INFO"
-    terraform plan -var-file "$EnvFile" @varArgs 2>&1 | Tee-Object -FilePath $LogFile -Append
+    terraform plan -var-file "$EnvFile" @varArgs 
   } else {
     Write-Log "Running terraform apply with auto-approve" "INFO"
-    terraform apply -var-file "$EnvFile" -auto-approve @varArgs 2>&1 | Tee-Object -FilePath $LogFile -Append
+    terraform apply -var-file "$EnvFile" -auto-approve @varArgs 
   }
   Write-Log "Apigateway stack deployment completed" "INFO"
 } catch {

@@ -73,11 +73,11 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
 
     const data = await graphqlRaw<{ myTasks: TaskResponse[] }>(QUERY, { goalId });
     const tasks = (data as any)?.myTasks ?? (data as any)?.MyTasks;
-    return Array.isArray(tasks) ? tasks : [];
+    return tasks || null;
 
   } catch (e: any) {
     console.error('[loadTasks] GraphQL error:', e?.errors || e?.message || e);
-    return [];
+    return null;
   }
 }
 

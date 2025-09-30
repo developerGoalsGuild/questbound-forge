@@ -1,11 +1,11 @@
-data "terraform_remote_state" "security" {
+﻿data "terraform_remote_state" "security" {
   backend = "local"
   config = { path = "../../security/terraform.tfstate" }
 }
 
-# Use existing ECR image directly
+# Use existing ECR image directly (temporarily)
 locals {
-  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_quest_service@sha256:c0392e99596731a80d7484b1b70a128d0a1aff2a1b04e6bf2d26075bff4f6bdb"
+  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_quest_service:v4"
 }
 
 module "quest_lambda" {
@@ -21,3 +21,6 @@ module "quest_lambda" {
     SETTINGS_SSM_PREFIX = "/goalsguild/quest-service/"
   }
 }
+
+
+

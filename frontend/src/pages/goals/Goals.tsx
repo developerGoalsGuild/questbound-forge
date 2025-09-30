@@ -20,16 +20,25 @@ import { createTask as createTaskApi, loadTasks as loadTasksApi, updateTask, del
 
 const client = graphQLClientProtected();
 
-const toEpochSeconds = (iso: string): number => Math.floor(new Date(iso).getTime() / 1000);
+// Parse a date-only string (YYYY-MM-DD or datetime-local) into epoch seconds in UTC
+const toEpochSeconds = (input: string): number => {
+  const dateOnlyMatch = input.match(/^\d{4}-\d{2}-\d{2}$/);
+  if (dateOnlyMatch) {
+    const [year, month, day] = input.split('-').map(n => Number(n));
+    const ms = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+    return Math.floor(ms / 1000);
+  }
+  return Math.floor(new Date(input).getTime() / 1000);
+};
 
 const formatDeadline = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number' && !Number.isNaN(value)) {
-    return new Date(value * 1000).toLocaleDateString();
+    return new Date(value * 1000).toLocaleDateString(undefined, { timeZone: 'UTC' });
   }
   const str = String(value);
   const parsed = Date.parse(str);
-  return Number.isNaN(parsed) ? str : new Date(parsed).toLocaleDateString();
+  return Number.isNaN(parsed) ? str : new Date(parsed).toLocaleDateString(undefined, { timeZone: 'UTC' });
 };
 
 const GoalsPageInner: React.FC = () => {
@@ -183,7 +192,7 @@ const GoalsPageInner: React.FC = () => {
       // Convert deadline to epoch seconds for test compatibility
       let deadlineNum: number | undefined = undefined;
       if (deadline) {
-        deadlineNum = Math.floor(new Date(deadline).getTime() / 1000);
+        deadlineNum = toEpochSeconds(deadline);
       }
       // Pass deadline as a number for test compatibility, but cast as string if required by API
       await createGoal({
@@ -255,7 +264,7 @@ const GoalsPageInner: React.FC = () => {
   const handleCreateTask = async (taskTitle: string, taskDueAt: string,taskTags:string[], taskStatus: string) => {
     if (!selectedGoalId) return;
     try {
-      const dueAtEpoch = Math.floor(new Date(taskDueAt).getTime() / 1000);
+      const dueAtEpoch = toEpochSeconds(taskDueAt);
       // For tags, pass empty array or extend UI to collect tags if needed
       await createTaskApi({
         goalId: selectedGoalId,
@@ -557,7 +566,7 @@ const GoalsPageInner: React.FC = () => {
                   {tasks.map(tItem => (
                     <li key={tItem.id}>
                       {tItem.title}
-                      {tItem.dueAt ? ` - ${new Date(tItem.dueAt * 1000).toLocaleString()}` : ''}
+                      {tItem.dueAt ? ` - ${new Date(tItem.dueAt * 1000).toLocaleDateString(undefined, { timeZone: 'UTC' })}` : ''}
                     </li>
                   ))}
                 </ul>

@@ -41,7 +41,7 @@ class TaskUpdateInput(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v):
-        if v is not None and v not in ["active", "completed", "cancelled"]:
+        if v is not None and v not in ["active", "completed", "cancelled","paused","archived"]:
             raise ValueError("Status must be one of: active, completed, cancelled")
         return v
 

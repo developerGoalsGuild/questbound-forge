@@ -7,7 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { X, Pencil, Trash, Check, XCircle, Loader2 } from 'lucide-react';
-import { updateTask, deleteTask } from '@/lib/apiTask';
+import { updateTask } from '@/lib/apiTask';
 
 interface Task {
   id: string;
@@ -35,6 +35,7 @@ interface TasksModalProps {
 }
 
 const STATUS_OPTIONS = ['active', 'paused', 'completed', 'archived'];
+const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
 const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask, onTasksChange }) => {
   const { t } = useTranslation();
@@ -59,6 +60,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   // Editing state: map taskId to editable task data or null if not editing
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editData, setEditData] = useState<EditTaskData>({});
+  const [tagInput, setTagInput] = useState<string>('');
 
   // Error state for inline validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -73,6 +75,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setSortDirection('asc');
     setEditingTaskId(null);
     setEditData({});
+    setTagInput('');
     setErrors({});
     setLoadingStates({});
   }, [tasks]);
@@ -119,7 +122,14 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   // Start editing a task
   const startEditing = (task: Task) => {
     setEditingTaskId(task.id);
-    setEditData({ ...task, dueAt: new Date(task.dueAt * 1000).toISOString().slice(0, 10) }); // date string YYYY-MM-DD
+    // Ensure the date string is derived in UTC to avoid off-by-one issues
+    const d = new Date(task.dueAt * 1000);
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const dateOnly = `${yyyy}-${mm}-${dd}`;
+    setEditData({ ...task, dueAt: dateOnly }); // date string YYYY-MM-DD
+    setTagInput('');
     setErrors({});
   };
 
@@ -127,6 +137,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   const cancelEditing = () => {
     setEditingTaskId(null);
     setEditData({});
+    setTagInput('');
     setErrors({});
   };
 
@@ -152,7 +163,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
     } else if (editData.tags.length === 0) {
       newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
-    } else if (editData.tags.some(tag => !/^[a-zA-Z0-9-_]+$/.test(tag))) {
+    } else if (editData.tags.some(tag => !TAG_REGEX.test(tag))) {
       newErrors.tags = goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores';
     }
     setErrors(newErrors);
@@ -169,10 +180,43 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     });
   };
 
-  // Handle tags input (comma separated string)
-  const onChangeTags = (value: string) => {
-    const tagsArray = value.split(',').map(t => t.trim()).filter(t => t.length > 0);
-    onChangeField('tags', tagsArray);
+  // Add tag from input
+  const addTag = () => {
+    const newTag = tagInput.trim();
+    if (!newTag) return;
+    if (!TAG_REGEX.test(newTag)) {
+      setErrors(prev => ({ ...prev, tags: goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores' }));
+      return;
+    }
+    if ((editData.tags || []).includes(newTag)) {
+      setErrors(prev => ({ ...prev, tags: goalsTranslations?.validation?.taskTagsDuplicate || 'Duplicate tags are not allowed' }));
+      return;
+    }
+    const newTags = [...(editData.tags || []), newTag];
+    onChangeField('tags', newTags);
+    setTagInput('');
+    setErrors(prev => {
+      const { tags, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  // Handle Enter key in tag input
+  const onTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
+  // Remove tag by index
+  const removeTag = (index: number) => {
+    const newTags = (editData.tags || []).filter((_, i) => i !== index);
+    onChangeField('tags', newTags);
+    setErrors(prev => {
+      const { tags, ...rest } = prev;
+      return rest;
+    });
   };
 
   // Save edited task
@@ -182,8 +226,18 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setLoadingStates(prev => ({ ...prev, [`update-${editingTaskId}`]: true }));
     
     try {
-      // Convert dueAt date string to epoch seconds
-      const dueAtEpoch = Math.floor(new Date(editData.dueAt as string).getTime() / 1000);
+      // Convert date-only string to epoch seconds in UTC
+      let dueAtEpoch: number | undefined = undefined;
+      if (editData.dueAt !== undefined) {
+        const input = String(editData.dueAt);
+        const match = input.match(/^\d{4}-\d{2}-\d{2}$/);
+        if (match) {
+          const [y, m, d] = input.split('-').map(Number);
+          dueAtEpoch = Math.floor(Date.UTC(y, m - 1, d, 0, 0, 0, 0) / 1000);
+        } else {
+          dueAtEpoch = Math.floor(new Date(input).getTime() / 1000);
+        }
+      }
       
       // Prepare update payload with only changed fields
       const updatePayload: Partial<{
@@ -194,7 +248,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       }> = {};
 
       if (editData.title !== undefined) updatePayload.title = (editData.title as string).trim();
-      if (editData.dueAt !== undefined) updatePayload.dueAt = dueAtEpoch;
+      if (editData.dueAt !== undefined && typeof dueAtEpoch === 'number') updatePayload.dueAt = dueAtEpoch;
       if (editData.status !== undefined) updatePayload.status = editData.status as string;
       if (editData.tags !== undefined) updatePayload.tags = editData.tags as string[];
 
@@ -242,10 +296,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setLoadingStates(prev => ({ ...prev, [`delete-${taskId}`]: true }));
     
     try {
-      // Call the API directly
-      await deleteTask(taskId);
-      
-      // Update the parent component
+      // Call the parent component's delete handler (which handles the API call)
       await onDeleteTask(taskId);
       
       // Refresh tasks if callback provided
@@ -285,10 +336,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     );
   };
 
-  // Format date for display
+  // Format date for display (UTC to avoid day shifts)
   const formatDate = (epochSeconds: number) => {
     if (!epochSeconds) return '';
-    return new Date(epochSeconds * 1000).toLocaleDateString();
+    return new Date(epochSeconds * 1000).toLocaleDateString(undefined, { timeZone: 'UTC' });
   };
 
   return (
@@ -434,13 +485,32 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                     <TableCell>
                       {isEditing ? (
                         <>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {(editData.tags || []).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center rounded bg-blue-100 text-blue-800 px-2 py-0.5 text-xs font-medium"
+                              >
+                                {tag}
+                                <button
+                                  type="button"
+                                  aria-label={`Remove tag ${tag}`}
+                                  onClick={() => removeTag(idx)}
+                                  className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-blue-600 hover:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <X className="h-3 w-3" aria-hidden="true" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
                           <Input
                             type="text"
-                            value={(editData.tags || []).join(', ')}
-                            onChange={e => onChangeTags(e.target.value)}
+                            value={tagInput}
+                            onChange={e => setTagInput(e.target.value)}
+                            onKeyDown={onTagInputKeyDown}
                             aria-invalid={!!errors.tags}
                             aria-describedby={errors.tags ? `error-tags-${task.id}` : undefined}
-                            placeholder={goalsTranslations?.placeholders?.taskTags || 'Comma separated tags'}
+                            placeholder={goalsTranslations?.placeholders?.taskTags || 'Add tag and press Enter'}
                           />
                           {errors.tags && (
                             <p id={`error-tags-${task.id}`} className="text-xs text-red-600 mt-1">

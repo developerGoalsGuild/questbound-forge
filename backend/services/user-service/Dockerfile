@@ -10,12 +10,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 ENV PYTHONPATH=/app
 
-COPY user-service/requirements.txt ./requirements.txt
+COPY services/user-service/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir pydantic-settings[aws-secrets-manager]
 
 # Copy source
-COPY user-service/ /app/
+COPY services/user-service/ /app/
 COPY common /app/common
 
 

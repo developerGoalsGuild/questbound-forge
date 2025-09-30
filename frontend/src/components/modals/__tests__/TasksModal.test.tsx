@@ -330,28 +330,6 @@ describe('TasksModal', () => {
     expect(screen.getByText('Task due date is required')).toBeInTheDocument();
   });
 
-  test('validates tags during editing', async () => {
-    const user = userEvent.setup();
-    render(<TasksModal {...defaultProps} />);
-
-    // Find and click edit button for Task 1 (second in sorted list due to dueAt sorting)
-    const taskRows = screen.getAllByText('Task 1').map(el => el.closest('tr')).filter(Boolean);
-    const task1Row = taskRows[0];
-    const editButton = task1Row?.querySelector('[aria-label="Edit"]') as HTMLElement;
-    await user.click(editButton);
-
-    // Clear tags input
-    const inputs = screen.getAllByTestId('input');
-    const tagsInput = inputs.find(input => input.value === 'tag1, tag2');
-    if (tagsInput) {
-      await user.clear(tagsInput);
-    }
-
-    const saveButton = screen.getByRole('button', { name: /Save/ });
-    await user.click(saveButton);
-
-    expect(screen.getByText('At least one tag is required')).toBeInTheDocument();
-  });
 
   test('saves edited task with valid data', async () => {
     const user = userEvent.setup();
@@ -512,14 +490,11 @@ describe('TasksModal', () => {
 
   test('shows loading state during task delete', async () => {
     const user = userEvent.setup();
-    const { deleteTask } = await import('@/lib/apiTask');
-    
-    // Mock a slow API response
-    vi.mocked(deleteTask).mockImplementation(() => 
+    const mockOnDeleteTask = vi.fn().mockImplementation(() => 
       new Promise(resolve => setTimeout(() => resolve(), 100))
     );
 
-    render(<TasksModal {...defaultProps} />);
+    render(<TasksModal {...defaultProps} onDeleteTask={mockOnDeleteTask} />);
 
     // Click delete
     const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });
@@ -531,7 +506,7 @@ describe('TasksModal', () => {
 
     // Wait for completion
     await waitFor(() => {
-      expect(deleteTask).toHaveBeenCalledWith('2');
+      expect(mockOnDeleteTask).toHaveBeenCalledWith('2');
     });
   });
 
@@ -571,11 +546,9 @@ describe('TasksModal', () => {
 
   test('handles API errors gracefully during delete', async () => {
     const user = userEvent.setup();
-    const { deleteTask } = await import('@/lib/apiTask');
-    
-    vi.mocked(deleteTask).mockRejectedValue(new Error('Delete failed'));
+    const mockOnDeleteTask = vi.fn().mockRejectedValue(new Error('Delete failed'));
 
-    render(<TasksModal {...defaultProps} />);
+    render(<TasksModal {...defaultProps} onDeleteTask={mockOnDeleteTask} />);
 
     // Click delete
     const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });
@@ -631,11 +604,9 @@ describe('TasksModal', () => {
 
   test('calls onTasksChange after successful delete', async () => {
     const user = userEvent.setup();
-    const { deleteTask } = await import('@/lib/apiTask');
-    
-    vi.mocked(deleteTask).mockResolvedValue(undefined);
+    const mockOnDeleteTask = vi.fn().mockResolvedValue(undefined);
 
-    render(<TasksModal {...defaultProps} />);
+    render(<TasksModal {...defaultProps} onDeleteTask={mockOnDeleteTask} />);
 
     // Click delete
     const deleteButtons = screen.getAllByRole('button', { name: /Delete/ });

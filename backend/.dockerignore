@@ -1,0 +1,30 @@
+# VCS / IDE
+.git/
+.vscode/
+.idea/
+
+# Python caches and venvs within services
+services/**/__pycache__/
+services/**/.pytest_cache/
+services/**/*.pyc
+services/**/*.pyo
+services/**/.venv/
+services/**/venv/
+
+# Test artifacts
+services/**/tests/
+services/**/.coverage
+services/**/htmlcov/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Terraform/infrastructure not needed for image builds
+infra/**
+
+# Node modules (if any in services)
+services/**/node_modules/
+
+# Logs
+**/*.log

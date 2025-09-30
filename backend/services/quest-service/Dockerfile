@@ -10,13 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 ENV PYTHONPATH=/app
 
-COPY quest-service/requirements.txt ./requirements.txt
+COPY services/quest-service/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir pydantic-settings[aws-secrets-manager]
 
 # Copy source
-COPY quest-service/ /app/
-COPY common /app/common
+COPY services/quest-service/ /app/
+COPY services/common /app/common
 
 
 # 3) Register the adapter as a Lambda extension (container-image style)
