@@ -478,7 +478,7 @@ const GoalsPageInner: React.FC = () => {
             </div>
             <input
               id="goal-deadline"
-              type="datetime-local"
+              type="date"
               className="w-full border rounded p-2"
               value={deadline}
               onChange={e => setDeadline(e.target.value)}

@@ -1,0 +1,339 @@
+# GoalsGuild Lambda Service Development - Cursor Rules
+
+## Service Architecture Patterns
+
+### 1. Service Structure Standards
+- **ORGANIZE** each service in `backend/services/SERVICE_NAME/`
+- **INCLUDE** essential files: `main.py`, `models.py`, `security.py`, `Dockerfile`
+- **SEPARATE** concerns: authentication, business logic, data models
+- **USE** consistent naming conventions across services
+
+```
+backend/services/SERVICE_NAME/
+├── app/
+│   ├── main.py          # FastAPI application
+│   ├── models.py        # Pydantic models
+│   ├── security.py      # JWT and auth utilities
+│   ├── ssm.py          # AWS SSM parameter store
+│   └── cognito.py      # AWS Cognito integration
+├── Dockerfile
+├── requirements.txt
+└── tests/
+```
+
+### 2. FastAPI Application Structure
+- **DEFINE** clear route groups with descriptive prefixes
+- **USE** dependency injection for authentication
+- **IMPLEMENT** proper error handling and HTTP status codes
+- **INCLUDE** health check endpoints
+
+```python
+# ✅ GOOD: Clear route organization
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+@app.get("/profile", response_model=UserProfile)
+async def get_profile(auth: AuthContext = Depends(authenticate)):
+    # Implementation
+
+@app.put("/profile", response_model=UserProfile)
+async def update_profile(payload: ProfileUpdate, auth: AuthContext = Depends(authenticate)):
+    # Implementation
+```
+
+### 3. Authentication and Authorization
+- **USE** consistent JWT verification across services
+- **IMPLEMENT** proper error handling for auth failures
+- **LOG** authentication events for debugging
+- **SUPPORT** both local and Cognito JWT validation
+
+```python
+# ✅ GOOD: Consistent auth pattern
+async def authenticate(authorization: str | None = Header(default=None)) -> AuthContext:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+    
+    token = authorization[7:]  # Remove "Bearer " prefix
+    
+    try:
+        claims = verify_local_jwt(token)  # Consistent function signature
+        return AuthContext(user_id=claims['sub'], claims=claims, provider='local')
+    except Exception as e:
+        log_event(logger, 'auth.local_jwt_failed', error=str(e))
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+```
+
+## Data Model and Validation Rules
+
+### 4. Pydantic Model Design
+- **DEFINE** clear, consistent field types
+- **USE** appropriate validation rules
+- **INCLUDE** proper default values
+- **DOCUMENT** field purposes and constraints
+
+```python
+# ✅ GOOD: Well-defined Pydantic model
+class UserProfile(BaseModel):
+    id: str
+    email: EmailStr
+    role: Literal['user','partner','patron'] = 'user'
+    fullName: Optional[str] = None
+    nickname: Optional[str] = None
+    birthDate: Optional[str] = None  # YYYY-MM-DD format
+    status: str = 'ACTIVE'
+    country: Optional[str] = None
+    language: str = 'en'
+    gender: Optional[str] = None
+    pronouns: Optional[str] = None
+    bio: Optional[str] = None
+    tags: list[str] = []
+    tier: str = 'free'
+    provider: str
+    email_confirmed: bool = False
+    createdAt: int  # Unix timestamp
+    updatedAt: int  # Unix timestamp
+```
+
+### 5. Data Conversion and Validation
+- **CONVERT** data types appropriately between storage and API
+- **VALIDATE** input data before processing
+- **HANDLE** missing or invalid data gracefully
+- **USE** consistent conversion functions
+
+```python
+# ✅ GOOD: Data conversion function
+def iso_to_timestamp(iso_str):
+    """Convert ISO timestamp string to Unix timestamp integer."""
+    if not iso_str:
+        return 0
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+        return int(dt.timestamp())
+    except (ValueError, AttributeError):
+        return 0
+
+# Apply in data mapping
+profile_data = {
+    "createdAt": iso_to_timestamp(item.get("createdAt")),
+    "updatedAt": iso_to_timestamp(item.get("updatedAt")),
+}
+```
+
+## Database Integration Rules
+
+### 6. DynamoDB Integration
+- **USE** consistent table naming patterns
+- **IMPLEMENT** proper error handling for database operations
+- **INCLUDE** retry logic for transient failures
+- **LOG** database operations for debugging
+
+```python
+# ✅ GOOD: Database operation with error handling
+def _ddb_call(fn: Callable, *, op: str, max_retries: int = 2, **kwargs):
+    """Execute DynamoDB operation with retry logic."""
+    attempt = 0
+    while True:
+        try:
+            return fn(**kwargs)
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code")
+            if code in {"ConditionalCheckFailedException", "ValidationException"} or attempt >= max_retries:
+                raise
+        except Exception:
+            if attempt >= max_retries:
+                raise
+        attempt += 1
+        time.sleep(0.2 * attempt)
+```
+
+### 7. Data Mapping Patterns
+- **MAP** all required fields from database to API response
+- **INCLUDE** default values for optional fields
+- **HANDLE** data type conversions consistently
+- **VALIDATE** data before returning to client
+
+```python
+# ✅ GOOD: Complete data mapping
+profile_data = {
+    "id": item.get("id"),
+    "email": item.get("email"),
+    "role": item.get("role", "user"),
+    "fullName": item.get("fullName"),
+    "nickname": item.get("nickname"),
+    "birthDate": item.get("birthDate"),
+    "status": item.get("status", "ACTIVE"),
+    "country": item.get("country"),
+    "language": item.get("language", "en"),
+    "gender": item.get("gender"),
+    "pronouns": item.get("pronouns"),
+    "bio": item.get("bio"),
+    "tags": item.get("tags", []),
+    "tier": item.get("tier", "free"),
+    "provider": item.get("provider", "local"),
+    "email_confirmed": item.get("email_confirmed", False),
+    "createdAt": iso_to_timestamp(item.get("createdAt")),
+    "updatedAt": iso_to_timestamp(item.get("updatedAt")),
+}
+```
+
+## Error Handling and Logging Rules
+
+### 8. Structured Logging
+- **USE** structured logging with consistent format
+- **INCLUDE** correlation IDs for request tracking
+- **LOG** important business events and errors
+- **USE** appropriate log levels (INFO, WARNING, ERROR)
+
+```python
+# ✅ GOOD: Structured logging
+logger = get_structured_logger("service-name", env_flag="SERVICE_LOG_ENABLED", default_enabled=True)
+
+def log_event(logger, event_name, **kwargs):
+    """Log structured event with consistent format."""
+    logger.info(event_name, extra=kwargs)
+
+# Usage
+log_event(logger, 'profile.get_start', user_id=auth.user_id)
+log_event(logger, 'profile.get_success', user_id=auth.user_id)
+```
+
+### 9. Error Response Patterns
+- **USE** appropriate HTTP status codes
+- **PROVIDE** clear, actionable error messages
+- **AVOID** exposing sensitive information
+- **INCLUDE** error codes for programmatic handling
+
+```python
+# ✅ GOOD: Proper error handling
+try:
+    response = _ddb_call(core.get_item, op="core.get_item.profile", Key=key)
+except Exception:
+    logger.error("profile.get.ddb_error", extra={"user_id": auth.user_id}, exc_info=True)
+    raise HTTPException(status_code=500, detail="Unable to load profile")
+
+if not item:
+    raise HTTPException(status_code=404, detail="Profile not found")
+```
+
+## Security Rules
+
+### 10. Input Validation
+- **VALIDATE** all input data using Pydantic models
+- **SANITIZE** user inputs to prevent injection attacks
+- **CHECK** data types and formats
+- **IMPLEMENT** proper length and range validations
+
+```python
+# ✅ GOOD: Input validation
+if payload.nickname:
+    nickname = payload.nickname.strip()
+    if len(nickname) < 3 or len(nickname) > 32:
+        raise HTTPException(status_code=400, detail="Nickname must be 3-32 characters")
+    
+    import re
+    if not re.fullmatch(r"[A-Za-z0-9_\-]+", nickname):
+        raise HTTPException(status_code=400, detail="Nickname can only contain letters, numbers, underscores, and hyphens")
+```
+
+### 11. Authentication Security
+- **VERIFY** JWT tokens properly
+- **HANDLE** token expiration gracefully
+- **LOG** authentication failures
+- **IMPLEMENT** rate limiting for auth endpoints
+
+## Performance and Optimization Rules
+
+### 12. Lambda Function Optimization
+- **SET** appropriate memory allocation
+- **OPTIMIZE** cold start times
+- **USE** connection pooling for database connections
+- **IMPLEMENT** caching where appropriate
+
+### 13. Database Query Optimization
+- **USE** appropriate DynamoDB query patterns
+- **IMPLEMENT** proper indexing strategies
+- **AVOID** full table scans
+- **USE** batch operations when possible
+
+## Testing Rules
+
+### 14. Unit Testing
+- **WRITE** tests for all business logic functions
+- **MOCK** external dependencies
+- **TEST** error conditions and edge cases
+- **MAINTAIN** good test coverage
+
+### 15. Integration Testing
+- **TEST** complete request/response cycles
+- **VERIFY** database operations
+- **CHECK** authentication flows
+- **TEST** error handling paths
+
+## Docker and Deployment Rules
+
+### 16. Dockerfile Standards
+- **USE** appropriate base images (python:3.12-slim)
+- **COPY** only necessary files
+- **INSTALL** dependencies efficiently
+- **SET** proper working directory
+
+```dockerfile
+# ✅ GOOD: Efficient Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY services/SERVICE_NAME/ /app/
+COPY services/common /app/common
+
+# Use Lambda adapter
+COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
+```
+
+### 17. Environment Configuration
+- **USE** environment variables for configuration
+- **LOAD** sensitive data from AWS SSM Parameter Store
+- **VALIDATE** required environment variables
+- **PROVIDE** sensible defaults
+
+```python
+# ✅ GOOD: Environment configuration
+class Settings(BaseSettings):
+    environment: str = "dev"
+    ssm_prefix: str = "/goalsguild/service-name/"
+    jwt_secret: str = ""
+    core_table_name: str = ""
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+settings = Settings()
+```
+
+## Code Quality Rules
+
+### 18. Code Organization
+- **GROUP** related functions together
+- **USE** clear, descriptive function names
+- **INCLUDE** docstrings for complex functions
+- **MAINTAIN** consistent code formatting
+
+### 19. Error Handling
+- **HANDLE** all possible error conditions
+- **PROVIDE** meaningful error messages
+- **LOG** errors with sufficient context
+- **IMPLEMENT** proper cleanup in error cases
+
+### 20. Documentation
+- **DOCUMENT** API endpoints with clear descriptions
+- **INCLUDE** parameter and response documentation
+- **PROVIDE** examples for complex operations
+- **MAINTAIN** up-to-date README files
+
+Remember: **Consistency is key** - Follow the established patterns from working services like quest-service and user-service.

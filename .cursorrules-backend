@@ -1,0 +1,258 @@
+# Backend Development Rules - GoalsGuild QuestBound Forge
+
+## AppSync Resolver Development
+
+### 1. Resolver Structure
+```javascript
+// ✅ REQUIRED: Standard resolver structure
+export function request(ctx) {
+  // 1. Log request context
+  console.log('[resolverName] Request context:', JSON.stringify(ctx, null, 2));
+  
+  // 2. Extract and validate user identity
+  const sub = ctx.identity?.resolverContext?.sub || ctx.identity?.sub;
+  if (!sub) {
+    console.log('[resolverName] No sub found, throwing unauthorized');
+    util.unauthorized();
+  }
+  
+  // 3. Build DynamoDB key
+  const key = { PK: `ENTITY#${sub}`, SK: `TYPE#${sub}` };
+  console.log('[resolverName] DynamoDB key:', JSON.stringify(key, null, 2));
+  
+  // 4. Return operation
+  return {
+    operation: 'GetItem', // or 'Query', 'PutItem', etc.
+    key: util.dynamodb.toMapValues(key),
+    consistentRead: false,
+  };
+}
+
+export function response(ctx) {
+  // 1. Log response context
+  console.log('[resolverName] Response context:', JSON.stringify(ctx, null, 2));
+  
+  // 2. Handle errors
+  if (ctx.error) {
+    console.log('[resolverName] Error:', ctx.error);
+    util.error(ctx.error.message, ctx.error.type);
+  }
+  
+  // 3. Extract data safely
+  const data = ctx.result?.item || ctx.result;
+  if (!data) {
+    console.log('[resolverName] No data found');
+    util.error('Data not found', 'NotFound');
+  }
+  
+  // 4. Map to GraphQL schema with defaults
+  return {
+    id: data.id,
+    // Always provide defaults for required fields
+    role: data.role || 'user',
+    status: data.status || 'active',
+    // ... other fields
+  };
+}
+```
+
+### 2. DynamoDB Key Patterns
+```javascript
+// ✅ REQUIRED: Consistent key patterns
+const patterns = {
+  user: { PK: `USER#${sub}`, SK: `PROFILE#${sub}` },
+  goal: { PK: `USER#${sub}`, SK: `GOAL#${goalId}` },
+  task: { PK: `GOAL#${goalId}`, SK: `TASK#${taskId}` },
+  message: { PK: `ROOM#${roomId}`, SK: `MESSAGE#${messageId}` }
+};
+```
+
+### 3. Error Handling
+```javascript
+// ✅ REQUIRED: Comprehensive error handling
+if (ctx.error) {
+  console.log('[resolverName] Error details:', {
+    message: ctx.error.message,
+    type: ctx.error.type,
+    stack: ctx.error.stack
+  });
+  util.error(ctx.error.message, ctx.error.type);
+}
+
+// ✅ REQUIRED: Data validation
+if (!data) {
+  console.log('[resolverName] No data found in result');
+  util.error('Data not found', 'NotFound');
+}
+```
+
+### 4. Logging Standards
+```javascript
+// ✅ REQUIRED: Structured logging
+console.log('[resolverName] Operation:', operation);
+console.log('[resolverName] User ID:', sub);
+console.log('[resolverName] DynamoDB key:', JSON.stringify(key, null, 2));
+console.log('[resolverName] Response data:', JSON.stringify(data, null, 2));
+```
+
+## Terraform Infrastructure
+
+### 1. AppSync Module Structure
+```hcl
+# ✅ REQUIRED: Enable logging in AppSync
+resource "aws_appsync_graphql_api" "this" {
+  log_config {
+    field_log_level = "ALL"
+    cloudwatch_logs_role_arn = aws_iam_role.appsync_logs_role.arn
+  }
+}
+
+# ✅ REQUIRED: IAM role for AppSync logging
+resource "aws_iam_role" "appsync_logs_role" {
+  name = "${var.name}-logs-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "appsync.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+```
+
+### 2. Resolver Configuration
+```hcl
+# ✅ REQUIRED: Resolver with proper runtime
+resource "aws_appsync_resolver" "query_myProfile" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myProfile"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/myProfile.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+```
+
+## Python Backend Services
+
+### 1. FastAPI Structure
+```python
+# ✅ REQUIRED: Standard FastAPI app structure
+from fastapi import FastAPI, HTTPException, Depends
+from pydantic import BaseModel
+import logging
+
+app = FastAPI(title="Service Name", version="1.0.0")
+logger = logging.getLogger(__name__)
+
+class ServiceResponse(BaseModel):
+    success: bool
+    data: dict = None
+    error: str = None
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "service-name"}
+```
+
+### 2. Error Handling
+```python
+# ✅ REQUIRED: Comprehensive error handling
+try:
+    result = await some_operation()
+    return ServiceResponse(success=True, data=result)
+except ValidationError as e:
+    logger.error(f"Validation error: {e}")
+    raise HTTPException(status_code=400, detail=str(e))
+except Exception as e:
+    logger.error(f"Unexpected error: {e}")
+    raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+### 3. Database Operations
+```python
+# ✅ REQUIRED: Safe database operations
+async def get_user_profile(user_id: str) -> dict:
+    try:
+        response = await dynamodb.get_item(
+            TableName=TABLE_NAME,
+            Key={
+                'PK': {'S': f'USER#{user_id}'},
+                'SK': {'S': f'PROFILE#{user_id}'}
+            }
+        )
+        
+        if 'Item' not in response:
+            return None
+            
+        return parse_dynamodb_item(response['Item'])
+    except Exception as e:
+        logger.error(f"Database error: {e}")
+        raise
+```
+
+## Testing Requirements
+
+### 1. Unit Tests
+```python
+# ✅ REQUIRED: Test all resolver functions
+def test_myProfile_resolver():
+    # Test successful case
+    # Test error cases
+    # Test edge cases
+    pass
+```
+
+### 2. Integration Tests
+```python
+# ✅ REQUIRED: Test complete flow
+async def test_profile_retrieval():
+    # Test GraphQL query
+    # Test resolver execution
+    # Test data mapping
+    pass
+```
+
+## Deployment Checklist
+
+### Before Deployment
+- [ ] All resolvers have comprehensive logging
+- [ ] Error handling is implemented
+- [ ] Default values are provided for required fields
+- [ ] DynamoDB key patterns are consistent
+- [ ] CloudWatch logging is enabled
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+
+### After Deployment
+- [ ] CloudWatch logs show successful execution
+- [ ] GraphQL queries work without errors
+- [ ] All required fields are returned
+- [ ] Error states are handled gracefully
+- [ ] Performance is acceptable
+
+## Common Anti-Patterns to Avoid
+
+### ❌ DON'T
+- Skip error handling in resolvers
+- Assume data exists without validation
+- Use hardcoded values instead of defaults
+- Deploy without testing
+- Ignore CloudWatch logs
+- Skip schema validation
+- use appsync on a lambda function service 
+
+### ✅ DO
+- Always handle errors gracefully
+- Use appsync for select queries on frontend
+- use a suitable service for changes in the database
+- Provide default values for required fields
+- Log extensively during development
+- Test the complete flow
+- Monitor CloudWatch logs
+- Validate schema changes

@@ -93,3 +93,5 @@ backend/infra/terraform/terraform.tfstate.backup
 backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/app/__pycache__/models.cpython-313.pyc
 backend/services/quest-service/tests/__pycache__/test_goals.cpython-313.pyc
+backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
+.gitignore

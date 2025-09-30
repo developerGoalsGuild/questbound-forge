@@ -152,7 +152,7 @@ async def authenticate(request: Request) -> AuthContext:
 
     # Try local JWT first (for development/testing), then Cognito JWT for production
     try:
-        claims = verify_local_jwt(token, settings.jwt_secret_key, settings.jwt_algorithm, settings.jwt_issuer)
+        claims = verify_local_jwt(token)
         log_event(logger, 'auth.local_jwt_success', user_id=claims.get('sub'), path=path, client=client_host, status=200)
         return AuthContext(user_id=claims['sub'], claims=claims, provider='local')
     except Exception as e_local:
@@ -1171,6 +1171,17 @@ async def get_profile(auth: AuthContext = Depends(authenticate)):
         raise HTTPException(status_code=404, detail="Profile not found")
 
     # Convert DynamoDB item to UserProfile model
+    # Convert ISO timestamps to Unix timestamps
+    def iso_to_timestamp(iso_str):
+        if not iso_str:
+            return 0
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+            return int(dt.timestamp())
+        except (ValueError, AttributeError):
+            return 0
+    
     profile_data = {
         "id": item.get("id"),
         "email": item.get("email"),
@@ -1188,8 +1199,8 @@ async def get_profile(auth: AuthContext = Depends(authenticate)):
         "tier": item.get("tier", "free"),
         "provider": item.get("provider", "local"),
         "email_confirmed": item.get("email_confirmed", False),
-        "createdAt": item.get("createdAt", 0),
-        "updatedAt": item.get("updatedAt", 0),
+        "createdAt": iso_to_timestamp(item.get("createdAt")),
+        "updatedAt": iso_to_timestamp(item.get("updatedAt")),
     }
 
     log_event(logger, 'profile.get_success', user_id=auth.user_id)
@@ -1214,21 +1225,31 @@ async def update_profile(
         if not re.fullmatch(r"[A-Za-z0-9_\-]+", nickname):
             raise HTTPException(status_code=400, detail="Nickname can only contain letters, numbers, underscores, and hyphens")
 
-        # Check if nickname is taken by another user
+        # Check if nickname is taken by another user using AppSync GraphQL
         try:
-            response = core.query(
-                IndexName="GSI2",
-                KeyConditionExpression="#pk = :v",
-                ExpressionAttributeNames={"#pk": "GSI2PK"},
-                ExpressionAttributeValues={":v": f"NICK#{nickname}"},
-                Limit=1,
-            )
-            items = response.get("Items", [])
-            if items and items[0].get("id") != auth.user_id:
+            from .graphql_client import graphql_client
+            is_available = await graphql_client.is_nickname_available_for_user(nickname)
+            if not is_available:
                 raise HTTPException(status_code=409, detail="Nickname already taken")
-        except ClientError as e:
-            if e.response.get("Error", {}).get("Code") != "ValidationException":
-                raise HTTPException(status_code=500, detail="Unable to validate nickname")
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Fallback to direct DynamoDB check if GraphQL fails
+            logger.warning("GraphQL nickname check failed, falling back to DynamoDB", extra={"user_id": auth.user_id, "error": str(e)})
+            try:
+                response = core.query(
+                    IndexName="GSI2",
+                    KeyConditionExpression="#pk = :v",
+                    ExpressionAttributeNames={"#pk": "GSI2PK"},
+                    ExpressionAttributeValues={":v": f"NICK#{nickname}"},
+                    Limit=1,
+                )
+                items = response.get("Items", [])
+                if items and items[0].get("id") != auth.user_id:
+                    raise HTTPException(status_code=409, detail="Nickname already taken")
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") != "ValidationException":
+                    raise HTTPException(status_code=500, detail="Unable to validate nickname")
 
     # Validate country if provided
     if payload.country:

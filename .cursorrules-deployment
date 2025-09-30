@@ -1,0 +1,333 @@
+# Deployment Rules - GoalsGuild QuestBound Forge
+
+## Pre-Deployment Checklist
+
+### 1. Code Quality Checks
+```bash
+# ✅ REQUIRED: Run all quality checks before deployment
+npm run lint
+npm run type-check
+npm run test
+npm run build
+```
+
+### 2. Schema Validation
+```bash
+# ✅ REQUIRED: Validate GraphQL schema changes
+cd backend/infra/terraform2
+terraform plan -var-file="environments/dev.tfvars"
+terraform validate
+```
+
+### 3. Environment Verification
+```bash
+# ✅ REQUIRED: Verify environment variables
+echo "VITE_APPSYNC_ENDPOINT: $VITE_APPSYNC_ENDPOINT"
+echo "AWS_REGION: $AWS_REGION"
+echo "NODE_ENV: $NODE_ENV"
+```
+
+## Backend Deployment
+
+### 1. AppSync Deployment
+```bash
+# ✅ REQUIRED: Deploy AppSync changes
+cd backend/infra/terraform2/stacks/appsync
+terraform apply -var-file="../../environments/dev.tfvars" -auto-approve
+
+# Verify deployment
+aws appsync get-graphql-api --api-id $(terraform output -raw api_id) --region us-east-2
+```
+
+### 2. Lambda Function Deployment
+```bash
+# ✅ REQUIRED: Deploy Lambda functions
+cd backend/services/quest-service
+./package.sh
+aws lambda update-function-code \
+  --function-name quest-service-dev \
+  --zip-file fileb://quest-service.zip \
+  --region us-east-2
+```
+
+### 3. Database Migration
+```bash
+# ✅ REQUIRED: Run database migrations if needed
+aws dynamodb describe-table --table-name gg_core --region us-east-2
+```
+
+## Frontend Deployment
+
+### 1. Build Process
+```bash
+# ✅ REQUIRED: Build frontend with correct environment
+npm run build
+
+# Verify build output
+ls -la dist/
+```
+
+### 2. Environment Configuration
+```bash
+# ✅ REQUIRED: Verify environment variables in build
+grep -r "VITE_APPSYNC_ENDPOINT" dist/
+```
+
+### 3. Static Hosting
+```bash
+# ✅ REQUIRED: Deploy to S3/CloudFront
+aws s3 sync dist/ s3://your-bucket-name --delete
+aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
+```
+
+## Post-Deployment Verification
+
+### 1. Health Checks
+```bash
+# ✅ REQUIRED: Verify all services are healthy
+curl -f https://your-app.com/health
+curl -f https://your-api.com/health
+```
+
+### 2. GraphQL Endpoint Test
+```bash
+# ✅ REQUIRED: Test GraphQL endpoint
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"query":"query { __schema { types { name } } }"}' \
+  https://your-appsync-endpoint.com/graphql
+```
+
+### 3. Frontend Functionality Test
+```bash
+# ✅ REQUIRED: Test critical user flows
+npm run test:e2e
+```
+
+## Rollback Procedures
+
+### 1. AppSync Rollback
+```bash
+# ✅ REQUIRED: Rollback AppSync changes
+cd backend/infra/terraform2/stacks/appsync
+terraform apply -var-file="../../environments/dev.tfvars" -auto-approve
+```
+
+### 2. Frontend Rollback
+```bash
+# ✅ REQUIRED: Rollback frontend deployment
+aws s3 sync s3://your-bucket-name/previous-version/ s3://your-bucket-name/ --delete
+```
+
+### 3. Database Rollback
+```bash
+# ✅ REQUIRED: Restore database if needed
+aws dynamodb restore-table-from-backup \
+  --target-table-name gg_core \
+  --backup-arn arn:aws:dynamodb:us-east-2:ACCOUNT:table/gg_core/backup/BACKUP_ID
+```
+
+## Monitoring and Alerting
+
+### 1. CloudWatch Alarms
+```bash
+# ✅ REQUIRED: Set up monitoring
+aws cloudwatch put-metric-alarm \
+  --alarm-name "AppSync-Error-Rate" \
+  --alarm-description "AppSync error rate too high" \
+  --metric-name "4XXError" \
+  --namespace "AWS/AppSync" \
+  --statistic "Sum" \
+  --period 300 \
+  --threshold 10 \
+  --comparison-operator "GreaterThanThreshold"
+```
+
+### 2. Log Monitoring
+```bash
+# ✅ REQUIRED: Monitor logs for errors
+aws logs filter-log-events \
+  --log-group-name "/aws/appsync/apis/API_ID" \
+  --filter-pattern "ERROR" \
+  --start-time $(date -d "1 hour ago" +%s)000
+```
+
+### 3. Performance Monitoring
+```bash
+# ✅ REQUIRED: Monitor performance metrics
+aws cloudwatch get-metric-statistics \
+  --namespace "AWS/AppSync" \
+  --metric-name "Latency" \
+  --dimensions Name=GraphQLAPIId,Value=API_ID \
+  --start-time $(date -d "1 hour ago" -u +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 300 \
+  --statistics Average
+```
+
+## Security Checklist
+
+### 1. Authentication
+- [ ] JWT tokens are properly validated
+- [ ] CORS is configured correctly
+- [ ] API keys are rotated regularly
+- [ ] User permissions are enforced
+
+### 2. Data Protection
+- [ ] Sensitive data is encrypted
+- [ ] PII is handled according to regulations
+- [ ] Database access is restricted
+- [ ] Logs don't contain sensitive information
+
+### 3. Network Security
+- [ ] HTTPS is enforced
+- [ ] Security headers are set
+- [ ] Rate limiting is implemented
+- [ ] DDoS protection is enabled
+
+## Performance Optimization
+
+### 1. Frontend Optimization
+```bash
+# ✅ REQUIRED: Optimize bundle size
+npm run build
+npx webpack-bundle-analyzer dist/assets/*.js
+
+# Check for large dependencies
+npm ls --depth=0
+```
+
+### 2. Backend Optimization
+```bash
+# ✅ REQUIRED: Monitor Lambda performance
+aws lambda get-function --function-name quest-service-dev
+aws lambda get-function-configuration --function-name quest-service-dev
+```
+
+### 3. Database Optimization
+```bash
+# ✅ REQUIRED: Monitor DynamoDB performance
+aws dynamodb describe-table --table-name gg_core
+aws dynamodb describe-continuous-backups --table-name gg_core
+```
+
+## Disaster Recovery
+
+### 1. Backup Strategy
+```bash
+# ✅ REQUIRED: Regular backups
+aws dynamodb create-backup \
+  --table-name gg_core \
+  --backup-name "gg_core-$(date +%Y%m%d-%H%M%S)"
+```
+
+### 2. Multi-Region Setup
+```bash
+# ✅ REQUIRED: Cross-region replication
+aws dynamodb create-global-table \
+  --global-table-name gg_core \
+  --replication-group RegionName=us-east-2 RegionName=us-west-2
+```
+
+### 3. Recovery Testing
+```bash
+# ✅ REQUIRED: Test recovery procedures
+# Test database restore
+# Test application recovery
+# Test data integrity
+```
+
+## Documentation Updates
+
+### 1. API Documentation
+- [ ] GraphQL schema is documented
+- [ ] API endpoints are documented
+- [ ] Authentication flow is documented
+- [ ] Error codes are documented
+
+### 2. Deployment Documentation
+- [ ] Deployment process is documented
+- [ ] Rollback procedures are documented
+- [ ] Monitoring setup is documented
+- [ ] Troubleshooting guide is updated
+
+### 3. User Documentation
+- [ ] User guides are updated
+- [ ] Feature documentation is current
+- [ ] FAQ is updated
+- [ ] Support contacts are current
+
+## Common Deployment Issues
+
+### 1. Schema Mismatch
+```
+Error: GraphQL schema validation failed
+Solution: Update schema and redeploy
+```
+
+### 2. Environment Variables
+```
+Error: Missing environment variable
+Solution: Check .env files and deployment config
+```
+
+### 3. Permission Issues
+```
+Error: Access denied
+Solution: Check IAM roles and policies
+```
+
+### 4. Resource Limits
+```
+Error: Resource limit exceeded
+Solution: Check AWS service limits
+```
+
+## Deployment Automation
+
+### 1. CI/CD Pipeline
+```yaml
+# ✅ REQUIRED: GitHub Actions workflow
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Deploy
+        run: ./deploy.sh
+```
+
+### 2. Infrastructure as Code
+```bash
+# ✅ REQUIRED: Terraform automation
+terraform init
+terraform plan -var-file="environments/prod.tfvars"
+terraform apply -var-file="environments/prod.tfvars" -auto-approve
+```
+
+### 3. Blue-Green Deployment
+```bash
+# ✅ REQUIRED: Zero-downtime deployment
+# Deploy to staging
+# Test staging environment
+# Switch traffic to new version
+# Monitor for issues
+# Rollback if needed
+```
+
+Remember: **Always test in staging before production!** Deploy with confidence, not hope.

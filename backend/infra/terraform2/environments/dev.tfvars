@@ -5,7 +5,7 @@ frontend_allowed_origins = [
   "http://localhost:8080",
 ]
 appsync_auth_type = "AWS_LAMBDA"
-enable_appsync_api_key = false
+enable_appsync_api_key = true
 enable_appsync_waf = false
 waf_enforce = false
 enable_appsync_waf_logging = false
@@ -19,3 +19,7 @@ quest_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:funct
 
 # Security stack: reuse existing Lambda exec role in dev
 existing_lambda_exec_role_name = "goalsguild_lambda_exec_role_dev"
+
+# Database stack values (to avoid remote_state dependency in dev)
+core_table_name = "gg_core"
+core_table_arn = "arn:aws:dynamodb:us-east-2:838284111015:table/gg_core"

@@ -1,0 +1,23 @@
+{
+  "args": {
+    "input": {
+      "goalId": "GOAL-EXAMPLE-1234",
+      "title": "Write tests",
+      "nlpPlan": {"steps": ["spec", "impl", "review"]},
+      "dueAt": 1733356800,
+      "assignees": ["11111111-1111-4111-8111-111111111111"]
+    }
+  },
+  "identity": {
+    "sub": "11111111-1111-4111-8111-111111111111",
+    "username": "user-v1",
+    "claims": {
+      "sub": "11111111-1111-4111-8111-111111111111",
+      "email": "user@example.com",
+      "email_verified": true
+    },
+    "sourceIp": ["127.0.0.1"],
+    "groups": []
+  }
+}
+

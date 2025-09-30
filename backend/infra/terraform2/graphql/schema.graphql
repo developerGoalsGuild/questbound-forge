@@ -1,0 +1,222 @@
+# ---------------------------------------
+# schema.graphql (AppSync-compatible)
+# Default auth: AWS Lambda (Lambda Authorizer)
+# Additional auth: API Key (for the few public ops below)
+# ---------------------------------------
+
+# AWS Scalars
+scalar AWSDateTime
+scalar AWSDate
+scalar AWSTimestamp
+scalar AWSJSON
+
+# Enums
+enum GoalStatus {
+  active
+  paused
+  completed
+  archived
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  done
+  canceled
+}
+
+# ----------------
+# Core Types
+# ----------------
+
+type User {
+  id: ID!
+  email: String
+  role: String!                 # "user" | "partner" | "patron"
+  fullName: String
+  nickname: String
+  birthDate: AWSDate
+  status: String
+  country: String
+  language: String
+  gender: String
+  pronouns: String
+  bio: String
+  tags: [String!]!
+  tier: String!                 # "free" | "premium" etc.
+  createdAt: AWSTimestamp
+  updatedAt: AWSTimestamp
+  ageYears: Int
+}
+
+# Typed answer pair for goals
+type Answer {
+  key: String!
+  answer: String!
+}
+
+input AnswerInput {
+  key: String!
+  answer: String!
+}
+
+type Goal {
+  id: ID!
+  userId: ID!
+  title: String!
+  description: String
+  tags: [String!]
+  deadline: AWSDate
+  status: GoalStatus!
+  createdAt: AWSTimestamp
+  updatedAt: AWSTimestamp
+  answers: [Answer!]
+}
+
+# Task type (simplified for example)
+type Task {
+  id: ID!
+  goalId: ID!
+  title: String!
+  dueAt: Int!
+  status: String!
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp!
+  tags: [String!]!
+}
+
+type Message {
+  id: ID!
+  roomId: ID!
+  senderId: ID!
+  text: String!
+  ts: AWSTimestamp!
+}
+
+type Offer {
+  id: ID!
+  title: String!
+  url: String!
+  tags: [String!]
+  validTo: AWSDateTime
+}
+
+# ----------------
+# Queries
+# ----------------
+
+type Query {
+  me: User
+  user(userId: ID!): User
+  goals(userId: ID!): [Goal!]!
+  activeGoalsCount(userId: ID!): Int!
+  myGoals: [Goal!]!
+  myTasks(goalId: ID!): [Task!]!
+  tasks(goalId: ID!): [Task!]!
+  messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
+  offers(tags: [String!], limit: Int = 20): [Offer!]!
+
+  # Authenticated profile query: returns only caller's profile
+  myProfile: User!
+
+  # Public checks (API key)
+  isEmailAvailable(email: String!): Boolean! @aws_api_key
+  isNicknameAvailable(nickname: String!): Boolean! @aws_api_key
+  
+  # Authorized checks (Lambda auth)
+  isNicknameAvailableForUser(nickname: String!): Boolean!
+}
+
+# ----------------
+# Mutations
+# ----------------
+
+type Mutation {
+  """
+  Create a user profile. Accepts a bcrypt password hash (NEVER plaintext).
+  The resolver sets tier to 'free' by default.
+  """
+  createUser(input: CreateUserInput!): User! @aws_api_key 
+
+  """
+  Post a message to a chat room.
+  """
+  sendMessage(roomId: ID!, text: String!): Message!
+}
+
+# ----------------
+# Subscriptions
+# ----------------
+
+type Subscription {
+  """
+  Subscribe to new messages for a room. Requires the same roomId as in sendMessage.
+  """
+  onMessage(roomId: ID!): Message!
+  @aws_subscribe(mutations: ["sendMessage"])
+  
+}
+
+# ----------------
+# Inputs
+# ----------------
+
+input CreateUserInput {
+  email: String!
+  fullName: String!
+  nickname: String!
+  birthDate: AWSDate
+  status: String
+  country: String!
+  language: String = "en"
+  gender: String
+  pronouns: String
+  bio: String
+  tags: [String!]
+  passwordHash: String       # bcrypt hash; hashing is done outside this API
+  password: String           # DEV ONLY: plaintext accepted for non-production
+}
+
+input GoalInput {
+  title: String!
+  description: String
+  tags: [String!]
+  deadline: AWSDate!    # required to match resolver validation
+  answers: [AnswerInput!]
+}
+
+
+
+
+# Input type for Task creation, including tags consistent with goals
+input TaskInput {
+  goalId: ID!
+  title: String!
+  dueAt: Int! # epoch seconds
+  tags: [String!]! # tags consistent with goals
+}
+
+
+
+# Non-public mutation for creating a task
+extend type Mutation {
+  """
+  Non-public mutation to create a new task associated with a goal.
+  Requires authentication.
+  """
+  #  Add a task under a goal owned by the current user.
+  createTask(input: TaskInput!): Task!
+
+
+}
+
+
+# ----------------
+# Root Schema
+# ----------------
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

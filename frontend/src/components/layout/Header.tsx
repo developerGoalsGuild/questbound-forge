@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Shield, Menu, X, Globe } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Shield, Menu, X, Globe, User as UserIcon, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -10,9 +10,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Language } from '@/i18n/translations';
+import { isTokenValid } from '@/lib/auth';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(isTokenValid());
+  const navigate = useNavigate();
   const { language, setLanguage, t } = useTranslation();
   const nav = (t as any).nav || {};
   const auth = (t as any).auth || {};
@@ -23,6 +26,18 @@ const Header = () => {
     { code: 'es', name: 'Español', flag: '🇪🇸' },
     { code: 'fr', name: 'Français', flag: '🇫🇷' },
   ];
+
+  useEffect(() => {
+    const onAuthChange = () => setIsAuthenticated(isTokenValid());
+    window.addEventListener('auth:change', onAuthChange);
+    return () => window.removeEventListener('auth:change', onAuthChange);
+  }, []);
+
+  const handleLogout = () => {
+    try { localStorage.removeItem('auth'); } catch {}
+    try { window.dispatchEvent(new CustomEvent('auth:change')); } catch {}
+    navigate('/', { replace: true });
+  };
 
   return (
     <header className="medieval-banner border-b sticky top-0 z-50 bg-background/95 backdrop-blur-sm">
@@ -79,12 +94,34 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <a data-testid="link" href="/login/Login">
-              {auth.login || 'Login'}
-            </a>
-            <a data-testid="link" href="/signup/LocalSignUp">
-              {auth.signup || 'Sign Up'}
-            </a>
+            {!isAuthenticated && (
+              <>
+                <a data-testid="link" href="/login/Login">
+                  {auth.login || 'Login'}
+                </a>
+                <a data-testid="link" href="/signup/LocalSignUp">
+                  {auth.signup || 'Sign Up'}
+                </a>
+              </>
+            )}
+            {isAuthenticated && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <UserIcon className="h-4 w-4" />
+                    <span>Account</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border border-border">
+                  <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                    <UserIcon className="h-4 w-4 mr-2" /> Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                    <LogOut className="h-4 w-4 mr-2" /> Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -119,12 +156,26 @@ const Header = () => {
               </Link>
 
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <a data-testid="link" href="/login/Login" className="btn-heraldic text-primary-foreground justify-start">
-                  {auth.login || 'Login'}
-                </a>
-                <a data-testid="link" href="/signup/LocalSignUp">
-                  {auth.signup || 'Sign Up'}
-                </a>
+                {!isAuthenticated && (
+                  <>
+                    <a data-testid="link" href="/login/Login" className="btn-heraldic text-primary-foreground justify-start">
+                      {auth.login || 'Login'}
+                    </a>
+                    <a data-testid="link" href="/signup/LocalSignUp">
+                      {auth.signup || 'Sign Up'}
+                    </a>
+                  </>
+                )}
+                {isAuthenticated && (
+                  <>
+                    <Link to="/profile" className="font-medium hover:text-primary transition-colors">
+                      Profile
+                    </Link>
+                    <button onClick={handleLogout} className="text-left font-medium text-red-600 hover:text-red-700 transition-colors">
+                      Logout
+                    </button>
+                  </>
+                )}
               </div>
             </nav>
           </div>

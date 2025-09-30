@@ -17,10 +17,10 @@ resource "aws_appsync_graphql_api" "this" {
     content { authentication_type = "API_KEY" }
   }
 
-  # Logging configuration removed as it requires additional IAM role setup
-  # log_config {
-  #   field_log_level = "ALL"
-  # }
+  log_config {
+    field_log_level = "ALL"
+    cloudwatch_logs_role_arn = aws_iam_role.appsync_logs_role.arn
+  }
 
   tags = var.tags
 }
@@ -48,6 +48,35 @@ resource "aws_iam_role_policy" "ds_ddb_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{ Effect = "Allow", Action = ["dynamodb:PutItem","dynamodb:GetItem","dynamodb:Query","dynamodb:UpdateItem","dynamodb:TransactWriteItems"], Resource = [var.ddb_table_arn, "${var.ddb_table_arn}/index/*"] }]
+  })
+}
+
+# IAM role for AppSync CloudWatch logging
+resource "aws_iam_role" "appsync_logs_role" {
+  name = "${var.name}-logs-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "appsync.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "appsync_logs_policy" {
+  role = aws_iam_role.appsync_logs_role.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      Resource = "arn:aws:logs:${var.region}:*:*"
+    }]
   })
 }
 

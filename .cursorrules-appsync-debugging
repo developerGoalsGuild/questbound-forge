@@ -1,0 +1,223 @@
+# AppSync Resolver Debugging and Development Rules
+
+## Core Principles
+
+### 1. Always Verify DynamoDB Field Names
+- **NEVER assume field names** match GraphQL schema or variable names
+- **ALWAYS check actual item structure** in CloudWatch logs before writing filters
+- **COMMON MISTAKE**: Using `userId` when actual field is `id`
+- **VERIFICATION METHOD**: Deploy with logging, test with real data, check logs
+
+### 2. Use Database-Level Filtering
+- **PREFER DynamoDB filters** over JavaScript post-processing
+- **FILTER SYNTAX**: `#fieldName <> :value` for exclusion logic
+- **PERFORMANCE**: Reduces data transfer and improves response times
+- **EXAMPLE**: `#id <> :currentUserId` excludes current user's records
+
+### 3. Comprehensive Logging Strategy
+- **DEVELOPMENT PHASE**: Add extensive logging to both request and response functions
+- **PRODUCTION PHASE**: Remove all logging before final deployment
+- **LOG FORMAT**: Use consistent prefixes like `[resolverName]` for easy filtering
+- **LOG CONTENT**: Include context, variables, DynamoDB requests, and results
+
+## Debugging Workflow
+
+### Step 1: Add Logging
+```javascript
+export function request(ctx) {
+  console.log('[resolverName] Request context:', JSON.stringify(ctx, null, 2));
+  console.log('[resolverName] Variables:', ctx.arguments);
+  // ... resolver logic
+  console.log('[resolverName] DynamoDB request:', JSON.stringify(request, null, 2));
+  return request;
+}
+
+export function response(ctx) {
+  console.log('[resolverName] Response context:', JSON.stringify(ctx, null, 2));
+  console.log('[resolverName] Items found:', ctx.result?.items?.length || 0);
+  console.log('[resolverName] Items:', JSON.stringify(ctx.result?.items, null, 2));
+  // ... response logic
+  console.log('[resolverName] Result:', result);
+  return result;
+}
+```
+
+### Step 2: Deploy and Test
+- Deploy resolver with logging enabled
+- Test with real authentication tokens
+- Use actual data, not mock data
+- Test both positive and negative cases
+
+### Step 3: Analyze CloudWatch Logs
+- **Log Group**: `/aws/appsync/apis/{api-id}`
+- **Key Commands**:
+  ```bash
+  aws logs describe-log-streams --log-group-name "/aws/appsync/apis/{api-id}" --order-by LastEventTime --descending --max-items 1
+  aws logs get-log-events --log-group-name "/aws/appsync/apis/{api-id}" --log-stream-name "{stream-name}"
+  ```
+- **Look for**: `INFO` messages with resolver execution details
+- **Analyze**: Actual DynamoDB item structure and field names
+
+### Step 4: Fix Based on Real Data
+- Update field names to match actual DynamoDB structure
+- Adjust filter expressions based on real data
+- Verify logic works with actual item structure
+
+### Step 5: Clean and Deploy
+- Remove all logging statements
+- Deploy clean version
+- Test final functionality
+
+## Common DynamoDB Field Patterns
+
+### User Identification
+- **Primary Key**: Usually `PK` with format `USER#{userId}`
+- **User ID Field**: Often `id` or `userId` (verify in actual data)
+- **GSI Keys**: `GSI1PK`, `GSI2PK`, `GSI3PK` for different access patterns
+
+### Item Structure Examples
+```javascript
+// Typical user profile item
+{
+  "id": "9434dc4f-389b-40ee-8384-e76ccbbe6104",
+  "PK": "USER#9434dc4f-389b-40ee-8384-e76ccbbe6104",
+  "SK": "PROFILE#9434dc4f-389b-40ee-8384-e76ccbbe6104",
+  "GSI2PK": "NICK#Benja3",
+  "GSI2SK": "PROFILE#9434dc4f-389b-40ee-8384-e76ccbbe6104",
+  "nickname": "Benja3",
+  "email": "user@example.com"
+}
+```
+
+## Testing Strategy
+
+### Test Cases
+1. **Current user checking own nickname** → Should return `true` (available)
+2. **Current user checking different nickname** → Should return `false` (taken)
+3. **Non-existent nickname** → Should return `true` (available)
+4. **Invalid/empty nickname** → Should return error
+
+### Test Script Template
+```javascript
+const https = require('https');
+
+const query = `
+  query TestResolver($input: String!) {
+    testResolver(input: $input)
+  }
+`;
+
+const variables = { input: "testValue" };
+const token = "your-fresh-token-here";
+
+// Test implementation...
+```
+
+## Error Prevention
+
+### Field Name Verification
+- **Before writing filters**: Check CloudWatch logs for actual item structure
+- **Common mistakes**: `userId` vs `id`, `PK` vs `GSI2PK`
+- **Verification**: Always test with real data first
+
+### Filter Expression Best Practices
+```javascript
+// ✅ CORRECT: Use actual field names from DynamoDB
+filter: {
+  expression: '#id <> :currentUserId',
+  expressionNames: { '#id': 'id' },
+  expressionValues: util.dynamodb.toMapValues({ ':currentUserId': currentUserId })
+}
+
+// ❌ WRONG: Assuming field names without verification
+filter: {
+  expression: '#userId <> :currentUserId',
+  expressionNames: { '#userId': 'userId' },
+  expressionValues: util.dynamodb.toMapValues({ ':currentUserId': currentUserId })
+}
+```
+
+### Authentication Testing
+- **Use fresh tokens**: JWT tokens expire quickly
+- **Test with real users**: Use actual user data, not mocks
+- **Verify context**: Check that `ctx.identity` contains expected user information
+
+## Performance Optimization
+
+### Use Filters Instead of Post-Processing
+```javascript
+// ✅ GOOD: Database-level filtering
+return {
+  operation: 'Query',
+  index: 'GSI2',
+  query: { /* query conditions */ },
+  filter: {
+    expression: '#id <> :currentUserId',
+    expressionNames: { '#id': 'id' },
+    expressionValues: util.dynamodb.toMapValues({ ':currentUserId': currentUserId })
+  },
+  limit: 1
+};
+
+// ❌ BAD: Post-processing in JavaScript
+const items = ctx.result.items;
+const currentUserId = ctx.identity.sub;
+return items.filter(item => item.id !== currentUserId).length === 0;
+```
+
+### Limit Results
+- **Use `limit: 1`** when only checking existence
+- **Avoid fetching unnecessary data** for availability checks
+- **Optimize for common use cases**
+
+## Troubleshooting Commands
+
+### CloudWatch Logs
+```bash
+# List log groups
+aws logs describe-log-groups --log-group-name-prefix "/aws/appsync/apis"
+
+# Get recent log streams
+aws logs describe-log-streams --log-group-name "/aws/appsync/apis/{api-id}" --order-by LastEventTime --descending --max-items 5
+
+# Get log events
+aws logs get-log-events --log-group-name "/aws/appsync/apis/{api-id}" --log-stream-name "{stream-name}"
+```
+
+### Direct DynamoDB Testing
+```bash
+# Query GSI to verify data structure
+aws dynamodb query --table-name "table-name" --index-name "GSI2" --key-condition-expression "GSI2PK = :pk" --expression-attribute-values '{":pk": {"S": "NICK#testnick"}}'
+```
+
+## Deployment Checklist
+
+### Before Deployment
+- [ ] Resolver logic tested with real data
+- [ ] Field names verified against actual DynamoDB structure
+- [ ] Both positive and negative test cases pass
+- [ ] Logging removed for production
+- [ ] Error handling implemented
+
+### After Deployment
+- [ ] Test with fresh authentication token
+- [ ] Verify resolver returns expected results
+- [ ] Check CloudWatch logs for any errors
+- [ ] Test edge cases (empty input, invalid data)
+
+## Common Pitfalls
+
+1. **Field Name Mismatch**: Using assumed field names instead of actual ones
+2. **Insufficient Logging**: Not enough context to debug issues
+3. **Mock Data Testing**: Testing with fake data instead of real database
+4. **Expired Tokens**: Using old authentication tokens for testing
+5. **Post-Processing**: Using JavaScript filtering instead of DynamoDB filters
+6. **Missing Error Handling**: Not handling edge cases and errors gracefully
+
+## Success Indicators
+
+- ✅ Resolver returns correct results for all test cases
+- ✅ No errors in CloudWatch logs
+- ✅ Fast response times (database-level filtering)
+- ✅ Clean, maintainable code without debug logging
+- ✅ Proper error handling for edge cases

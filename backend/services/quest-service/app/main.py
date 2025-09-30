@@ -18,7 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, TaskInput, TaskUpdateInput
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, TaskInput, TaskUpdateInput, UserProfile, ProfileUpdate
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
 
 
@@ -553,3 +553,84 @@ async def delete_task(
 
 
 __all__ = ["app"]
+
+
+# ---------- Profile: Read via AppSync (GraphQL) ----------
+# Note: Profile reads are handled by AppSync directly from the frontend
+# This service only handles profile updates via API Gateway
+
+
+# ---------- Profile: Update via API Gateway (this service) ----------
+@app.put("/profile", response_model=UserProfile)
+async def update_profile(
+    payload: ProfileUpdate,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    # Single-table keys for profile entity
+    pk = f"USER#{auth.user_id}"
+    sk = f"PROFILE#{auth.user_id}"
+
+    # Fetch existing (tolerate not found)
+    try:
+        existing_resp = table.get_item(Key={"PK": pk, "SK": sk})
+    except (ClientError, BotoCoreError) as exc:
+        logger.error('profile.update_fetch_failed', exc_info=exc)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    existing = existing_resp.get("Item") or {}
+
+    now_ms = int(time.time() * 1000)
+
+    # Build update attributes, only provided fields
+    updates: Dict[str, object] = {"updatedAt": now_ms}
+    
+    # Get the payload as a dict to check which fields were actually provided
+    payload_dict = payload.model_dump(exclude_unset=True)
+    
+    for key in [
+        "fullName", "nickname", "birthDate", "country", "language",
+        "gender", "pronouns", "bio", "tags",
+    ]:
+        if key in payload_dict:
+            value = payload_dict[key]
+            if value is not None:
+                updates[key] = value
+            else:
+                # Explicitly set to None to clear the field (only for optional fields)
+                if key in ["fullName", "nickname", "birthDate", "country", "gender", "pronouns", "bio", "tags"]:
+                    updates[key] = None
+
+    # Compose final item (upsert semantics)
+    new_item = {
+        **{"PK": pk, "SK": sk, "type": "UserProfile", "id": auth.user_id},
+        **existing,
+        **updates,
+        "userId": auth.user_id,
+        "updatedAt": now_ms,
+        "createdAt": existing.get("createdAt", now_ms),
+    }
+
+    try:
+        table.put_item(Item=new_item)
+    except (ClientError, BotoCoreError) as exc:
+        logger.error('profile.update_failed', exc_info=exc)
+        raise HTTPException(status_code=500, detail="Could not update profile")
+
+    # Shape response to UserProfile
+    # Provide defaults for required fields if missing in existing
+    defaulted = {
+        "email": existing.get("email", ""),
+        "role": existing.get("role", "user"),
+        "status": existing.get("status", "ACTIVE"),
+        "language": new_item.get("language", existing.get("language", "en")),
+        "tier": existing.get("tier", "free"),
+        "provider": existing.get("provider", "local"),
+        "email_confirmed": bool(existing.get("email_confirmed", False)),
+    }
+    merged = {**defaulted, **new_item}
+    # tags normalization
+    merged["tags"] = [str(t) for t in (merged.get("tags") or [])]
+    return UserProfile(**{
+        k: merged.get(k) for k in UserProfile.model_fields.keys()  # type: ignore[attr-defined]
+    })

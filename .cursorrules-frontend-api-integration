@@ -1,0 +1,488 @@
+# GoalsGuild Frontend API Integration - Cursor Rules
+
+## API Integration Patterns
+
+### 1. API Client Structure
+- **ORGANIZE** API functions by domain (profile, goals, tasks, etc.)
+- **USE** consistent error handling across all API calls
+- **IMPLEMENT** proper TypeScript types for all API responses
+- **INCLUDE** authentication headers automatically
+
+```typescript
+// ✅ GOOD: Organized API client structure
+export class ApiClient {
+  private baseUrl: string;
+  
+  constructor() {
+    this.baseUrl = getApiBase();
+  }
+  
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const response = await authFetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+  
+  // Profile API
+  async getProfile(): Promise<UserProfile> {
+    return this.request<UserProfile>('/profile');
+  }
+  
+  async updateProfile(data: ProfileUpdateInput): Promise<UserProfile> {
+    return this.request<UserProfile>('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+}
+```
+
+### 2. Authentication Integration
+- **USE** consistent authentication patterns across all API calls
+- **HANDLE** token refresh automatically
+- **IMPLEMENT** proper error handling for auth failures
+- **INCLUDE** loading states for auth operations
+
+```typescript
+// ✅ GOOD: Authentication integration
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = await getAuthToken();
+  
+  if (!token) {
+    throw new Error('No authentication token available');
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'x-api-key': getApiKey(),
+    },
+  });
+  
+  if (response.status === 401) {
+    // Handle token expiration
+    await handleTokenExpiration();
+    throw new Error('Authentication failed');
+  }
+  
+  return response;
+}
+```
+
+## Data Model and Type Safety
+
+### 3. TypeScript Interface Consistency
+- **DEFINE** interfaces that match backend Pydantic models exactly
+- **USE** consistent naming conventions (camelCase for frontend, snake_case for backend)
+- **INCLUDE** proper optional/required field annotations
+- **VALIDATE** data types match API responses
+
+```typescript
+// ✅ GOOD: Consistent TypeScript interfaces
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'user' | 'partner' | 'patron';
+  fullName?: string;
+  nickname?: string;
+  birthDate?: string; // YYYY-MM-DD format
+  status: string;
+  country?: string;
+  language: string;
+  gender?: string;
+  pronouns?: string;
+  bio?: string;
+  tags: string[];
+  tier: string;
+  provider: string;
+  emailConfirmed: boolean;
+  createdAt: number; // Unix timestamp
+  updatedAt: number; // Unix timestamp
+}
+
+export interface ProfileUpdateInput {
+  fullName?: string;
+  nickname?: string;
+  birthDate?: string;
+  country?: string;
+  language?: string;
+  gender?: string;
+  pronouns?: string;
+  bio?: string;
+  tags?: string[];
+}
+```
+
+### 4. Data Validation and Transformation
+- **VALIDATE** data before sending to API
+- **TRANSFORM** data between frontend and backend formats
+- **HANDLE** data type conversions (timestamps, arrays, etc.)
+- **PROVIDE** fallback values for optional fields
+
+```typescript
+// ✅ GOOD: Data validation and transformation
+export function validateProfileData(data: ProfileFormData): ProfileUpdateInput {
+  return {
+    fullName: data.fullName?.trim() || undefined,
+    nickname: data.nickname?.trim() || undefined,
+    birthDate: data.birthDate || undefined,
+    country: data.country || undefined,
+    language: data.language || 'en',
+    gender: data.gender || undefined,
+    pronouns: data.pronouns || undefined,
+    bio: data.bio?.trim() || undefined,
+    tags: data.tags || [],
+  };
+}
+
+export function transformProfileResponse(profile: UserProfile): ProfileFormData {
+  return {
+    fullName: profile.fullName || '',
+    nickname: profile.nickname || '',
+    birthDate: profile.birthDate || '',
+    country: profile.country || '',
+    language: profile.language || 'en',
+    gender: profile.gender || '',
+    pronouns: profile.pronouns || '',
+    bio: profile.bio || '',
+    tags: profile.tags || [],
+  };
+}
+```
+
+## Form Handling and Validation
+
+### 5. React Hook Form Integration
+- **USE** React Hook Form for all form management
+- **IMPLEMENT** Zod schemas for validation
+- **INCLUDE** proper error handling and display
+- **MAINTAIN** form state consistency
+
+```typescript
+// ✅ GOOD: React Hook Form with Zod validation
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const profileUpdateSchema = z.object({
+  fullName: z.string().min(1, 'Full name is required').max(100),
+  nickname: z.string().min(3, 'Nickname must be at least 3 characters').max(32, 'Nickname must be at most 32 characters'),
+  birthDate: z.string().optional(),
+  country: z.string().optional(),
+  language: z.string().min(2).max(5),
+  gender: z.string().optional(),
+  pronouns: z.string().optional(),
+  bio: z.string().max(500, 'Bio must be at most 500 characters').optional(),
+  tags: z.array(z.string().min(1).max(40)).max(10, 'Maximum 10 tags allowed'),
+});
+
+type ProfileFormData = z.infer<typeof profileUpdateSchema>;
+
+export function ProfileEdit() {
+  const { register, handleSubmit, formState, setValue, watch, reset } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileUpdateSchema),
+    defaultValues: {
+      fullName: '',
+      nickname: '',
+      birthDate: '',
+      country: '',
+      language: 'en',
+      gender: '',
+      pronouns: '',
+      bio: '',
+      tags: [],
+    }
+  });
+  
+  // Form implementation...
+}
+```
+
+### 6. Error Handling and User Feedback
+- **DISPLAY** validation errors clearly
+- **SHOW** loading states during API calls
+- **PROVIDE** success/error feedback to users
+- **HANDLE** network errors gracefully
+
+```typescript
+// ✅ GOOD: Error handling and user feedback
+export function ProfileEdit() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  
+  const onSubmit = useCallback(async (data: ProfileFormData) => {
+    try {
+      setIsSubmitting(true);
+      setLoadError(null);
+      
+      const updateData = validateProfileData(data);
+      await updateProfile(updateData);
+      
+      toast.success('Profile updated successfully');
+      navigate('/profile');
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
+      toast.error(err?.message || 'Failed to update profile');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [navigate]);
+  
+  if (loadError) {
+    return <div className="text-red-600">Error: {loadError}</div>;
+  }
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Form fields */}
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Changes'}
+      </Button>
+    </form>
+  );
+}
+```
+
+## State Management Rules
+
+### 7. API State Management
+- **USE** React Query or SWR for server state management
+- **IMPLEMENT** proper caching strategies
+- **HANDLE** loading and error states consistently
+- **INVALIDATE** cache when data changes
+
+```typescript
+// ✅ GOOD: React Query integration
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+export function useProfile() {
+  return useQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: updateProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Profile updated successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update profile');
+    },
+  });
+}
+```
+
+### 8. Local State Management
+- **USE** useState for simple local state
+- **IMPLEMENT** useReducer for complex state logic
+- **AVOID** prop drilling with context when appropriate
+- **MAINTAIN** state consistency across components
+
+## UI/UX Integration Rules
+
+### 9. Loading States and Feedback
+- **SHOW** loading indicators during API calls
+- **DISABLE** forms during submission
+- **PROVIDE** clear success/error feedback
+- **HANDLE** empty states gracefully
+
+```typescript
+// ✅ GOOD: Loading states and feedback
+export function ProfileEdit() {
+  const { data: profile, isLoading, error } = useProfile();
+  const updateProfileMutation = useUpdateProfile();
+  
+  if (isLoading) {
+    return <div className="flex justify-center"><Spinner /></div>;
+  }
+  
+  if (error) {
+    return <div className="text-red-600">Error loading profile: {error.message}</div>;
+  }
+  
+  if (!profile) {
+    return <div>Profile not found</div>;
+  }
+  
+  return (
+    <form onSubmit={handleSubmit(updateProfileMutation.mutate)}>
+      {/* Form fields */}
+      <Button 
+        type="submit" 
+        disabled={updateProfileMutation.isPending}
+      >
+        {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+      </Button>
+    </form>
+  );
+}
+```
+
+### 10. Form Field Components
+- **CREATE** reusable form field components
+- **IMPLEMENT** consistent styling and behavior
+- **INCLUDE** proper accessibility attributes
+- **HANDLE** validation errors consistently
+
+```typescript
+// ✅ GOOD: Reusable form field component
+interface FormFieldProps {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}
+
+export function FormField({ label, error, children }: FormFieldProps) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
+        {label}
+      </label>
+      {children}
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+## Environment and Configuration
+
+### 11. Environment Configuration
+- **USE** environment variables for API endpoints
+- **IMPLEMENT** different configurations for dev/staging/prod
+- **VALIDATE** required environment variables
+- **PROVIDE** fallback values when appropriate
+
+```typescript
+// ✅ GOOD: Environment configuration
+export function getApiBase(): string {
+  const base = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (base && base.trim()) return base;
+  
+  // In dev, default to '/v1' so Vite proxy can avoid CORS
+  if (import.meta.env.DEV) return '/v1';
+  
+  return '';
+}
+
+export function getApiKey(): string {
+  return import.meta.env.VITE_API_KEY || '';
+}
+```
+
+### 12. Vite Proxy Configuration
+- **CONFIGURE** proxy for development environment
+- **HANDLE** CORS issues during development
+- **USE** proper target URLs for different environments
+- **INCLUDE** proper headers and options
+
+```typescript
+// ✅ GOOD: Vite proxy configuration
+export default defineConfig(async ({ mode }) => {
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+      proxy: {
+        "/v1": {
+          target: "https://api.example.com",
+          changeOrigin: true,
+          secure: true,
+        },
+      },
+    },
+  };
+});
+```
+
+## Error Handling and Recovery
+
+### 13. Network Error Handling
+- **HANDLE** network timeouts and connection errors
+- **IMPLEMENT** retry logic for transient failures
+- **PROVIDE** user-friendly error messages
+- **LOG** errors for debugging
+
+```typescript
+// ✅ GOOD: Network error handling
+export async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+  try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Please check your connection');
+    }
+    throw error;
+  }
+}
+```
+
+### 14. Data Validation Errors
+- **HANDLE** API validation errors gracefully
+- **DISPLAY** field-specific error messages
+- **HIGHLIGHT** invalid form fields
+- **PROVIDE** guidance for fixing errors
+
+```typescript
+// ✅ GOOD: Data validation error handling
+export function handleApiError(error: any): string {
+  if (error.response?.data?.detail) {
+    const detail = error.response.data.detail;
+    
+    if (Array.isArray(detail)) {
+      // Handle Pydantic validation errors
+      return detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+    }
+    
+    return detail;
+  }
+  
+  return error.message || 'An unexpected error occurred';
+}
+```
+
+## Performance and Optimization
+
+### 15. API Call Optimization
+- **IMPLEMENT** request debouncing for search inputs
+- **USE** pagination for large data sets
+- **CACHE** API responses appropriately
+- **AVOID** unnecessary API calls
+
+### 16. Bundle Optimization
+- **LAZY LOAD** components when appropriate
+- **USE** code splitting for large features
+- **OPTIMIZE** bundle size
+- **IMPLEMENT** proper tree shaking
+
+Remember: **Consistency and reliability** - Follow established patterns and always handle errors gracefully.

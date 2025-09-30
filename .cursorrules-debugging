@@ -1,0 +1,284 @@
+# Debugging Rules - GoalsGuild QuestBound Forge
+
+## AppSync Debugging Workflow
+
+### 1. Enable Logging First
+    check front end log
+    
+### 2. Check CloudWatch Logs
+```bash
+# ✅ REQUIRED: Check recent logs
+aws logs filter-log-events \
+  --log-group-name "/aws/appsync/apis/w7lrzkdyu5f7fkj7onzg6qkutu" \
+  --region us-east-2 \
+  --start-time $(date -d "5 minutes ago" +%s)000 \
+  --max-items 20
+```
+
+### 3. Test Direct API Calls
+```bash
+# ✅ REQUIRED: Test AppSync endpoint directly
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"query":"query MyProfile { myProfile { id email role } }"}' \
+  https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql
+```
+
+## Frontend Debugging
+
+### 1. Console Logging
+```typescript
+// ✅ REQUIRED: Comprehensive logging in API calls
+export async function graphqlRaw<T = any>(query: string, variables: any = {}) {
+  console.info('[graphqlRaw] Using endpoint:', endpoint);
+  console.info('[graphqlRaw] Query:', query);
+  console.info('[graphqlRaw] Variables:', variables);
+  
+  const res = await fetch(endpoint, { /* ... */ });
+  const json = await res.json();
+  
+  console.info('[graphqlRaw] Response status:', res.status);
+  console.info('[graphqlRaw] Response headers:', Object.fromEntries(res.headers.entries()));
+  console.info('[graphqlRaw] Response JSON:', json);
+  
+  if (!res.ok || json.errors?.length) {
+    console.error('[graphqlRaw] Error response details:');
+    console.error('[graphqlRaw] Status:', res.status);
+    console.error('[graphqlRaw] Errors:', json.errors);
+    console.error('[graphqlRaw] Data:', json.data);
+  }
+  
+  return json.data as T;
+}
+```
+
+### 2. Error Boundary Implementation
+```typescript
+// ✅ REQUIRED: Error boundary for React components
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="error-boundary">
+          <h2>Something went wrong.</h2>
+          <details>
+            <summary>Error details</summary>
+            <pre>{this.state.error?.toString()}</pre>
+          </details>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## Common Debugging Scenarios
+
+### 1. "Cannot read properties of undefined"
+```typescript
+// ❌ PROBLEM: Unsafe property access
+const roleDisplay = profile.role.charAt(0).toUpperCase();
+
+// ✅ SOLUTION: Safe property access
+const roleDisplay = profile?.role?.charAt(0)?.toUpperCase() || 'User';
+```
+
+### 2. GraphQL "Profile not found" Error
+```bash
+# Debug steps:
+# 1. Check if profile exists in DynamoDB
+aws dynamodb get-item \
+  --table-name gg_core \
+  --key '{"PK": {"S": "USER#USER_ID"}, "SK": {"S": "PROFILE#USER_ID"}}' \
+  --region us-east-2
+
+# 2. Check resolver logs
+aws logs filter-log-events \
+  --log-group-name "/aws/appsync/apis/API_ID" \
+  --region us-east-2 \
+  --start-time $(date -d "10 minutes ago" +%s)000
+
+# 3. Verify resolver code
+# Check if resolver is looking for correct DynamoDB key structure
+```
+
+### 3. GraphQL Serialization Errors
+```javascript
+// ❌ PROBLEM: Returning wrong data types
+return {
+  createdAt: "2025-09-12T19:11:00Z", // String instead of timestamp
+  updatedAt: "2025-09-12T19:11:00Z"
+};
+
+// ✅ SOLUTION: Return correct data types
+return {
+  createdAt: null, // Or convert to Unix timestamp
+  updatedAt: null
+};
+```
+
+### 4. Frontend Not Loading Data
+```typescript
+// Debug steps:
+// 1. Check if API is being called
+console.log('API call initiated');
+
+// 2. Check response
+console.log('API response:', response);
+
+// 3. Check data mapping
+console.log('Mapped data:', mappedData);
+
+// 4. Check component state
+console.log('Component state:', { profile, loading, error });
+```
+
+## Environment Debugging
+
+### 1. Check Environment Variables
+```typescript
+// ✅ REQUIRED: Log environment configuration
+console.log('Environment:', {
+  NODE_ENV: import.meta.env.NODE_ENV,
+  VITE_APPSYNC_ENDPOINT: import.meta.env.VITE_APPSYNC_ENDPOINT,
+  VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL
+});
+```
+
+### 2. Check Network Requests
+```typescript
+// ✅ REQUIRED: Log all network requests
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+  console.log('Fetch request:', args);
+  return originalFetch.apply(this, args)
+    .then(response => {
+      console.log('Fetch response:', response);
+      return response;
+    });
+};
+```
+
+## Database Debugging
+
+### 1. Check DynamoDB Data
+```bash
+# ✅ REQUIRED: Verify data exists
+aws dynamodb get-item \
+  --table-name TABLE_NAME \
+  --key '{"PK": {"S": "KEY_VALUE"}, "SK": {"S": "SORT_KEY_VALUE"}}' \
+  --region us-east-2
+```
+
+### 2. Check DynamoDB Permissions
+```bash
+# ✅ REQUIRED: Test DynamoDB access
+aws dynamodb describe-table \
+  --table-name TABLE_NAME \
+  --region us-east-2
+```
+
+## Performance Debugging
+
+### 1. Check Bundle Size
+```bash
+# ✅ REQUIRED: Analyze bundle size
+npm run build
+npx webpack-bundle-analyzer dist/assets/*.js
+```
+
+### 2. Check Network Performance
+```typescript
+// ✅ REQUIRED: Measure API call performance
+const startTime = performance.now();
+const result = await apiCall();
+const endTime = performance.now();
+console.log(`API call took ${endTime - startTime} milliseconds`);
+```
+
+## Debugging Checklist
+
+### Before Starting Debug
+- [ ] CloudWatch logging enabled
+- [ ] Console logging added to relevant functions
+- [ ] Error boundaries implemented
+- [ ] Network tab open in browser dev tools
+- [ ] Environment variables verified
+
+### During Debug
+- [ ] Check CloudWatch logs for resolver execution
+- [ ] Verify GraphQL query structure
+- [ ] Test API endpoint directly
+- [ ] Check frontend console for errors
+- [ ] Validate data structure at each step
+
+### After Fix
+- [ ] Remove debug logging
+- [ ] Test complete flow
+- [ ] Verify error handling
+- [ ] Check performance impact
+- [ ] Update documentation
+
+## Common Error Patterns
+
+### 1. Schema Mismatch
+```
+Error: Cannot query field "role" on type "User"
+Solution: Add field to GraphQL schema
+```
+
+### 2. Resolver Data Mapping
+```
+Error: Cannot serialize value (/myProfile/createdAt)
+Solution: Fix data type in resolver
+```
+
+### 3. Frontend Property Access
+```
+Error: Cannot read properties of undefined (reading 'charAt')
+Solution: Use safe property access with optional chaining
+```
+
+### 4. Authentication Issues
+```
+Error: UnauthorizedException
+Solution: Check JWT token validity and format
+```
+
+## Debugging Tools
+
+### 1. Browser Dev Tools
+- Network tab for API calls
+- Console for error messages
+- Application tab for localStorage
+- Sources tab for breakpoints
+
+### 2. AWS Tools
+- CloudWatch Logs for AppSync
+- DynamoDB Console for data
+- IAM Console for permissions
+- CloudFormation for infrastructure
+
+### 3. Development Tools
+- Postman for API testing
+- GraphQL Playground for queries
+- AWS CLI for direct access
+- Terraform for infrastructure changes
+
+Remember: **Debug systematically, not randomly!** Start with logs, then test each layer independently.

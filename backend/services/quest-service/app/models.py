@@ -76,3 +76,37 @@ class GoalResponse(BaseModel):
     status: str
     createdAt: int
     updatedAt: int
+
+
+# -------- Profile models --------
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    role: str
+    fullName: Optional[str] = None
+    nickname: Optional[str] = None
+    birthDate: Optional[str] = None
+    status: str = "ACTIVE"
+    country: Optional[str] = None
+    language: str = "en"
+    gender: Optional[str] = None
+    pronouns: Optional[str] = None
+    bio: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    tier: str = "free"
+    provider: str = "local"
+    email_confirmed: bool = False
+    createdAt: int
+    updatedAt: int
+
+
+class ProfileUpdate(BaseModel):
+    fullName: Optional[str] = None
+    nickname: Optional[str] = None
+    birthDate: Optional[str] = None
+    country: Optional[str] = None
+    language: Optional[str] = None
+    gender: Optional[str] = None
+    pronouns: Optional[str] = None
+    bio: Optional[str] = None
+    tags: Optional[List[str]] = None

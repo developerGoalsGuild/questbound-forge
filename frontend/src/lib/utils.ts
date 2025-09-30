@@ -113,13 +113,18 @@ export function graphQLClient() {
   } catch {}
 
   const haveApiKey = !!(import.meta.env.VITE_APPSYNC_API_KEY as string | undefined);
+  // Use the configured Amplify instance - it will use the endpoint from awsConfig
   const client = haveApiKey
     ? generateClient({ authMode: 'apiKey' })
     : generateClient({
         authMode: 'lambda',
         authToken: () => {
           const tok = getAccessToken();
-          return tok ? `Bearer ${tok}` : '';
+          if (!tok) {
+            console.error('[AuthToken] missing token');
+            throw new Error('NO_TOKEN');
+          }
+          return tok; // raw JWT without Bearer prefix
         },
       });
 

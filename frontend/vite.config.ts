@@ -28,7 +28,7 @@ export default defineConfig(async ({ mode }) => {
           target: "https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com",
           changeOrigin: true,
           secure: true,
-          rewrite: (path) => path.replace(/^\/appsync/, ""),
+          rewrite: (path) => path.replace(/^\/appsync/, "/graphql"),
         },
       },
     },

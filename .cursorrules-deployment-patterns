@@ -1,0 +1,236 @@
+# GoalsGuild Deployment Patterns - Cursor Rules
+
+## Lambda Service Deployment Rules
+
+### 1. Simplified Terraform Configuration Pattern
+- **ALWAYS** use the simplified deployment pattern for Lambda services
+- **AVOID** complex Docker build modules in Terraform when possible
+- **PREFER** referencing existing ECR images directly over building in Terraform
+
+```hcl
+# ✅ GOOD: Simple pattern (like quest-service)
+locals {
+  existing_image_uri = "ACCOUNT.dkr.ecr.REGION.amazonaws.com/SERVICE_NAME:VERSION"
+}
+
+module "service_lambda" {
+  source        = "../../../modules/lambda"
+  function_name = "goalsguild_SERVICE_NAME"
+  image_uri     = local.existing_image_uri
+  role_arn      = data.terraform_remote_state.security.outputs.lambda_exec_role_arn
+  timeout       = 10
+  memory_size   = 512
+  environment   = var.environment
+  environment_variables = {
+    ENVIRONMENT         = var.environment
+    SETTINGS_SSM_PREFIX = "/goalsguild/SERVICE_NAME/"
+  }
+}
+```
+
+```hcl
+# ❌ BAD: Complex Docker build pattern
+module "service_docker_image" {
+  source = "../../../modules/docker_lambda_image"
+  # ... complex configuration
+}
+
+module "service_lambda" {
+  image_uri = module.service_docker_image.image_uri
+  depends_on = [module.service_docker_image]
+}
+```
+
+### 2. ECR Image Management
+- **BUILD** Docker images manually or via CI/CD pipelines
+- **PUSH** images to ECR with semantic versioning (v1, v2, v3, etc.)
+- **REFERENCE** specific image versions in Terraform locals
+- **UPDATE** image URIs when deploying new versions
+
+### 3. Service Configuration Standards
+- **MEMORY_SIZE**: 512MB for user-service, 256MB for quest-service
+- **TIMEOUT**: 10 seconds for all Lambda functions
+- **ENVIRONMENT_VARIABLES**: Always include ENVIRONMENT and SETTINGS_SSM_PREFIX
+- **ROLE_ARN**: Use shared lambda_exec_role_arn from security module
+
+### 4. Deployment Workflow
+1. **Build** Docker image locally or via CI/CD
+2. **Push** to ECR with new version tag
+3. **Update** Terraform locals with new image URI
+4. **Deploy** via `terraform apply` from service stack directory
+5. **Verify** deployment success and functionality
+
+## API Gateway Integration Rules
+
+### 5. Endpoint Configuration Pattern
+- **ALWAYS** define both GET and PUT methods for profile endpoints
+- **INCLUDE** OPTIONS method for CORS support
+- **USE** custom authorizer for authenticated endpoints
+- **CONFIGURE** Lambda integration with AWS_PROXY type
+
+```hcl
+# ✅ GOOD: Complete endpoint configuration
+resource "aws_api_gateway_resource" "profile" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "profile"
+}
+
+resource "aws_api_gateway_method" "profile_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.profile.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "profile_put" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.profile.id
+  http_method      = "PUT"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+```
+
+### 6. CORS Configuration
+- **ALWAYS** include OPTIONS method for CORS preflight
+- **CONFIGURE** proper CORS headers in method responses
+- **USE** local variables for CORS configuration consistency
+
+## Data Model and Validation Rules
+
+### 7. Timestamp Handling
+- **STORE** timestamps as ISO strings in DynamoDB
+- **CONVERT** ISO strings to Unix timestamps for Pydantic models
+- **USE** consistent conversion functions across services
+
+```python
+# ✅ GOOD: Timestamp conversion function
+def iso_to_timestamp(iso_str):
+    if not iso_str:
+        return 0
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+        return int(dt.timestamp())
+    except (ValueError, AttributeError):
+        return 0
+
+# Apply conversion in data mapping
+profile_data = {
+    "createdAt": iso_to_timestamp(item.get("createdAt")),
+    "updatedAt": iso_to_timestamp(item.get("updatedAt")),
+}
+```
+
+### 8. Pydantic Model Consistency
+- **DEFINE** integer types for timestamp fields in Pydantic models
+- **CONVERT** data before creating Pydantic objects
+- **VALIDATE** data types match model expectations
+
+## Error Handling and Debugging Rules
+
+### 9. JWT Verification Consistency
+- **USE** same JWT verification approach across services
+- **AVOID** parameter mismatches in verification functions
+- **LOG** authentication events for debugging
+
+```python
+# ✅ GOOD: Consistent JWT verification
+claims = verify_local_jwt(token)  # No extra parameters
+```
+
+### 10. Deployment Verification
+- **TEST** endpoints after deployment
+- **CHECK** CloudWatch logs for errors
+- **VERIFY** Lambda function status and image URI
+- **CONFIRM** API Gateway integration is working
+
+## File Organization Rules
+
+### 11. Terraform Stack Structure
+- **ORGANIZE** services in separate stack directories
+- **USE** consistent naming: `stacks/services/SERVICE_NAME/`
+- **INCLUDE** main.tf, variables.tf, outputs.tf in each stack
+- **REFERENCE** shared modules from `modules/` directory
+
+### 12. Service Code Structure
+- **SEPARATE** concerns: models, security, main application
+- **USE** consistent import patterns
+- **INCLUDE** proper error handling and logging
+- **MAINTAIN** clear function and variable naming
+
+## Performance and Reliability Rules
+
+### 13. Lambda Function Optimization
+- **SET** appropriate memory size based on service needs
+- **CONFIGURE** reasonable timeout values
+- **USE** environment variables for configuration
+- **IMPLEMENT** proper error handling and retries
+
+### 14. API Gateway Performance
+- **ENABLE** caching where appropriate
+- **CONFIGURE** proper throttling limits
+- **USE** compression for responses
+- **MONITOR** API Gateway metrics
+
+## Security Rules
+
+### 15. Authentication and Authorization
+- **USE** custom authorizers for API Gateway
+- **IMPLEMENT** proper JWT validation
+- **LOG** authentication events
+- **HANDLE** token expiration gracefully
+
+### 16. Data Protection
+- **VALIDATE** all input data
+- **SANITIZE** user inputs
+- **USE** parameterized queries
+- **IMPLEMENT** proper error messages without sensitive data
+
+## Monitoring and Logging Rules
+
+### 17. CloudWatch Integration
+- **ENABLE** structured logging
+- **USE** consistent log formats
+- **INCLUDE** correlation IDs for request tracking
+- **LOG** important business events
+
+### 18. Error Tracking
+- **LOG** errors with sufficient context
+- **INCLUDE** stack traces for debugging
+- **USE** appropriate log levels
+- **IMPLEMENT** error alerting
+
+## Testing Rules
+
+### 19. Deployment Testing
+- **TEST** all endpoints after deployment
+- **VERIFY** authentication is working
+- **CHECK** data validation and conversion
+- **CONFIRM** error handling works correctly
+
+### 20. Integration Testing
+- **TEST** complete user flows
+- **VERIFY** frontend-backend integration
+- **CHECK** API Gateway routing
+- **CONFIRM** Lambda function execution
+
+## Maintenance Rules
+
+### 21. Version Management
+- **USE** semantic versioning for Docker images
+- **UPDATE** Terraform configurations when deploying new versions
+- **MAINTAIN** backward compatibility when possible
+- **DOCUMENT** breaking changes
+
+### 22. Configuration Updates
+- **UPDATE** environment variables through Terraform
+- **REFRESH** Lambda functions after configuration changes
+- **VERIFY** changes are applied correctly
+- **TEST** functionality after updates
+
+Remember: **Simplicity over complexity** - Use the working quest-service pattern as the template for all Lambda service deployments.

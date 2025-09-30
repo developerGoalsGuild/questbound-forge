@@ -120,6 +120,12 @@ resource "aws_api_gateway_resource" "health" {
   path_part   = "health"
 }
 
+resource "aws_api_gateway_resource" "profile" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "profile"
+}
+
 # POST /users/signup (public)
 resource "aws_api_gateway_resource" "user_signup" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
@@ -242,6 +248,34 @@ resource "aws_api_gateway_integration_response" "user_login_options_integration_
   }
 }
 
+# GET /profile (authenticated)
+resource "aws_api_gateway_method" "profile_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.profile.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+# PUT /profile (authenticated)
+resource "aws_api_gateway_method" "profile_put" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.profile.id
+  http_method      = "PUT"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+# OPTIONS /profile (CORS)
+resource "aws_api_gateway_method" "profile_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.profile.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
 # GET /health (public)
 resource "aws_api_gateway_method" "health_get" {
   rest_api_id      = aws_api_gateway_rest_api.rest_api.id
@@ -347,6 +381,64 @@ resource "aws_api_gateway_integration_response" "auth_renew_options_integration_
   resource_id = aws_api_gateway_resource.auth_renew.id
   http_method = aws_api_gateway_method.auth_renew_options.http_method
   status_code = aws_api_gateway_method_response.auth_renew_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# Profile integrations
+resource "aws_api_gateway_integration" "profile_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.profile.id
+  http_method             = aws_api_gateway_method.profile_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "profile_put_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.profile.id
+  http_method             = aws_api_gateway_method.profile_put.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+# Profile OPTIONS method response
+resource "aws_api_gateway_method_response" "profile_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.profile.id
+  http_method = aws_api_gateway_method.profile_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+# Profile OPTIONS integration
+resource "aws_api_gateway_integration" "profile_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.profile.id
+  http_method = aws_api_gateway_method.profile_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+# Profile OPTIONS integration response
+resource "aws_api_gateway_integration_response" "profile_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.profile.id
+  http_method = aws_api_gateway_method.profile_options.http_method
+  status_code = aws_api_gateway_method_response.profile_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"

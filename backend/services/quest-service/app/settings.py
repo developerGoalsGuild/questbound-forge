@@ -113,6 +113,17 @@ class Settings:
                 origins = [fallback]
         return origins
 
+    # AppSync (optional) for profile read operations
+    @property
+    def appsync_graphql_endpoint(self) -> str | None:
+        value = self._get("APPSYNC_GRAPHQL_ENDPOINT")
+        return str(value) if value else None
+
+    @property
+    def appsync_api_key(self) -> str | None:
+        value = self._get("APPSYNC_API_KEY")
+        return str(value) if value else None
+
     @property
     def jwt_secret(self) -> str:
         override = os.getenv("QUEST_SERVICE_JWT_SECRET")

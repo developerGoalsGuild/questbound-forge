@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir pydantic-settings[aws-secrets-manager]
 
 # Copy source
 COPY services/user-service/ /app/
-COPY common /app/common
+COPY services/common /app/common
 
 
 # 3) Register the adapter as a Lambda extension (container-image style)

@@ -57,3 +57,10 @@ variable "existing_lambda_exec_role_name" {
   type    = string
   default = ""
 }
+
+variable "core_table_name" { type = string }
+variable "core_table_arn" { type = string }
+variable "tags" { 
+  type = map(string) 
+  default = {} 
+}

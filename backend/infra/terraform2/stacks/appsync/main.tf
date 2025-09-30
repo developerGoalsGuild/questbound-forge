@@ -1,3 +1,78 @@
+locals {
+  resolvers_path = "../../resolvers"
+}
+
+data "aws_iam_policy_document" "allow_appsync_ddb" {
+  statement {
+    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:BatchGetItem"]
+    resources = [var.core_table_arn, "${var.core_table_arn}/index/*"]
+  }
+}
+
+# First module block removed - using the second one below
+
+resource "aws_appsync_resolver" "query_myProfile" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myProfile"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/myProfile.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_isEmailAvailable" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "isEmailAvailable"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/isEmailAvailable.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_isNicknameAvailable" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "isNicknameAvailable"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/isNicknameAvailable.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_isNicknameAvailableForUser" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "isNicknameAvailableForUser"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/isNicknameAvailableForUser.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_datasource" "profile_ddb" {
+  api_id           = module.appsync.api_id
+  name             = "ProfileDDB"
+  type             = "AMAZON_DYNAMODB"
+  service_role_arn = module.appsync.ds_ddb_role_arn
+  dynamodb_config {
+    table_name = var.core_table_name
+  }
+}
+
 data "terraform_remote_state" "database" {
   backend = "local"
   config = { path = "../database/terraform.tfstate" }
@@ -9,7 +84,7 @@ data "terraform_remote_state" "authorizer" {
 }
 
 locals {
-  schema_path = "${path.module}/../../../../infra/terraform/graphql/schema.graphql"
+  schema_path = "${path.module}/../../graphql/schema.graphql"
 }
 
 module "appsync" {

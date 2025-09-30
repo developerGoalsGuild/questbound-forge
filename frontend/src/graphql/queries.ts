@@ -1,3 +1,26 @@
+export const MY_PROFILE = /* GraphQL */ `
+  query MyProfile {
+    myProfile {
+      id
+      email
+      role
+      fullName
+      nickname
+      birthDate
+      status
+      country
+      language
+      gender
+      pronouns
+      bio
+      tags
+      tier
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 import { gql } from '@apollo/client';
 
 export const IS_EMAIL_AVAILABLE = gql`
@@ -10,6 +33,12 @@ export const IS_EMAIL_AVAILABLE = gql`
 export const IS_NICKNAME_AVAILABLE = gql`
   query IsNicknameAvailable($nickname: String!) {
     isNicknameAvailable(nickname: $nickname)
+  }
+`;
+
+export const IS_NICKNAME_AVAILABLE_FOR_USER = /* GraphQL */ `
+  query IsNicknameAvailableForUser($nickname: String!) {
+    isNicknameAvailableForUser(nickname: $nickname)
   }
 `;
 

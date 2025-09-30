@@ -1,0 +1,134 @@
+# GoalsGuild QuestBound Forge - Cursor Rules
+
+## AppSync GraphQL Integration Rules
+
+### 1. Schema-Frontend Synchronization
+- **ALWAYS** ensure GraphQL schema fields match frontend TypeScript interfaces
+- **BEFORE** adding new fields to frontend interfaces, update GraphQL schema first
+- **VERIFY** that all required fields in frontend types are included in GraphQL queries
+- **MANDATORY**: Run `terraform apply` after schema changes to deploy updates
+
+### 2. Resolver Data Mapping
+- **ALWAYS** map ALL fields from DynamoDB to GraphQL response in resolvers
+- **INCLUDE** default values for required fields (e.g., `role: a.role || 'user'`)
+- **VALIDATE** that resolver returns match the GraphQL schema exactly
+- **LOG** resolver responses during development to verify data structure
+
+### 3. Frontend Error Handling
+- **NEVER** assume optional fields exist without null checks
+- **ALWAYS** provide fallback values for undefined properties
+- **USE** optional chaining (`?.`) for nested object access
+- **IMPLEMENT** proper error boundaries for GraphQL errors
+
+### 4. AppSync Logging Configuration
+- **ENABLE** CloudWatch logging for AppSync resolvers during development
+- **INCLUDE** comprehensive logging in resolver functions for debugging
+- **MONITOR** CloudWatch logs when troubleshooting GraphQL issues
+- **REMOVE** excessive logging in production deployments
+
+### 5. Environment Configuration
+- **USE** environment variables for AppSync endpoints
+- **AVOID** hardcoded URLs in frontend code
+- **VERIFY** endpoint configuration matches deployed infrastructure
+- **TEST** both local proxy and direct AppSync endpoints
+
+### 6. GraphQL Query Validation
+- **INCLUDE** all required fields in GraphQL queries
+- **MATCH** query fields with resolver return values
+- **VALIDATE** field types match schema definitions
+- **TEST** queries with actual data before frontend integration
+
+### 7. TypeScript Interface Maintenance
+- **KEEP** frontend interfaces synchronized with GraphQL schema
+- **DOCUMENT** field requirements and defaults
+- **VALIDATE** interface completeness before component development
+- **UPDATE** interfaces when schema changes
+
+### 8. Deployment Checklist
+- [ ] GraphQL schema updated
+- [ ] Resolver code updated
+- [ ] Frontend query updated
+- [ ] TypeScript interfaces updated
+- [ ] Terraform applied
+- [ ] Endpoint tested
+- [ ] Frontend tested
+
+### 9. Common Pitfalls to Avoid
+- **DON'T** assume DynamoDB item structure matches GraphQL response
+- **DON'T** forget to handle undefined/null values in resolvers
+- **DON'T** skip schema validation after changes
+- **DON'T** ignore GraphQL serialization errors
+- **DON'T** deploy without testing the complete flow
+
+### 10. Debugging Workflow
+1. Check CloudWatch logs for resolver execution
+2. Verify GraphQL schema matches frontend expectations
+3. Test GraphQL queries directly with tools like Postman
+4. Validate resolver data mapping
+5. Check frontend error handling
+6. Verify environment configuration
+
+## Code Quality Standards
+
+### GraphQL Resolvers
+```javascript
+// ✅ GOOD: Comprehensive logging and error handling
+export function response(ctx) {
+  console.log('[resolver] Response context:', JSON.stringify(ctx, null, 2));
+  
+  if (ctx.error) {
+    console.log('[resolver] Error:', ctx.error);
+    util.error(ctx.error.message, ctx.error.type);
+  }
+  
+  const data = ctx.result?.item || ctx.result;
+  if (!data) {
+    util.error('Data not found', 'NotFound');
+  }
+  
+  // Map with defaults for required fields
+  return {
+    id: data.id,
+    email: data.email,
+    role: data.role || 'user', // Default value
+    // ... other fields
+  };
+}
+```
+
+### Frontend Error Handling
+```typescript
+// ✅ GOOD: Safe property access
+const roleDisplay = profile?.role?.charAt(0)?.toUpperCase() + profile?.role?.slice(1) || 'User';
+
+// ❌ BAD: Unsafe property access
+const roleDisplay = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+```
+
+### Environment Configuration
+```typescript
+// ✅ GOOD: Environment-based configuration
+const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT || 'fallback-url';
+
+// ❌ BAD: Hardcoded URLs
+const endpoint = 'https://hardcoded-url.com/graphql';
+```
+
+## Testing Requirements
+
+### Before Deployment
+- [ ] GraphQL schema validates
+- [ ] Resolver returns expected data structure
+- [ ] Frontend queries work without errors
+- [ ] All required fields are present
+- [ ] Error handling works correctly
+- [ ] Environment variables are configured
+
+### After Deployment
+- [ ] CloudWatch logs show successful execution
+- [ ] Frontend loads without errors
+- [ ] All profile data displays correctly
+- [ ] Error states handle gracefully
+- [ ] Performance is acceptable
+
+Remember: **Schema changes require full-stack updates** - GraphQL schema → Resolver → Frontend query → TypeScript interfaces → Deploy → Test

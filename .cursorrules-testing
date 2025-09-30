@@ -1,0 +1,512 @@
+# Testing Rules - GoalsGuild QuestBound Forge
+
+## Test Structure and Organization
+
+### 1. Test File Naming
+```
+✅ REQUIRED: Consistent test file naming
+src/components/ProfileView.tsx → src/components/__tests__/ProfileView.test.tsx
+src/hooks/useUserProfile.ts → src/hooks/__tests__/useUserProfile.test.ts
+src/lib/api.ts → src/lib/__tests__/api.test.ts
+```
+
+### 2. Test Directory Structure
+```
+tests/
+├── unit/                    # Unit tests
+│   ├── components/
+│   ├── hooks/
+│   ├── lib/
+│   └── pages/
+├── integration/             # Integration tests
+│   ├── api/
+│   ├── auth/
+│   └── user-flow/
+├── e2e/                     # End-to-end tests
+│   ├── selenium/
+│   └── playwright/
+└── fixtures/                # Test data
+    ├── users.json
+    ├── profiles.json
+    └── goals.json
+```
+
+## Unit Testing
+
+### 1. Component Testing
+```typescript
+// ✅ REQUIRED: Comprehensive component tests
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { ProfileView } from '../ProfileView';
+import { useUserProfile } from '@/hooks/useUserProfile';
+
+// Mock the hook
+jest.mock('@/hooks/useUserProfile');
+const mockUseUserProfile = useUserProfile as jest.MockedFunction<typeof useUserProfile>;
+
+describe('ProfileView', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render loading state', () => {
+    mockUseUserProfile.mockReturnValue({
+      profile: null,
+      loading: true,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    render(<ProfileView />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('should render profile data when loaded', async () => {
+    const mockProfile = {
+      id: '1',
+      email: 'test@example.com',
+      role: 'user',
+      fullName: 'Test User'
+    };
+
+    mockUseUserProfile.mockReturnValue({
+      profile: mockProfile,
+      loading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    render(<ProfileView />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Test User')).toBeInTheDocument();
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    });
+  });
+
+  it('should handle error state', async () => {
+    mockUseUserProfile.mockReturnValue({
+      profile: null,
+      loading: false,
+      error: 'PROFILE_NOT_FOUND',
+      refetch: jest.fn()
+    });
+
+    render(<ProfileView />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('No profile found. Please sign up first.')).toBeInTheDocument();
+    });
+  });
+
+  it('should handle safe property access', () => {
+    const mockProfile = {
+      id: '1',
+      email: 'test@example.com',
+      role: undefined, // Simulate missing role
+      fullName: 'Test User'
+    };
+
+    mockUseUserProfile.mockReturnValue({
+      profile: mockProfile,
+      loading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+
+    render(<ProfileView />);
+    
+    // Should not crash and should show default value
+    expect(screen.getByText('User')).toBeInTheDocument();
+  });
+});
+```
+
+### 2. Hook Testing
+```typescript
+// ✅ REQUIRED: Test custom hooks
+import { renderHook, act } from '@testing-library/react';
+import { useUserProfile } from '../useUserProfile';
+import { getProfile } from '@/lib/apiProfile';
+
+jest.mock('@/lib/apiProfile');
+const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
+
+describe('useUserProfile', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should fetch profile on mount', async () => {
+    const mockProfile = { id: '1', email: 'test@example.com' };
+    mockGetProfile.mockResolvedValue(mockProfile);
+
+    const { result } = renderHook(() => useUserProfile());
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.profile).toBe(null);
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(mockGetProfile).toHaveBeenCalledTimes(1);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.profile).toEqual(mockProfile);
+  });
+
+  it('should handle fetch error', async () => {
+    const mockError = new Error('Network error');
+    mockGetProfile.mockRejectedValue(mockError);
+
+    const { result } = renderHook(() => useUserProfile());
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBe('Network error');
+    expect(result.current.profile).toBe(null);
+  });
+
+  it('should handle PROFILE_NOT_FOUND error', async () => {
+    const mockError = new Error('PROFILE_NOT_FOUND');
+    mockGetProfile.mockRejectedValue(mockError);
+
+    const { result } = renderHook(() => useUserProfile());
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBe('PROFILE_NOT_FOUND');
+    expect(result.current.profile).toBe(null); // Should be null for this error
+  });
+});
+```
+
+### 3. API Function Testing
+```typescript
+// ✅ REQUIRED: Test API functions
+import { getProfile } from '../apiProfile';
+import { graphqlRaw } from '../api';
+
+jest.mock('../api');
+const mockGraphqlRaw = graphqlRaw as jest.MockedFunction<typeof graphqlRaw>;
+
+describe('getProfile', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return profile data on success', async () => {
+    const mockData = {
+      myProfile: {
+        id: '1',
+        email: 'test@example.com',
+        role: 'user'
+      }
+    };
+    mockGraphqlRaw.mockResolvedValue(mockData);
+
+    const result = await getProfile();
+
+    expect(mockGraphqlRaw).toHaveBeenCalledWith(expect.stringContaining('query MyProfile'));
+    expect(result).toEqual(mockData.myProfile);
+  });
+
+  it('should handle GraphQL errors', async () => {
+    const mockError = {
+      errors: [{ errorType: 'NotFound', message: 'Profile not found' }]
+    };
+    mockGraphqlRaw.mockRejectedValue(mockError);
+
+    await expect(getProfile()).rejects.toThrow('PROFILE_NOT_FOUND');
+  });
+
+  it('should handle network errors', async () => {
+    const mockError = new Error('Network error');
+    mockGraphqlRaw.mockRejectedValue(mockError);
+
+    await expect(getProfile()).rejects.toThrow('Network error');
+  });
+});
+```
+
+## Integration Testing
+
+### 1. API Integration Tests
+```typescript
+// ✅ REQUIRED: Test complete API flow
+import { getProfile } from '@/lib/apiProfile';
+
+describe('Profile API Integration', () => {
+  it('should fetch profile from AppSync', async () => {
+    // This test requires actual AppSync endpoint
+    const result = await getProfile();
+    
+    expect(result).toHaveProperty('id');
+    expect(result).toHaveProperty('email');
+    expect(result).toHaveProperty('role');
+  });
+});
+```
+
+### 2. Component Integration Tests
+```typescript
+// ✅ REQUIRED: Test component with real data
+import { render, screen, waitFor } from '@testing-library/react';
+import { ProfileView } from '../ProfileView';
+
+describe('ProfileView Integration', () => {
+  it('should load and display profile data', async () => {
+    render(<ProfileView />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+    
+    await waitFor(() => {
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    });
+    
+    // Should display profile data
+    expect(screen.getByText('BENJAMIN ALVAREZ')).toBeInTheDocument();
+  });
+});
+```
+
+## End-to-End Testing
+
+### 1. Selenium Tests
+```javascript
+// ✅ REQUIRED: E2E test structure
+const { Builder, By, until } = require('selenium-webdriver');
+
+describe('Profile Page E2E', () => {
+  let driver;
+
+  beforeAll(async () => {
+    driver = await new Builder().forBrowser('chrome').build();
+  });
+
+  afterAll(async () => {
+    await driver.quit();
+  });
+
+  it('should load profile page successfully', async () => {
+    await driver.get('http://localhost:5173/profile');
+    
+    // Wait for page to load
+    await driver.wait(until.elementLocated(By.className('profile-container')), 10000);
+    
+    // Check if profile data is displayed
+    const profileName = await driver.findElement(By.className('profile-name'));
+    expect(await profileName.getText()).toContain('BENJAMIN');
+  });
+
+  it('should handle profile not found error', async () => {
+    // Mock API to return error
+    await driver.executeScript(`
+      window.localStorage.setItem('auth', JSON.stringify({
+        access_token: 'invalid-token'
+      }));
+    `);
+    
+    await driver.get('http://localhost:5173/profile');
+    
+    // Should show error message
+    await driver.wait(until.elementLocated(By.className('error-message')), 10000);
+    const errorMessage = await driver.findElement(By.className('error-message'));
+    expect(await errorMessage.getText()).toContain('No profile found');
+  });
+});
+```
+
+## Test Data Management
+
+### 1. Test Fixtures
+```json
+// ✅ REQUIRED: fixtures/users.json
+{
+  "validUser": {
+    "id": "9434dc4f-389b-40ee-8384-e76ccbbe6104",
+    "email": "benjamin4@example.com",
+    "role": "user",
+    "fullName": "BENJAMIN ALVAREZ",
+    "nickname": "benjamin4",
+    "status": "active",
+    "country": "US",
+    "language": "en",
+    "gender": "male",
+    "pronouns": "he/him",
+    "bio": "Software developer passionate about technology",
+    "tags": ["developer", "tech", "coding"],
+    "tier": "free"
+  },
+  "userWithoutRole": {
+    "id": "9434dc4f-389b-40ee-8384-e76ccbbe6104",
+    "email": "benjamin4@example.com",
+    "fullName": "BENJAMIN ALVAREZ"
+  }
+}
+```
+
+### 2. Mock Data
+```typescript
+// ✅ REQUIRED: Mock data for tests
+export const mockProfile = {
+  id: '9434dc4f-389b-40ee-8384-e76ccbbe6104',
+  email: 'benjamin4@example.com',
+  role: 'user' as const,
+  fullName: 'BENJAMIN ALVAREZ',
+  nickname: 'benjamin4',
+  status: 'active',
+  country: 'US',
+  language: 'en',
+  gender: 'male',
+  pronouns: 'he/him',
+  bio: 'Software developer passionate about technology',
+  tags: ['developer', 'tech', 'coding'],
+  tier: 'free',
+  createdAt: null,
+  updatedAt: null
+};
+
+export const mockProfileWithoutRole = {
+  ...mockProfile,
+  role: undefined
+};
+```
+
+## Test Configuration
+
+### 1. Jest Configuration
+```javascript
+// ✅ REQUIRED: jest.config.js
+module.exports = {
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/src/$1'
+  },
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/test/**/*'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  }
+};
+```
+
+### 2. Test Setup
+```typescript
+// ✅ REQUIRED: src/test/setup.ts
+import '@testing-library/jest-dom';
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+global.localStorage = localStorageMock;
+
+// Mock fetch
+global.fetch = jest.fn();
+
+// Mock environment variables
+Object.defineProperty(import.meta, 'env', {
+  value: {
+    VITE_APPSYNC_ENDPOINT: 'https://test-endpoint.com/graphql',
+    NODE_ENV: 'test'
+  }
+});
+```
+
+## Testing Best Practices
+
+### 1. Test Coverage
+- **Minimum 80% coverage** for all files
+- **100% coverage** for critical functions (auth, data fetching)
+- **Test all error paths** and edge cases
+- **Test loading states** and user interactions
+
+### 2. Test Organization
+- **One test file per component/function**
+- **Group related tests** with `describe` blocks
+- **Use descriptive test names** that explain the scenario
+- **Keep tests independent** and isolated
+
+### 3. Test Data
+- **Use realistic test data** that matches production
+- **Test edge cases** (empty data, missing fields, errors)
+- **Mock external dependencies** consistently
+- **Clean up test data** after each test
+
+### 4. Test Performance
+- **Run tests in parallel** when possible
+- **Use `beforeEach` and `afterEach`** for setup/cleanup
+- **Mock expensive operations** (API calls, file I/O)
+- **Keep tests fast** (< 100ms per test)
+
+## Common Test Patterns
+
+### 1. Testing Async Operations
+```typescript
+// ✅ REQUIRED: Proper async testing
+it('should handle async operation', async () => {
+  const promise = asyncFunction();
+  
+  // Test loading state
+  expect(loading).toBe(true);
+  
+  // Wait for completion
+  await act(async () => {
+    await promise;
+  });
+  
+  // Test final state
+  expect(loading).toBe(false);
+  expect(result).toBeDefined();
+});
+```
+
+### 2. Testing Error Handling
+```typescript
+// ✅ REQUIRED: Test error scenarios
+it('should handle error gracefully', async () => {
+  const error = new Error('Test error');
+  mockFunction.mockRejectedValue(error);
+  
+  await expect(asyncFunction()).rejects.toThrow('Test error');
+  
+  // Verify error state
+  expect(errorState).toBe('Test error');
+});
+```
+
+### 3. Testing User Interactions
+```typescript
+// ✅ REQUIRED: Test user interactions
+it('should handle button click', async () => {
+  const mockCallback = jest.fn();
+  render(<Button onClick={mockCallback} />);
+  
+  fireEvent.click(screen.getByRole('button'));
+  
+  expect(mockCallback).toHaveBeenCalledTimes(1);
+});
+```
+
+Remember: **Test behavior, not implementation!** Focus on what the user sees and does, not how the code works internally.

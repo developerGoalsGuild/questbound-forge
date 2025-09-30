@@ -15,3 +15,4 @@ pytest
 pytest-cov
 httpx
 moto
+gql==3.4.1

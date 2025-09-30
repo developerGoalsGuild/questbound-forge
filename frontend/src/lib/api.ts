@@ -1,7 +1,7 @@
 import { generateClient } from "aws-amplify/api";
 import awsConfigDev from '@/config/aws-exports.dev';
 import awsConfigProd from '@/config/aws-exports.prod';
-import { IS_EMAIL_AVAILABLE, IS_NICKNAME_AVAILABLE, GOALS_BY_USER, ACTIVE_GOALS_COUNT } from "@/graphql/queries";
+import { IS_EMAIL_AVAILABLE, IS_NICKNAME_AVAILABLE, IS_NICKNAME_AVAILABLE_FOR_USER, GOALS_BY_USER, ACTIVE_GOALS_COUNT } from "@/graphql/queries";
 import { emailConfirmationEnabled } from "@/config/featureFlags";
 import { getAccessToken, graphQLClient, getApiBase, getTokenExpiry, renewToken, getUserIdFromToken } from '@/lib/utils';
 
@@ -18,17 +18,20 @@ export interface CreateUserInput {
 
 // GraphQL client with Lambda auth. The token comes from our local storage auth.
 export function graphQLClientProtected() {
+  // Use the configured Amplify instance - it will use the endpoint from awsConfig
+  console.info('[GraphQL] Creating protected client...');
   const client = generateClient({
     authMode: 'lambda',
     authToken: () => {
       const tok = getAccessToken();
+      console.info('[AuthToken] Token check:', tok ? 'Token found' : 'No token');
       if (!tok) {
         console.error('[AuthToken] missing token');
         throw new Error('NO_TOKEN');
       }
       return tok; // raw JWT
     },
-  });
+  } as any);
 
   const originalGraphql = client.graphql.bind(client);
 
@@ -62,10 +65,13 @@ export function graphQLClientProtected() {
 
 
 export async function graphqlRaw<T = any>(query: string, variables: any = {}) {
-  //TODO: CHANGE endpoint FOr the env variable
-  const endpoint = 'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql';
+  // Get AppSync endpoint from environment variable
+  const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT || 'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql';
+  
   const tok = JSON.parse(localStorage.getItem('auth') || '{}')?.access_token;
   if (!tok) throw new Error('NO_TOKEN');
+
+  console.info('[graphqlRaw] Using endpoint:', endpoint);
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -74,7 +80,16 @@ export async function graphqlRaw<T = any>(query: string, variables: any = {}) {
   });
 
   const json = await res.json();
+  console.info('[graphqlRaw] Response status:', res.status);
+  console.info('[graphqlRaw] Response headers:', Object.fromEntries(res.headers.entries()));
+  console.info('[graphqlRaw] Response JSON:', json);
+  
   if (!res.ok || json.errors?.length) {
+    console.error('[graphqlRaw] Error response details:');
+    console.error('[graphqlRaw] Status:', res.status);
+    console.error('[graphqlRaw] Status text:', res.statusText);
+    console.error('[graphqlRaw] Errors:', json.errors);
+    console.error('[graphqlRaw] Data:', json.data);
     throw Object.assign(new Error('GraphQL error'), { response: res, errors: json.errors, data: json.data });
   }
   return json.data as T;
@@ -207,6 +222,16 @@ export async function isNicknameAvailable(nickname: string): Promise<boolean> {
     throw new Error(errors.map(e => e.message).join(" | "));
   }
   return Boolean((data as any)?.isNicknameAvailable);
+}
+
+export async function isNicknameAvailableForUser(nickname: string): Promise<boolean> {
+  try {
+    const data = await graphqlRaw<{ isNicknameAvailableForUser: boolean }>(IS_NICKNAME_AVAILABLE_FOR_USER, { nickname });
+    return Boolean(data?.isNicknameAvailableForUser);
+  } catch (e: any) {
+    console.error('[isNicknameAvailableForUser] GraphQL error:', e?.errors || e?.message || e);
+    throw new Error(e?.message || 'Failed to check nickname availability');
+  }
 }
 
 

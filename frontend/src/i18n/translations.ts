@@ -22,6 +22,7 @@ import type { FeaturesTranslations } from './features';
 import type { DashboardTranslations } from './dashboard';
 import type { GoalsTranslations } from './goals';
 import type { SignupTranslations } from './signup';
+import type { ProfileTranslations } from './profile';
 import type { CommonTranslations } from './common';
 
 import { navTranslations } from './nav';
@@ -31,6 +32,7 @@ import { featuresTranslations } from './features';
 import { dashboardTranslations } from './dashboard';
 import { goalsTranslations } from './goals';
 import { signupTranslations } from './signup';
+import { profileTranslations } from './profile';
 import { commonTranslations } from './common';
 
 export type Language = 'en' | 'es' | 'fr';
@@ -39,15 +41,7 @@ export type Language = 'en' | 'es' | 'fr';
  * Main translation interface combining all page-specific translations.
  * All keys must be present in all languages.
  */
-export interface Translations extends
-  NavTranslations,
-  LoginTranslations,
-  HeroTranslations,
-  FeaturesTranslations,
-  DashboardTranslations,
-  GoalsTranslations,
-  SignupTranslations,
-  CommonTranslations {}
+export type Translations = { [key: string]: any } & { profile: ProfileTranslations };
 
 /**
  * Combined translations from all page-specific files
@@ -61,6 +55,7 @@ export const translations: Record<Language, Translations> = {
     ...dashboardTranslations.en,
     ...goalsTranslations.en,
     ...signupTranslations.en,
+    profile: profileTranslations.en,
     ...commonTranslations.en,
   },
   es: {
@@ -71,6 +66,7 @@ export const translations: Record<Language, Translations> = {
     ...dashboardTranslations.es,
     ...goalsTranslations.es,
     ...signupTranslations.es,
+    profile: profileTranslations.es,
     ...commonTranslations.es,
   },
   fr: {
@@ -81,6 +77,7 @@ export const translations: Record<Language, Translations> = {
     ...dashboardTranslations.fr,
     ...goalsTranslations.fr,
     ...signupTranslations.fr,
+    profile: profileTranslations.fr,
     ...commonTranslations.fr,
   },
 };
