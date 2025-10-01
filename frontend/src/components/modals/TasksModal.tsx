@@ -121,7 +121,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setEditingRowRef(null);
     clearError();
     clearAll();
-  }, [tasks]); // Removed clearError and clearAll from dependencies to prevent infinite loop
+  }, [tasks, clearError, clearAll]); // Now safe to include stable dependencies
 
   // Sort tasks
   const sortedTasks = useMemo(() => {

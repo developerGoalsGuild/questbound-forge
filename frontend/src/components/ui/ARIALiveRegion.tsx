@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 interface ARIALiveRegionProps {
   /**
@@ -82,7 +82,7 @@ export const useARIALiveAnnouncements = () => {
     clearAfter?: number;
   }>>([]);
 
-  const announce = (
+  const announce = useCallback((
     message: string, 
     priority: 'polite' | 'assertive' = 'polite',
     clearAfter?: number
@@ -96,15 +96,15 @@ export const useARIALiveAnnouncements = () => {
         setAnnouncements(prev => prev.filter(a => a.id !== id));
       }, clearAfter);
     }
-  };
+  }, []);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
     setAnnouncements([]);
-  };
+  }, []);
 
-  const clearById = (id: string) => {
+  const clearById = useCallback((id: string) => {
     setAnnouncements(prev => prev.filter(a => a.id !== id));
-  };
+  }, []);
 
   return {
     announcements,

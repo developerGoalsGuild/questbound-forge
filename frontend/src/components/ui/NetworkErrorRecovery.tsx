@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -256,15 +256,15 @@ export const useNetworkStatus = () => {
     };
   }, []);
 
-  const setError = (message: string) => {
+  const setError = useCallback((message: string) => {
     setHasError(true);
     setErrorMessage(message);
-  };
+  }, []);
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     setHasError(false);
     setErrorMessage('');
-  };
+  }, []);
 
   return {
     isOnline,
