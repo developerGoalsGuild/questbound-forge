@@ -47,15 +47,22 @@ This file contains the tasks from Phase 1 Foundation that have been successfully
 - [x] 11.2 – Write create goal endpoint (backend)
 - [x] 11.3 – Add NLP stub for goal questions
 - [x] 12.1 – Write list goals endpoint
+- [x] 12.2 – Write get goal by ID endpoint (verify implementation) ✅ COMPLETED VIA APPSYNC
 - [x] 13.1 – Build goal creation form (frontend) ✅ FULLY COMPLETED
 - [x] 14.1 – Build goal list page
+- [x] 14.2 – Build goal detail page (verify full functionality) ✅ FULLY COMPLETED
 - [x] 15.1 – Define DynamoDB schema for TASK entity
 - [x] 15.2 – Create task (backend)
+- [x] 15.3 – Update task (backend) (verify implementation) ✅ FULLY COMPLETED
+- [x] 15.4 – Delete task (backend) (verify implementation) ✅ FULLY COMPLETED
+- [x] 15.5 – Mark task as complete (backend) (verify implementation) ✅ FULLY COMPLETED
 - [x] 16.1 – Build task list UI component
+- [x] 16.2 – Add toggle complete button (verify implementation) ✅ FULLY COMPLETED
+- [x] 16.3 – Add inline edit/delete actions (verify implementation) ✅ FULLY COMPLETED
 
 ---
 *Generated: 2025-09-24*
-*Total Completed Tasks: 37*
+*Total Completed Tasks: 45*
 
 ## Implementation Notes
 - **Strong Foundation**: Authentication, basic CRUD operations, and core schemas are well-implemented
