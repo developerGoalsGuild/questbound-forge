@@ -109,6 +109,7 @@ type Query {
   me: User
   user(userId: ID!): User
   goals(userId: ID!): [Goal!]!
+  goal(goalId: ID!): Goal
   activeGoalsCount(userId: ID!): Int!
   myGoals: [Goal!]!
   myTasks(goalId: ID!): [Task!]!

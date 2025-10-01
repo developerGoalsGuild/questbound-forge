@@ -24,6 +24,12 @@ import type { GoalsTranslations } from './goals';
 import type { SignupTranslations } from './signup';
 import type { ProfileTranslations } from './profile';
 import type { CommonTranslations } from './common';
+import type { GoalListTranslations } from './goalList';
+import type { GoalEditTranslations } from './goalEdit';
+import type { GoalCreationTranslations } from './goalCreation';
+import type { GoalActionsTranslations } from './goalActions';
+import type { GoalDashboardTranslations } from './goalDashboard';
+import type { GoalDetailsTranslations } from './goalDetails';
 
 import { navTranslations } from './nav';
 import { loginTranslations } from './login';
@@ -34,6 +40,12 @@ import { goalsTranslations } from './goals';
 import { signupTranslations } from './signup';
 import { profileTranslations } from './profile';
 import { commonTranslations } from './common';
+import { goalListTranslations } from './goalList';
+import { goalEditTranslations } from './goalEdit';
+import { goalCreationTranslations } from './goalCreation';
+import { goalActionsTranslations } from './goalActions';
+import { goalDashboardTranslations } from './goalDashboard';
+import { goalDetailsTranslations } from './goalDetails';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -41,7 +53,15 @@ export type Language = 'en' | 'es' | 'fr';
  * Main translation interface combining all page-specific translations.
  * All keys must be present in all languages.
  */
-export type Translations = { [key: string]: any } & { profile: ProfileTranslations };
+export type Translations = { [key: string]: any } & {
+  profile: ProfileTranslations;
+  goalList: GoalListTranslations;
+  goalEdit: GoalEditTranslations;
+  goalCreation: GoalCreationTranslations;
+  goalActions: GoalActionsTranslations;
+  goalDashboard: GoalDashboardTranslations;
+  goalDetails: GoalDetailsTranslations;
+};
 
 /**
  * Combined translations from all page-specific files
@@ -56,6 +76,12 @@ export const translations: Record<Language, Translations> = {
     ...goalsTranslations.en,
     ...signupTranslations.en,
     profile: profileTranslations.en,
+    goalList: goalListTranslations.en,
+    goalEdit: goalEditTranslations.en,
+    goalCreation: goalCreationTranslations.en,
+    goalActions: goalActionsTranslations.en,
+    goalDashboard: goalDashboardTranslations.en,
+    goalDetails: goalDetailsTranslations.en,
     ...commonTranslations.en,
   },
   es: {
@@ -67,6 +93,12 @@ export const translations: Record<Language, Translations> = {
     ...goalsTranslations.es,
     ...signupTranslations.es,
     profile: profileTranslations.es,
+    goalList: goalListTranslations.es,
+    goalEdit: goalEditTranslations.es,
+    goalCreation: goalCreationTranslations.es,
+    goalActions: goalActionsTranslations.es,
+    goalDashboard: goalDashboardTranslations.es,
+    goalDetails: goalDetailsTranslations.es,
     ...commonTranslations.es,
   },
   fr: {
@@ -78,6 +110,12 @@ export const translations: Record<Language, Translations> = {
     ...goalsTranslations.fr,
     ...signupTranslations.fr,
     profile: profileTranslations.fr,
+    goalList: goalListTranslations.fr,
+    goalEdit: goalEditTranslations.fr,
+    goalCreation: goalCreationTranslations.fr,
+    goalActions: goalActionsTranslations.fr,
+    goalDashboard: goalDashboardTranslations.fr,
+    goalDetails: goalDetailsTranslations.fr,
     ...commonTranslations.fr,
   },
 };

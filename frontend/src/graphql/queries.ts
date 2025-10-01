@@ -68,6 +68,29 @@ export const MY_GOALS = gql`
       status
       createdAt
       updatedAt
+      answers {
+        key
+        answer
+      }
+    }
+  }
+`;
+
+export const GET_GOAL = gql`
+  query GetGoal($goalId: ID!) {
+    goal(goalId: $goalId) {
+      id
+      title
+      description
+      tags
+      deadline
+      status
+      createdAt
+      updatedAt
+      answers {
+        key
+        answer
+      }
     }
   }
 `;

@@ -14,7 +14,6 @@ This file contains the incomplete or missing tasks from Phase 1 Foundation that 
 
 ## User Profiles
 - [ ] 8.3 – Unit test all profile endpoints (verify comprehensive coverage)
-- [ ] 10.2 – Create edit profile page
 - [ ] 10.3 – Add update call to backend (verify frontend integration)
 
 ## Goals & Tasks

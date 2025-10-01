@@ -10,6 +10,8 @@ import LocalSignup from "./pages/signup/LocalSignUp";
 import Login from "./pages/login/Login";
 import NotFound from "./pages/NotFound";
 import Goals from "./pages/goals/Goals";
+import GoalsList from "./pages/goals/GoalsList";
+import GoalDetails from "./pages/goals/GoalDetails";
 //import ConfirmEmail from "./pages/ConfirmEmail";
 import { SessionKeepAlive } from '@/lib/session';
 import { ProtectedRoute, AuthWatcher } from '@/lib/auth';
@@ -35,7 +37,13 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfileView /></ProtectedRoute>} />
             <Route path="/profile/edit" element={<ProtectedRoute><ProfileEdit /></ProtectedRoute>} />
-            <Route path="/goals" element={<Goals />} />
+            <Route path="/goals" element={<ProtectedRoute><GoalsList /></ProtectedRoute>} />
+            <Route path="/goals/list" element={<ProtectedRoute><GoalsList /></ProtectedRoute>} />
+            <Route path="/goals/create" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+            <Route path="/goals/edit/:id" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+            <Route path="/goals/details/:id" element={<ProtectedRoute><GoalDetails /></ProtectedRoute>} />
+            <Route path="/goals/:id" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+            <Route path="/goals/:id/tasks" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
             <Route path="/account/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />

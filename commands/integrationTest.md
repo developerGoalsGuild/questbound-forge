@@ -4,12 +4,6 @@ Produce artifacts (screenshots, videos, traces, HTML + JUnit reports) and fail t
 
 Constraints & Assumptions
 
-Base URL: http://host.docker.internal:8080 (works on Docker Desktop for Windows/macOS).
-If host.docker.internal is unavailable (some Linux setups), add --add-host=host.docker.internal:host-gateway to docker run and keep the same base URL.
-Run headless in Chromium (you may also run WebKit/Firefox if time allows).
-Never print secrets to logs. Read credentials only from GOALSGUILD_USER and GOALSGUILD_PASSWORD.
-Exit non-zero on any failure.
-Produce artifacts in a mounted ./playwright-report folder in the host project.
 
 
 Test Plan (minimum)

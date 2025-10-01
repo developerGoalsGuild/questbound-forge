@@ -63,6 +63,46 @@ resource "aws_appsync_resolver" "query_isNicknameAvailableForUser" {
   }
 }
 
+# Goals resolvers
+resource "aws_appsync_resolver" "query_myGoals" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myGoals"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/myGoals.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_goal" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "goal"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/getGoal.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_activeGoalsCount" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "activeGoalsCount"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/activeGoalsCount.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
 resource "aws_appsync_datasource" "profile_ddb" {
   api_id           = module.appsync.api_id
   name             = "ProfileDDB"

@@ -18,7 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, TaskInput, TaskUpdateInput, UserProfile, ProfileUpdate
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, UserProfile, ProfileUpdate
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
 
 
@@ -252,27 +252,7 @@ def _to_response(item: Dict) -> GoalResponse:
 
 
 # ---------- Routes ----------
-@app.get("/quests", response_model=List[GoalResponse])
-async def list_goals(
-    auth: AuthContext = Depends(authenticate),
-    table=Depends(get_goals_table),
-):
-    log_event(logger, 'quests.list_start', user_id=auth.user_id)
-    try:
-        response = table.query(
-            KeyConditionExpression=Key("PK").eq(f"USER#{auth.user_id}") & Key("SK").begins_with("GOAL#"),
-        )
-    except (ClientError, BotoCoreError) as exc:
-        logger.error(
-            'quests.list_failed',
-            extra={'user_id': auth.user_id, 'table': settings.core_table_name},
-            exc_info=exc,
-        )
-        raise HTTPException(status_code=500, detail="Unable to load goals") from exc
-
-    items = response.get("Items", [])
-    log_event(logger, 'quests.list_success', user_id=auth.user_id, item_count=len(items))
-    return [_to_response(item) for item in items]
+# GET /quests endpoint removed - now handled by AppSync GraphQL resolver
 
 
 @app.post("/quests", response_model=GoalResponse, status_code=201)
@@ -299,6 +279,210 @@ async def create_goal(
     log_event(logger, 'quests.create_success', user_id=auth.user_id, goal_id=item['id'])
     return _to_response(item)
 
+
+# GET /quests/{goal_id} endpoint removed - now handled by AppSync GraphQL resolver
+
+
+@app.put("/quests/{goal_id}", response_model=GoalResponse)
+async def update_goal(
+    goal_id: str,
+    payload: GoalUpdatePayload,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    log_event(logger, 'quests.update_start', user_id=auth.user_id, goal_id=goal_id)
+    
+    # First, get the existing goal to ensure it exists and user owns it
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{auth.user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.update_get_failed',
+            extra={'user_id': auth.user_id, 'goal_id': goal_id},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Unable to load goal") from exc
+
+    existing_item = response.get("Item")
+    if not existing_item:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Build update expression and values
+    update_expression_parts = []
+    expression_attribute_values = {}
+    expression_attribute_names = {}
+
+    if payload.title is not None:
+        title = _sanitize_string(payload.title)
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+        update_expression_parts.append("#title = :title")
+        expression_attribute_values[":title"] = title
+        expression_attribute_names["#title"] = "title"
+
+    if payload.description is not None:
+        description = _sanitize_string(payload.description)
+        update_expression_parts.append("#description = :description")
+        expression_attribute_values[":description"] = description
+        expression_attribute_names["#description"] = "description"
+
+    if payload.deadline is not None:
+        normalized_deadline = _normalize_date_only(payload.deadline)
+        if not normalized_deadline:
+            raise HTTPException(status_code=400, detail="Deadline must be in YYYY-MM-DD format")
+        update_expression_parts.append("#deadline = :deadline")
+        expression_attribute_values[":deadline"] = normalized_deadline
+        expression_attribute_names["#deadline"] = "deadline"
+
+    if payload.tags is not None:
+        tags = _validate_tags(payload.tags)
+        update_expression_parts.append("#tags = :tags")
+        expression_attribute_values[":tags"] = tags
+        expression_attribute_names["#tags"] = "tags"
+
+    if payload.answers is not None:
+        answers = _validate_answers(payload.answers)
+        update_expression_parts.append("#answers = :answers")
+        expression_attribute_values[":answers"] = answers
+        expression_attribute_names["#answers"] = "answers"
+
+    if payload.status is not None:
+        if payload.status not in ["active", "paused", "completed", "archived"]:
+            raise HTTPException(status_code=400, detail="Invalid status")
+        update_expression_parts.append("#status = :status")
+        expression_attribute_values[":status"] = payload.status
+        expression_attribute_names["#status"] = "status"
+
+    if not update_expression_parts:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    # Always update the updatedAt timestamp
+    now_ms = int(time.time() * 1000)
+    update_expression_parts.append("#updatedAt = :updatedAt")
+    expression_attribute_values[":updatedAt"] = now_ms
+    expression_attribute_names["#updatedAt"] = "updatedAt"
+
+    update_expression = "SET " + ", ".join(update_expression_parts)
+
+    try:
+        table.update_item(
+            Key={"PK": f"USER#{auth.user_id}", "SK": f"GOAL#{goal_id}"},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names,
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.update_failed',
+            extra={'user_id': auth.user_id, 'goal_id': goal_id},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Could not update goal") from exc
+
+    # Return updated goal
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{auth.user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+        updated_item = response.get("Item")
+        if not updated_item:
+            raise HTTPException(status_code=500, detail="Goal not found after update")
+        
+        log_event(logger, 'quests.update_success', user_id=auth.user_id, goal_id=goal_id)
+        return _to_response(updated_item)
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.update_get_after_failed',
+            extra={'user_id': auth.user_id, 'goal_id': goal_id},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Goal updated but could not retrieve updated data") from exc
+
+
+@app.delete("/quests/{goal_id}")
+async def delete_goal(
+    goal_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    log_event(logger, 'quests.delete_start', user_id=auth.user_id, goal_id=goal_id)
+    
+    # First, check if goal exists and user owns it
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{auth.user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.delete_get_failed',
+            extra={'user_id': auth.user_id, 'goal_id': goal_id},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Unable to load goal") from exc
+
+    existing_item = response.get("Item")
+    if not existing_item:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # First, find and delete all tasks associated with this goal
+    try:
+        # Query for all tasks with this goal_id using the main table
+        # Tasks have SK pattern: TASK#{task_id} and goalId field
+        query_response = table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",
+            FilterExpression="goalId = :goal_id",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{auth.user_id}",
+                ":sk_prefix": "TASK#",
+                ":goal_id": goal_id
+            }
+        )
+        
+        # Delete each task
+        for task_item in query_response.get("Items", []):
+            task_id = task_item.get("id")
+            if task_id:
+                try:
+                    table.delete_item(
+                        Key={"PK": f"USER#{auth.user_id}", "SK": f"TASK#{task_id}"}
+                    )
+                    log_event(logger, 'quests.delete_task_success', user_id=auth.user_id, task_id=task_id, goal_id=goal_id)
+                except (ClientError, BotoCoreError) as exc:
+                    logger.warning(
+                        'quests.delete_task_failed',
+                        extra={'user_id': auth.user_id, 'task_id': task_id, 'goal_id': goal_id},
+                        exc_info=exc,
+                    )
+                    # Continue with other tasks even if one fails
+                    
+    except (ClientError, BotoCoreError) as exc:
+        logger.warning(
+            'quests.delete_tasks_query_failed',
+            extra={'user_id': auth.user_id, 'goal_id': goal_id},
+            exc_info=exc,
+        )
+        # Continue with goal deletion even if task cleanup fails
+
+    # Delete the goal
+    try:
+        table.delete_item(
+            Key={"PK": f"USER#{auth.user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.error(
+            'quests.delete_failed',
+            extra={'user_id': auth.user_id, 'goal_id': goal_id},
+            exc_info=exc,
+        )
+        raise HTTPException(status_code=500, detail="Could not delete goal") from exc
+
+    log_event(logger, 'quests.delete_success', user_id=auth.user_id, goal_id=goal_id)
+    return {"message": "Goal and all associated tasks deleted successfully"}
+
+
+# GET /quests/active-count endpoint removed - now handled by AppSync GraphQL resolver
 
 
 class AITextPayload(BaseModel):

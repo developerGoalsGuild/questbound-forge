@@ -107,7 +107,7 @@ export const profileTranslations: Record<Language, ProfileTranslations> = {
       bio: { label: 'Biografía', placeholder: 'Cuéntanos sobre ti', help: 'Máximo 500 caracteres' },
       tags: { label: 'Etiquetas', placeholder: 'Separadas por comas', help: 'Hasta 10 etiquetas' },
     },
-    actions: { save: 'Guardar', cancel: 'Cancelar', reset: 'Restablecer' },
+    actions: { save: 'Guardar', cancel: 'Cancelar', reset: 'Restablecer', goToSignUp: 'Ir a Registro' },
     validation: {
       required: 'Este campo es obligatorio',
       nicknameTaken: 'Este apodo ya está en uso',
@@ -145,7 +145,7 @@ export const profileTranslations: Record<Language, ProfileTranslations> = {
       bio: { label: 'Bio', placeholder: 'Parlez-nous de vous', help: '500 caractères max' },
       tags: { label: 'Tags', placeholder: 'Séparés par des virgules', help: 'Jusqu’à 10 tags' },
     },
-    actions: { save: 'Enregistrer', cancel: 'Annuler', reset: 'Réinitialiser' },
+    actions: { save: 'Enregistrer', cancel: 'Annuler', reset: 'Réinitialiser', goToSignUp: 'Aller à l\'Inscription' },
     validation: {
       required: 'Ce champ est requis',
       nicknameTaken: 'Ce surnom est déjà pris',

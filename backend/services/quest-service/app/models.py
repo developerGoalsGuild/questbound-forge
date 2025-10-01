@@ -65,6 +65,15 @@ class AnswerOutput(BaseModel):
     answer: str
 
 
+class GoalUpdatePayload(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    deadline: Optional[str] = None
+    tags: Optional[List[str]] = None
+    answers: Optional[List[AnswerInput]] = None
+    status: Optional[str] = None
+
+
 class GoalResponse(BaseModel):
     id: str
     userId: str

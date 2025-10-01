@@ -22,7 +22,8 @@ Write-Host "ECR Repository: $ECRUri"
 Write-Host "Image Tag: $ImageTag"
 
 # Build the Docker image
-docker build -t "$ECRUri`:$ImageTag" .
+# Changed to run from the parent directory (backend) to correctly resolve paths
+docker build -t "$ECRUri`:$ImageTag" -f Dockerfile ../../..
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Docker build failed"

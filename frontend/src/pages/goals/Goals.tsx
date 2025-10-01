@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { graphQLClient } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
-import { createGoal, loadGoals } from '@/lib/apiGoal';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info, ArrowLeft, Plus } from 'lucide-react';
+import FieldTooltip from '@/components/ui/FieldTooltip';
+import { createGoal, loadGoals, getGoal, updateGoal } from '@/lib/apiGoal';
 
 
 import { RoleRoute } from '@/lib/auth';
@@ -45,19 +46,22 @@ const GoalsPageInner: React.FC = () => {
   const { t, language } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  
+  // Determine if this is create or edit mode
+  const isEditMode = Boolean(id);
+  const isCreateMode = !isEditMode;
+  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState<string>('');
   const [answers, setAnswers] = useState<NLPAnswers>({});
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [goals, setGoals] = useState<any[]>([]);
-  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(id || null);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [visibleCount, setVisibleCount] = useState<number>(5);
 
   // Modal state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -67,7 +71,8 @@ const GoalsPageInner: React.FC = () => {
   const [isTasksModalOpen, setIsTasksModalOpen] = useState(false);
 
   // 1. Multilingual labels and hints - Add safety checks
-  const goalsTranslations = (t as any)?.goals;
+  // Goals translations are spread directly into the main translations object
+  const goalsTranslations = t as any;
   const labels = useMemo(() => goalsTranslations?.questions, [goalsTranslations]);
   const hints = goalsTranslations?.hints ?? {};
   const fieldHints = (hints.fields ?? {}) as Record<string, string | undefined>;
@@ -75,6 +80,7 @@ const GoalsPageInner: React.FC = () => {
   const filterHints = (hints.filters ?? {}) as Record<string, string | undefined>;
   const taskHints = (hints.tasks ?? {}) as Record<string, string | undefined>;
   const iconLabelTemplate = typeof hints.iconLabel === 'string' ? hints.iconLabel : 'More information about {field}';
+
 
   // 2. Accessibility helpers
   const createHintId = (id: string) => `${id}-hint`;
@@ -86,83 +92,64 @@ const GoalsPageInner: React.FC = () => {
     return `${iconLabelTemplate} ${safeLabel}`.trim();
   };
 
-  // 3. Info icon + tooltip component (accessible)
-  const InfoHint = ({ hint, targetId, fieldLabel }: { hint?: string; targetId: string; fieldLabel: string }) => {
-    if (!hint) {
-      return null;
-    }
-    const descriptionId = createHintId(targetId);
-    const tooltipId = `${descriptionId}-content`;
-    return (
-      <>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              aria-label={formatHintLabel(fieldLabel)}
-              aria-describedby={descriptionId}
-            >
-              <Info className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent
-            id={tooltipId}
-            role="tooltip"
-            side="top"
-            align="start"
-            aria-labelledby={descriptionId}
-            className="max-w-xs text-sm leading-relaxed"
-          >
-            {hint}
-          </TooltipContent>
-        </Tooltip>
-        <span id={descriptionId} className="sr-only">
-          {hint}
-        </span>
-      </>
-    );
-  };
+  // 3. Info icon + tooltip component (accessible) - using FieldTooltip
 
   // 4. Localized field labels
-  const goalsList = goalsTranslations?.list ?? {};
   const fields = goalsTranslations?.fields ?? {};
-  const searchLabel = goalsList.searchLabel || goalsList.search || 'Search goals';
-  const statusLabel = goalsList.statusFilterLabel || 'Status';
   const titleLabel = fields.title || 'Title';
   const descriptionLabel = fields.description || 'Description';
   const deadlineLabel = fields.deadline || 'Deadline';
 
-  // 5. Filtering
-  const filteredGoals = useMemo(() => {
-    const list = Array.isArray(goals) ? goals : [];
-    const q = query.trim().toLowerCase();
-    const status = statusFilter.trim().toLowerCase();
-    return list.filter((g) => {
-      const matchesText = !q || [g.title, g.description]
-        .filter(Boolean)
-        .some((s: string) => String(s).toLowerCase().includes(q));
-      const matchesStatus = !status || String(g.status ?? '').toLowerCase() === status;
-      return matchesText && matchesStatus;
-    });
-  }, [goals, query, statusFilter]);
-
-  const visibleGoals = useMemo(() => filteredGoals.slice(0, visibleCount), [filteredGoals, visibleCount]);
-
-  const loadMyGoals = useCallback(async () => {
+  // Load goal data for edit mode
+  const loadGoalData = useCallback(async (goalId: string) => {
     try {
-      const myGoals = await loadGoals();
-      setGoals(Array.isArray(myGoals) ? myGoals : []);
-      setVisibleCount(5);
-    } catch (e) {
-      setGoals([]);
-      setVisibleCount(5);
+      setLoading(true);
+      const goalData = await getGoal(goalId);
+      
+      // Pre-fill form with goal data
+      setTitle(goalData.title || '');
+      setDescription(goalData.description || '');
+      
+      // Format deadline for date input
+      if (goalData.deadline) {
+        const deadlineDate = new Date(goalData.deadline + 'T00:00:00Z');
+        const formattedDeadline = deadlineDate.toISOString().split('T')[0];
+        setDeadline(formattedDeadline);
+      }
+      
+      // Convert answers array to object
+      const answersObj: NLPAnswers = {};
+      if (goalData.answers && Array.isArray(goalData.answers)) {
+        goalData.answers.forEach((answer: any) => {
+          if (answer.key && answer.answer) {
+            answersObj[answer.key] = answer.answer;
+          }
+        });
+      }
+      setAnswers(answersObj);
+      
+      // Load tasks for this goal
+      await loadMyTasks(goalId);
+      
+    } catch (e: any) {
+      console.error('Error loading goal data:', e);
+      toast({
+        title: 'Error',
+        description: e?.message || 'Failed to load goal data',
+        variant: 'destructive'
+      });
+      navigate('/goals');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [navigate, toast]);
 
+  // Load goal data when in edit mode
   useEffect(() => {
-    loadMyGoals();
-  }, [loadMyGoals]);
+    if (isEditMode && id) {
+      loadGoalData(id);
+    }
+  }, [isEditMode, id, loadGoalData]);
 
   async function loadMyTasks(goalId: string) {
     try {
@@ -177,7 +164,7 @@ const GoalsPageInner: React.FC = () => {
     }
   }
 
-  async function onCreateGoal(e: React.FormEvent) {
+  async function onSubmitGoal(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
       toast({ title: goalsTranslations?.validation?.titleRequired || 'Title is required', variant: 'destructive' });
@@ -194,25 +181,45 @@ const GoalsPageInner: React.FC = () => {
       if (deadline) {
         deadlineNum = toEpochSeconds(deadline);
       }
-      // Pass deadline as a number for test compatibility, but cast as string if required by API
-      await createGoal({
-        title: title,
-        description: description,
-        deadline: (deadlineNum !== undefined ? (deadlineNum as any) : undefined),
-        nlpAnswers: answers,
-      });
-
-      setTitle('');
-      setDescription('');
-      setDeadline('');
-      await loadMyGoals();
+      
+      if (isEditMode && id) {
+        // Update existing goal - pass deadline as epoch timestamp
+        const updateData = {
+          title: title,
+          description: description,
+          deadline: deadlineNum,
+          nlpAnswers: answers,
+        };
+        await updateGoal(id, updateData);
+        toast({ 
+          title: 'Success', 
+          description: 'Goal updated successfully',
+          variant: 'default'
+        });
+        navigate('/goals');
+      } else {
+        // Create new goal - pass deadline as string
+        const createData = {
+          title: title,
+          description: description,
+          deadline: deadline, // Use the original string format
+          nlpAnswers: answers,
+        };
+        await createGoal(createData);
+        toast({ 
+          title: 'Success', 
+          description: 'Goal created successfully',
+          variant: 'default'
+        });
+        navigate('/goals');
+      }
     } catch (e: any) {
       const desc = Array.isArray(e?.errors)
         ? e.errors.map((x: any) => x?.message || '').filter(Boolean).join(' | ')
         : typeof e?.message === 'string'
         ? e.message
         : String(e);
-      toast({ title: (t as any).common.error, description: desc, variant: 'destructive' });
+      toast({ title: 'Error', description: desc, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -255,8 +262,8 @@ const GoalsPageInner: React.FC = () => {
   // New handler for opening modal with goal deadline
   const openCreateTaskModal = (goalId: string) => {
     setSelectedGoalId(goalId);
-    const goal = goals.find(g => g.id === goalId);
-    setModalGoalDeadline(goal?.deadline || null);
+    // For edit mode, we can use the current goal's deadline from the form
+    setModalGoalDeadline(deadline || null);
     setIsTaskModalOpen(true);
   };
 
@@ -273,7 +280,7 @@ const GoalsPageInner: React.FC = () => {
         tags: taskTags,
         status: taskStatus
       });
-      toast({ title: goalsList?.taskCreated || 'Task created' });
+      toast({ title: 'Task created' });
       await loadMyTasks(selectedGoalId);
     } catch (e: any) {
       const desc = e?.message || String(e);
@@ -295,7 +302,7 @@ const GoalsPageInner: React.FC = () => {
       });
       // Update local state after successful API call
       setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
-      toast({ title: goalsList?.taskUpdated || 'Task updated' });
+      toast({ title: 'Task updated' });
     } catch (e: any) {
       toast({ title: (t as any)?.common?.error || 'Error', description: e?.message || String(e), variant: 'destructive' });
       throw e;
@@ -308,7 +315,7 @@ const GoalsPageInner: React.FC = () => {
       await deleteTask(taskId);
       // Update local state after successful API call
       setTasks(prev => prev.filter(t => t.id !== taskId));
-      toast({ title: goalsList?.taskDeleted || 'Task deleted' });
+      toast({ title: 'Task deleted' });
     } catch (e: any) {
       toast({ title: (t as any)?.common?.error || 'Error', description: e?.message || String(e), variant: 'destructive' });
       throw e;
@@ -323,127 +330,69 @@ const GoalsPageInner: React.FC = () => {
   };
   
   
-  return (
-    <TooltipProvider delayDuration={150}>
+  if (loading) {
+    return (
       <div className="max-w-3xl mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">{goalsTranslations?.title || 'Goals'}</h1>
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex gap-2">
-            <button onClick={loadMyGoals} className="px-3 py-2 border rounded">
-              {goalsTranslations?.actions?.refresh || 'Refresh'}
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading goal data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto p-4">
+        {/* Header with back button and actions */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/goals')}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Goals
             </button>
-          </div>
-          <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-end">
-            <div className="w-full md:w-64">
-              <div className="mb-1 flex items-center gap-2">
-                <label className="text-sm font-medium" htmlFor="goal-search">
-                  {searchLabel}
-                </label>
-                <InfoHint targetId="goal-search" fieldLabel={searchLabel} hint={filterHints.search} />
-              </div>
-              <input
-                id="goal-search"
-                className="w-full border rounded p-2"
-                placeholder={goalsList?.search || 'Search goals'}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                aria-describedby={filterHints.search ? createHintId('goal-search') : undefined}
-              />
+            <div>
+              <h1 className="text-2xl font-bold">
+                {isEditMode ? 'Edit Goal' : 'Create New Goal'}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {isEditMode ? 'Update your goal details and manage tasks' : 'Set up a new goal with detailed planning'}
+              </p>
             </div>
-            <div className="w-full md:w-48">
-              <div className="mb-1 flex items-center gap-2">
-                <label className="text-sm font-medium" htmlFor="goal-status-filter">
-                  {statusLabel}
-                </label>
-                <InfoHint targetId="goal-status-filter" fieldLabel={statusLabel} hint={filterHints.status} />
-              </div>
-              <select
-                id="goal-status-filter"
-                className="w-full border rounded p-2"
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                aria-describedby={filterHints.status ? createHintId('goal-status-filter') : undefined}
+          </div>
+          
+          {/* Task management buttons - only show in edit mode */}
+          {isEditMode && selectedGoalId && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => openTasksModal(selectedGoalId)}
+                className="flex items-center gap-2 px-3 py-2 border rounded hover:bg-muted transition-colors"
               >
-                <option value="">{goalsList?.allStatuses || 'All'}</option>
-                <option value="active">{goalsList?.statusActive || 'Active'}</option>
-                <option value="paused">{goalsList?.statusPaused || 'Paused'}</option>
-                <option value="completed">{goalsList?.statusCompleted || 'Completed'}</option>
-                <option value="archived">{goalsList?.statusArchived || 'Archived'}</option>
-              </select>
+                <Plus className="w-4 h-4" />
+                View Tasks
+              </button>
+              <button
+                onClick={() => openCreateTaskModal(selectedGoalId)}
+                className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Create Task
+              </button>
             </div>
-          </div>
+          )}
         </div>
-        <div className="mt-8 gap-2">
-          <h3 className="font-semibold mb-2">{goalsList?.myGoals || 'My Quests'}</h3>
-          <div className="space-y-2">
-            {filteredGoals.length === 0 ? (
-              <div className="text-sm text-muted-foreground">{goalsList?.noGoals || 'No goals yet.'}</div>
-            ) : (
-              <div className="overflow-x-auto rounded border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-left">{goalsList?.columns?.title || 'Goal'}</th>
-                      <th className="px-3 py-2 text-left">{goalsList?.columns?.description || 'Descriptions'}</th>
-                      <th className="px-3 py-2 text-left">{goalsList?.columns?.deadline || 'Due Date'}</th>
-                      <th className="px-3 py-2 text-left">{goalsList?.columns?.status || 'Status'}</th>
-                      <th className="px-3 py-2 text-right">{goalsList?.columns?.actions || 'Actions'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleGoals.map(g => {
-                      const deadlineLabel = formatDeadline(g.deadline);
-                      return (
-                        <tr key={g.id} className="border-t">
-                          <td className="px-3 py-2 align-top font-medium">{g.title || 'N/A'}</td>
-                          <td className="px-3 py-2 align-top text-muted-foreground">{g.description || 'N/A'}</td>
-                          <td className="px-3 py-2 align-top">{deadlineLabel || 'N/A'}</td>
-                          <td className="px-3 py-2 align-top capitalize">{g.status || 'N/A'}</td>
-                          <td className="px-3 py-2 align-top">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                              <button
-                                className="px-2 py-1 text-xs sm:text-sm border rounded"
-                                onClick={() => {
-                                  setSelectedGoalId(g.id);
-                                  openTasksModal(g.id);
-                                }}
-                              >
-                                {goalsList?.viewTasks || 'View Tasks'}
-                              </button>
-                              <button
-                                className="px-2 py-1 text-xs sm:text-sm border rounded"
-                                onClick={() => openCreateTaskModal(g.id)}
-                              >
-                                {goalsList?.createTask || 'Create Task'}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {filteredGoals.length > visibleCount && (
-              <div className="pt-2 text-right mb-4">
-                <button className="px-3 py-2 border rounded" onClick={() => setVisibleCount(c => c + 5)}>
-                  {goalsList?.showMore || 'Show more'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        <form onSubmit={onCreateGoal} className="space-y-4" data-testid="goal-form">
-          <div className="max-w-3xl mx-auto p-6">
-            <h3 className="font-semibold">{goalsList?.newGoal || 'New Goal'}</h3>
-          </div>
+
+        <form onSubmit={onSubmitGoal} className="space-y-4" data-testid="goal-form">
           <div>
             <div className="mb-1 flex items-center gap-2">
               <label className="text-sm font-medium" htmlFor="goal-title">
                 {titleLabel}
               </label>
-              <InfoHint targetId="goal-title" fieldLabel={titleLabel} hint={fieldHints.title} />
+              <FieldTooltip targetId="goal-title" fieldLabel={titleLabel} hint={fieldHints.title} iconLabelTemplate={iconLabelTemplate} />
             </div>
             <input
               id="goal-title"
@@ -458,7 +407,7 @@ const GoalsPageInner: React.FC = () => {
               <label className="text-sm font-medium" htmlFor="goal-description">
                 {descriptionLabel}
               </label>
-              <InfoHint targetId="goal-description" fieldLabel={descriptionLabel} hint={fieldHints.description} />
+              <FieldTooltip targetId="goal-description" fieldLabel={descriptionLabel} hint={fieldHints.description} iconLabelTemplate={iconLabelTemplate} />
             </div>
             <textarea
               id="goal-description"
@@ -474,7 +423,7 @@ const GoalsPageInner: React.FC = () => {
               <label className="text-sm font-medium" htmlFor="goal-deadline">
                 {deadlineLabel}
               </label>
-              <InfoHint targetId="goal-deadline" fieldLabel={deadlineLabel} hint={fieldHints.deadline} />
+              <FieldTooltip targetId="goal-deadline" fieldLabel={deadlineLabel} hint={fieldHints.deadline} iconLabelTemplate={iconLabelTemplate} />
             </div>
             <input
               id="goal-deadline"
@@ -499,7 +448,7 @@ const GoalsPageInner: React.FC = () => {
                       <label className="text-sm font-medium" htmlFor={questionId}>
                         {questionLabel}
                       </label>
-                      <InfoHint targetId={questionId} fieldLabel={questionLabel} hint={questionHints[key]} />
+                      <FieldTooltip targetId={questionId} fieldLabel={questionLabel} hint={questionHints[key]} iconLabelTemplate={iconLabelTemplate} />
                     </div>
                     <textarea
                       id={questionId}
@@ -533,7 +482,12 @@ const GoalsPageInner: React.FC = () => {
               {goalsTranslations?.actions?.suggestImprovements || 'Suggest Improvements'}
             </button>
             <button disabled={submitting} type="submit" className="px-3 py-2 bg-emerald-600 text-white rounded">
-              {submitting ? (t as any)?.common?.loading || 'Loading...' : goalsTranslations?.actions?.createGoal || 'Create Goal'}
+              {submitting 
+                ? (t as any)?.common?.loading || 'Loading...' 
+                : isEditMode 
+                  ? 'Update Goal' 
+                  : goalsTranslations?.actions?.createGoal || 'Create Goal'
+              }
             </button>
           </div>
         </form>
@@ -556,11 +510,11 @@ const GoalsPageInner: React.FC = () => {
             </div>
           )}
 
-          {selectedGoalId && (
+          {isEditMode && selectedGoalId && (
             <div className="mt-4">
-              <h4 className="font-semibold mb-2">{goalsList?.tasks || 'Tasks'}</h4>
+              <h4 className="font-semibold mb-2">Tasks</h4>
               {(tasks || []).length === 0 ? (
-                <div className="text-sm text-muted-foreground">{goalsList?.noTasks || 'No tasks yet.'}</div>
+                <div className="text-sm text-muted-foreground">No tasks yet. Click "Create Task" to add your first task.</div>
               ) : (
                 <ul className="list-disc pl-6 space-y-1">
                   {tasks.map(tItem => (
@@ -590,7 +544,6 @@ const GoalsPageInner: React.FC = () => {
           goalDeadline={modalGoalDeadline}
         />
       </div>
-    </TooltipProvider>
   );
 };
 

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { X, Pencil, Trash, Check, XCircle, Loader2 } from 'lucide-react';
+import { X, Pencil, Trash, Check, XCircle, Loader2, Plus } from 'lucide-react';
 import { updateTask } from '@/lib/apiTask';
 
 interface Task {
@@ -32,12 +32,13 @@ interface TasksModalProps {
   onUpdateTask: (task: Task) => Promise<void>;
   onDeleteTask: (taskId: string) => Promise<void>;
   onTasksChange?: () => void; // Callback to refresh tasks after changes
+  onCreateTask?: () => void; // Callback to create new task
 }
 
 const STATUS_OPTIONS = ['active', 'paused', 'completed', 'archived'];
 const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
-const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask, onTasksChange }) => {
+const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask, onTasksChange, onCreateTask }) => {
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -346,7 +347,15 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}>
       <DialogContent className="max-w-5xl max-h-[80vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
+            {onCreateTask && (
+              <Button onClick={onCreateTask} size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                {goalsTranslations?.modals?.viewTask?.createTask || 'Create Task'}
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <Table className="min-w-full">
