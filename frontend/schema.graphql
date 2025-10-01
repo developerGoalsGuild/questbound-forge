@@ -109,6 +109,7 @@ type Query {
   goals(userId: ID!): [Goal!]!
   activeGoalsCount(userId: ID!): Int!
   myGoals: [Goal!]!
+  myDashboardGoals(limit: Int, status: String, sortBy: String): [Goal!]!
   myTasks(goalId: ID!): [Task!]!
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!

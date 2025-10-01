@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 interface GoalCategorySelectorProps {
   value?: string;
@@ -22,6 +22,9 @@ interface GoalCategorySelectorProps {
   className?: string;
   allowCustom?: boolean;
   placeholder?: string;
+  // Validation status props
+  isFieldValidating?: boolean;
+  isFieldValid?: boolean;
 }
 
 const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
@@ -31,7 +34,9 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
   disabled = false,
   className = '',
   allowCustom = true,
-  placeholder = 'Select a category'
+  placeholder = 'Select a category',
+  isFieldValidating = false,
+  isFieldValid = undefined
 }) => {
   const { t } = useTranslation();
   const [customCategory, setCustomCategory] = useState('');
@@ -180,10 +185,12 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
           >
             <SelectTrigger
               id="goal-category"
-              className={`w-full ${
+              className={`w-full pr-10 ${
                 hasError 
                   ? 'border-destructive focus-visible:ring-destructive' 
-                  : ''
+                  : isFieldValid 
+                    ? 'border-green-500 focus-visible:ring-green-500'
+                    : ''
               }`}
               aria-describedby={
                 fieldHints.category ? createHintId('goal-category') : undefined
@@ -191,6 +198,16 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
               aria-invalid={hasError}
             >
               <SelectValue placeholder={placeholder} />
+              {/* Validation status icon */}
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                {isFieldValidating ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : isFieldValid ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : hasError ? (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                ) : null}
+              </div>
             </SelectTrigger>
             <SelectContent>
               {GOAL_CATEGORIES.map((category) => (
@@ -221,24 +238,38 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
           </Select>
         ) : (
           <div className="space-y-2">
-            <Input
-              id="goal-category"
-              value={customCategory}
-              onChange={(e) => handleCustomCategoryChange(e.target.value)}
-              onBlur={handleCustomCategoryBlur}
-              disabled={disabled}
-              placeholder="Enter custom category"
-              className={`w-full ${
-                hasError 
-                  ? 'border-destructive focus-visible:ring-destructive' 
-                  : ''
-              }`}
-              aria-describedby={
-                fieldHints.category ? createHintId('goal-category') : undefined
-              }
-              aria-invalid={hasError}
-              data-testid="category-custom-input"
-            />
+            <div className="relative">
+              <Input
+                id="goal-category"
+                value={customCategory}
+                onChange={(e) => handleCustomCategoryChange(e.target.value)}
+                onBlur={handleCustomCategoryBlur}
+                disabled={disabled}
+                placeholder="Enter custom category"
+                className={`w-full pr-10 ${
+                  hasError 
+                    ? 'border-destructive focus-visible:ring-destructive' 
+                    : isFieldValid 
+                      ? 'border-green-500 focus-visible:ring-green-500'
+                      : ''
+                }`}
+                aria-describedby={
+                  fieldHints.category ? createHintId('goal-category') : undefined
+                }
+                aria-invalid={hasError}
+                data-testid="category-custom-input"
+              />
+              {/* Validation status icon */}
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                {isFieldValidating ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : isFieldValid ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : hasError ? (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                ) : null}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 type="button"

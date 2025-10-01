@@ -5,9 +5,10 @@ import { Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUserData } from '@/hooks/useUserData';
+import GoalsButton from '@/components/dashboard/GoalsButton';
 
 import { getActiveGoalsCountForUser } from '@/lib/apiGoal';
-import {  getUserIdFromToken } from '@/lib/utils';
+import { getUserIdFromToken } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
 import { useCommunityActivities } from '@/hooks/useCommunityData';
@@ -109,41 +110,8 @@ const UserDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Active Goals */}
-          <Card className="guild-card">
-            <CardHeader>
-              <CardTitle className="font-cinzel text-xl flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                {t.dashboard?.user?.goals || 'Active Quests'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {(userData?.goals || []).map((goal) => (
-                <div key={goal?.id || Math.random()} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{goal?.title || 'Untitled Goal'}</h3>
-                    <span className="text-sm text-muted-foreground">{goal?.progress || 0}%</span>
-                  </div>
-                  <div className="progress-medieval">
-                    <div
-                      className="progress-medieval-fill"
-                      style={{ width: `${goal?.progress || 0}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span className="px-2 py-1 bg-accent rounded text-xs">{goal?.category || 'General'}</span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {goal?.dueDate || 'No deadline'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              <Button asChild className="w-full btn-heraldic text-primary-foreground">
-                <Link to="/goals">Add New Quest</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Goals Management */}
+          <GoalsButton />
 
           {/* Achievements */}
           <Card className="guild-card">

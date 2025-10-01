@@ -76,7 +76,24 @@ const GoalsListPage: React.FC = () => {
         status: goal.status as GoalStatus
       })) : []);
     } catch (e: any) {
-      const errorMessage = e?.message || 'Failed to load goals';
+      console.error('Error loading goals:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to load goals';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       setError(errorMessage);
       toast({
         title: goalListTranslations?.messages?.loading || 'Error',
@@ -159,9 +176,27 @@ const GoalsListPage: React.FC = () => {
       });
       await loadMyGoals();
     } catch (e: any) {
+      console.error('Error deleting goal:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to delete goal';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
         title: goalListTranslations?.messages?.deleteError || 'Error',
-        description: e?.message || 'Failed to delete goal',
+        description: errorMessage,
         variant: 'destructive'
       });
     }
@@ -176,9 +211,27 @@ const GoalsListPage: React.FC = () => {
       });
       await loadMyGoals();
     } catch (e: any) {
+      console.error('Error updating goal status:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to update goal status';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
         title: goalListTranslations?.messages?.statusUpdateError || 'Error',
-        description: e?.message || 'Failed to update goal status',
+        description: errorMessage,
         variant: 'destructive'
       });
     }

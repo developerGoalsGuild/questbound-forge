@@ -22,7 +22,14 @@ vi.mock('@/hooks/use-toast', () => ({
 
 // Mock UI components
 vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open, onOpenChange }: any) => open ? <div data-testid="dialog" onClick={() => onOpenChange?.(false)}>{children}</div> : null,
+  Dialog: ({ children, open, onOpenChange }: any) => {
+    const handleClickOutside = (e: any) => {
+      if (e.target === e.currentTarget) {
+        onOpenChange?.(false);
+      }
+    };
+    return open ? <div data-testid="dialog" onClick={handleClickOutside}>{children}</div> : null;
+  },
   DialogContent: ({ children, className }: any) => <div data-testid="dialog-content" className={className}>{children}</div>,
   DialogHeader: ({ children }: any) => <div data-testid="dialog-header">{children}</div>,
   DialogTitle: ({ children }: any) => <div data-testid="dialog-title">{children}</div>,

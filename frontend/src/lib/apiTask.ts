@@ -40,6 +40,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
     },
     body: JSON.stringify(input),
   });
@@ -47,6 +48,13 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     const message = errorBody.detail || response.statusText || 'Failed to create task';
+    console.error('CreateTask API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      input
+    });
     throw new Error(message);
   }
 
@@ -99,6 +107,7 @@ export async function updateTask(taskId: string, updates: Partial<CreateTaskInpu
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
     },
     body: JSON.stringify(updates),
   });
@@ -129,11 +138,10 @@ export async function deleteTask(taskId: string): Promise<void> {
   const response = await fetch(url, {
     method: 'DELETE',
     headers: {
-     'Authorization': `Bearer ${token}`,
-      'Accept': '*/*',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Connection': 'keep-alive'
-    } as Record<string, string>,
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+    },
   });
 
   if (!response.ok) {

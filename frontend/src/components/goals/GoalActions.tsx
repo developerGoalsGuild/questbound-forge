@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
 import { GoalStatus, formatGoalStatus, getStatusColorClass } from '@/models/goal';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,7 +32,8 @@ import {
   CheckCircle, 
   Archive,
   Eye,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 
 interface GoalActionsProps {
@@ -64,7 +66,9 @@ const GoalActions: React.FC<GoalActionsProps> = ({
   variant = 'default'
 }) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   // Get translations with safety checks
   const goalsTranslations = (t as any)?.goals;
@@ -100,9 +104,43 @@ const GoalActions: React.FC<GoalActionsProps> = ({
   ];
 
   // Handle status change
-  const handleStatusChange = (newStatus: GoalStatus) => {
+  const handleStatusChange = async (newStatus: GoalStatus) => {
     if (onStatusChange && newStatus !== currentStatus) {
-      onStatusChange(goalId, newStatus);
+      setIsChangingStatus(true);
+      try {
+        await onStatusChange(goalId, newStatus);
+        toast({
+          title: 'Success',
+          description: `Goal status changed to ${formatGoalStatus(newStatus)}`,
+          variant: 'default'
+        });
+      } catch (error: any) {
+        console.error('Error changing goal status:', error);
+        
+        // Parse API error response
+        let errorMessage = error?.message || 'Failed to change goal status';
+        
+        try {
+          // Try to parse error response if it's a string
+          if (typeof error?.message === 'string') {
+            const parsedError = JSON.parse(error.message);
+            if (parsedError.message) {
+              errorMessage = parsedError.message;
+            }
+          }
+        } catch (parseError) {
+          // If parsing fails, use the original error message
+          console.log('Could not parse error response:', parseError);
+        }
+        
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive'
+        });
+      } finally {
+        setIsChangingStatus(false);
+      }
     }
   };
 
@@ -112,6 +150,35 @@ const GoalActions: React.FC<GoalActionsProps> = ({
       setIsDeleting(true);
       try {
         await onDelete(goalId);
+        toast({
+          title: 'Success',
+          description: 'Goal deleted successfully',
+          variant: 'default'
+        });
+      } catch (error: any) {
+        console.error('Error deleting goal:', error);
+        
+        // Parse API error response
+        let errorMessage = error?.message || 'Failed to delete goal';
+        
+        try {
+          // Try to parse error response if it's a string
+          if (typeof error?.message === 'string') {
+            const parsedError = JSON.parse(error.message);
+            if (parsedError.message) {
+              errorMessage = parsedError.message;
+            }
+          }
+        } catch (parseError) {
+          // If parsing fails, use the original error message
+          console.log('Could not parse error response:', parseError);
+        }
+        
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive'
+        });
       } finally {
         setIsDeleting(false);
       }
@@ -189,8 +256,13 @@ const GoalActions: React.FC<GoalActionsProps> = ({
                     <DropdownMenuItem
                       key={option.status}
                       onClick={() => handleStatusChange(option.status)}
+                      disabled={isChangingStatus}
                     >
-                      <Icon className="mr-2 h-4 w-4" />
+                      {isChangingStatus ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Icon className="mr-2 h-4 w-4" />
+                      )}
                       {option.label}
                     </DropdownMenuItem>
                   );
@@ -334,11 +406,20 @@ const GoalActions: React.FC<GoalActionsProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={disabled}
+                disabled={disabled || isChangingStatus}
                 className="text-xs sm:text-sm"
               >
-                Change Status
-                <MoreHorizontal className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                {isChangingStatus ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    Changing...
+                  </>
+                ) : (
+                  <>
+                    Change Status
+                    <MoreHorizontal className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                  </>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -350,8 +431,13 @@ const GoalActions: React.FC<GoalActionsProps> = ({
                   <DropdownMenuItem
                     key={option.status}
                     onClick={() => handleStatusChange(option.status)}
+                    disabled={isChangingStatus}
                   >
-                    <Icon className="mr-2 h-4 w-4" />
+                    {isChangingStatus ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Icon className="mr-2 h-4 w-4" />
+                    )}
                     {option.label}
                   </DropdownMenuItem>
                 );

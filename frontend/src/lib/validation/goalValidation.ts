@@ -115,8 +115,8 @@ export const validateGoalTitle = (title: string): { isValid: boolean; error?: st
     titleSchema.parse(title);
     return { isValid: true };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { isValid: false, error: error.errors[0]?.message };
+    if (error instanceof z.ZodError && error.issues && error.issues.length > 0) {
+      return { isValid: false, error: error.issues[0]?.message };
     }
     return { isValid: false, error: 'Invalid title' };
   }
@@ -127,8 +127,8 @@ export const validateGoalDeadline = (deadline: string): { isValid: boolean; erro
     deadlineSchema.parse(deadline);
     return { isValid: true };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { isValid: false, error: error.errors[0]?.message };
+    if (error instanceof z.ZodError && error.issues && error.issues.length > 0) {
+      return { isValid: false, error: error.issues[0]?.message };
     }
     return { isValid: false, error: 'Invalid deadline' };
   }
@@ -139,8 +139,8 @@ export const validateNLPAnswer = (answer: string): { isValid: boolean; error?: s
     nlpAnswerSchema.parse(answer);
     return { isValid: true };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { isValid: false, error: error.errors[0]?.message };
+    if (error instanceof z.ZodError && error.issues && error.issues.length > 0) {
+      return { isValid: false, error: error.issues[0]?.message };
     }
     return { isValid: false, error: 'Invalid answer' };
   }
@@ -151,8 +151,8 @@ export const validateGoalCategory = (category: string): { isValid: boolean; erro
     categorySchema.parse(category);
     return { isValid: true };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { isValid: false, error: error.errors[0]?.message };
+    if (error instanceof z.ZodError && error.issues && error.issues.length > 0) {
+      return { isValid: false, error: error.issues[0]?.message };
     }
     return { isValid: false, error: 'Invalid category' };
   }

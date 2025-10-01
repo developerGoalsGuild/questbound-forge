@@ -58,3 +58,13 @@ variable "existing_lambda_exec_role_name" {
     type    = string
     default = ""
 }
+
+# Database stack values (to avoid remote_state dependency in dev)
+variable "core_table_name" {
+    type    = string
+    default = ""
+}
+variable "core_table_arn" {
+    type    = string
+    default = ""
+}

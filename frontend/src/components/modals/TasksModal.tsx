@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// Version: 2.0 - Added Phase 5 enhancements: accessibility, loading states, error recovery
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -6,8 +7,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { X, Pencil, Trash, Check, XCircle, Loader2, Plus } from 'lucide-react';
+import { X, Pencil, Trash, Check, XCircle, Loader2, Plus, AlertCircle, CheckCircle } from 'lucide-react';
 import { updateTask } from '@/lib/apiTask';
+import { 
+  validateTaskTitle, 
+  validateTaskDueDate, 
+  validateTaskTag, 
+  validateTaskStatus,
+  taskCreateSchema,
+  taskUpdateSchema,
+  type TaskCreateInput,
+  type TaskUpdateInput
+} from '@/lib/validation/taskValidation';
+import useFocusManagement from '@/hooks/useFocusManagement';
+import SkeletonFormField from '@/components/ui/SkeletonFormField';
+import NetworkErrorRecovery, { useNetworkStatus } from '@/components/ui/NetworkErrorRecovery';
+import ARIALiveRegion, { useARIALiveAnnouncements, FormAnnouncements } from '@/components/ui/ARIALiveRegion';
 
 interface Task {
   id: string;
@@ -68,6 +83,28 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
 
   // Loading states for async operations
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  
+  // Enhanced state for Phase 5 features
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
+  const [editingRowRef, setEditingRowRef] = useState<HTMLTableRowElement | null>(null);
+
+  // Network status and error recovery
+  const { isOnline, hasError, errorMessage, setError: setNetworkError, clearError } = useNetworkStatus();
+
+  // ARIA live announcements
+  const { announce, clearAll } = useARIALiveAnnouncements();
+
+  // Focus management for editing rows
+  const {
+    containerRef,
+    focusFirstError,
+    focusFirst,
+    handleKeyDown
+  } = useFocusManagement({
+    focusOnError: true,
+    restoreFocus: true
+  });
 
   // Reset pagination and sorting when tasks change
   useEffect(() => {
@@ -79,7 +116,12 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setTagInput('');
     setErrors({});
     setLoadingStates({});
-  }, [tasks]);
+    setIsLoading(false);
+    setHasValidationErrors(false);
+    setEditingRowRef(null);
+    clearError();
+    clearAll();
+  }, [tasks]); // Removed clearError and clearAll from dependencies to prevent infinite loop
 
   // Sort tasks
   const sortedTasks = useMemo(() => {
@@ -132,6 +174,19 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setEditData({ ...task, dueAt: dateOnly }); // date string YYYY-MM-DD
     setTagInput('');
     setErrors({});
+    setHasValidationErrors(false);
+    clearError();
+    
+    // Announce editing start
+    announce(FormAnnouncements.fieldSaved('task editing'), 'polite');
+    
+    // Focus first field after a short delay to allow DOM update
+    setTimeout(() => {
+      const firstInput = document.querySelector(`input[data-task-id="${task.id}"]`) as HTMLInputElement;
+      if (firstInput) {
+        firstInput.focus();
+      }
+    }, 100);
   };
 
   // Cancel editing
@@ -140,34 +195,77 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     setEditData({});
     setTagInput('');
     setErrors({});
+    setHasValidationErrors(false);
+    clearError();
+    
+    // Announce editing cancellation
+    announce(FormAnnouncements.fieldSaved('task editing cancelled'), 'polite');
   };
 
-  // Validate edited data
+  // Validate edited data using Zod schemas
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!editData.title || !editData.title.trim()) {
-      newErrors.title = goalsTranslations?.validation?.taskTitleRequired || 'Task title is required';
-    }
-    if (!editData.dueAt) {
-      newErrors.dueAt = goalsTranslations?.validation?.taskDueAtRequired || 'Task due date is required';
-    } else {
-      // Validate date format and not invalid date
-      const date = new Date(editData.dueAt);
-      if (isNaN(date.getTime())) {
-        newErrors.dueAt = goalsTranslations?.validation?.taskDueAtInvalid || 'Invalid due date';
+    
+    // Clear previous validation errors
+    setHasValidationErrors(false);
+    clearError();
+    
+    // Validate title
+    if (editData.title !== undefined) {
+      const titleValidation = validateTaskTitle(editData.title);
+      if (!titleValidation.isValid) {
+        newErrors.title = titleValidation.error || 'Invalid title';
       }
     }
-    if (!editData.status || !STATUS_OPTIONS.includes(editData.status)) {
-      newErrors.status = goalsTranslations?.validation?.taskStatusInvalid || 'Invalid status';
+    
+    // Validate due date
+    if (editData.dueAt !== undefined) {
+      const dueDateValidation = validateTaskDueDate(editData.dueAt);
+      if (!dueDateValidation.isValid) {
+        newErrors.dueAt = dueDateValidation.error || 'Invalid due date';
+      }
     }
-    if (!editData.tags || !Array.isArray(editData.tags)) {
-      newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
-    } else if (editData.tags.length === 0) {
-      newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
-    } else if (editData.tags.some(tag => !TAG_REGEX.test(tag))) {
-      newErrors.tags = goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores';
+    
+    // Validate status
+    if (editData.status !== undefined) {
+      const statusValidation = validateTaskStatus(editData.status);
+      if (!statusValidation.isValid) {
+        newErrors.status = statusValidation.error || 'Invalid status';
+      }
     }
+    
+    // Validate tags
+    if (editData.tags !== undefined) {
+      if (!Array.isArray(editData.tags) || editData.tags.length === 0) {
+        newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
+      } else {
+        // Validate each tag
+        for (let i = 0; i < editData.tags.length; i++) {
+          const tagValidation = validateTaskTag(editData.tags[i]);
+          if (!tagValidation.isValid) {
+            newErrors.tags = tagValidation.error || 'Invalid tag format';
+            break;
+          }
+        }
+      }
+    }
+    
     setErrors(newErrors);
+    
+    // Set validation error state and announce errors
+    if (Object.keys(newErrors).length > 0) {
+      setHasValidationErrors(true);
+      announce(FormAnnouncements.validationError('task editing'), 'assertive');
+      
+      // Focus first error field
+      setTimeout(() => {
+        const firstErrorField = document.querySelector(`[data-task-id="${editingTaskId}"] input[aria-invalid="true"], [data-task-id="${editingTaskId}"] select[aria-invalid="true"]`) as HTMLElement;
+        if (firstErrorField) {
+          firstErrorField.focus();
+        }
+      }, 100);
+    }
+    
     return Object.keys(newErrors).length === 0;
   };
 
@@ -179,20 +277,35 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       delete copy[field];
       return copy;
     });
+    
+    // Clear validation error state if field is being corrected
+    if (errors[field]) {
+      setHasValidationErrors(Object.keys(errors).length > 1);
+    }
+    
+    // Announce field change
+    announce(FormAnnouncements.fieldSaved(field as string), 'polite', 1000);
   };
 
   // Add tag from input
   const addTag = () => {
     const newTag = tagInput.trim();
     if (!newTag) return;
-    if (!TAG_REGEX.test(newTag)) {
-      setErrors(prev => ({ ...prev, tags: goalsTranslations?.validation?.taskTagsInvalid || 'Tags can only contain letters, numbers, hyphens, and underscores' }));
+    
+    // Validate tag using Zod schema
+    const tagValidation = validateTaskTag(newTag);
+    if (!tagValidation.isValid) {
+      setErrors(prev => ({ ...prev, tags: tagValidation.error || 'Invalid tag format' }));
+      announce(FormAnnouncements.validationError('tag'), 'assertive');
       return;
     }
+    
     if ((editData.tags || []).includes(newTag)) {
       setErrors(prev => ({ ...prev, tags: goalsTranslations?.validation?.taskTagsDuplicate || 'Duplicate tags are not allowed' }));
+      announce(FormAnnouncements.validationError('duplicate tag'), 'assertive');
       return;
     }
+    
     const newTags = [...(editData.tags || []), newTag];
     onChangeField('tags', newTags);
     setTagInput('');
@@ -200,6 +313,9 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       const { tags, ...rest } = prev;
       return rest;
     });
+    
+    // Announce successful tag addition
+    announce(FormAnnouncements.fieldSaved('tag'), 'polite', 2000);
   };
 
   // Handle Enter key in tag input
@@ -225,6 +341,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     if (!validate() || !editingTaskId) return;
     
     setLoadingStates(prev => ({ ...prev, [`update-${editingTaskId}`]: true }));
+    setIsLoading(true);
+    
+    // Announce loading state
+    announce(FormAnnouncements.loading('Task update'), 'polite');
     
     try {
       // Convert date-only string to epoch seconds in UTC
@@ -264,6 +384,12 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       };
       await onUpdateTask(mergedTask);
       
+      // Clear any network errors
+      clearError();
+      
+      // Announce success
+      announce(FormAnnouncements.formSubmitted(), 'polite');
+      
       // Refresh tasks if callback provided
       if (onTasksChange) {
         onTasksChange();
@@ -272,21 +398,84 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       setEditingTaskId(null);
       setEditData({});
       setErrors({});
+      setHasValidationErrors(false);
       
       toast({
-        title: "Task Updated",
-        description: "Task has been successfully updated.",
+        title: goalsTranslations?.messages?.taskUpdated || "Task Updated",
+        description: goalsTranslations?.messages?.taskUpdated || "Task has been successfully updated.",
         variant: "default",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating task:', error);
-      toast({
-        title: "Update Failed",
-        description: error instanceof Error ? error.message : "Failed to update task. Please try again.",
-        variant: "destructive",
+      
+      // Set network error if it's a network issue
+      if (!navigator.onLine || error.name === 'NetworkError' || error.message.includes('fetch')) {
+        setNetworkError('Network error occurred. Please check your connection and try again.');
+        announce(FormAnnouncements.networkError(), 'assertive');
+      }
+      
+      // Parse API error response for field-specific errors
+      let errorMessage = error?.message || 'Failed to update task';
+      let fieldErrors: { [key: string]: string } = {};
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof error?.message === 'string') {
+          const parsedError = JSON.parse(error.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+          if (parsedError.field_errors) {
+            fieldErrors = parsedError.field_errors;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
+      // Set field-specific errors
+      Object.entries(fieldErrors).forEach(([field, message]) => {
+        console.log(`Setting field error for ${field}:`, message);
+        setErrors(prev => ({ ...prev, [field]: message }));
       });
+      
+      // Announce form error
+      announce(FormAnnouncements.formError(errorMessage), 'assertive');
+      
+      // If no specific field errors, show toast
+      if (Object.keys(fieldErrors).length === 0) {
+        toast({
+          title: goalsTranslations?.messages?.taskUpdateFailed || "Update Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoadingStates(prev => ({ ...prev, [`update-${editingTaskId}`]: false }));
+      setIsLoading(false);
+    }
+  };
+
+  // Handle network error retry
+  const handleRetry = async () => {
+    if (editingTaskId && !loadingStates[`update-${editingTaskId}`]) {
+      // Retry the last task update
+      await onSave();
+    }
+  };
+
+  // Handle network status check
+  const handleCheckStatus = async () => {
+    try {
+      // Simple network check
+      const response = await fetch('/api/health', { method: 'HEAD' });
+      if (response.ok) {
+        clearError();
+        announce(FormAnnouncements.networkRestored(), 'polite');
+      }
+    } catch (error) {
+      setNetworkError('Network connection still unavailable');
     }
   };
 
@@ -311,15 +500,32 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
       }
       
       toast({
-        title: "Task Deleted",
-        description: "Task has been successfully deleted.",
+        title: goalsTranslations?.messages?.taskDeleted || "Task Deleted",
+        description: goalsTranslations?.messages?.taskDeleted || "Task has been successfully deleted.",
         variant: "default",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting task:', error);
+      
+      // Parse API error response
+      let errorMessage = error?.message || 'Failed to delete task';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof error?.message === 'string') {
+          const parsedError = JSON.parse(error.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
-        title: "Delete Failed",
-        description: error instanceof Error ? error.message : "Failed to delete task. Please try again.",
+        title: goalsTranslations?.messages?.taskDeleteFailed || "Delete Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -343,14 +549,64 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
     return new Date(epochSeconds * 1000).toLocaleDateString(undefined, { timeZone: 'UTC' });
   };
 
+  // Show loading skeleton if initial loading
+  if (isLoading && !Object.values(loadingStates).some(Boolean)) {
+    return (
+      <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}>
+        <DialogContent className="max-w-5xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4">
+            <SkeletonFormField type="input" showLabel={true} />
+            <SkeletonFormField type="input" showLabel={true} />
+            <SkeletonFormField type="input" showLabel={true} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }} aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}>
-      <DialogContent className="max-w-5xl max-h-[80vh] overflow-auto">
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={open => { if (!open) onClose(); }} 
+      aria-label={goalsTranslations?.modals?.viewTask?.title || 'Tasks'}
+    >
+      <DialogContent 
+        ref={containerRef as React.RefObject<HTMLDivElement>}
+        className="max-w-5xl max-h-[80vh] overflow-auto"
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-label="Tasks management"
+      >
+        {/* ARIA Live Region for announcements */}
+        <ARIALiveRegion 
+          message="" 
+          priority="polite" 
+          className="sr-only"
+        />
+        
+        {/* Network Error Recovery */}
+        <NetworkErrorRecovery
+          isOnline={isOnline}
+          hasError={hasError}
+          errorMessage={errorMessage}
+          onRetry={handleRetry}
+          onCheckStatus={handleCheckStatus}
+          showAutoRetry={true}
+          autoRetryDelay={5}
+          maxAutoRetries={3}
+          variant="inline"
+        />
+        
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
             {onCreateTask && (
-              <Button onClick={onCreateTask} size="sm">
+              <Button onClick={onCreateTask} size="sm" disabled={isLoading}>
                 <Plus className="w-4 h-4 mr-2" />
                 {goalsTranslations?.modals?.viewTask?.createTask || 'Create Task'}
               </Button>
@@ -420,7 +676,14 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
               paginatedTasks.map(task => {
                 const isEditing = editingTaskId === task.id;
                 return (
-                  <TableRow key={task.id}>
+                  <TableRow 
+                    key={task.id} 
+                    data-task-id={task.id}
+                    ref={isEditing ? setEditingRowRef : null}
+                    className={isEditing ? 'bg-blue-50' : ''}
+                    role="row"
+                    aria-label={isEditing ? 'Editing task' : 'Task row'}
+                  >
                     <TableCell>
                       {isEditing ? (
                         <>
@@ -430,9 +693,13 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             onChange={e => onChangeField('title', e.target.value)}
                             aria-invalid={!!errors.title}
                             aria-describedby={errors.title ? `error-title-${task.id}` : undefined}
+                            data-task-id={task.id}
+                            disabled={loadingStates[`update-${task.id}`]}
+                            className={loadingStates[`update-${task.id}`] ? 'opacity-50' : ''}
+                            autoComplete="off"
                           />
                           {errors.title && (
-                            <p id={`error-title-${task.id}`} className="text-xs text-red-600 mt-1">
+                            <p id={`error-title-${task.id}`} className="text-xs text-red-600 mt-1" role="alert">
                               {errors.title}
                             </p>
                           )}
@@ -451,9 +718,12 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             onChange={e => onChangeField('dueAt', e.target.value)}
                             aria-invalid={!!errors.dueAt}
                             aria-describedby={errors.dueAt ? `error-dueAt-${task.id}` : undefined}
+                            data-task-id={task.id}
+                            disabled={loadingStates[`update-${task.id}`]}
+                            className={loadingStates[`update-${task.id}`] ? 'opacity-50' : ''}
                           />
                           {errors.dueAt && (
-                            <p id={`error-dueAt-${task.id}`} className="text-xs text-red-600 mt-1">
+                            <p id={`error-dueAt-${task.id}`} className="text-xs text-red-600 mt-1" role="alert">
                               {errors.dueAt}
                             </p>
                           )}
@@ -470,9 +740,11 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             data-testid="select"
                             value={editData.status || ''}
                             onChange={e => onChangeField('status', e.target.value)}
-                            className={`w-full rounded border p-2 ${errors.status ? 'border-red-500' : 'border-gray-300'}`}
+                            className={`w-full rounded border p-2 ${errors.status ? 'border-red-500' : 'border-gray-300'} ${loadingStates[`update-${task.id}`] ? 'opacity-50' : ''}`}
                             aria-invalid={!!errors.status}
                             aria-describedby={errors.status ? `error-status-${task.id}` : undefined}
+                            data-task-id={task.id}
+                            disabled={loadingStates[`update-${task.id}`]}
                           >
                             {STATUS_OPTIONS.map(opt => (
                               <option key={opt} value={opt}>
@@ -481,7 +753,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             ))}
                           </select>
                           {errors.status && (
-                            <p id={`error-status-${task.id}`} className="text-xs text-red-600 mt-1">
+                            <p id={`error-status-${task.id}`} className="text-xs text-red-600 mt-1" role="alert">
                               {errors.status}
                             </p>
                           )}
@@ -520,9 +792,13 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             aria-invalid={!!errors.tags}
                             aria-describedby={errors.tags ? `error-tags-${task.id}` : undefined}
                             placeholder={goalsTranslations?.placeholders?.taskTags || 'Add tag and press Enter'}
+                            data-task-id={task.id}
+                            disabled={loadingStates[`update-${task.id}`]}
+                            className={loadingStates[`update-${task.id}`] ? 'opacity-50' : ''}
+                            autoComplete="off"
                           />
                           {errors.tags && (
-                            <p id={`error-tags-${task.id}`} className="text-xs text-red-600 mt-1">
+                            <p id={`error-tags-${task.id}`} className="text-xs text-red-600 mt-1" role="alert">
                               {errors.tags}
                             </p>
                           )}
@@ -539,9 +815,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="outline"
                             size="sm"
                             onClick={cancelEditing}
-                            disabled={loadingStates[`update-${task.id}`]}
-                            aria-label={commonTranslations?.cancel || 'Cancel'}
-                            title={commonTranslations?.cancel || 'Cancel'}
+                            disabled={loadingStates[`update-${task.id}`] || isLoading}
+                            aria-label={commonTranslations?.cancel || 'Cancel editing'}
+                            title={commonTranslations?.cancel || 'Cancel editing'}
+                            className="min-w-[80px]"
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -549,14 +826,22 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="default"
                             size="sm"
                             onClick={onSave}
-                            disabled={loadingStates[`update-${task.id}`]}
-                            aria-label={commonTranslations?.save || 'Save'}
-                            title={commonTranslations?.save || 'Save'}
+                            disabled={loadingStates[`update-${task.id}`] || isLoading || hasValidationErrors}
+                            aria-label={commonTranslations?.save || 'Save changes'}
+                            title={commonTranslations?.save || 'Save changes'}
+                            className="min-w-[80px]"
+                            aria-describedby={hasValidationErrors ? "form-validation-errors" : undefined}
                           >
                             {loadingStates[`update-${task.id}`] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                {goalsTranslations?.actions?.savingTask || commonTranslations?.saving || 'Saving...'}
+                              </>
                             ) : (
-                              <Check className="h-4 w-4" />
+                              <>
+                                <Check className="h-4 w-4 mr-1" />
+                                {goalsTranslations?.actions?.saveTask || commonTranslations?.save || 'Save'}
+                              </>
                             )}
                           </Button>
                         </>
@@ -566,9 +851,10 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="outline"
                             size="sm"
                             onClick={() => startEditing(task)}
-                            disabled={loadingStates[`delete-${task.id}`]}
-                            aria-label={commonTranslations?.edit || 'Edit'}
-                            title={commonTranslations?.edit || 'Edit'}
+                            disabled={loadingStates[`delete-${task.id}`] || isLoading}
+                            aria-label={commonTranslations?.edit || 'Edit task'}
+                            title={commonTranslations?.edit || 'Edit task'}
+                            className="min-w-[60px]"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -576,12 +862,16 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                             variant="destructive"
                             size="sm"
                             onClick={() => onDelete(task.id)}
-                            disabled={loadingStates[`delete-${task.id}`]}
-                            aria-label={commonTranslations?.delete || 'Delete'}
-                            title={commonTranslations?.delete || 'Delete'}
+                            disabled={loadingStates[`delete-${task.id}`] || isLoading}
+                            aria-label={commonTranslations?.delete || 'Delete task'}
+                            title={commonTranslations?.delete || 'Delete task'}
+                            className="min-w-[60px]"
                           >
                             {loadingStates[`delete-${task.id}`] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                {goalsTranslations?.actions?.deletingTask || commonTranslations?.deleting || 'Deleting...'}
+                              </>
                             ) : (
                               <Trash className="h-4 w-4" />
                             )}
@@ -595,6 +885,32 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
             )}
           </TableBody>
         </Table>
+
+        {/* Form validation summary for editing */}
+        {editingTaskId && hasValidationErrors && (
+          <div 
+            id="form-validation-errors" 
+            role="alert" 
+            aria-live="polite"
+            className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md"
+          >
+            <div className="flex items-start">
+              <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+              <div>
+                <h4 className="text-sm font-medium text-red-800">
+                  {goalsTranslations?.validation?.formErrorsTitle || 'Please fix the following errors:'}
+                </h4>
+                <ul className="mt-1 text-xs text-red-700 list-disc list-inside">
+                  {Object.entries(errors).map(([field, error]) => (
+                    <li key={field}>
+                      {goalsTranslations?.fields?.[field] || field}: {error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pagination Controls */}
         {totalPages > 1 && (

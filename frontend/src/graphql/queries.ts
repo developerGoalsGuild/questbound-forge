@@ -109,3 +109,76 @@ export const MY_TASKS = gql`
     }
   }
 `;
+
+// TypeScript interfaces for GraphQL responses
+export interface DashboardGoal {
+  id: string;
+  title: string;
+  description?: string;
+  deadline?: string;
+  status: string;
+  createdAt: number;
+  updatedAt: number;
+  tags: string[];
+}
+
+export interface DashboardGoalsResponse {
+  myDashboardGoals: DashboardGoal[];
+}
+
+export interface DashboardGoalsMinimalResponse {
+  myDashboardGoals: Array<{
+    id: string;
+    title: string;
+    deadline?: string;
+    status: string;
+    createdAt: number;
+    tags: string[];
+  }>;
+}
+
+// Dashboard Goals Query - Optimized for top 3 goals display with backend filtering
+export const DASHBOARD_GOALS = gql`
+  query DashboardGoals($limit: Int, $status: String, $sortBy: String) {
+    myDashboardGoals(limit: $limit, status: $status, sortBy: $sortBy) {
+      id
+      title
+      description
+      deadline
+      status
+      createdAt
+      updatedAt
+      tags
+    }
+  }
+`;
+
+// Minimal query for just the count and basic info (for performance)
+export const DASHBOARD_GOALS_MINIMAL = gql`
+  query DashboardGoalsMinimal($limit: Int, $status: String) {
+    myDashboardGoals(limit: $limit, status: $status) {
+      id
+      title
+      deadline
+      status
+      createdAt
+      tags
+    }
+  }
+`;
+
+// Top 3 Active Goals - Optimized for dashboard display
+export const DASHBOARD_TOP_GOALS = gql`
+  query DashboardTopGoals($sortBy: String) {
+    myDashboardGoals(limit: 3, status: "active", sortBy: $sortBy) {
+      id
+      title
+      description
+      deadline
+      status
+      createdAt
+      updatedAt
+      tags
+    }
+  }
+`;

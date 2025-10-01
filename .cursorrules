@@ -1,134 +1,419 @@
 # GoalsGuild QuestBound Forge - Cursor Rules
 
-## AppSync GraphQL Integration Rules
+## Project Overview
+This is a full-stack goal management application with React frontend, Python FastAPI backend, AWS infrastructure, and comprehensive accessibility features. The project emphasizes user experience, accessibility, internationalization, and robust error handling.
 
-### 1. Schema-Frontend Synchronization
-- **ALWAYS** ensure GraphQL schema fields match frontend TypeScript interfaces
-- **BEFORE** adding new fields to frontend interfaces, update GraphQL schema first
-- **VERIFY** that all required fields in frontend types are included in GraphQL queries
-- **MANDATORY**: Run `terraform apply` after schema changes to deploy updates
+## Core Development Principles
 
-### 2. Resolver Data Mapping
-- **ALWAYS** map ALL fields from DynamoDB to GraphQL response in resolvers
-- **INCLUDE** default values for required fields (e.g., `role: a.role || 'user'`)
-- **VALIDATE** that resolver returns match the GraphQL schema exactly
-- **LOG** resolver responses during development to verify data structure
+### 1. Code Quality & Architecture
+- **DRY Principle**: Extract reusable logic into custom hooks and utility functions
+- **SOLID Principles**: Single responsibility, open/closed, interface segregation
+- **Semantic Naming**: Use descriptive variable names with auxiliary verbs (isLoading, hasError, canSubmit)
+- **Modularization**: Prefer composition over complex monolithic components
+- **TypeScript First**: Use TypeScript for all code, prefer interfaces over types, avoid enums
 
-### 3. Frontend Error Handling
-- **NEVER** assume optional fields exist without null checks
-- **ALWAYS** provide fallback values for undefined properties
-- **USE** optional chaining (`?.`) for nested object access
-- **IMPLEMENT** proper error boundaries for GraphQL errors
+### 2. React & Frontend Conventions
+- **Functional Components**: Write all components as functional components with proper TypeScript interfaces
+- **Hooks Pattern**: Use custom hooks for complex state management and side effects
+- **Mobile-First**: Implement responsive design using Tailwind CSS with Shadcn UI
+- **Performance**: Optimize Web Vitals (LCP, CLS, FID), use memoization, debounced operations
+- **Client-Side Optimization**: Limit `use client` hooks to small, specific components
 
-### 4. AppSync Logging Configuration
-- **ENABLE** CloudWatch logging for AppSync resolvers during development
-- **INCLUDE** comprehensive logging in resolver functions for debugging
-- **MONITOR** CloudWatch logs when troubleshooting GraphQL issues
-- **REMOVE** excessive logging in production deployments
+### 3. API Integration Standards
 
-### 5. Environment Configuration
-- **USE** environment variables for AppSync endpoints
-- **AVOID** hardcoded URLs in frontend code
-- **VERIFY** endpoint configuration matches deployed infrastructure
-- **TEST** both local proxy and direct AppSync endpoints
+#### Authentication Headers
+**ALWAYS** include both authentication headers for API Gateway endpoints:
+```typescript
+headers: {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+  'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+}
+```
 
-### 6. GraphQL Query Validation
-- **INCLUDE** all required fields in GraphQL queries
-- **MATCH** query fields with resolver return values
-- **VALIDATE** field types match schema definitions
-- **TEST** queries with actual data before frontend integration
+#### Error Handling & Debugging
+**ALWAYS** add comprehensive error logging:
+```typescript
+if (!response.ok) {
+  const errorBody = await response.json().catch(() => ({}));
+  const message = errorBody.detail || response.statusText || 'Operation failed';
+  console.error('API Error:', {
+    status: response.status,
+    statusText: response.statusText,
+    errorBody,
+    url,
+    input,
+    timestamp: new Date().toISOString()
+  });
+  throw new Error(message);
+}
+```
 
-### 7. TypeScript Interface Maintenance
-- **KEEP** frontend interfaces synchronized with GraphQL schema
-- **DOCUMENT** field requirements and defaults
-- **VALIDATE** interface completeness before component development
-- **UPDATE** interfaces when schema changes
+#### Endpoint Patterns
+- Create operations: `/quests/createTask`
+- Update operations: `/quests/tasks/${id}`
+- Delete operations: `/quests/tasks/${id}`
+- Use RESTful conventions with clear resource hierarchy
 
-### 8. Deployment Checklist
-- [ ] GraphQL schema updated
-- [ ] Resolver code updated
-- [ ] Frontend query updated
-- [ ] TypeScript interfaces updated
-- [ ] Terraform applied
-- [ ] Endpoint tested
-- [ ] Frontend tested
+### 4. Form State Management
 
-### 9. Common Pitfalls to Avoid
-- **DON'T** assume DynamoDB item structure matches GraphQL response
-- **DON'T** forget to handle undefined/null values in resolvers
-- **DON'T** skip schema validation after changes
-- **DON'T** ignore GraphQL serialization errors
-- **DON'T** deploy without testing the complete flow
-
-### 10. Debugging Workflow
-1. Check CloudWatch logs for resolver execution
-2. Verify GraphQL schema matches frontend expectations
-3. Test GraphQL queries directly with tools like Postman
-4. Validate resolver data mapping
-5. Check frontend error handling
-6. Verify environment configuration
-
-## Code Quality Standards
-
-### GraphQL Resolvers
-```javascript
-// ✅ GOOD: Comprehensive logging and error handling
-export function response(ctx) {
-  console.log('[resolver] Response context:', JSON.stringify(ctx, null, 2));
-  
-  if (ctx.error) {
-    console.log('[resolver] Error:', ctx.error);
-    util.error(ctx.error.message, ctx.error.type);
+#### Validation Error Clearing
+**ALWAYS** clear validation errors when user starts typing:
+```typescript
+const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  setValue(e.target.value);
+  if (errors.fieldName) {
+    setErrors(prev => {
+      const { fieldName, ...rest } = prev;
+      return rest;
+    });
   }
-  
-  const data = ctx.result?.item || ctx.result;
-  if (!data) {
-    util.error('Data not found', 'NotFound');
+  if (hasValidationErrors) {
+    setHasValidationErrors(false);
   }
-  
-  // Map with defaults for required fields
-  return {
-    id: data.id,
-    email: data.email,
-    role: data.role || 'user', // Default value
-    // ... other fields
+};
+```
+
+#### Button State Management
+**ENSURE** buttons are properly enabled/disabled:
+```typescript
+disabled={submitting || isLoading || hasValidationErrors}
+```
+
+#### useEffect Dependencies
+**AVOID** including function dependencies that recreate on every render:
+```typescript
+// ❌ BAD - Causes infinite loops
+useEffect(() => {
+  // logic
+}, [tasks, clearError, clearAll]);
+
+// ✅ GOOD - Only include stable dependencies
+useEffect(() => {
+  // logic
+}, [tasks]);
+```
+
+### 5. Accessibility Standards
+
+#### ARIA Live Regions
+**ALWAYS** provide ARIA live regions for dynamic content:
+```typescript
+<ARIALiveRegion 
+  message="" 
+  priority="polite" 
+  className="sr-only"
+/>
+```
+
+#### Focus Management
+**IMPLEMENT** proper focus management for form interactions:
+```typescript
+const {
+  containerRef,
+  focusFirstError,
+  focusFirst,
+  handleKeyDown
+} = useFocusManagement({
+  focusOnError: true,
+  restoreFocus: true
+});
+```
+
+#### Error Announcements
+**ANNOUNCE** validation errors to screen readers:
+```typescript
+if (Object.keys(newErrors).length > 0) {
+  setHasValidationErrors(true);
+  announce(FormAnnouncements.validationError('form'), 'assertive');
+}
+```
+
+#### Field-Level Error Display
+**DISPLAY** errors with proper ARIA attributes:
+```typescript
+<input
+  aria-invalid={!!errors.fieldName}
+  aria-describedby={errors.fieldName ? `error-fieldName-${id}` : undefined}
+  className={`${errors.fieldName ? 'border-red-500' : 'border-gray-300'}`}
+/>
+{errors.fieldName && (
+  <p id={`error-fieldName-${id}`} className="text-xs text-red-600 mt-1" role="alert">
+    {errors.fieldName}
+  </p>
+)}
+```
+
+### 6. Loading States & UX
+
+#### Skeleton Loading
+**USE** skeleton loading for initial data fetching:
+```typescript
+if (isLoading && !Object.values(loadingStates).some(Boolean)) {
+  return <SkeletonFormField type="input" showLabel={true} />;
+}
+```
+
+#### Loading Indicators
+**PROVIDE** clear loading indicators for async operations:
+```typescript
+{loadingStates[`operation-${id}`] ? (
+  <>
+    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+    {translations?.saving || 'Saving...'}
+  </>
+) : (
+  <>
+    <Check className="h-4 w-4 mr-1" />
+    {translations?.save || 'Save'}
+  </>
+)}
+```
+
+### 7. Error Recovery & Resilience
+
+#### Network Error Handling
+**IMPLEMENT** network error recovery mechanisms:
+```typescript
+<NetworkErrorRecovery
+  isOnline={isOnline}
+  hasError={hasError}
+  errorMessage={errorMessage}
+  onRetry={handleRetry}
+  onCheckStatus={handleCheckStatus}
+  showAutoRetry={true}
+  autoRetryDelay={5}
+  maxAutoRetries={3}
+  variant="inline"
+/>
+```
+
+#### Retry Mechanisms
+**PROVIDE** retry mechanisms for failed operations:
+```typescript
+const handleRetry = async () => {
+  if (operationId && !loadingStates[`operation-${operationId}`]) {
+    await performOperation();
+  }
+};
+```
+
+### 8. Internationalization (i18n)
+
+#### Translation Structure
+**ORGANIZE** translations by feature/component:
+```typescript
+interface FeatureTranslations {
+  fields: {
+    [key: string]: string;
+  };
+  validation: {
+    [key: string]: string;
+  };
+  actions: {
+    [key: string]: string;
+  };
+  messages: {
+    [key: string]: string;
   };
 }
 ```
 
-### Frontend Error Handling
+#### Safe Translation Access
+**ALWAYS** use safe access for translations:
 ```typescript
-// ✅ GOOD: Safe property access
-const roleDisplay = profile?.role?.charAt(0)?.toUpperCase() + profile?.role?.slice(1) || 'User';
+const featureTranslations = (t as any)?.feature;
+const commonTranslations = (t as any)?.common;
 
-// ❌ BAD: Unsafe property access
-const roleDisplay = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+// Use with fallbacks
+{featureTranslations?.fields?.title || 'Title'}
 ```
 
-### Environment Configuration
-```typescript
-// ✅ GOOD: Environment-based configuration
-const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT || 'fallback-url';
+#### Translation Files
+- Use separate translation files per component/feature
+- Include English, Spanish, and French translations
+- Use descriptive keys with proper nesting
 
-// ❌ BAD: Hardcoded URLs
-const endpoint = 'https://hardcoded-url.com/graphql';
+### 9. Performance Optimization
+
+#### Debounced Operations
+**USE** debounced validation for real-time feedback:
+```typescript
+const debouncedValidation = useDebouncedCallback(
+  (data) => validate(data),
+  300
+);
 ```
 
-## Testing Requirements
+#### Memoization
+**MEMOIZE** expensive calculations:
+```typescript
+const sortedData = useMemo(() => {
+  return data.sort((a, b) => /* sorting logic */);
+}, [data, sortColumn, sortDirection]);
+```
 
-### Before Deployment
-- [ ] GraphQL schema validates
-- [ ] Resolver returns expected data structure
-- [ ] Frontend queries work without errors
-- [ ] All required fields are present
-- [ ] Error handling works correctly
-- [ ] Environment variables are configured
+#### Image Optimization
+- Use WebP format with lazy loading
+- Implement responsive images
+- Optimize for Core Web Vitals
 
-### After Deployment
-- [ ] CloudWatch logs show successful execution
-- [ ] Frontend loads without errors
-- [ ] All profile data displays correctly
-- [ ] Error states handle gracefully
-- [ ] Performance is acceptable
+### 10. Testing Standards
 
-Remember: **Schema changes require full-stack updates** - GraphQL schema → Resolver → Frontend query → TypeScript interfaces → Deploy → Test
+#### Error Scenarios
+**TEST** all error scenarios including:
+- Network failures
+- Validation errors
+- API errors
+- Authentication failures
+- Edge cases and boundary conditions
+
+#### Accessibility Testing
+**VERIFY** accessibility features:
+- Screen reader compatibility
+- Keyboard navigation
+- Focus management
+- ARIA attributes
+- Color contrast and visual indicators
+
+#### E2E Testing
+- Use Selenium for critical user flows
+- Test complete user journeys
+- Include error recovery scenarios
+- Verify cross-browser compatibility
+
+### 11. Documentation Standards
+
+#### Implementation Documentation
+**DOCUMENT** all significant changes:
+- What was changed and why
+- How to test the changes
+- Any breaking changes or migration steps
+- Dependencies and requirements
+
+#### Code Comments
+**INCLUDE** meaningful comments for:
+- Complex business logic
+- Non-obvious implementation details
+- Performance considerations
+- Accessibility features
+
+#### Error Debugging
+**INCLUDE** debugging information in error logs:
+- Request/response details
+- User context and session info
+- Timestamp and environment info
+- Stack traces for development
+
+### 12. File Organization
+
+#### Directory Structure
+```
+frontend/src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Base UI components (Shadcn)
+│   ├── forms/          # Form-specific components
+│   └── modals/         # Modal components
+├── hooks/              # Custom React hooks
+├── lib/                # Utility functions and API calls
+├── i18n/               # Translation files
+├── pages/              # Page components
+└── types/              # TypeScript type definitions
+```
+
+#### Naming Conventions
+- Use lowercase with dashes for directories: `components/auth-wizard`
+- Use PascalCase for components: `CreateTaskModal`
+- Use camelCase for functions and variables: `handleSubmit`
+- Use UPPER_CASE for constants: `STATUS_OPTIONS`
+
+### 13. Security Considerations
+
+#### Input Validation
+- Validate all user inputs on both client and server
+- Use Zod schemas for type-safe validation
+- Sanitize data before processing
+- Implement proper error handling
+
+#### Authentication
+- Always verify user tokens
+- Implement proper session management
+- Use secure storage for sensitive data
+- Validate API keys and permissions
+
+### 14. Error Handling Patterns
+
+#### Graceful Degradation
+- Provide fallbacks for failed operations
+- Show meaningful error messages
+- Allow users to retry failed operations
+- Maintain application state during errors
+
+#### User-Friendly Messages
+- Use clear, actionable error messages
+- Avoid technical jargon
+- Provide next steps for resolution
+- Include support contact information
+
+### 15. Development Workflow
+
+#### Code Review Checklist
+- [ ] Accessibility features implemented
+- [ ] Error handling comprehensive
+- [ ] Loading states appropriate
+- [ ] Internationalization complete
+- [ ] Performance optimized
+- [ ] Tests written and passing
+- [ ] Documentation updated
+
+#### Pre-commit Checks
+- TypeScript compilation
+- Linting and formatting
+- Test execution
+- Accessibility validation
+- Performance metrics
+
+## Common Patterns
+
+### Custom Hooks Pattern
+```typescript
+const useFeature = (options: FeatureOptions) => {
+  const [state, setState] = useState(initialState);
+  
+  const handler = useCallback((data) => {
+    // Implementation
+  }, [dependencies]);
+  
+  return {
+    state,
+    handler,
+    // Other exports
+  };
+};
+```
+
+### Error Boundary Pattern
+```typescript
+<ErrorBoundary fallback={<ErrorFallback />}>
+  <Component />
+</ErrorBoundary>
+```
+
+### Loading State Pattern
+```typescript
+const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+
+const setLoading = (key: string, loading: boolean) => {
+  setLoadingStates(prev => ({ ...prev, [key]: loading }));
+};
+```
+
+## Remember
+- **User Experience First**: Every decision should improve user experience
+- **Accessibility is Non-Negotiable**: Build inclusive interfaces from the start
+- **Error Recovery is Essential**: Users should never be stuck in error states
+- **Performance Matters**: Optimize for real-world usage patterns
+- **Documentation is Code**: Keep documentation up to date with code changes
+- **Test Everything**: Comprehensive testing prevents production issues
+
+These rules ensure consistent, maintainable, accessible, and performant code across the entire GoalsGuild application.

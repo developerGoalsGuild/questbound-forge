@@ -2,6 +2,7 @@ import { nlpQuestionOrder, NLPAnswers } from '@/pages/goals/questions';
 import { getAccessToken, getApiBase, graphQLClient } from '@/lib/utils';
 import { ACTIVE_GOALS_COUNT } from '@/graphql/queries';
 import { graphqlRaw } from './api';
+import { sortGoals } from './goalProgress';
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -160,6 +161,47 @@ export async function loadGoals() {
     return data?.myGoals ?? [];
   } catch (e: any) {
     console.error('[loadGoals] GraphQL error:', e?.errors || e?.message || e);
+    return []; // safe fallback for UI
+  }
+}
+
+// Dashboard-specific function for top 3 goals (using myGoals with frontend filtering)
+export async function loadDashboardGoals(sortBy: string = 'deadline-asc') {
+  try {
+    const data = await graphqlRaw<{
+      myGoals: Array<{ 
+        id: string; 
+        title: string; 
+        description: string;
+        tags: string[];
+        deadline: string | null;
+        status: string; 
+        createdAt: number;
+        updatedAt: number;
+      }>;
+    }>(`query MyGoals { 
+      myGoals { 
+        id 
+        title 
+        description 
+        tags
+        deadline 
+        status 
+        createdAt
+        updatedAt
+      } 
+    }`);
+
+    // Filter active goals and limit to 3
+    const activeGoals = (data?.myGoals ?? []).filter(goal => goal.status === 'active');
+    
+    // Sort the goals based on sortBy parameter
+    const sortedGoals = sortGoals(activeGoals, sortBy);
+    
+    // Return top 3
+    return sortedGoals.slice(0, 3);
+  } catch (e: any) {
+    console.error('[loadDashboardGoals] GraphQL error:', e?.errors || e?.message || e);
     return []; // safe fallback for UI
   }
 }

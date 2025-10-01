@@ -1,10 +1,11 @@
+// Version: 3.0 - Added real-time validation status indicators
 import React from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { nlpQuestionOrder, NLPQuestionKey, NLPAnswers } from '@/pages/goals/questions';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { validateNLPAnswer } from '@/lib/validation/goalValidation';
 
 interface NLPQuestionsSectionProps {
@@ -13,6 +14,9 @@ interface NLPQuestionsSectionProps {
   errors?: { [K in NLPQuestionKey]?: string };
   disabled?: boolean;
   className?: string;
+  // Validation status props
+  isFieldValidating?: (fieldName: string) => boolean;
+  isFieldValid?: (fieldName: string) => boolean | undefined;
 }
 
 const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
@@ -20,7 +24,9 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
   onAnswersChange,
   errors = {},
   disabled = false,
-  className = ''
+  className = '',
+  isFieldValidating = () => false,
+  isFieldValid = () => undefined
 }) => {
   const { t } = useTranslation();
 
@@ -82,7 +88,7 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
 
   // Handle individual answer change
   const handleAnswerChange = (key: NLPQuestionKey, value: string) => {
-    const newAnswers = { ...answers, [key]: value };
+    const newAnswers = { ...(answers || {}), [key]: value };
     onAnswersChange(newAnswers);
   };
 
@@ -92,8 +98,9 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
       return errors[key];
     }
     
-    if (value.trim().length === 0) {
-      return undefined; // Don't show error for empty fields during typing
+    // Don't validate empty fields - let the form validation handle required fields
+    if (!value || value.trim().length === 0) {
+      return undefined;
     }
     
     const validation = validateNLPAnswer(value);
@@ -119,7 +126,7 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
             const questionId = `nlp-${key}`;
             const questionLabel = questions[key] || key;
             const hint = questionHints[key];
-            const currentError = validateAnswer(key, answers[key] || '');
+            const currentError = validateAnswer(key, answers?.[key] || '');
             const hasError = Boolean(currentError);
 
             return (
@@ -143,14 +150,16 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
                 <div className="relative">
                   <Textarea
                     id={questionId}
-                    value={answers[key] || ''}
+                    value={answers?.[key] || ''}
                     onChange={(e) => handleAnswerChange(key, e.target.value)}
                     disabled={disabled}
                     rows={3}
-                    className={`min-h-[80px] ${
+                    className={`min-h-[80px] pr-10 ${
                       hasError 
                         ? 'border-destructive focus-visible:ring-destructive' 
-                        : ''
+                        : isFieldValid(key) 
+                          ? 'border-green-500 focus-visible:ring-green-500'
+                          : ''
                     }`}
                     aria-describedby={
                       hint ? createHintId(questionId) : undefined
@@ -159,9 +168,20 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
                     data-testid={`nlp-${key}-input`}
                   />
                   
+                  {/* Validation status icon */}
+                  <div className="absolute top-2 right-2">
+                    {isFieldValidating(key) ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : isFieldValid(key) ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : hasError ? (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    ) : null}
+                  </div>
+                  
                   {/* Character count */}
                   <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-                    {(answers[key] || '').length}/500
+                    {(answers?.[key] || '').length}/500
                   </div>
                 </div>
 

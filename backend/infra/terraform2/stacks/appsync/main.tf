@@ -77,6 +77,19 @@ resource "aws_appsync_resolver" "query_myGoals" {
   }
 }
 
+resource "aws_appsync_resolver" "query_myDashboardGoals" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myDashboardGoals"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/myDashboardGoals.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
 resource "aws_appsync_resolver" "query_goal" {
   api_id = module.appsync.api_id
   type   = "Query"

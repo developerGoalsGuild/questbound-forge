@@ -2,10 +2,26 @@ export type Language = 'en' | 'es' | 'fr';
 
 export interface GoalsTranslations {
   title: string;
-  fields: { title: string; description: string; deadline: string };
+  fields: { 
+    title: string; 
+    description: string; 
+    deadline: string;
+    taskTitle: string;
+    taskDueAt: string;
+    taskTags: string;
+    taskStatus: string;
+  };
   hints: {
     iconLabel: string;
-    fields: { title: string; description: string; deadline: string };
+    fields: { 
+      title: string; 
+      description: string; 
+      deadline: string;
+      taskTitle: string;
+      taskDueAt: string;
+      taskTags: string;
+      taskStatus: string;
+    };
     questions: {
       positive: string;
       specific: string;
@@ -35,6 +51,16 @@ export interface GoalsTranslations {
     generateImage: string;
     suggestImprovements: string;
     refresh: string;
+    createTask: string;
+    creatingTask: string;
+    updateTask: string;
+    updatingTask: string;
+    deleteTask: string;
+    deletingTask: string;
+    editTask: string;
+    saveTask: string;
+    savingTask: string;
+    cancelTask: string;
   };
   inspiration: { title: string };
   suggestions: { title: string };
@@ -66,6 +92,12 @@ export interface GoalsTranslations {
       actions: string;
     };
   };
+  statusLabels: {
+    active: string;
+    paused: string;
+    completed: string;
+    archived: string;
+  };
   modal: {
     createTaskTitle: string;
   };
@@ -89,10 +121,25 @@ export interface GoalsTranslations {
     created: string;
     aiImageFailed: string;
     aiSuggestFailed: string;
+    taskCreated: string;
+    taskUpdated: string;
+    taskDeleted: string;
+    taskCreateFailed: string;
+    taskUpdateFailed: string;
+    taskDeleteFailed: string;
   };
   validation: {
     titleRequired: string;
     deadlineRequired: string;
+    taskTitleRequired: string;
+    taskDueAtRequired: string;
+    taskDueAtInvalid: string;
+    taskDueAtExceedsGoalDeadline: string;
+    taskTagsRequired: string;
+    taskTagsInvalid: string;
+    taskTagsDuplicate: string;
+    taskStatusInvalid: string;
+    formErrorsTitle: string;
   };
   modals: {
     createTask: {
@@ -117,18 +164,31 @@ export interface GoalsTranslations {
       deleteButton: string;
     };
   };
+  confirmDeleteTask: string;
 }
 
 export const goalsTranslations: Record<Language, GoalsTranslations> = {
   en: {
     title: 'Create Your Quest',
-    fields: { title: 'Title', description: 'Description', deadline: 'Deadline' },
+    fields: { 
+      title: 'Title', 
+      description: 'Description', 
+      deadline: 'Deadline',
+      taskTitle: 'Task Title',
+      taskDueAt: 'Task Due Date',
+      taskTags: 'Tags',
+      taskStatus: 'Status'
+    },
     hints: {
       iconLabel: 'More information about {field}',
       fields: {
         title: 'Give your quest a short, action-focused name so it is easy to recognize later.',
         description: 'Share the motivation, desired outcome, and any context your allies should know.',
         deadline: 'Pick the target date you want to finish; you can adjust it if plans change.',
+        taskTitle: 'Enter a clear, descriptive title for this task.',
+        taskDueAt: 'Select the date when this task should be completed.',
+        taskTags: 'Add tags to categorize and organize this task.',
+        taskStatus: 'Choose the current status of this task.',
       },
       questions: {
         positive: 'Focus on the desired outcome; describe what you want to happen, not what you want to avoid.',
@@ -168,6 +228,16 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       generateImage: 'Inspiration Image',
       suggestImprovements: 'Improve with AI',
       refresh: 'Refresh',
+      createTask: 'Create Task',
+      creatingTask: 'Creating...',
+      updateTask: 'Update Task',
+      updatingTask: 'Updating...',
+      deleteTask: 'Delete Task',
+      deletingTask: 'Deleting...',
+      editTask: 'Edit Task',
+      saveTask: 'Save',
+      savingTask: 'Saving...',
+      cancelTask: 'Cancel',
     },
     inspiration: { title: 'Inspirational Image' },
     suggestions: { title: 'AI Suggestions' },
@@ -197,6 +267,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       created: 'Goal created!',
       aiImageFailed: 'Could not generate image',
       aiSuggestFailed: 'Could not get suggestions',
+      taskCreated: 'Task Created',
+      taskUpdated: 'Task Updated',
+      taskDeleted: 'Task Deleted',
+      taskCreateFailed: 'Create Failed',
+      taskUpdateFailed: 'Update Failed',
+      taskDeleteFailed: 'Delete Failed',
     },
     validation: {
       titleRequired: 'Title is required',
@@ -209,7 +285,9 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskTagsInvalid: 'Tags can only contain letters, numbers, hyphens, and underscores',
       taskTagsDuplicate: 'Duplicate tags are not allowed',
       taskStatusInvalid: 'Invalid status selected',
+      formErrorsTitle: 'Please fix the following errors:',
     },
+    confirmDeleteTask: 'Are you sure you want to delete this task?',
     modals: {
       createTask: {
         title: 'Create New Task',
@@ -240,6 +318,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       tags: 'Tags',
       actions: 'Actions',
     },
+    statusLabels: {
+      active: 'Active',
+      paused: 'Paused',
+      completed: 'Completed',
+      archived: 'Archived',
+    },
     modal: {
       createTaskTitle: 'Create New Task',
     },
@@ -261,13 +345,25 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
   },
   es: {
     title: 'Crea tu Misión',
-    fields: { title: 'Título', description: 'Descripción', deadline: 'Fecha límite' },
+    fields: { 
+      title: 'Título', 
+      description: 'Descripción', 
+      deadline: 'Fecha límite',
+      taskTitle: 'Título de la Tarea',
+      taskDueAt: 'Fecha de Vencimiento',
+      taskTags: 'Etiquetas',
+      taskStatus: 'Estado'
+    },
     hints: {
       iconLabel: 'Más información sobre {field}',
       fields: {
         title: 'Elige un nombre breve y orientado a la acción para reconocer fácilmente la misión.',
         description: 'Explica la motivación, el resultado deseado y cualquier contexto que el equipo deba conocer.',
         deadline: 'Selecciona la fecha objetivo para terminar; podrás ajustarla si los planes cambian.',
+        taskTitle: 'Ingresa un título claro y descriptivo para esta tarea.',
+        taskDueAt: 'Selecciona la fecha cuando esta tarea debe completarse.',
+        taskTags: 'Agrega etiquetas para categorizar y organizar esta tarea.',
+        taskStatus: 'Elige el estado actual de esta tarea.',
       },
       questions: {
         positive: 'Enfócate en el resultado deseado y describe lo que quieres que ocurra, no lo que quieres evitar.',
@@ -307,6 +403,16 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       generateImage: 'Imagen inspiradora',
       suggestImprovements: 'Mejorar con IA',
       refresh: 'Actualizar',
+      createTask: 'Crear Tarea',
+      creatingTask: 'Creando...',
+      updateTask: 'Actualizar Tarea',
+      updatingTask: 'Actualizando...',
+      deleteTask: 'Eliminar Tarea',
+      deletingTask: 'Eliminando...',
+      editTask: 'Editar Tarea',
+      saveTask: 'Guardar',
+      savingTask: 'Guardando...',
+      cancelTask: 'Cancelar',
     },
     inspiration: { title: 'Imagen inspiradora' },
     suggestions: { title: 'Sugerencias de IA' },
@@ -336,11 +442,27 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       created: '¡Objetivo creado!',
       aiImageFailed: 'No se pudo generar la imagen',
       aiSuggestFailed: 'No se pudo obtener sugerencias',
+      taskCreated: 'Tarea Creada',
+      taskUpdated: 'Tarea Actualizada',
+      taskDeleted: 'Tarea Eliminada',
+      taskCreateFailed: 'Error al Crear',
+      taskUpdateFailed: 'Error al Actualizar',
+      taskDeleteFailed: 'Error al Eliminar',
     },
     validation: {
       titleRequired: 'El título es obligatorio',
       deadlineRequired: 'La fecha límite es obligatoria',
+      taskTitleRequired: 'El título de la tarea es obligatorio',
+      taskDueAtRequired: 'La fecha de vencimiento de la tarea es obligatoria',
+      taskDueAtInvalid: 'Fecha de vencimiento inválida',
+      taskDueAtExceedsGoalDeadline: 'La fecha de vencimiento de la tarea no puede exceder la fecha límite del objetivo',
+      taskTagsRequired: 'Se requiere al menos una etiqueta',
+      taskTagsInvalid: 'Las etiquetas solo pueden contener letras, números, guiones y guiones bajos',
+      taskTagsDuplicate: 'No se permiten etiquetas duplicadas',
+      taskStatusInvalid: 'Estado seleccionado inválido',
+      formErrorsTitle: 'Por favor corrige los siguientes errores:',
     },
+    confirmDeleteTask: '¿Estás seguro de que quieres eliminar esta tarea?',
     modals: {
       createTask: {
         title: 'Crear nueva tarea',
@@ -371,6 +493,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       tags: 'Etiquetas',
       actions: 'Acciones',
     },
+    statusLabels: {
+      active: 'Activo',
+      paused: 'Pausado',
+      completed: 'Completado',
+      archived: 'Archivado',
+    },
     modal: {
       createTaskTitle: 'Crear nueva tarea',
     },
@@ -392,13 +520,25 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
   },
   fr: {
     title: 'Crée ta Quête',
-    fields: { title: 'Titre', description: 'Description', deadline: 'Échéance' },
+    fields: { 
+      title: 'Titre', 
+      description: 'Description', 
+      deadline: 'Échéance',
+      taskTitle: 'Titre de la Tâche',
+      taskDueAt: 'Date d\'Échéance',
+      taskTags: 'Étiquettes',
+      taskStatus: 'Statut'
+    },
     hints: {
       iconLabel: 'Plus d\'informations sur {field}',
       fields: {
         title: 'Choisis un nom court et orienté vers l\'action pour retrouver facilement la quête.',
         description: 'Partage la motivation, le résultat attendu et tout contexte utile à ton équipe.',
         deadline: 'Sélectionne la date visée pour terminer; tu pourras l\'ajuster si les plans évoluent.',
+        taskTitle: 'Saisis un titre clair et descriptif pour cette tâche.',
+        taskDueAt: 'Sélectionne la date à laquelle cette tâche doit être terminée.',
+        taskTags: 'Ajoute des étiquettes pour catégoriser et organiser cette tâche.',
+        taskStatus: 'Choisis le statut actuel de cette tâche.',
       },
       questions: {
         positive: 'Concentre-toi sur le résultat souhaité et décris ce que tu veux obtenir, pas ce que tu veux éviter.',
@@ -438,6 +578,16 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       generateImage: 'Image inspirante',
       suggestImprovements: 'Améliorer avec IA',
       refresh: 'Rafraîchir',
+      createTask: 'Créer une Tâche',
+      creatingTask: 'Création...',
+      updateTask: 'Mettre à jour la Tâche',
+      updatingTask: 'Mise à jour...',
+      deleteTask: 'Supprimer la Tâche',
+      deletingTask: 'Suppression...',
+      editTask: 'Modifier la Tâche',
+      saveTask: 'Enregistrer',
+      savingTask: 'Enregistrement...',
+      cancelTask: 'Annuler',
     },
     inspiration: { title: 'Image inspirante' },
     suggestions: { title: 'Suggestions IA' },
@@ -467,11 +617,27 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       created: 'Objectif créé !',
       aiImageFailed: "Échec de génération de l'image",
       aiSuggestFailed: 'Échec des suggestions',
+      taskCreated: 'Tâche Créée',
+      taskUpdated: 'Tâche Mise à jour',
+      taskDeleted: 'Tâche Supprimée',
+      taskCreateFailed: 'Échec de Création',
+      taskUpdateFailed: 'Échec de Mise à jour',
+      taskDeleteFailed: 'Échec de Suppression',
     },
     validation: {
       titleRequired: 'Le titre est requis',
       deadlineRequired: "L'échéance est requise",
+      taskTitleRequired: 'Le titre de la tâche est requis',
+      taskDueAtRequired: 'La date d\'échéance de la tâche est requise',
+      taskDueAtInvalid: 'Date d\'échéance invalide',
+      taskDueAtExceedsGoalDeadline: 'La date d\'échéance de la tâche ne peut pas dépasser la date limite de l\'objectif',
+      taskTagsRequired: 'Au moins une étiquette est requise',
+      taskTagsInvalid: 'Les étiquettes ne peuvent contenir que des lettres, des chiffres, des tirets et des traits de soulignement',
+      taskTagsDuplicate: 'Les étiquettes en double ne sont pas autorisées',
+      taskStatusInvalid: 'Statut sélectionné invalide',
+      formErrorsTitle: 'Veuillez corriger les erreurs suivantes :',
     },
+    confirmDeleteTask: 'Êtes-vous sûr de vouloir supprimer cette tâche ?',
     modals: {
       createTask: {
         title: 'Créer une nouvelle tâche',
@@ -501,6 +667,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       status: 'Statut',
       tags: 'Étiquettes',
       actions: 'Actions',
+    },
+    statusLabels: {
+      active: 'Actif',
+      paused: 'En pause',
+      completed: 'Terminé',
+      archived: 'Archivé',
     },
     modal: {
       createTaskTitle: 'Créer une nouvelle tâche',

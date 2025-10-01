@@ -193,9 +193,26 @@ const GoalDetails: React.FC = () => {
       setTasks(goalTasks || []);
     } catch (e: any) {
       console.error('[loadGoalTasks] Error loading tasks:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to load tasks';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
         title: 'Error',
-        description: 'Failed to load tasks',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -239,9 +256,27 @@ const GoalDetails: React.FC = () => {
       setShowCreateTaskModal(false);
       loadGoalTasks(); // Refresh tasks list
     } catch (e: any) {
+      console.error('Error creating task:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to create task';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
         title: 'Error',
-        description: e?.message || 'Failed to create task',
+        description: errorMessage,
         variant: 'destructive'
       });
     }
@@ -266,9 +301,27 @@ const GoalDetails: React.FC = () => {
 
       loadGoalTasks(); // Refresh tasks list
     } catch (e: any) {
+      console.error('Error updating task:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to update task';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
         title: 'Error',
-        description: e?.message || 'Failed to update task',
+        description: errorMessage,
         variant: 'destructive'
       });
     }
@@ -287,9 +340,27 @@ const GoalDetails: React.FC = () => {
 
       loadGoalTasks(); // Refresh tasks list
     } catch (e: any) {
+      console.error('Error deleting task:', e);
+      
+      // Parse API error response
+      let errorMessage = e?.message || 'Failed to delete task';
+      
+      try {
+        // Try to parse error response if it's a string
+        if (typeof e?.message === 'string') {
+          const parsedError = JSON.parse(e.message);
+          if (parsedError.message) {
+            errorMessage = parsedError.message;
+          }
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.log('Could not parse error response:', parseError);
+      }
+      
       toast({
         title: 'Error',
-        description: e?.message || 'Failed to delete task',
+        description: errorMessage,
         variant: 'destructive'
       });
     }

@@ -6,6 +6,18 @@ locals {
 resource "aws_api_gateway_rest_api" "rest_api" {
   name        = "goalsguild_api_${var.environment}"
   description = "API Gateway for GoalsGuild services"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = "*"
+        Action = "execute-api:Invoke"
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_api_gateway_authorizer" "lambda_authorizer" {
@@ -91,13 +103,9 @@ resource "aws_api_gateway_integration_response" "quests_tasks_options_integratio
   http_method = aws_api_gateway_method.quests_tasks_options.http_method
   status_code = aws_api_gateway_method_response.quests_tasks_options_response.status_code
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,POST'"
     "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
-    "method.response.header.Access-Control-Max-Age" = "'600'"
-    "method.response.header.Content-Type" = "'application/json'"
-    "method.response.header.Vary" = "'Origin'"
   }
   response_templates = {
     "application/json" = "{}"
@@ -211,6 +219,11 @@ resource "aws_api_gateway_method" "user_login_options" {
   resource_id   = aws_api_gateway_resource.user_login.id
   http_method   = "OPTIONS"
   authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
 }
 resource "aws_api_gateway_integration" "user_login_post_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
@@ -220,6 +233,7 @@ resource "aws_api_gateway_integration" "user_login_post_integration" {
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
+
 resource "aws_api_gateway_integration" "user_login_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.user_login.id
@@ -360,6 +374,7 @@ resource "aws_api_gateway_integration" "auth_renew_post_integration" {
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
 }
+
 resource "aws_api_gateway_integration" "auth_renew_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.auth_renew.id
@@ -465,6 +480,11 @@ resource "aws_api_gateway_method" "quests_options" {
   resource_id   = aws_api_gateway_resource.quests.id
   http_method   = "OPTIONS"
   authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
 }
 resource "aws_api_gateway_integration" "quests_get_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
@@ -516,17 +536,6 @@ resource "aws_api_gateway_method" "quests_post" {
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
 }
-resource "aws_api_gateway_method" "quests_post_options" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests.id
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-  request_parameters = {
-    "method.request.header.Access-Control-Request-Headers" = false
-    "method.request.header.Access-Control-Request-Method" = false
-    "method.request.header.Origin" = false
-  }
-}
 resource "aws_api_gateway_integration" "quests_post_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.quests.id
@@ -538,7 +547,7 @@ resource "aws_api_gateway_integration" "quests_post_integration" {
 resource "aws_api_gateway_integration" "quests_post_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.quests.id
-  http_method = aws_api_gateway_method.quests_post_options.http_method
+  http_method = aws_api_gateway_method.quests_options.http_method
   type        = "MOCK"
   passthrough_behavior = "WHEN_NO_MATCH"
   request_templates = {
@@ -547,38 +556,15 @@ resource "aws_api_gateway_integration" "quests_post_options_integration" {
     })
   }
 }
-resource "aws_api_gateway_method_response" "quests_post_options_response" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.quests.id
-  http_method = aws_api_gateway_method.quests_post_options.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Credentials" = true
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin" = true
-    "method.response.header.Access-Control-Max-Age" = true
-    "method.response.header.Content-Type" = true
-    "method.response.header.Vary" = true
-  }
-  response_models = {
-    "application/json" = "Empty"
-    "text/plain" = "Empty"
-  }
-}
 resource "aws_api_gateway_integration_response" "quests_post_options_integration_response" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.quests.id
-  http_method = aws_api_gateway_method.quests_post_options.http_method
-  status_code = aws_api_gateway_method_response.quests_post_options_response.status_code
+  http_method = aws_api_gateway_method.quests_options.http_method
+  status_code = aws_api_gateway_method_response.quests_options_response.status_code
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
     "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
-    "method.response.header.Access-Control-Max-Age" = "'600'"
-    "method.response.header.Content-Type" = "'application/json'"
-    "method.response.header.Vary" = "'Origin'"
   }
   response_templates = {
     "application/json" = jsonencode({})
@@ -648,13 +634,9 @@ resource "aws_api_gateway_integration_response" "quests_create_task_options_inte
   http_method = aws_api_gateway_method.quests_create_task_options.http_method
   status_code = aws_api_gateway_method_response.quests_create_task_options_response.status_code
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
     "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
-    "method.response.header.Access-Control-Max-Age" = "'600'"
-    "method.response.header.Content-Type" = "'application/json'"
-    "method.response.header.Vary" = "'Origin'"
   }
   response_templates = {
     "application/json" = "{}"
@@ -724,13 +706,9 @@ resource "aws_api_gateway_integration_response" "quests_tasks_task_id_put_option
   http_method = aws_api_gateway_method.quests_tasks_task_id_put_options.http_method
   status_code = aws_api_gateway_method_response.quests_tasks_task_id_put_options_response.status_code
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,PUT,DELETE'"
     "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
-    "method.response.header.Access-Control-Max-Age" = "'600'"
-    "method.response.header.Content-Type" = "'application/json'"
-    "method.response.header.Vary" = "'Origin'"
   }
   response_templates = {
     "application/json" = "{}"
@@ -802,13 +780,9 @@ resource "aws_api_gateway_integration_response" "quests_goal_id_put_options_inte
   http_method = aws_api_gateway_method.quests_goal_id_put_options.http_method
   status_code = aws_api_gateway_method_response.quests_goal_id_put_options_response.status_code
   response_parameters = {
-    "method.response.header.Access-Control-Allow-Credentials" = "'true'"
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,PUT,DELETE'"
     "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
-    "method.response.header.Access-Control-Max-Age" = "'600'"
-    "method.response.header.Content-Type" = "'application/json'"
-    "method.response.header.Vary" = "'Origin'"
   }
   response_templates = {
     "application/json" = jsonencode({})
@@ -824,12 +798,6 @@ resource "aws_api_gateway_method" "quests_goal_id_delete" {
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
 }
-resource "aws_api_gateway_method" "quests_goal_id_delete_options" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_goal_id.id
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-}
 resource "aws_api_gateway_integration" "quests_goal_id_delete_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.quests_goal_id.id
@@ -841,7 +809,7 @@ resource "aws_api_gateway_integration" "quests_goal_id_delete_integration" {
 resource "aws_api_gateway_integration" "quests_goal_id_delete_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.quests_goal_id.id
-  http_method = aws_api_gateway_method.quests_goal_id_delete_options.http_method
+  http_method = aws_api_gateway_method.quests_goal_id_put_options.http_method
   type        = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -849,22 +817,11 @@ resource "aws_api_gateway_integration" "quests_goal_id_delete_options_integratio
     })
   }
 }
-resource "aws_api_gateway_method_response" "quests_goal_id_delete_options_response" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.quests_goal_id.id
-  http_method = aws_api_gateway_method.quests_goal_id_delete_options.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
-}
 resource "aws_api_gateway_integration_response" "quests_goal_id_delete_options_integration_response" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.quests_goal_id.id
-  http_method = aws_api_gateway_method.quests_goal_id_delete_options.http_method
-  status_code = aws_api_gateway_method_response.quests_goal_id_delete_options_response.status_code
+  http_method = aws_api_gateway_method.quests_goal_id_put_options.http_method
+  status_code = aws_api_gateway_method_response.quests_goal_id_put_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
@@ -884,12 +841,6 @@ resource "aws_api_gateway_method" "quests_tasks_task_id_delete" {
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
 }
-resource "aws_api_gateway_method" "quests_tasks_task_id_delete_options" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_tasks_task_id.id
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-}
 resource "aws_api_gateway_integration" "quests_tasks_task_id_delete_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.quests_tasks_task_id.id
@@ -901,7 +852,7 @@ resource "aws_api_gateway_integration" "quests_tasks_task_id_delete_integration"
 resource "aws_api_gateway_integration" "quests_tasks_task_id_delete_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.quests_tasks_task_id.id
-  http_method = aws_api_gateway_method.quests_tasks_task_id_delete_options.http_method
+  http_method = aws_api_gateway_method.quests_tasks_task_id_put_options.http_method
   type        = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -909,27 +860,121 @@ resource "aws_api_gateway_integration" "quests_tasks_task_id_delete_options_inte
     })
   }
 }
-resource "aws_api_gateway_method_response" "quests_tasks_task_id_delete_options_response" {
-  rest_api_id = aws_api_gateway_rest_api.rest_api.id
-  resource_id = aws_api_gateway_resource.quests_tasks_task_id.id
-  http_method = aws_api_gateway_method.quests_tasks_task_id_delete_options.http_method
-  status_code = "200"
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Headers" = true
-    "method.response.header.Access-Control-Allow-Methods" = true
-    "method.response.header.Access-Control-Allow-Origin"  = true
-  }
-}
 resource "aws_api_gateway_integration_response" "quests_tasks_task_id_delete_options_integration_response" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   resource_id = aws_api_gateway_resource.quests_tasks_task_id.id
-  http_method = aws_api_gateway_method.quests_tasks_task_id_delete_options.http_method
-  status_code = aws_api_gateway_method_response.quests_tasks_task_id_delete_options_response.status_code
+  http_method = aws_api_gateway_method.quests_tasks_task_id_put_options.http_method
+  status_code = aws_api_gateway_method_response.quests_tasks_task_id_put_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
     "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
   }
+}
+
+# CloudWatch Log Group for API Gateway
+resource "aws_cloudwatch_log_group" "api_gateway_logs" {
+  name              = "/aws/apigateway/${aws_api_gateway_rest_api.rest_api.name}-${var.api_stage_name}"
+  retention_in_days = var.environment == "dev" ? 1 : 14
+
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+    Stage       = var.api_stage_name
+  }
+}
+
+# API Key
+resource "aws_api_gateway_api_key" "api_key" {
+  name        = "goalsguild_api_key_${var.environment}"
+  description = "API Key for GoalsGuild ${var.environment} environment"
+  enabled     = true
+
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+  }
+}
+
+# Usage Plan
+resource "aws_api_gateway_usage_plan" "usage_plan" {
+  name        = "goalsguild_usage_plan_${var.environment}"
+  description = "Usage plan for GoalsGuild ${var.environment} environment"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.rest_api.id
+    stage  = aws_api_gateway_stage.stage.stage_name
+  }
+
+  quota_settings {
+    limit  = 10000
+    period = "DAY"
+  }
+
+  throttle_settings {
+    burst_limit = 2000
+    rate_limit  = 1000
+  }
+
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+  }
+}
+
+# Associate API Key with Usage Plan
+resource "aws_api_gateway_usage_plan_key" "usage_plan_key" {
+  key_id        = aws_api_gateway_api_key.api_key.id
+  key_type      = "API_KEY"
+  usage_plan_id = aws_api_gateway_usage_plan.usage_plan.id
+}
+
+# IAM Role for API Gateway CloudWatch Logs
+resource "aws_iam_role" "api_gateway_logs_role" {
+  name = "goalsguild-${var.environment}-api-gateway-logs-role"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+  
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+  }
+}
+
+# IAM Policy for API Gateway CloudWatch Logs
+resource "aws_iam_role_policy" "api_gateway_logs_policy" {
+  name = "goalsguild-${var.environment}-api-gateway-logs-policy"
+  role = aws_iam_role.api_gateway_logs_role.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:*:*"
+      }
+    ]
+  })
 }
 
 # Deployment + Stage (redeploy on change)
@@ -949,18 +994,15 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.quests_get,
       aws_api_gateway_method.quests_options,
       aws_api_gateway_method.quests_post,
-      aws_api_gateway_method.quests_post_options,
       aws_api_gateway_method.quests_goal_id_put,
       aws_api_gateway_method.quests_goal_id_put_options,
       aws_api_gateway_method.quests_goal_id_delete,
-      aws_api_gateway_method.quests_goal_id_delete_options,
       aws_api_gateway_method.quests_tasks_options,
       aws_api_gateway_method.quests_create_task_post,
       aws_api_gateway_method.quests_create_task_options,
       aws_api_gateway_method.quests_tasks_task_id_put,
       aws_api_gateway_method.quests_tasks_task_id_put_options,
       aws_api_gateway_method.quests_tasks_task_id_delete,
-      aws_api_gateway_method.quests_tasks_task_id_delete_options
     ]))
   }
   lifecycle { create_before_destroy = true }
@@ -969,6 +1011,36 @@ resource "aws_api_gateway_stage" "stage" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   stage_name    = var.api_stage_name
   deployment_id = aws_api_gateway_deployment.deployment.id
+  
+  # Enable CloudWatch logging
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
+        format = jsonencode({
+          requestId      = "$context.requestId"
+          ip             = "$context.identity.sourceIp"
+          caller         = "$context.identity.caller"
+          user           = "$context.identity.user"
+          requestTime    = "$requestTime"
+          httpMethod     = "$httpMethod"
+          resourcePath   = "$resourcePath"
+          status         = "$status"
+          protocol       = "$protocol"
+          responseLength = "$responseLength"
+        })
+  }
+  
+  # Enable X-Ray tracing (disabled for dev environment)
+  xray_tracing_enabled = var.environment != "dev"
+  
+  # Stage variables (if needed)
+  variables = {
+    environment = var.environment
+  }
+  
+  # Cache settings
+  cache_cluster_enabled = false
+  
+  depends_on = [aws_api_gateway_deployment.deployment]
 }
 
 # Lambda permissions

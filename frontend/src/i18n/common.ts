@@ -5,9 +5,12 @@ export interface CommonTranslations {
   error: string;
   success: string;
   save: string;
+  saving: string;
   cancel: string;
   delete: string;
+  deleting: string;
   edit: string;
+  editing: string;
   view: string;
   close: string;
   ascending: string;
@@ -49,9 +52,12 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     error: 'An error occurred',
     success: 'Success!',
     save: 'Save',
+    saving: 'Saving...',
     cancel: 'Cancel',
     delete: 'Delete',
+    deleting: 'Deleting...',
     edit: 'Edit',
+    editing: 'Editing...',
     view: 'View',
     close: 'Close',
     ascending: 'Ascending',
@@ -91,9 +97,12 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     error: 'Ocurrió un error',
     success: '¡Éxito!',
     save: 'Guardar',
+    saving: 'Guardando...',
     cancel: 'Cancelar',
     delete: 'Eliminar',
+    deleting: 'Eliminando...',
     edit: 'Editar',
+    editing: 'Editando...',
     view: 'Ver',
     close: 'Cerrar',
     ascending: 'Ascendente',
@@ -133,9 +142,12 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     error: 'Une erreur est survenue',
     success: 'Succès !',
     save: 'Enregistrer',
+    saving: 'Enregistrement...',
     cancel: 'Annuler',
     delete: 'Supprimer',
+    deleting: 'Suppression...',
     edit: 'Modifier',
+    editing: 'Modification...',
     view: 'Voir',
     close: 'Fermer',
     ascending: 'Croissant',

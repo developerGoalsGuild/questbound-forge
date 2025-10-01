@@ -14,11 +14,9 @@ This file contains the incomplete or missing tasks from Phase 1 Foundation that 
 
 ## User Profiles
 - [ ] 8.3 – Unit test all profile endpoints (verify comprehensive coverage)
-- [ ] 10.3 – Add update call to backend (verify frontend integration)
 
 ## Goals & Tasks
 - [ ] 12.2 – Write get goal by ID endpoint (verify implementation)
-- [ ] 13.1 – Build goal creation form (frontend) (verify implementation)
 - [ ] 13.2 – Add validation + API integration for goal form (verify implementation)
 - [ ] 14.2 – Build goal detail page (verify full functionality)
 - [ ] 15.3 – Update task (backend) (verify implementation)
@@ -51,4 +49,4 @@ This file contains the incomplete or missing tasks from Phase 1 Foundation that 
 
 ---
 *Generated: 2025-09-24*
-*Total Pending Tasks: 28*
+*Total Pending Tasks: 26*

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { TranslationProvider } from '@/hooks/useTranslation';
 import ProfileEdit from '../ProfileEdit';
-import { checkNicknameAvailability } from '@/lib/apiProfile';
+import { checkNicknameAvailability, getProfile } from '@/lib/apiProfile';
 
 // Mock the API module
 vi.mock('@/lib/apiProfile', () => ({
@@ -18,10 +19,18 @@ vi.mock('@/lib/api', () => ({
   graphqlRaw: vi.fn(),
 }));
 
+// Mock the countries module
+vi.mock('@/i18n/countries', () => ({
+  getCountries: vi.fn(() => [
+    { code: 'US', name: 'United States' },
+    { code: 'CA', name: 'Canada' },
+  ]),
+}));
+
 // Mock the translation hook
 vi.mock('@/i18n/translations', () => ({
-  useTranslation: () => ({
-    t: {
+  translations: {
+    en: {
       profile: {
         title: 'Edit Profile',
         subtitle: 'Update your profile information',
@@ -64,7 +73,7 @@ vi.mock('@/i18n/translations', () => ({
         },
       },
     },
-  }),
+  },
 }));
 
 // Mock the countries data
@@ -100,24 +109,21 @@ const mockUserProfile = {
   updatedAt: 1640995200,
 };
 
-const renderProfileEdit = () => {
-  return render(
-    <BrowserRouter>
-      <ProfileEdit />
-    </BrowserRouter>
-  );
-};
+  const renderProfileEdit = () => {
+    return render(
+      <BrowserRouter>
+        <TranslationProvider>
+          <ProfileEdit />
+        </TranslationProvider>
+      </BrowserRouter>
+    );
+  };
 
 describe('ProfileEdit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock successful profile fetch
-    vi.mocked(require('@/lib/apiProfile').getProfile).mockResolvedValue(mockUserProfile);
-    // Mock successful countries fetch
-    vi.mocked(require('@/i18n/countries').getCountries).mockReturnValue([
-      { code: 'US', name: 'United States' },
-      { code: 'CA', name: 'Canada' },
-    ]);
+    vi.mocked(getProfile).mockResolvedValue(mockUserProfile);
   });
 
   describe('Nickname Validation', () => {
