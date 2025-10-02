@@ -55,6 +55,7 @@ class AnswerInput(BaseModel):
 class GoalCreatePayload(BaseModel):
     title: str
     description: Optional[str] = None
+    category: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     deadline: str
     answers: List[AnswerInput] = Field(default_factory=list)
@@ -68,6 +69,7 @@ class AnswerOutput(BaseModel):
 class GoalUpdatePayload(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    category: Optional[str] = None
     deadline: Optional[str] = None
     tags: Optional[List[str]] = None
     answers: Optional[List[AnswerInput]] = None
@@ -79,6 +81,7 @@ class GoalResponse(BaseModel):
     userId: str
     title: str
     description: str
+    category: Optional[str]
     tags: List[str]
     answers: List[AnswerOutput]
     deadline: Optional[str]

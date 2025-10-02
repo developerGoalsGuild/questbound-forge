@@ -212,6 +212,7 @@ def _build_goal_item(user_id: str, payload: GoalCreatePayload) -> Dict:
     answers = _validate_answers(payload.answers)
     tags = _validate_tags(payload.tags)
     description = _sanitize_string(payload.description)
+    category = _sanitize_string(payload.category) if payload.category else None
 
     now_ms = int(time.time() * 1000)
     goal_id = str(uuid4())
@@ -224,6 +225,7 @@ def _build_goal_item(user_id: str, payload: GoalCreatePayload) -> Dict:
         "userId": user_id,
         "title": title,
         "description": description,
+        "category": category,
         "tags": tags,
         "answers": answers,
         "deadline": normalized_deadline,
@@ -242,6 +244,7 @@ def _to_response(item: Dict) -> GoalResponse:
         userId=str(item.get("userId")),
         title=str(item.get("title", "")),
         description=_sanitize_string(item.get("description")),
+        category=_sanitize_string(item.get("category")) if item.get("category") else None,
         tags=[str(tag) for tag in item.get("tags", []) if isinstance(tag, str)],
         answers=[AnswerOutput(**a) for a in _serialize_answers(item.get("answers"))],
         deadline=_normalize_deadline_output(item.get("deadline")),
@@ -327,6 +330,12 @@ async def update_goal(
         update_expression_parts.append("#description = :description")
         expression_attribute_values[":description"] = description
         expression_attribute_names["#description"] = "description"
+
+    if payload.category is not None:
+        category = _sanitize_string(payload.category) if payload.category else None
+        update_expression_parts.append("#category = :category")
+        expression_attribute_values[":category"] = category
+        expression_attribute_names["#category"] = "category"
 
     if payload.deadline is not None:
         normalized_deadline = _normalize_date_only(payload.deadline)

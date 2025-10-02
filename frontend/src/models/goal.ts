@@ -60,6 +60,7 @@ export interface GoalResponse {
   userId: string;
   title: string;
   description: string;
+  category: string | null;
   tags: string[];
   answers: GoalAnswer[];
   deadline: string | null;

@@ -120,10 +120,23 @@ function Build-AndPush-Image {
       throw "Dockerfile not found: $DockerfilePath"
     }
     
-    # Build with buildx for single-arch and without provenance to avoid unsupported media types in Lambda
-    docker buildx build --platform linux/amd64 -f $DockerfilePath -t $FullImageUri --provenance=false --sbom=false --load .
+    # Build with regular docker build command using Start-Process to avoid PowerShell issues
+    Write-Log "Building Docker image..." "INFO"
+    $buildCmd = "docker build -f `"$DockerfilePath`" -t `"$FullImageUri`" ."
+    Write-Log "Running: $buildCmd" "INFO"
     
-    if ($LASTEXITCODE -ne 0) {
+    try {
+      # Use buildx with specific flags to create a single-platform image for Lambda
+      $process = Start-Process -FilePath "docker" -ArgumentList "buildx", "build", "--platform", "linux/amd64", "-f", $DockerfilePath, "-t", $FullImageUri, "--provenance=false", "--sbom=false", "--load", "." -WorkingDirectory (Get-Location) -Wait -PassThru -NoNewWindow
+      
+      if ($process.ExitCode -ne 0) {
+        Write-Log "Docker build failed. Exit code: $($process.ExitCode)" "ERROR"
+        throw "Docker build failed for quest-service"
+      }
+      
+      Write-Log "Docker build completed successfully" "INFO"
+    } catch {
+      Write-Log "Docker build failed with exception: $($_.Exception.Message)" "ERROR"
       throw "Docker build failed for quest-service"
     }
     
@@ -176,13 +189,20 @@ function Build-AndPush-Image {
     
     # Push the image
     Write-Log "Pushing image to ECR..." "INFO"
-    $pushOutput = docker push $FullImageUri
-    # Optional: log short digest line if present
-    if ($pushOutput -match "digest: ([a-f0-9]{64})") {
-      Write-Log "Image pushed with digest $($Matches[1])" "INFO"
-    }
+    $pushCmd = "docker push `"$FullImageUri`""
+    Write-Log "Running: $pushCmd" "INFO"
     
-    if ($LASTEXITCODE -ne 0) {
+    try {
+      $pushProcess = Start-Process -FilePath "docker" -ArgumentList "push", $FullImageUri -Wait -PassThru -NoNewWindow
+      
+      if ($pushProcess.ExitCode -ne 0) {
+        Write-Log "Docker push failed. Exit code: $($pushProcess.ExitCode)" "ERROR"
+        throw "Docker push failed for quest-service"
+      }
+      
+      Write-Log "Image pushed successfully" "INFO"
+    } catch {
+      Write-Log "Docker push failed with exception: $($_.Exception.Message)" "ERROR"
       throw "Docker push failed for quest-service"
     }
     

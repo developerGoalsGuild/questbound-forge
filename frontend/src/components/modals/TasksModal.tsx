@@ -89,6 +89,15 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [editingRowRef, setEditingRowRef] = useState<HTMLTableRowElement | null>(null);
 
+  // Reset validation state when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setHasValidationErrors(false);
+      setErrors({});
+      setEditingTaskId(null);
+    }
+  }, [isOpen]);
+
   // Network status and error recovery
   const { isOnline, hasError, errorMessage, setError: setNetworkError, clearError } = useNetworkStatus();
 

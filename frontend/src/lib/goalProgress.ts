@@ -12,6 +12,22 @@ export interface GoalProgressData {
   createdAt: number;
   updatedAt: number;
   tags: string[];
+  // Backend progress data (when available)
+  progress?: number;
+  taskProgress?: number;
+  timeProgress?: number;
+  completedTasks?: number;
+  totalTasks?: number;
+  milestones?: Milestone[];
+}
+
+export interface Milestone {
+  id: string;
+  name: string;
+  percentage: number;
+  achieved: boolean;
+  achievedAt?: number;
+  description?: string;
 }
 
 export interface ProgressResult {
@@ -22,6 +38,28 @@ export interface ProgressResult {
   daysRemaining: number;
   daysElapsed: number;
   totalDays: number;
+}
+
+/**
+ * Calculate task-based progress percentage
+ * Formula: (completed_tasks / total_tasks) * 100
+ */
+export function calculateTaskProgress(goal: GoalProgressData): number {
+  if (!goal.totalTasks || goal.totalTasks === 0) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, (goal.completedTasks || 0) / goal.totalTasks * 100));
+}
+
+/**
+ * Calculate hybrid progress percentage (70% task, 30% time)
+ * Formula: (task_progress * 0.7) + (time_progress * 0.3)
+ */
+export function calculateHybridProgress(goal: GoalProgressData): number {
+  const taskProgress = goal.taskProgress !== undefined ? goal.taskProgress : calculateTaskProgress(goal);
+  const timeProgress = goal.timeProgress !== undefined ? goal.timeProgress : calculateTimeProgress(goal).percentage;
+  
+  return Math.min(100, Math.max(0, (taskProgress * 0.7) + (timeProgress * 0.3)));
 }
 
 /**
@@ -134,6 +172,48 @@ export function getProgressStatusText(progress: ProgressResult): string {
 }
 
 /**
+ * Format milestone text for display
+ */
+export function formatMilestoneText(milestone: Milestone): string {
+  return milestone.achieved 
+    ? `✓ ${milestone.name} (${milestone.percentage}%)`
+    : `${milestone.name} (${milestone.percentage}%)`;
+}
+
+/**
+ * Get milestone markers for progress bar
+ */
+export function getMilestoneMarkers(milestones: Milestone[] = []): Array<{percentage: number; achieved: boolean; name: string}> {
+  return milestones.map(m => ({
+    percentage: m.percentage,
+    achieved: m.achieved,
+    name: m.name
+  }));
+}
+
+/**
+ * Get progress bar color for task progress
+ */
+export function getTaskProgressBarColor(percentage: number): string {
+  if (percentage >= 100) return 'bg-green-500';
+  if (percentage >= 75) return 'bg-blue-500';
+  if (percentage >= 50) return 'bg-yellow-500';
+  if (percentage >= 25) return 'bg-orange-500';
+  return 'bg-gray-500';
+}
+
+/**
+ * Get progress bar background color for task progress
+ */
+export function getTaskProgressBarBgColor(percentage: number): string {
+  if (percentage >= 100) return 'bg-green-100';
+  if (percentage >= 75) return 'bg-blue-100';
+  if (percentage >= 50) return 'bg-yellow-100';
+  if (percentage >= 25) return 'bg-orange-100';
+  return 'bg-gray-100';
+}
+
+/**
  * Sort goals by various criteria
  */
 export function sortGoals(goals: GoalProgressData[], sortBy: string): GoalProgressData[] {
@@ -156,16 +236,30 @@ export function sortGoals(goals: GoalProgressData[], sortBy: string): GoalProgre
     
     case 'progress-asc':
       return sortedGoals.sort((a, b) => {
-        const progressA = calculateTimeProgress(a);
-        const progressB = calculateTimeProgress(b);
-        return progressA.percentage - progressB.percentage;
+        const progressA = a.progress !== undefined ? a.progress : calculateHybridProgress(a);
+        const progressB = b.progress !== undefined ? b.progress : calculateHybridProgress(b);
+        return progressA - progressB;
       });
     
     case 'progress-desc':
       return sortedGoals.sort((a, b) => {
-        const progressA = calculateTimeProgress(a);
-        const progressB = calculateTimeProgress(b);
-        return progressB.percentage - progressA.percentage;
+        const progressA = a.progress !== undefined ? a.progress : calculateHybridProgress(a);
+        const progressB = b.progress !== undefined ? b.progress : calculateHybridProgress(b);
+        return progressB - progressA;
+      });
+    
+    case 'task-progress-asc':
+      return sortedGoals.sort((a, b) => {
+        const taskProgressA = calculateTaskProgress(a);
+        const taskProgressB = calculateTaskProgress(b);
+        return taskProgressA - taskProgressB;
+      });
+    
+    case 'task-progress-desc':
+      return sortedGoals.sort((a, b) => {
+        const taskProgressA = calculateTaskProgress(a);
+        const taskProgressB = calculateTaskProgress(b);
+        return taskProgressB - taskProgressA;
       });
     
     case 'title-asc':

@@ -15,6 +15,7 @@ import GoalDetails from "./pages/goals/GoalDetails";
 //import ConfirmEmail from "./pages/ConfirmEmail";
 import { SessionKeepAlive } from '@/lib/session';
 import { ProtectedRoute, AuthWatcher } from '@/lib/auth';
+import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
 import ChangePassword from './pages/account/ChangePassword';
 import ProfileView from './pages/profile/ProfileView';
 import ProfileEdit from './pages/profile/ProfileEdit';
@@ -34,17 +35,17 @@ const App = () => (
           <AuthWatcher />
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfileView /></ProtectedRoute>} />
-            <Route path="/profile/edit" element={<ProtectedRoute><ProfileEdit /></ProtectedRoute>} />
-            <Route path="/goals" element={<ProtectedRoute><GoalsList /></ProtectedRoute>} />
-            <Route path="/goals/list" element={<ProtectedRoute><GoalsList /></ProtectedRoute>} />
-            <Route path="/goals/create" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
-            <Route path="/goals/edit/:id" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
-            <Route path="/goals/details/:id" element={<ProtectedRoute><GoalDetails /></ProtectedRoute>} />
-            <Route path="/goals/:id" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
-            <Route path="/goals/:id/tasks" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
-            <Route path="/account/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><AuthenticatedLayout><Dashboard /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><AuthenticatedLayout><ProfileView /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/profile/edit" element={<ProtectedRoute><AuthenticatedLayout><ProfileEdit /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals" element={<ProtectedRoute><AuthenticatedLayout><GoalsList /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals/list" element={<ProtectedRoute><AuthenticatedLayout><GoalsList /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals/create" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals/edit/:id" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals/details/:id" element={<ProtectedRoute><AuthenticatedLayout><GoalDetails /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals/:id" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/goals/:id/tasks" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

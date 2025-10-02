@@ -10,6 +10,7 @@ import { Target, Plus, TrendingUp, ChevronDown, ChevronUp, Calendar, Clock } fro
 import FieldTooltip from '@/components/ui/FieldTooltip';
 import { 
   calculateTimeProgress, 
+  calculateHybridProgress,
   getProgressBarColor, 
   getProgressBarBgColor, 
   getCategoryBadgeColor, 
@@ -18,6 +19,7 @@ import {
   sortGoals,
   type GoalProgressData 
 } from '@/lib/goalProgress';
+import DualProgressBar from '@/components/ui/DualProgressBar';
 
 const GoalsButton: React.FC = () => {
   const { t } = useTranslation();
@@ -150,7 +152,7 @@ const GoalsButton: React.FC = () => {
             {goalDashboardTranslations?.button?.viewAll || 'View All Goals'}
           </Button>
           
-          <FieldTooltip content={goalDashboardTranslations?.tooltips?.createGoal || 'Create a new goal'}>
+          <div className="relative">
             <Button 
               onClick={handleCreateGoal} 
               variant="outline" 
@@ -160,7 +162,13 @@ const GoalsButton: React.FC = () => {
               <Plus className="w-4 h-4 mr-2" />
               {goalDashboardTranslations?.button?.createGoal || 'Create Goal'}
             </Button>
-          </FieldTooltip>
+            <FieldTooltip 
+              targetId="create-goal-button"
+              fieldLabel={goalDashboardTranslations?.button?.createGoal || 'Create Goal'}
+              hint={goalDashboardTranslations?.tooltips?.createGoal || 'Create a new goal'}
+              iconLabelTemplate={goalDashboardTranslations?.hints?.iconLabel || 'More information about {field}'}
+            />
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -224,6 +232,12 @@ const GoalsButton: React.FC = () => {
                       <SelectItem value="progress-desc">
                         {goalDashboardTranslations?.goalsList?.sortOptions?.progressDesc || 'Progress (highest first)'}
                       </SelectItem>
+                      <SelectItem value="task-progress-asc">
+                        {goalDashboardTranslations?.goalsList?.sortOptions?.taskProgressAsc || 'Task Progress (lowest first)'}
+                      </SelectItem>
+                      <SelectItem value="task-progress-desc">
+                        {goalDashboardTranslations?.goalsList?.sortOptions?.taskProgressDesc || 'Task Progress (highest first)'}
+                      </SelectItem>
                       <SelectItem value="title-asc">
                         {goalDashboardTranslations?.goalsList?.sortOptions?.titleAsc || 'Title (A-Z)'}
                       </SelectItem>
@@ -260,7 +274,7 @@ const GoalsButton: React.FC = () => {
                       return (
                         <div key={goal.id} className="p-3 border border-border rounded-lg bg-card">
                           {/* Goal Title and Category */}
-                          <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-start justify-between mb-3">
                             <h4 className="font-medium text-sm leading-tight pr-2">
                               {goal.title}
                             </h4>
@@ -271,43 +285,34 @@ const GoalsButton: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Progress Bar */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {getProgressStatusText(progress)}
-                              </span>
-                              <span className="font-medium">
-                                {formatProgressPercentage(progress.percentage)}
-                              </span>
-                            </div>
-                            <div className={`w-full h-2 rounded-full ${getProgressBarBgColor(progress)}`}>
-                              <div 
-                                className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(progress)}`}
-                                style={{ width: `${progress.percentage}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>
-                                {goal.deadline ? (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(goal.deadline).toLocaleDateString()}
-                                  </span>
-                                ) : (
-                                  goalDashboardTranslations?.goalsList?.noDeadline || 'No deadline'
-                                )}
-                              </span>
-                              <span>
-                                {progress.daysRemaining > 0 
-                                  ? `${progress.daysRemaining} days left`
-                                  : progress.isOverdue 
-                                    ? `${Math.abs(progress.daysRemaining)} days overdue`
-                                    : 'No deadline'
-                                }
-                              </span>
-                            </div>
+                          {/* Dual Progress Bar */}
+                          <DualProgressBar 
+                            goal={goal} 
+                            showMilestones={true}
+                            showLabels={true}
+                            className="mb-3"
+                          />
+
+                          {/* Deadline Information */}
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>
+                              {goal.deadline ? (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {new Date(goal.deadline).toLocaleDateString()}
+                                </span>
+                              ) : (
+                                goalDashboardTranslations?.goalsList?.noDeadline || 'No deadline'
+                              )}
+                            </span>
+                            <span>
+                              {progress.daysRemaining > 0 
+                                ? `${progress.daysRemaining} days left`
+                                : progress.isOverdue 
+                                  ? `${Math.abs(progress.daysRemaining)} days overdue`
+                                  : 'No deadline'
+                              }
+                            </span>
                           </div>
                         </div>
                       );

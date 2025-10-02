@@ -110,16 +110,6 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
   return (
     <TooltipProvider delayDuration={150}>
       <div className={`space-y-6 ${className}`} data-testid="nlp-section">
-        {/* Section Header */}
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">
-            {section.nlpTitle || 'Well-formed Outcome (NLP)'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {section.nlpSubtitle || 'Answer these questions to clarify and strengthen your goal.'}
-          </p>
-        </div>
-
         {/* Questions */}
         <div className="space-y-4" data-testid="nlp-questions">
           {nlpQuestionOrder.map((key) => {

@@ -12,6 +12,7 @@ import {
   deadlineSchema, 
   descriptionSchema, 
   categorySchema, 
+  tagsSchema,
   nlpAnswerSchema 
 } from '@/lib/validation/goalValidation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Plus, Sparkles, Lightbulb, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import NLPQuestionsSection from './NLPQuestionsSection';
 import GoalCategorySelector from './GoalCategorySelector';
+import TagsInput from './TagsInput';
 import FieldTooltip from '@/components/ui/FieldTooltip';
 import useFocusManagement from '@/hooks/useFocusManagement';
 import { SkeletonFormSection, SkeletonNLPQuestions, SkeletonFormActions } from '@/components/ui/SkeletonFormField';
@@ -48,7 +50,6 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [hasValidationErrors, setHasValidationErrors] = useState(false);
 
   // Get translations
   const goalCreationTranslations = (t as any)?.goalCreation;
@@ -78,6 +79,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     registerFieldSchema('deadline', deadlineSchema);
     registerFieldSchema('description', descriptionSchema);
     registerFieldSchema('category', categorySchema);
+    registerFieldSchema('tags', tagsSchema);
     registerFieldSchema('positive', nlpAnswerSchema);
     registerFieldSchema('specific', nlpAnswerSchema);
     registerFieldSchema('evidence', nlpAnswerSchema);
@@ -120,6 +122,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
       description: '',
       deadline: '',
       category: '',
+      tags: [],
       nlpAnswers: {
         positive: '',
         specific: '',
@@ -145,6 +148,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     timeline: '',
     firstStep: ''
   };
+
 
   // Handle field changes with debounced validation
   const handleFieldChange = (fieldName: string, value: any) => {
@@ -178,12 +182,27 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     handleFieldChange('category', category);
   };
 
+  // Handle tags change with validation
+  const handleTagsChange = (tags: string[]) => {
+    setValue('tags', tags, { shouldValidate: false });
+    
+    // Clear any existing validation for tags
+    clearFieldValidation('tags');
+    
+    // Trigger debounced validation for tags array
+    debouncedValidateField('tags', tags);
+    
+    // Announce field change to screen readers
+    if (tags && tags.length > 0) {
+      announce(FormAnnouncements.fieldSaved('tags'), 'polite', 2000);
+    }
+  };
+
   // Handle form submission
   const onSubmit = async (data: GoalCreateInput) => {
     console.log('Form submitted with data:', data);
     
     // Clear previous validation errors
-    setHasValidationErrors(false);
     clearError();
     
     // Manual validation using Zod
@@ -193,8 +212,6 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     } catch (error: any) {
       console.log('Validation failed:', error);
       
-      // Set validation error state
-      setHasValidationErrors(true);
       
       // Handle validation errors
       if (error.errors) {
@@ -296,6 +313,8 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
           setError('description', { message });
         } else if (field === 'category') {
           setError('category', { message });
+        } else if (field === 'tags') {
+          setError('tags', { message });
         } else if (field.startsWith('nlpAnswers.')) {
           const nlpField = field.replace('nlpAnswers.', '');
           setError(`nlpAnswers.${nlpField}` as any, { message });
@@ -330,7 +349,6 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     reset();
     setImageUrl(null);
     setSuggestions([]);
-    setHasValidationErrors(false);
     clearError();
     clearAll();
     
@@ -339,6 +357,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     clearFieldValidation('deadline');
     clearFieldValidation('description');
     clearFieldValidation('category');
+    clearFieldValidation('tags');
     clearFieldValidation('positive');
     clearFieldValidation('specific');
     clearFieldValidation('evidence');
@@ -659,6 +678,20 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
                 isFieldValid={isFieldValid('category')}
               />
             </div>
+
+            {/* Tags Field */}
+            <div className="space-y-2">
+              <TagsInput
+                value={watchedValues.tags || []}
+                onChange={handleTagsChange}
+                error={errors.tags?.message || getFieldError('tags')}
+                placeholder={goalCreationTranslations?.placeholders?.tags || 'Add tags and press Enter'}
+                isFieldValidating={isFieldValidating('tags')}
+                isFieldValid={isFieldValid('tags')}
+                maxTags={10}
+                disabled={isSubmitting}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -780,9 +813,8 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || isLoading || hasValidationErrors}
+                disabled={isSubmitting || isLoading}
                 className="flex items-center gap-2"
-                aria-describedby={hasValidationErrors ? "form-validation-errors" : undefined}
               >
                 {isSubmitting ? (
                   <>
@@ -798,19 +830,6 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
               </Button>
             </div>
             
-            {/* Form validation summary */}
-            {hasValidationErrors && (
-              <div 
-                id="form-validation-errors"
-                className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md"
-                role="alert"
-                aria-live="polite"
-              >
-                <p className="text-sm text-destructive font-medium">
-                  Please fix the validation errors above before submitting the form.
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
       </form>

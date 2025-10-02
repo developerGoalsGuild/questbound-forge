@@ -35,6 +35,7 @@ export function response(ctx) {
     userId: item.userId,
     title: item.title,
     description: item.description || null,
+    category: item.category || null,
     tags: item.tags || [],
     deadline: item.deadline || null,
     status: item.status || 'active',

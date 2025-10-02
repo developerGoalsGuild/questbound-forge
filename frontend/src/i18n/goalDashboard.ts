@@ -28,6 +28,8 @@ export interface GoalDashboardTranslations {
       deadlineDesc: string;
       progressAsc: string;
       progressDesc: string;
+      taskProgressAsc: string;
+      taskProgressDesc: string;
       titleAsc: string;
       titleDesc: string;
       createdAsc: string;
@@ -43,6 +45,18 @@ export interface GoalDashboardTranslations {
     expandCollapse: {
       expand: string;
       collapse: string;
+    };
+  };
+  progressMetrics: {
+    overall: string;
+    taskProgress: string;
+    timeProgress: string;
+    completedTasks: string;
+    totalTasks: string;
+    milestones: {
+      title: string;
+      achieved: string;
+      upcoming: string;
     };
   };
 }
@@ -76,6 +90,8 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
         deadlineDesc: 'Deadline (latest first)',
         progressAsc: 'Progress (lowest first)',
         progressDesc: 'Progress (highest first)',
+        taskProgressAsc: 'Task Progress (lowest first)',
+        taskProgressDesc: 'Task Progress (highest first)',
         titleAsc: 'Title (A-Z)',
         titleDesc: 'Title (Z-A)',
         createdAsc: 'Created (oldest first)',
@@ -91,6 +107,18 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
       expandCollapse: {
         expand: 'Show Goals',
         collapse: 'Hide Goals',
+      },
+    },
+    progressMetrics: {
+      overall: 'Overall Progress',
+      taskProgress: 'Task Progress',
+      timeProgress: 'Time Progress',
+      completedTasks: 'Completed Tasks',
+      totalTasks: 'Total Tasks',
+      milestones: {
+        title: 'Milestones',
+        achieved: 'Achieved',
+        upcoming: 'Upcoming',
       },
     },
   },
@@ -122,6 +150,8 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
         deadlineDesc: 'Fecha límite (más tardía primero)',
         progressAsc: 'Progreso (menor primero)',
         progressDesc: 'Progreso (mayor primero)',
+        taskProgressAsc: 'Progreso de Tareas (menor primero)',
+        taskProgressDesc: 'Progreso de Tareas (mayor primero)',
         titleAsc: 'Título (A-Z)',
         titleDesc: 'Título (Z-A)',
         createdAsc: 'Creado (más antiguo primero)',
@@ -137,6 +167,18 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
       expandCollapse: {
         expand: 'Mostrar Objetivos',
         collapse: 'Ocultar Objetivos',
+      },
+    },
+    progressMetrics: {
+      overall: 'Progreso General',
+      taskProgress: 'Progreso de Tareas',
+      timeProgress: 'Progreso de Tiempo',
+      completedTasks: 'Tareas Completadas',
+      totalTasks: 'Total de Tareas',
+      milestones: {
+        title: 'Hitos',
+        achieved: 'Logrados',
+        upcoming: 'Próximos',
       },
     },
   },
@@ -168,6 +210,8 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
         deadlineDesc: 'Échéance (plus tard en premier)',
         progressAsc: 'Progrès (plus faible en premier)',
         progressDesc: 'Progrès (plus élevé en premier)',
+        taskProgressAsc: 'Progrès des Tâches (plus faible en premier)',
+        taskProgressDesc: 'Progrès des Tâches (plus élevé en premier)',
         titleAsc: 'Titre (A-Z)',
         titleDesc: 'Titre (Z-A)',
         createdAsc: 'Créé (plus ancien en premier)',
@@ -183,6 +227,18 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
       expandCollapse: {
         expand: 'Afficher les Objectifs',
         collapse: 'Masquer les Objectifs',
+      },
+    },
+    progressMetrics: {
+      overall: 'Progrès Global',
+      taskProgress: 'Progrès des Tâches',
+      timeProgress: 'Progrès Temporel',
+      completedTasks: 'Tâches Terminées',
+      totalTasks: 'Total des Tâches',
+      milestones: {
+        title: 'Jalons',
+        achieved: 'Atteints',
+        upcoming: 'À Venir',
       },
     },
   },

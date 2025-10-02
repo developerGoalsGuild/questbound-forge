@@ -11,6 +11,7 @@ export interface GoalInput {
   description?: string;
   deadline: string;
   category?: string;
+  tags?: string[];
   nlpAnswers: NLPAnswers;
 }
 
@@ -74,8 +75,9 @@ export async function createGoal(input: GoalInput): Promise<GoalResponse> {
   const payload = {
     title: input.title,
     description: input.description?.trim?.() ?? '',
+    category: input.category?.trim?.() || null,
     deadline,
-    tags: buildTags(input.category),
+    tags: input.tags || buildTags(input.category), // Use provided tags or build from category
     answers: buildAnswers(input.nlpAnswers),
   };
 
@@ -134,6 +136,7 @@ export async function loadGoals() {
         id: string; 
         title: string; 
         description: string;
+        category: string | null;
         tags: string[];
         deadline: string | null;
         status: string; 
@@ -146,6 +149,7 @@ export async function loadGoals() {
         id 
         title 
         description 
+        category
         tags
         deadline 
         status 
@@ -173,6 +177,7 @@ export async function loadDashboardGoals(sortBy: string = 'deadline-asc') {
         id: string; 
         title: string; 
         description: string;
+        category: string | null;
         tags: string[];
         deadline: string | null;
         status: string; 
@@ -184,6 +189,7 @@ export async function loadDashboardGoals(sortBy: string = 'deadline-asc') {
         id 
         title 
         description 
+        category
         tags
         deadline 
         status 
@@ -213,6 +219,7 @@ export interface GoalUpdateInput {
   description?: string;
   deadline?: number; // Epoch timestamp for updates
   category?: string;
+  tags?: string[];
   nlpAnswers?: { [K in string]?: string };
   status?: string;
 }
@@ -236,7 +243,10 @@ export async function updateGoal(goalId: string, updates: GoalUpdateInput): Prom
     payload.deadline = date.toISOString().split('T')[0];
   }
   if (updates.category !== undefined) {
-    payload.tags = updates.category ? [updates.category] : [];
+    payload.category = updates.category?.trim?.() || null;
+  }
+  if (updates.tags !== undefined) {
+    payload.tags = updates.tags || [];
   }
   if (updates.nlpAnswers !== undefined) {
     payload.answers = Object.entries(updates.nlpAnswers).map(([key, answer]) => ({
@@ -311,6 +321,7 @@ export async function getGoal(goalId: string): Promise<GoalResponse> {
           id
           title
           description
+          category
           tags
           deadline
           status

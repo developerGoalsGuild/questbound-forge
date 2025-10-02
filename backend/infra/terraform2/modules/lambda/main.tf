@@ -8,12 +8,20 @@ locals {
 }
 
 data "aws_ecr_image" "image" {
+  count           = local.image_tag != null ? 1 : 0
   repository_name = local.repo_name
   image_tag       = local.image_tag
+}
+
+data "aws_ecr_image" "image_by_digest" {
+  count           = local.image_digest != null ? 1 : 0
+  repository_name = local.repo_name
   image_digest    = local.image_digest
 }
 
-locals { resolved_image_uri = "${local.repo_url}@${coalesce(local.image_digest, data.aws_ecr_image.image.image_digest)}" }
+locals { 
+  resolved_image_uri = local.image_digest != null ? "${local.repo_url}@${local.image_digest}" : "${local.repo_url}@${data.aws_ecr_image.image[0].image_digest}"
+}
 
 resource "aws_lambda_function" "this" {
   function_name = "${var.function_name}_${var.environment}"

@@ -63,6 +63,7 @@ export const MY_GOALS = gql`
       id
       title
       description
+      category
       tags
       deadline
       status
@@ -82,6 +83,7 @@ export const GET_GOAL = gql`
       id
       title
       description
+      category
       tags
       deadline
       status
@@ -115,6 +117,7 @@ export interface DashboardGoal {
   id: string;
   title: string;
   description?: string;
+  category?: string;
   deadline?: string;
   status: string;
   createdAt: number;
@@ -130,6 +133,7 @@ export interface DashboardGoalsMinimalResponse {
   myDashboardGoals: Array<{
     id: string;
     title: string;
+    category?: string;
     deadline?: string;
     status: string;
     createdAt: number;
@@ -144,6 +148,7 @@ export const DASHBOARD_GOALS = gql`
       id
       title
       description
+      category
       deadline
       status
       createdAt
@@ -159,6 +164,7 @@ export const DASHBOARD_GOALS_MINIMAL = gql`
     myDashboardGoals(limit: $limit, status: $status) {
       id
       title
+      category
       deadline
       status
       createdAt
@@ -174,6 +180,7 @@ export const DASHBOARD_TOP_GOALS = gql`
       id
       title
       description
+      category
       deadline
       status
       createdAt

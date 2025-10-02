@@ -12,6 +12,7 @@ import {
   deadlineSchema, 
   descriptionSchema, 
   categorySchema, 
+  tagsSchema,
   nlpAnswerSchema 
 } from '@/lib/validation/goalValidation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Plus, Sparkles, Lightbulb, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import NLPQuestionsSection from './NLPQuestionsSection';
 import GoalCategorySelector from './GoalCategorySelector';
+import TagsInput from './TagsInput';
 import FieldTooltip from '@/components/ui/FieldTooltip';
 
 interface GoalEditFormProps {
@@ -48,6 +50,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
   // Get translations
+  const goalEditTranslations = (t as any)?.goalEdit;
   const goalCreationTranslations = (t as any)?.goalCreation;
   const goalsTranslations = (t as any)?.goals;
   const commonTranslations = (t as any)?.common;
@@ -58,6 +61,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
     registerFieldSchema('deadline', deadlineSchema);
     registerFieldSchema('description', descriptionSchema);
     registerFieldSchema('category', categorySchema);
+    registerFieldSchema('tags', tagsSchema);
     registerFieldSchema('positive', nlpAnswerSchema);
     registerFieldSchema('specific', nlpAnswerSchema);
     registerFieldSchema('evidence', nlpAnswerSchema);
@@ -100,6 +104,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
       description: '',
       deadline: '',
       category: '',
+      tags: [],
       nlpAnswers: {
         positive: '',
         specific: '',
@@ -153,6 +158,17 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
     handleFieldChange('category', category);
   };
 
+  // Handle tags change with validation
+  const handleTagsChange = (tags: string[]) => {
+    setValue('tags', tags, { shouldValidate: false });
+    
+    // Clear any existing validation for tags
+    clearFieldValidation('tags');
+    
+    // Trigger debounced validation for tags array
+    debouncedValidateField('tags', tags);
+  };
+
 
   // Load goal data for editing
   useEffect(() => {
@@ -175,6 +191,11 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         // Set category
         if (goalData.category) {
           setValue('category', goalData.category, { shouldValidate: false });
+        }
+        
+        // Set tags
+        if (goalData.tags && Array.isArray(goalData.tags)) {
+          setValue('tags', goalData.tags, { shouldValidate: false });
         }
         
         // Convert answers array to object
@@ -289,6 +310,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         description: data.description,
         deadline: deadlineNum,
         category: data.category,
+        tags: data.tags,
         nlpAnswers: data.nlpAnswers,
       };
       
@@ -341,6 +363,8 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           setError('description', { type: 'server', message });
         } else if (field === 'category') {
           setError('category', { type: 'server', message });
+        } else if (field === 'tags') {
+          setError('tags', { type: 'server', message });
         } else if (field.startsWith('nlpAnswers.')) {
           const nlpField = field.replace('nlpAnswers.', '');
           setError(`nlpAnswers.${nlpField}` as any, { type: 'server', message });
@@ -376,6 +400,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
     clearFieldValidation('deadline');
     clearFieldValidation('description');
     clearFieldValidation('category');
+    clearFieldValidation('tags');
     clearFieldValidation('positive');
     clearFieldValidation('specific');
     clearFieldValidation('evidence');
@@ -435,10 +460,10 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           </Button>
           <div>
             <h1 className="text-2xl font-bold">
-              {goalCreationTranslations?.title || 'Edit Goal'}
+              {goalEditTranslations?.title || 'Edit Goal'}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {goalCreationTranslations?.subtitle || 'Update your goal details and planning'}
+              {goalEditTranslations?.subtitle || 'Update your goal details and planning'}
             </p>
           </div>
         </div>
@@ -457,7 +482,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="goal-title" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.title || 'Title'}
+                  {goalEditTranslations?.form?.title?.label || goalCreationTranslations?.fields?.title || 'Title'}
                 </Label>
                 <FieldTooltip
                   targetId="goal-title"
@@ -498,7 +523,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="goal-description" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.description || 'Description'}
+                  {goalEditTranslations?.form?.description?.label || goalCreationTranslations?.fields?.description || 'Description'}
                 </Label>
                 <FieldTooltip
                   targetId="goal-description"
@@ -526,7 +551,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="goal-deadline" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.deadline || 'Deadline'}
+                  {goalEditTranslations?.form?.deadline?.label || goalCreationTranslations?.fields?.deadline || 'Deadline'}
                 </Label>
                 <FieldTooltip
                   targetId="goal-deadline"
@@ -553,7 +578,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="goal-category" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.category || 'Category'}
+                  {goalEditTranslations?.form?.category?.label || goalCreationTranslations?.fields?.category || 'Category'}
                 </Label>
                 <FieldTooltip
                   targetId="goal-category"
@@ -569,6 +594,20 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
                 placeholder={goalCreationTranslations?.placeholders?.category || 'Select a category'}
                 isFieldValidating={isFieldValidating('category')}
                 isFieldValid={isFieldValid('category')}
+              />
+            </div>
+
+            {/* Tags Field */}
+            <div className="space-y-2">
+              <TagsInput
+                value={watchedValues.tags || []}
+                onChange={handleTagsChange}
+                error={errors.tags?.message || getFieldError('tags')}
+                placeholder={goalCreationTranslations?.placeholders?.tags || 'Add tags and press Enter'}
+                isFieldValidating={isFieldValidating('tags')}
+                isFieldValid={isFieldValid('tags')}
+                maxTags={10}
+                disabled={isSubmitting}
               />
             </div>
           </CardContent>
@@ -685,7 +724,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           >
             {isSubmitting
               ? (commonTranslations?.loading || 'Updating...')
-              : (goalCreationTranslations?.actions?.updateGoal || 'Update Goal')
+              : (goalEditTranslations?.actions?.save || goalCreationTranslations?.actions?.updateGoal || 'Update Goal')
             }
           </Button>
         </div>

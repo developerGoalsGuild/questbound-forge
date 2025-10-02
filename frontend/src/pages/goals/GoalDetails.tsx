@@ -5,6 +5,13 @@ import { useToast } from '@/hooks/use-toast';
 import { getGoal, deleteGoal, loadGoals } from '@/lib/apiGoal';
 import { loadTasks, createTask, updateTask, deleteTask } from '@/lib/apiTask';
 import { GoalStatus, formatGoalStatus, getStatusColorClass, formatDeadline } from '@/models/goal';
+import DualProgressBar from '@/components/ui/DualProgressBar';
+import { 
+  calculateTaskProgress, 
+  calculateTimeProgress, 
+  calculateHybridProgress,
+  type GoalProgressData 
+} from '@/lib/goalProgress';
 import TasksModal from '@/components/modals/TasksModal';
 import CreateTaskModal from '@/components/modals/CreateTaskModal';
 import { Button } from '@/components/ui/button';
@@ -56,6 +63,19 @@ interface GoalDetailsData {
   answers: Array<{ key: string; answer: string }>;
   category?: string;
   progress?: number;
+  // Backend progress data
+  taskProgress?: number;
+  timeProgress?: number;
+  completedTasks?: number;
+  totalTasks?: number;
+  milestones?: Array<{
+    id: string;
+    name: string;
+    percentage: number;
+    achieved: boolean;
+    achievedAt?: number;
+    description?: string;
+  }>;
 }
 
 interface Task {
@@ -554,47 +574,47 @@ const GoalDetails: React.FC = () => {
                   </div>
                 </div>
                 
-                {goal.category && (
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        {goalDetailsTranslations?.fields?.category || 'Category'}
-                      </label>
-                      <FieldTooltip 
-                        targetId="goal-category" 
-                        fieldLabel={goalDetailsTranslations?.fields?.category || 'Category'} 
-                        hint={goalDetailsTranslations?.hints?.fields?.category || 'Optional categorization to group related goals.'}
-                        iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                      />
-                    </div>
-                    <p className="mt-1 text-sm">{goal.category}</p>
-                  </div>
-                )}
-              </div>
-
-              {goal.tags && goal.tags.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium text-muted-foreground">
-                      {goalDetailsTranslations?.fields?.tags || 'Tags'}
+                      {goalDetailsTranslations?.fields?.category || 'Category'}
                     </label>
                     <FieldTooltip 
-                      targetId="goal-tags" 
-                      fieldLabel={goalDetailsTranslations?.fields?.tags || 'Tags'} 
-                      hint={goalDetailsTranslations?.hints?.fields?.tags || 'Labels to help organize and find related goals.'}
+                      targetId="goal-category" 
+                      fieldLabel={goalDetailsTranslations?.fields?.category || 'Category'} 
+                      hint={goalDetailsTranslations?.hints?.fields?.category || 'Optional categorization to group related goals.'}
                       iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
                     />
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {goal.tags.map((tag, index) => (
+                  <p className="mt-1 text-sm">{goal.category || 'No category assigned'}</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {goalDetailsTranslations?.fields?.tags || 'Tags'}
+                  </label>
+                  <FieldTooltip 
+                    targetId="goal-tags" 
+                    fieldLabel={goalDetailsTranslations?.fields?.tags || 'Tags'} 
+                    hint={goalDetailsTranslations?.hints?.fields?.tags || 'Labels to help organize and find related goals.'}
+                    iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {goal.tags && goal.tags.length > 0 ? (
+                    goal.tags.map((tag, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         <Tag className="w-3 h-3 mr-1" />
                         {tag}
                       </Badge>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No tags assigned</span>
+                  )}
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
 
@@ -757,35 +777,11 @@ const GoalDetails: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {goal.progress !== undefined ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {goalDetailsTranslations?.fields?.progress || 'Progress'}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {goal.progress}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${goal.progress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {goal.progress === 100
-                      ? goalDetailsTranslations?.progress?.completed || 'Completed'
-                      : goal.progress > 0
-                      ? goalDetailsTranslations?.progress?.inProgress || 'In Progress'
-                      : goalDetailsTranslations?.progress?.notStarted || 'Not Started'}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {goalDetailsTranslations?.progress?.noProgress || 'No progress data available'}
-                </p>
-              )}
+              <DualProgressBar 
+                goal={goal as GoalProgressData} 
+                showMilestones={true}
+                showLabels={true}
+              />
             </CardContent>
           </Card>
         </div>

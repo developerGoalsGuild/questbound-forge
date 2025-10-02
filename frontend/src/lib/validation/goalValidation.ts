@@ -48,6 +48,19 @@ export const categorySchema = z
     return validCategories.includes(val) || val.length <= 50;
   }, 'Invalid category selected');
 
+// Tags validation schema
+export const tagsSchema = z
+  .array(z.string())
+  .optional()
+  .refine((val) => {
+    if (!val || val.length === 0) return true;
+    return val.every(tag => 
+      tag.trim().length > 0 && 
+      tag.trim().length <= 50 && 
+      /^[a-zA-Z0-9\s\-_]+$/.test(tag.trim())
+    );
+  }, 'Tags must be 1-50 characters and contain only letters, numbers, spaces, hyphens, and underscores');
+
 // Individual NLP answer validation schema
 export const nlpAnswerSchema = z
   .string()
@@ -76,6 +89,7 @@ export const goalCreateSchema = z.object({
   description: descriptionSchema,
   deadline: deadlineSchema,
   category: categorySchema,
+  tags: tagsSchema,
   nlpAnswers: nlpAnswersSchema,
 });
 
@@ -85,6 +99,7 @@ export const goalUpdateSchema = z.object({
   description: descriptionSchema,
   deadline: deadlineSchema.optional(),
   category: categorySchema,
+  tags: tagsSchema,
   nlpAnswers: nlpAnswersSchema.partial().optional(),
   status: goalStatusSchema.optional(),
 });

@@ -33,6 +33,7 @@ export function response(ctx) {
     userId: a.userId,
     title: a.title,
     description: a.description,
+    category: a.category || null,
     tags: a.tags || [],
     deadline: (typeof a.deadline === 'string' && a.deadline) ? a.deadline : null,
     status: a.status,

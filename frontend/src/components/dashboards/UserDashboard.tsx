@@ -1,4 +1,4 @@
-import { Target, Users, Trophy, TrendingUp, Calendar, Star } from 'lucide-react';
+import { Target, Users, Trophy, TrendingUp, Calendar, Star, CheckCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -105,6 +105,66 @@ const UserDashboard = () => {
               <TrendingUp className="h-8 w-8 text-secondary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData?.stats?.successRate ?? 0}%</div>
               <div className="text-sm text-muted-foreground">Success Rate</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Progress Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="guild-card">
+            <CardHeader>
+              <CardTitle className="font-cinzel text-lg flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                {t.dashboard?.user?.progressMetrics?.overall || 'Overall Progress'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="font-cinzel text-3xl font-bold text-gradient-royal mb-2">
+                  {(userData?.stats as any)?.overallProgress ?? 0}%
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {t.dashboard?.user?.progressMetrics?.overall || 'Overall Progress'}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="guild-card">
+            <CardHeader>
+              <CardTitle className="font-cinzel text-lg flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-secondary" />
+                {t.dashboard?.user?.progressMetrics?.taskProgress || 'Task Progress'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="font-cinzel text-3xl font-bold text-gradient-gold mb-2">
+                  {(userData?.stats as any)?.taskProgress ?? 0}%
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {t.dashboard?.user?.progressMetrics?.completedTasks || 'Completed Tasks'}: {(userData?.stats as any)?.completedTasks ?? 0} / {(userData?.stats as any)?.totalTasks ?? 0}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="guild-card">
+            <CardHeader>
+              <CardTitle className="font-cinzel text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                {t.dashboard?.user?.progressMetrics?.timeProgress || 'Time Progress'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="font-cinzel text-3xl font-bold text-gradient-royal mb-2">
+                  {(userData?.stats as any)?.timeProgress ?? 0}%
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {t.dashboard?.user?.progressMetrics?.timeProgress || 'Time Progress'}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

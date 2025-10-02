@@ -65,6 +65,7 @@ type Goal {
   userId: ID!
   title: String!
   description: String
+  category: String
   tags: [String!]
   deadline: AWSDate
   status: GoalStatus!
@@ -182,6 +183,7 @@ input CreateUserInput {
 input GoalInput {
   title: String!
   description: String
+  category: String
   tags: [String!]
   deadline: AWSDate!    # required to match resolver validation
   answers: [AnswerInput!]
