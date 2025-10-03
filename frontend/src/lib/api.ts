@@ -95,6 +95,37 @@ export async function graphqlRaw<T = any>(query: string, variables: any = {}) {
   return json.data as T;
 }
 
+export async function graphqlWithApiKey<T = any>(query: string, variables: any = {}) {
+  // Get AppSync endpoint from environment variable
+  const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT || 'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql';
+  
+  // Use API key for public queries
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY || 'da2-vey6tzb3ynadbbcqnceaktdt4q';
+
+  console.info('[graphqlWithApiKey] Using endpoint:', endpoint);
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  const json = await res.json();
+  console.info('[graphqlWithApiKey] Response status:', res.status);
+  console.info('[graphqlWithApiKey] Response headers:', Object.fromEntries(res.headers.entries()));
+  console.info('[graphqlWithApiKey] Response JSON:', json);
+  
+  if (!res.ok || json.errors?.length) {
+    console.error('[graphqlWithApiKey] Error response details:');
+    console.error('[graphqlWithApiKey] Status:', res.status);
+    console.error('[graphqlWithApiKey] Status text:', res.statusText);
+    console.error('[graphqlWithApiKey] Errors:', json.errors);
+    console.error('[graphqlWithApiKey] Data:', json.data);
+    throw Object.assign(new Error('GraphQL error'), { response: res, errors: json.errors, data: json.data });
+  }
+  return json.data as T;
+}
+
 
 
 /*const client = generateClient({

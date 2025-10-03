@@ -7,7 +7,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useUserData } from '@/hooks/useUserData';
 import GoalsButton from '@/components/dashboard/GoalsButton';
 
-import { getActiveGoalsCountForUser } from '@/lib/apiGoal';
+import { getActiveGoalsCountForUser, getAllGoalsProgress } from '@/lib/apiGoal';
+import { calculateAggregateProgress } from '@/lib/progressCalculation';
 import { getUserIdFromToken } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
@@ -20,13 +21,70 @@ const UserDashboard = () => {
 
   // Fetch live active quests count from backend (fallback to mock on error)
   const [activeCount, setActiveCount] = useState<number | null>(null);
+  const [progressData, setProgressData] = useState<{
+    overallProgress: number;
+    taskProgress: number;
+    timeProgress: number;
+    completedTasks: number;
+    totalTasks: number;
+  } | null>(null);
+
   useEffect(() => {
     const uid = getUserIdFromToken();
-    if (!uid) { setActiveCount(null); return; }
+    if (!uid) { 
+      setActiveCount(null);
+      setProgressData(null);
+      return; 
+    }
     let cancelled = false;
     (async () => {
-      const n = await getActiveGoalsCountForUser(uid);
-      if (!cancelled) setActiveCount(n);
+      try {
+        const [count, progress] = await Promise.all([
+          getActiveGoalsCountForUser(uid),
+          getAllGoalsProgress()
+        ]);
+        
+        if (!cancelled) {
+          setActiveCount(count);
+          
+          // Calculate aggregate progress metrics
+          if (progress && progress.length > 0) {
+            const totalProgress = progress.reduce((sum, goal) => sum + goal.progressPercentage, 0);
+            const totalTaskProgress = progress.reduce((sum, goal) => sum + goal.taskProgress, 0);
+            const totalTimeProgress = progress.reduce((sum, goal) => sum + goal.timeProgress, 0);
+            const totalCompletedTasks = progress.reduce((sum, goal) => sum + goal.completedTasks, 0);
+            const totalTasks = progress.reduce((sum, goal) => sum + goal.totalTasks, 0);
+            
+            setProgressData({
+              overallProgress: Math.round(totalProgress / progress.length),
+              taskProgress: Math.round(totalTaskProgress / progress.length),
+              timeProgress: Math.round(totalTimeProgress / progress.length),
+              completedTasks: totalCompletedTasks,
+              totalTasks: totalTasks
+            });
+          } else {
+            setProgressData({
+              overallProgress: 0,
+              taskProgress: 0,
+              timeProgress: 0,
+              completedTasks: 0,
+              totalTasks: 0
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load progress data:', error);
+        if (!cancelled) {
+          setActiveCount(0);
+          setProgressData({
+            overallProgress: 0,
+            taskProgress: 0,
+            timeProgress: 0,
+            completedTasks: 0,
+            totalTasks: 0
+          });
+        }
+      }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -121,7 +179,7 @@ const UserDashboard = () => {
             <CardContent>
               <div className="text-center">
                 <div className="font-cinzel text-3xl font-bold text-gradient-royal mb-2">
-                  {(userData?.stats as any)?.overallProgress ?? 0}%
+                  {progressData?.overallProgress ?? 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {t.dashboard?.user?.progressMetrics?.overall || 'Overall Progress'}
@@ -140,10 +198,10 @@ const UserDashboard = () => {
             <CardContent>
               <div className="text-center">
                 <div className="font-cinzel text-3xl font-bold text-gradient-gold mb-2">
-                  {(userData?.stats as any)?.taskProgress ?? 0}%
+                  {progressData?.taskProgress ?? 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {t.dashboard?.user?.progressMetrics?.completedTasks || 'Completed Tasks'}: {(userData?.stats as any)?.completedTasks ?? 0} / {(userData?.stats as any)?.totalTasks ?? 0}
+                  {t.dashboard?.user?.progressMetrics?.completedTasks || 'Completed Tasks'}: {progressData?.completedTasks ?? 0} / {progressData?.totalTasks ?? 0}
                 </div>
               </div>
             </CardContent>
@@ -159,7 +217,7 @@ const UserDashboard = () => {
             <CardContent>
               <div className="text-center">
                 <div className="font-cinzel text-3xl font-bold text-gradient-royal mb-2">
-                  {(userData?.stats as any)?.timeProgress ?? 0}%
+                  {progressData?.timeProgress ?? 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {t.dashboard?.user?.progressMetrics?.timeProgress || 'Time Progress'}

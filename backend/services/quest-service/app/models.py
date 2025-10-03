@@ -76,6 +76,28 @@ class GoalUpdatePayload(BaseModel):
     status: Optional[str] = None
 
 
+class Milestone(BaseModel):
+    id: str
+    name: str
+    percentage: float
+    achieved: bool
+    achievedAt: Optional[int] = None
+    description: Optional[str] = None
+
+
+class GoalProgressResponse(BaseModel):
+    goalId: str
+    progressPercentage: float
+    taskProgress: float
+    timeProgress: float
+    completedTasks: int
+    totalTasks: int
+    milestones: List[Milestone]
+    lastUpdated: int
+    isOverdue: bool
+    isUrgent: bool
+
+
 class GoalResponse(BaseModel):
     id: str
     userId: str
@@ -88,6 +110,11 @@ class GoalResponse(BaseModel):
     status: str
     createdAt: int
     updatedAt: int
+    # Progress fields
+    progress: Optional[float] = None
+    milestones: Optional[List[Milestone]] = None
+    completedTasks: Optional[int] = None
+    totalTasks: Optional[int] = None
 
 
 # -------- Profile models --------

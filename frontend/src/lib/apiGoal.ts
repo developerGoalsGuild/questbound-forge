@@ -1,7 +1,7 @@
 import { nlpQuestionOrder, NLPAnswers } from '@/pages/goals/questions';
 import { getAccessToken, getApiBase, graphQLClient } from '@/lib/utils';
 import { ACTIVE_GOALS_COUNT } from '@/graphql/queries';
-import { graphqlRaw } from './api';
+import { graphqlRaw, graphqlWithApiKey } from './api';
 import { sortGoals } from './goalProgress';
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,6 +31,33 @@ export interface GoalResponse {
   status: string;
   createdAt: number;
   updatedAt: number;
+  // Backend progress fields
+  progress?: number;
+  milestones?: Milestone[];
+  completedTasks?: number;
+  totalTasks?: number;
+}
+
+export interface Milestone {
+  id: string;
+  name: string;
+  percentage: number;
+  achieved: boolean;
+  achievedAt?: number;
+  description?: string;
+}
+
+export interface GoalProgressResponse {
+  goalId: string;
+  progressPercentage: number;
+  taskProgress: number;
+  timeProgress: number;
+  completedTasks: number;
+  totalTasks: number;
+  milestones: Milestone[];
+  lastUpdated: number;
+  isOverdue: boolean;
+  isUrgent: boolean;
 }
 
 export function buildAnswers(nlpAnswers: NLPAnswers): GoalAnswer[] {
@@ -134,6 +161,7 @@ export async function loadGoals() {
     const data = await graphqlRaw<{
       myGoals: Array<{ 
         id: string; 
+        userId: string;
         title: string; 
         description: string;
         category: string | null;
@@ -143,10 +171,23 @@ export async function loadGoals() {
         createdAt: number;
         updatedAt: number;
         answers: Array<{ key: string; answer: string; }>;
+        // Progress fields from backend
+        progress?: number;
+        milestones?: Array<{
+          id: string;
+          name: string;
+          percentage: number;
+          achieved: boolean;
+          achievedAt?: number;
+          description?: string;
+        }>;
+        completedTasks?: number;
+        totalTasks?: number;
       }>;
     }>(`query MyGoals { 
       myGoals { 
         id 
+        userId
         title 
         description 
         category
@@ -159,10 +200,27 @@ export async function loadGoals() {
           key
           answer
         }
+        # Progress fields
+        progress
+        milestones {
+          id
+          name
+          percentage
+          achieved
+          achievedAt
+          description
+        }
+        completedTasks
+        totalTasks
       } 
     }`);
 
-    return data?.myGoals ?? [];
+    const goals = data?.myGoals ?? [];
+    // Ensure milestones is always an array
+    return goals.map(goal => ({
+      ...goal,
+      milestones: goal.milestones || [],
+    }));
   } catch (e: any) {
     console.error('[loadGoals] GraphQL error:', e?.errors || e?.message || e);
     return []; // safe fallback for UI
@@ -170,11 +228,12 @@ export async function loadGoals() {
 }
 
 // Dashboard-specific function for top 3 goals (using myGoals with frontend filtering)
-export async function loadDashboardGoals(sortBy: string = 'deadline-asc') {
+export async function loadDashboardGoals(sortBy: string = 'deadline-asc'): Promise<GoalResponse[]> {
   try {
     const data = await graphqlRaw<{
       myGoals: Array<{ 
         id: string; 
+        userId: string;
         title: string; 
         description: string;
         category: string | null;
@@ -183,10 +242,23 @@ export async function loadDashboardGoals(sortBy: string = 'deadline-asc') {
         status: string; 
         createdAt: number;
         updatedAt: number;
+        // Progress fields from backend
+        progress?: number;
+        milestones?: Array<{
+          id: string;
+          name: string;
+          percentage: number;
+          achieved: boolean;
+          achievedAt?: number;
+          description?: string;
+        }>;
+        completedTasks?: number;
+        totalTasks?: number;
       }>;
     }>(`query MyGoals { 
       myGoals { 
         id 
+        userId
         title 
         description 
         category
@@ -195,17 +267,35 @@ export async function loadDashboardGoals(sortBy: string = 'deadline-asc') {
         status 
         createdAt
         updatedAt
+        # Progress fields
+        progress
+        milestones {
+          id
+          name
+          percentage
+          achieved
+          achievedAt
+          description
+        }
+        completedTasks
+        totalTasks
       } 
     }`);
 
     // Filter active goals and limit to 3
-    const activeGoals = (data?.myGoals ?? []).filter(goal => goal.status === 'active');
+    const goals = data?.myGoals ?? [];
+    const activeGoals = goals
+      .filter(goal => goal.status === 'active')
+      .map(goal => ({
+        ...goal,
+        milestones: goal.milestones || [],
+      }));
     
     // Sort the goals based on sortBy parameter
-    const sortedGoals = sortGoals(activeGoals, sortBy);
+    const sortedGoals = sortGoals(activeGoals as any, sortBy);
     
     // Return top 3
-    return sortedGoals.slice(0, 3);
+    return sortedGoals.slice(0, 3) as GoalResponse[];
   } catch (e: any) {
     console.error('[loadDashboardGoals] GraphQL error:', e?.errors || e?.message || e);
     return []; // safe fallback for UI
@@ -319,6 +409,7 @@ export async function getGoal(goalId: string): Promise<GoalResponse> {
       query GetGoal($goalId: ID!) {
         goal(goalId: $goalId) {
           id
+          userId
           title
           description
           category
@@ -331,6 +422,18 @@ export async function getGoal(goalId: string): Promise<GoalResponse> {
             key
             answer
           }
+          # Progress fields
+          progress
+          milestones {
+            id
+            name
+            percentage
+            achieved
+            achievedAt
+            description
+          }
+          completedTasks
+          totalTasks
         }
       }
     `;
@@ -369,6 +472,171 @@ export async function getGoalCategories(): Promise<string[]> {
     'creative',
     'other'
   ];
+}
+
+// Progress API Functions
+
+/**
+ * Get progress data for a specific goal from the backend using GraphQL
+ */
+export async function getGoalProgress(goalId: string): Promise<GoalProgressResponse> {
+  try {
+    const QUERY = /* GraphQL */ `
+      query GoalProgress($goalId: ID!) {
+        goalProgress(goalId: $goalId) {
+          goalId
+          progressPercentage
+          taskProgress
+          timeProgress
+          completedTasks
+          totalTasks
+          milestones {
+            id
+            name
+            percentage
+            achieved
+            achievedAt
+            description
+          }
+          lastUpdated
+          isOverdue
+          isUrgent
+        }
+      }
+    `;
+
+    const data = await graphqlRaw<{ goalProgress: GoalProgressResponse }>(QUERY, { goalId });
+    if (!data?.goalProgress) {
+      throw new Error('Goal progress not found');
+    }
+    return data.goalProgress;
+  } catch (e: any) {
+    console.error('[getGoalProgress] GraphQL error:', e?.errors || e?.message || e);
+    throw new Error(e?.message || 'Failed to load goal progress');
+  }
+}
+
+/**
+ * Get raw goals and tasks data for frontend progress calculation
+ */
+export async function getGoalsWithTasks(): Promise<import('./progressCalculation').GoalWithTasks[]> {
+  try {
+    const QUERY = /* GraphQL */ `
+      query MyGoalsWithTasks {
+        myGoalsWithTasks {
+          id
+          title
+          deadline
+          status
+          createdAt
+          tasks {
+            id
+            dueAt
+            status
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+
+    const data = await graphqlRaw<{ myGoalsWithTasks: import('./progressCalculation').GoalWithTasks[] }>(QUERY);
+    return data?.myGoalsWithTasks ?? [];
+  } catch (e: any) {
+    console.error('[getGoalsWithTasks] GraphQL error:', e?.errors || e?.message || e);
+    return []; // safe fallback for UI
+  }
+}
+
+export async function getAllGoalsProgress(): Promise<GoalProgressResponse[]> {
+  try {
+    const { calculateMultipleGoalsProgress } = await import('./progressCalculation');
+    const goalsWithTasks = await getGoalsWithTasks();
+    const progress = calculateMultipleGoalsProgress(goalsWithTasks);
+    
+    // Convert to the expected interface format
+    return progress.map(p => ({
+      goalId: p.goalId,
+      progressPercentage: p.progressPercentage,
+      taskProgress: p.taskProgress,
+      timeProgress: p.timeProgress,
+      completedTasks: p.completedTasks,
+      totalTasks: p.totalTasks,
+      milestones: p.milestones,
+      lastUpdated: p.lastUpdated,
+      isOverdue: p.isOverdue,
+      isUrgent: p.isUrgent
+    }));
+  } catch (e: any) {
+    console.error('[getAllGoalsProgress] Error:', e?.errors || e?.message || e);
+    return []; // safe fallback for UI
+  }
+}
+
+/**
+ * Load goals with progress data from backend
+ * This combines goal data with progress data for comprehensive goal information
+ */
+export async function loadGoalsWithProgress(): Promise<GoalResponse[]> {
+  try {
+    // Get goals from GraphQL
+    const goals = await loadGoals();
+    
+    // Get progress data from backend API
+    const progressData = await getAllGoalsProgress();
+    
+    // Create a map of progress data by goal ID
+    const progressMap = new Map<string, GoalProgressResponse>();
+    progressData.forEach(progress => {
+      progressMap.set(progress.goalId, progress);
+    });
+    
+    // Merge goal data with progress data
+    return goals.map(goal => {
+      const progress = progressMap.get(goal.id);
+      if (progress) {
+        return {
+          ...goal,
+          progress: progress.progressPercentage,
+          completedTasks: progress.completedTasks,
+          totalTasks: progress.totalTasks,
+          milestones: progress.milestones || [],
+        } as GoalResponse;
+      }
+      return {
+        ...goal,
+        milestones: goal.milestones || [],
+      } as GoalResponse;
+    });
+  } catch (e: any) {
+    console.error('[loadGoalsWithProgress] Error:', e?.message || e);
+    // Fallback to regular goals loading
+    return loadGoals();
+  }
+}
+
+/**
+ * Load dashboard goals with progress data from backend
+ * This provides the top 3 goals with comprehensive progress information
+ */
+export async function loadDashboardGoalsWithProgress(sortBy: string = 'deadline-asc'): Promise<GoalResponse[]> {
+  try {
+    // Get goals with progress data
+    const goalsWithProgress = await loadGoalsWithProgress();
+    
+    // Filter active goals
+    const activeGoals = goalsWithProgress.filter(goal => goal.status === 'active');
+    
+    // Sort the goals based on sortBy parameter
+    const sortedGoals = sortGoals(activeGoals as any, sortBy);
+    
+    // Return top 3
+    return sortedGoals.slice(0, 3) as GoalResponse[];
+  } catch (e: any) {
+    console.error('[loadDashboardGoalsWithProgress] Error:', e?.message || e);
+    // Fallback to regular dashboard goals loading
+    return await loadDashboardGoals(sortBy);
+  }
 }
 
 export async function validateGoalDeadline(deadline: string): Promise<boolean> {

@@ -42,3 +42,21 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
   retention_in_days = var.log_retention_in_days
   tags              = var.tags
 }
+
+resource "aws_lambda_function_url" "this" {
+  count              = var.enable_function_url ? 1 : 0
+  function_name      = aws_lambda_function.this.function_name
+  authorization_type = var.function_url_auth_type
+
+  dynamic "cors" {
+    for_each = var.function_url_cors != null ? [var.function_url_cors] : []
+    content {
+      allow_credentials = cors.value.allow_credentials
+      allow_headers     = cors.value.allow_headers
+      allow_methods     = cors.value.allow_methods
+      allow_origins     = cors.value.allow_origins
+      expose_headers    = cors.value.expose_headers
+      max_age          = cors.value.max_age
+    }
+  }
+}

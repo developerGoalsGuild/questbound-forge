@@ -12,7 +12,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',          // <-- gives you window, document, etc.
     globals: true,                  // expect, vi, etc. as globals
-    setupFiles: ['./src/test/setupTests.ts'],
+    setupFiles: ['./vitest.setup.ts'],
     restoreMocks: true,
     clearMocks: true,
     mockReset: true,

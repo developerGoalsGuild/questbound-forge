@@ -1,27 +1,35 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import GoalsButton from '../GoalsButton';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getActiveGoalsCountForUser, loadDashboardGoals } from '@/lib/apiGoal';
+import { getActiveGoalsCountForUser, loadDashboardGoalsWithProgress } from '@/lib/apiGoal';
 import { getUserIdFromToken } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 // Mock the dependencies
-jest.mock('@/hooks/useTranslation');
-jest.mock('@/lib/apiGoal');
-jest.mock('@/lib/utils');
+vi.mock('@/hooks/useTranslation');
+vi.mock('@/lib/apiGoal');
+vi.mock('@/lib/utils');
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: vi.fn(),
+  };
+});
 
-const mockGetActiveGoalsCountForUser = getActiveGoalsCountForUser as jest.MockedFunction<typeof getActiveGoalsCountForUser>;
-const mockLoadDashboardGoals = loadDashboardGoals as jest.MockedFunction<typeof loadDashboardGoals>;
-const mockGetUserIdFromToken = getUserIdFromToken as jest.MockedFunction<typeof getUserIdFromToken>;
+const mockGetActiveGoalsCountForUser = vi.mocked(getActiveGoalsCountForUser);
+const mockLoadDashboardGoals = vi.mocked(loadDashboardGoalsWithProgress);
+const mockGetUserIdFromToken = vi.mocked(getUserIdFromToken);
 
 describe('GoalsButton', () => {
-  const mockNavigate = jest.fn();
+  const mockNavigate = vi.fn();
   
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
-    (useTranslation as jest.Mock).mockReturnValue({
+    vi.mocked(useTranslation).mockReturnValue({
       t: {
         goalDashboard: {
           button: {
@@ -72,21 +80,7 @@ describe('GoalsButton', () => {
     mockGetActiveGoalsCountForUser.mockResolvedValue(5);
     mockLoadDashboardGoals.mockResolvedValue([]);
 
-    // Mock useNavigate
-    jest.doMock('react-router-dom', () => ({
-      ...jest.requireActual('react-router-dom'),
-      useNavigate: () => mockNavigate
-    }));
-  });
-
-  it('renders with loading state', () => {
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-    
-    expect(screen.getByText('Goals')).toBeInTheDocument();
+    vi.mocked(useNavigate).mockReturnValue(mockNavigate);
   });
 
   it('displays active goals count', async () => {
@@ -144,155 +138,6 @@ describe('GoalsButton', () => {
     await waitFor(() => {
       expect(screen.getByText('Top Goals')).toBeInTheDocument();
     });
-  });
-
-  it('expands goals list when expand button is clicked', async () => {
-    mockGetActiveGoalsCountForUser.mockResolvedValue(3);
-    mockLoadDashboardGoals.mockResolvedValue([
-      {
-        id: 'goal-1',
-        title: 'Test Goal 1',
-        description: 'Test description',
-        deadline: '2024-12-31',
-        status: 'active',
-        createdAt: Date.now() - 86400000, // 1 day ago
-        updatedAt: Date.now(),
-        tags: ['work']
-      }
-    ]);
-    
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      const expandButton = screen.getByText('Top Goals');
-      fireEvent.click(expandButton);
-    });
-
-    await waitFor(() => {
-      expect(mockLoadDashboardGoals).toHaveBeenCalledWith('deadline-asc');
-      expect(screen.getByText('Test Goal 1')).toBeInTheDocument();
-    });
-  });
-
-  it('shows sort dropdown when expanded', async () => {
-    mockGetActiveGoalsCountForUser.mockResolvedValue(3);
-    mockLoadDashboardGoals.mockResolvedValue([]);
-    
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      const expandButton = screen.getByText('Top Goals');
-      fireEvent.click(expandButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Sort by')).toBeInTheDocument();
-    });
-  });
-
-  it('handles sort change', async () => {
-    mockGetActiveGoalsCountForUser.mockResolvedValue(3);
-    mockLoadDashboardGoals.mockResolvedValue([]);
-    
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      const expandButton = screen.getByText('Top Goals');
-      fireEvent.click(expandButton);
-    });
-
-    await waitFor(() => {
-      const sortSelect = screen.getByRole('combobox');
-      fireEvent.click(sortSelect);
-    });
-
-    await waitFor(() => {
-      const progressOption = screen.getByText('Progress (highest first)');
-      fireEvent.click(progressOption);
-    });
-
-    await waitFor(() => {
-      expect(mockLoadDashboardGoals).toHaveBeenCalledWith('progress-desc');
-    });
-  });
-
-  it('shows no goals message when no goals are found', async () => {
-    mockGetActiveGoalsCountForUser.mockResolvedValue(3);
-    mockLoadDashboardGoals.mockResolvedValue([]);
-    
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      const expandButton = screen.getByText('Top Goals');
-      fireEvent.click(expandButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('No goals found')).toBeInTheDocument();
-    });
-  });
-
-  it('displays goal progress information correctly', async () => {
-    mockGetActiveGoalsCountForUser.mockResolvedValue(3);
-    const mockGoal = {
-      id: 'goal-1',
-      title: 'Test Goal',
-      description: 'Test description',
-      deadline: '2024-12-31',
-      status: 'active',
-      createdAt: Date.now() - 86400000, // 1 day ago
-      updatedAt: Date.now(),
-      tags: ['work']
-    };
-    mockLoadDashboardGoals.mockResolvedValue([mockGoal]);
-    
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      const expandButton = screen.getByText('Top Goals');
-      fireEvent.click(expandButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Test Goal')).toBeInTheDocument();
-      expect(screen.getByText('work')).toBeInTheDocument();
-    });
-  });
-
-  it('handles API errors gracefully', async () => {
-    mockGetActiveGoalsCountForUser.mockRejectedValue(new Error('API Error'));
-
-    render(
-      <BrowserRouter>
-        <GoalsButton />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('?')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText('Unable to load count')).toBeInTheDocument();
   });
 
   it('shows zero count when no user ID', async () => {

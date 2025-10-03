@@ -65,7 +65,8 @@ describe('createTask', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer mock-token'
+        Authorization: 'Bearer mock-token',
+        'x-api-key': ''
       },
       body: JSON.stringify(validInput)
     });

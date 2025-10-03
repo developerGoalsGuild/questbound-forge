@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getActiveGoalsCountForUser, loadDashboardGoals } from '@/lib/apiGoal';
+import { getActiveGoalsCountForUser, loadDashboardGoalsWithProgress } from '@/lib/apiGoal';
 import { getUserIdFromToken } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,7 +65,7 @@ const GoalsButton: React.FC = () => {
       const loadGoals = async () => {
         try {
           setGoalsLoading(true);
-          const dashboardGoals = await loadDashboardGoals(sortBy);
+          const dashboardGoals = await loadDashboardGoalsWithProgress(sortBy);
           setGoals(dashboardGoals);
         } catch (err) {
           console.error('Failed to load dashboard goals:', err);
@@ -81,7 +81,7 @@ const GoalsButton: React.FC = () => {
 
   // Sort goals when sortBy changes
   const sortedGoals = useMemo(() => {
-    if (goals.length === 0) return [];
+    if (!goals || goals.length === 0) return [];
     return sortGoals(goals, sortBy).slice(0, 3);
   }, [goals, sortBy]);
 

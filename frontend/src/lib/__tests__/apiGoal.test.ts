@@ -1,6 +1,15 @@
 /** @vitest-environment jsdom */
-import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { createGoal, getActiveGoalsCountForUser, loadGoals, buildAnswers, buildTags, assertValidDeadline } from '../apiGoal';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { 
+  createGoal, 
+  buildTags,
+  assertValidDeadline,
+  getActiveGoalsCountForUser,
+  loadGoals,
+  buildAnswers
+} from '../apiGoal';
+
+vi.unmock('@/lib/apiGoal');
 
 // Mock dependencies
 vi.mock('@/pages/goals/questions', () => ({
@@ -24,6 +33,7 @@ vi.mock('@/lib/api', () => ({
 
 import * as utils from '@/lib/utils';
 import * as api from '@/lib/api';
+import * as mockGraphQL from '@/lib/graphql';
 
 describe('buildAnswers', () => {
   test('builds answers array from NLP answers', () => {
@@ -173,6 +183,7 @@ describe('createGoal', () => {
       body: JSON.stringify({
         title: 'Test Goal',
         description: 'Test description',
+        category: 'Learning',
         deadline: '2024-12-31',
         tags: ['Learning'],
         answers: [
@@ -299,8 +310,8 @@ describe('loadGoals', () => {
 
   test('loads goals successfully', async () => {
     const mockGoals = [
-      { id: '1', title: 'Goal 1', status: 'active', deadline: '2024-12-31' },
-      { id: '2', title: 'Goal 2', status: 'completed', deadline: null }
+      { id: '1', title: 'Goal 1', status: 'active', deadline: '2024-12-31', milestones: [] },
+      { id: '2', title: 'Goal 2', status: 'completed', deadline: null, milestones: [] }
     ];
 
     mockGraphQL.graphqlRaw.mockResolvedValue({ myGoals: mockGoals });
@@ -309,7 +320,7 @@ describe('loadGoals', () => {
 
     expect(result).toEqual(mockGoals);
     expect(mockGraphQL.graphqlRaw).toHaveBeenCalledWith(
-      'query MyGoals { myGoals { id title description status deadline } }'
+      expect.stringContaining('query MyGoals')
     );
   });
 

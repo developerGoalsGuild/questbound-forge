@@ -116,6 +116,80 @@ resource "aws_appsync_resolver" "query_activeGoalsCount" {
   }
 }
 
+# Progress resolvers
+resource "aws_appsync_resolver" "query_goalProgress" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "goalProgress"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.quest_http.name
+  code   = file("${local.resolvers_path}/goalProgress.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_myGoalsProgress" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myGoalsProgress"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.quest_http.name
+  code   = file("${local.resolvers_path}/myGoalsProgress.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+# Pipeline resolver for myGoalsWithTasks
+resource "aws_appsync_resolver" "query_myGoalsWithTasks" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myGoalsWithTasks"
+  kind   = "PIPELINE"
+  code   = file("${local.resolvers_path}/myGoalsWithTasks.js")
+  
+  pipeline_config {
+    functions = [
+      aws_appsync_function.myGoalsWithTasks_getGoals.function_id,
+      aws_appsync_function.myGoalsWithTasks_getTasks.function_id,
+    ]
+  }
+  
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+# Pipeline function 1: Get Goals
+resource "aws_appsync_function" "myGoalsWithTasks_getGoals" {
+  api_id      = module.appsync.api_id
+  data_source = aws_appsync_datasource.profile_ddb.name
+  name        = "myGoalsWithTasks_getGoals"
+  code        = file("${local.resolvers_path}/myGoalsWithTasks_getGoals.js")
+  
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+# Pipeline function 2: Get Tasks
+resource "aws_appsync_function" "myGoalsWithTasks_getTasks" {
+  api_id      = module.appsync.api_id
+  data_source = aws_appsync_datasource.profile_ddb.name
+  name        = "myGoalsWithTasks_getTasks"
+  code        = file("${local.resolvers_path}/myGoalsWithTasks_getTasks.js")
+  
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
 resource "aws_appsync_datasource" "profile_ddb" {
   api_id           = module.appsync.api_id
   name             = "ProfileDDB"
@@ -126,6 +200,49 @@ resource "aws_appsync_datasource" "profile_ddb" {
   }
 }
 
+# HTTP data source for quest service (progress operations)
+resource "aws_appsync_datasource" "quest_http" {
+  api_id           = module.appsync.api_id
+  name             = "QuestHTTP"
+  type             = "HTTP"
+  service_role_arn = aws_iam_role.quest_http_role.arn
+  http_config {
+    endpoint                      = data.terraform_remote_state.quest_service.outputs.lambda_function_url
+    authorization_config {
+      authorization_type = "AWS_IAM"
+      aws_iam_config {
+        signing_region      = var.aws_region
+        signing_service_name = "lambda"
+      }
+    }
+  }
+}
+
+# IAM role for HTTP data source
+resource "aws_iam_role" "quest_http_role" {
+  name = "goalsguild-${var.environment}-appsync-quest-http-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "appsync.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "quest_http_policy" {
+  role = aws_iam_role.quest_http_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["lambda:InvokeFunctionUrl"]
+      Resource = data.terraform_remote_state.quest_service.outputs.lambda_function_arn
+    }]
+  })
+}
+
 data "terraform_remote_state" "database" {
   backend = "local"
   config = { path = "../database/terraform.tfstate" }
@@ -134,6 +251,11 @@ data "terraform_remote_state" "database" {
 data "terraform_remote_state" "authorizer" {
   backend = "local"
   config = { path = "../authorizer/terraform.tfstate" }
+}
+
+data "terraform_remote_state" "quest_service" {
+  backend = "local"
+  config = { path = "../services/quest-service/terraform.tfstate" }
 }
 
 locals {

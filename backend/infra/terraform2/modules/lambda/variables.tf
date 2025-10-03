@@ -22,3 +22,28 @@ variable "environment_variables" {
   type    = map(string)
   default = {}
 }
+
+variable "enable_function_url" {
+  type        = bool
+  default     = false
+  description = "Enable Lambda function URL"
+}
+
+variable "function_url_auth_type" {
+  type        = string
+  default     = "AWS_IAM"
+  description = "Authorization type for function URL"
+}
+
+variable "function_url_cors" {
+  type = object({
+    allow_credentials = optional(bool)
+    allow_headers     = optional(list(string))
+    allow_methods     = optional(list(string))
+    allow_origins     = optional(list(string))
+    expose_headers    = optional(list(string))
+    max_age          = optional(number)
+  })
+  default     = null
+  description = "CORS configuration for function URL"
+}

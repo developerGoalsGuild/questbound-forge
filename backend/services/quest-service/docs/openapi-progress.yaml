@@ -1,0 +1,430 @@
+openapi: 3.0.3
+info:
+  title: GoalsGuild Quest Service - Progress API
+  description: |
+    API endpoints for goal progress calculation and tracking in the GoalsGuild application.
+    
+    ## Progress Calculation Algorithm
+    
+    The progress calculation uses a hybrid approach combining task completion and time-based progress:
+    - **Task Progress (70% weight)**: Based on completed tasks vs total tasks
+    - **Time Progress (30% weight)**: Based on elapsed time vs total goal duration
+    - **Overall Progress**: Weighted combination of task and time progress
+    
+    ## Milestone System
+    
+    Milestones are automatically generated at fixed thresholds:
+    - 25% - First Quarter
+    - 50% - Halfway Point  
+    - 75% - Three Quarters
+    - 100% - Complete
+    
+    Milestones are non-retroactive and only show current achievement level.
+    
+  version: 1.0.0
+  contact:
+    name: GoalsGuild Development Team
+    email: dev@goalsguild.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.goalsguild.com/v1
+    description: Production server
+  - url: https://api-staging.goalsguild.com/v1
+    description: Staging server
+  - url: http://localhost:8000
+    description: Development server
+
+paths:
+  /quests/{goal_id}/progress:
+    get:
+      summary: Get progress for a specific goal
+      description: |
+        Calculates and returns comprehensive progress information for a specific goal including:
+        - Overall progress percentage (hybrid calculation)
+        - Task completion progress
+        - Time-based progress
+        - Milestone achievements
+        - Urgency and overdue status
+        
+        The progress is calculated in real-time based on current task statuses and goal timeline.
+        
+      operationId: getGoalProgress
+      tags:
+        - Progress
+      parameters:
+        - name: goal_id
+          in: path
+          required: true
+          description: Unique identifier of the goal
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Goal progress calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalProgressResponse'
+              examples:
+                active_goal:
+                  summary: Active goal with mixed progress
+                  value:
+                    goalId: "550e8400-e29b-41d4-a716-446655440000"
+                    progressPercentage: 42.5
+                    taskProgress: 60.0
+                    timeProgress: 15.0
+                    completedTasks: 3
+                    totalTasks: 5
+                    milestones:
+                      - id: "milestone_25_550e8400-e29b-41d4-a716-446655440000"
+                        name: "First Quarter"
+                        percentage: 25
+                        achieved: true
+                        achievedAt: 1704067200000
+                        description: "Reached First Quarter milestone"
+                      - id: "milestone_50_550e8400-e29b-41d4-a716-446655440000"
+                        name: "Halfway Point"
+                        percentage: 50
+                        achieved: false
+                        achievedAt: null
+                        description: "Next milestone: Halfway Point"
+                    lastUpdated: 1704153600000
+                    isOverdue: false
+                    isUrgent: false
+                no_tasks:
+                  summary: Goal with no tasks
+                  value:
+                    goalId: "550e8400-e29b-41d4-a716-446655440001"
+                    progressPercentage: 9.0
+                    taskProgress: 0.0
+                    timeProgress: 30.0
+                    completedTasks: 0
+                    totalTasks: 0
+                    milestones: []
+                    lastUpdated: 1704153600000
+                    isOverdue: false
+                    isUrgent: false
+        '400':
+          description: Invalid goal ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Invalid goal ID format"
+                error_code: "INVALID_GOAL_ID"
+                timestamp: "2024-01-01T12:00:00Z"
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Invalid or expired token"
+                error_code: "UNAUTHORIZED"
+                timestamp: "2024-01-01T12:00:00Z"
+        '404':
+          description: Goal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Goal not found"
+                error_code: "GOAL_NOT_FOUND"
+                timestamp: "2024-01-01T12:00:00Z"
+        '500':
+          description: Internal server error during progress calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Failed to calculate goal progress"
+                error_code: "PROGRESS_CALCULATION_ERROR"
+                timestamp: "2024-01-01T12:00:00Z"
+
+  /quests/progress:
+    get:
+      summary: Get progress for all user goals
+      description: |
+        Calculates and returns progress information for all goals belonging to the authenticated user.
+        
+        This endpoint processes all active goals and returns their progress data in a single response.
+        If progress calculation fails for individual goals, they are excluded from the response
+        rather than failing the entire request.
+        
+        **Performance Note**: Response time scales with the number of goals and tasks.
+        Typical response times:
+        - 1-10 goals: < 100ms
+        - 11-50 goals: < 300ms  
+        - 50+ goals: < 500ms
+        
+      operationId: getAllGoalsProgress
+      tags:
+        - Progress
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Progress calculated successfully for all user goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoalProgressResponse'
+              examples:
+                multiple_goals:
+                  summary: Multiple goals with varying progress
+                  value:
+                    - goalId: "550e8400-e29b-41d4-a716-446655440000"
+                      progressPercentage: 75.5
+                      taskProgress: 80.0
+                      timeProgress: 65.0
+                      completedTasks: 4
+                      totalTasks: 5
+                      milestones:
+                        - id: "milestone_25_550e8400-e29b-41d4-a716-446655440000"
+                          name: "First Quarter"
+                          percentage: 25
+                          achieved: true
+                          achievedAt: 1704067200000
+                          description: "Reached First Quarter milestone"
+                        - id: "milestone_50_550e8400-e29b-41d4-a716-446655440000"
+                          name: "Halfway Point"
+                          percentage: 50
+                          achieved: true
+                          achievedAt: 1704120000000
+                          description: "Reached Halfway Point milestone"
+                        - id: "milestone_75_550e8400-e29b-41d4-a716-446655440000"
+                          name: "Three Quarters"
+                          percentage: 75
+                          achieved: true
+                          achievedAt: 1704150000000
+                          description: "Reached Three Quarters milestone"
+                      lastUpdated: 1704153600000
+                      isOverdue: false
+                      isUrgent: false
+                    - goalId: "550e8400-e29b-41d4-a716-446655440001"
+                      progressPercentage: 15.0
+                      taskProgress: 0.0
+                      timeProgress: 50.0
+                      completedTasks: 0
+                      totalTasks: 3
+                      milestones: []
+                      lastUpdated: 1704153600000
+                      isOverdue: false
+                      isUrgent: true
+                empty_goals:
+                  summary: User with no goals
+                  value: []
+        '401':
+          description: Unauthorized - Invalid or missing JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error during progress calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GoalProgressResponse:
+      type: object
+      required:
+        - goalId
+        - progressPercentage
+        - taskProgress
+        - timeProgress
+        - completedTasks
+        - totalTasks
+        - milestones
+        - lastUpdated
+        - isOverdue
+        - isUrgent
+      properties:
+        goalId:
+          type: string
+          format: uuid
+          description: Unique identifier of the goal
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        progressPercentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: |
+            Overall progress percentage calculated using hybrid approach:
+            (taskProgress * 0.7) + (timeProgress * 0.3)
+          example: 42.5
+        taskProgress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: |
+            Task completion progress percentage:
+            (completedTasks / totalTasks) * 100
+            Returns 0 if no tasks exist
+          example: 60.0
+        timeProgress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: |
+            Time-based progress percentage:
+            (elapsedTime / totalTime) * 100
+            Based on goal creation date and deadline
+          example: 15.0
+        completedTasks:
+          type: integer
+          minimum: 0
+          description: Number of tasks marked as completed
+          example: 3
+        totalTasks:
+          type: integer
+          minimum: 0
+          description: Total number of tasks associated with the goal
+          example: 5
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+          description: |
+            Array of milestone objects representing progress achievements.
+            Milestones are generated at 25%, 50%, 75%, and 100% thresholds.
+        lastUpdated:
+          type: integer
+          format: int64
+          description: Unix timestamp (milliseconds) when progress was last calculated
+          example: 1704153600000
+        isOverdue:
+          type: boolean
+          description: |
+            Indicates if the goal deadline has passed.
+            True if current date > goal deadline
+          example: false
+        isUrgent:
+          type: boolean
+          description: |
+            Indicates if the goal is approaching deadline (less than 7 days remaining).
+            True if remaining time < 20% of total goal duration
+          example: false
+
+    Milestone:
+      type: object
+      required:
+        - id
+        - name
+        - percentage
+        - achieved
+        - description
+      properties:
+        id:
+          type: string
+          description: |
+            Unique identifier for the milestone.
+            Format: milestone_{percentage}_{goalId}
+          example: "milestone_25_550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          enum:
+            - "First Quarter"
+            - "Halfway Point"
+            - "Three Quarters"
+            - "Complete"
+          description: Standard milestone name based on percentage threshold
+          example: "First Quarter"
+        percentage:
+          type: number
+          format: float
+          enum: [25, 50, 75, 100]
+          description: Progress percentage threshold for this milestone
+          example: 25
+        achieved:
+          type: boolean
+          description: |
+            Indicates if this milestone has been achieved.
+            True if current progress >= milestone percentage
+          example: true
+        achievedAt:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Unix timestamp (milliseconds) when milestone was achieved.
+            Null if not yet achieved
+          example: 1704067200000
+        description:
+          type: string
+          description: |
+            Descriptive text for the milestone.
+            Format: "Reached {name} milestone" or "Next milestone: {name}"
+          example: "Reached First Quarter milestone"
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+        - error_code
+        - timestamp
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: "Goal not found"
+        error_code:
+          type: string
+          description: Machine-readable error code for programmatic handling
+          enum:
+            - "INVALID_GOAL_ID"
+            - "GOAL_NOT_FOUND"
+            - "UNAUTHORIZED"
+            - "PROGRESS_CALCULATION_ERROR"
+            - "DATABASE_ERROR"
+            - "VALIDATION_ERROR"
+          example: "GOAL_NOT_FOUND"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the error occurred
+          example: "2024-01-01T12:00:00Z"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from the authentication endpoint.
+        Include in the Authorization header as: `Bearer <token>`
+
+tags:
+  - name: Progress
+    description: |
+      Goal progress calculation and tracking endpoints.
+      
+      These endpoints provide real-time progress calculation based on:
+      - Task completion status
+      - Goal timeline and deadlines
+      - Milestone achievements
+      
+      Progress data is calculated on-demand and not cached to ensure accuracy.
+
+externalDocs:
+  description: GoalsGuild API Documentation
+  url: https://docs.goalsguild.com/api

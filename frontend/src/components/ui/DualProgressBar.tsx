@@ -27,6 +27,11 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
   showLabels = true,
   className = ''
 }) => {
+  // Safety check for goal object
+  if (!goal) {
+    return <div className={`space-y-3 ${className}`}>No goal data available</div>;
+  }
+
   // Calculate progress values
   const taskProgress = goal.taskProgress !== undefined ? goal.taskProgress : calculateTaskProgress(goal);
   const timeProgress = goal.timeProgress !== undefined ? goal.timeProgress : calculateTimeProgress(goal).percentage;
@@ -38,10 +43,10 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
   // Get progress bar colors
   const taskColor = getTaskProgressBarColor(taskProgress);
   const taskBgColor = getTaskProgressBarBgColor(taskProgress);
-  const timeColor = getProgressBarColor(calculateTimeProgress(goal));
-  const timeBgColor = getProgressBarBgColor(calculateTimeProgress(goal));
-  const overallColor = getProgressBarColor(calculateTimeProgress(goal));
-  const overallBgColor = getProgressBarBgColor(calculateTimeProgress(goal));
+  const timeColor = getTaskProgressBarColor(timeProgress);
+  const timeBgColor = getTaskProgressBarBgColor(timeProgress);
+  const overallColor = getTaskProgressBarColor(overallProgress);
+  const overallBgColor = getTaskProgressBarBgColor(overallProgress);
 
   return (
     <div className={`space-y-3 ${className}`}>

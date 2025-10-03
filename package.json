@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "type": "module",
     "scripts": {
-    "test:selenium": "node tests/integration/seleniumGridTests.js"
+    "test:selenium": "node tests/integration/seleniumGridTests.js",
+    "test:progress": "node tests/integration/goalProgressTest.js",
+    "test:progress-performance": "cd backend/services/quest-service && python -m pytest tests/test_performance.py -v",
+    "test:all": "npm run test:selenium && npm run test:progress",
+    "test:progress-suite": "powershell -ExecutionPolicy Bypass -File scripts/run-goal-progress-tests.ps1"
   },
   "dependencies": {
     "selenium-webdriver": "^4.11.0",

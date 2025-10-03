@@ -10,7 +10,11 @@ vi.mock('@/lib/apiProfile', () => ({
   getProfile: vi.fn(),
   updateProfile: vi.fn(),
   checkNicknameAvailability: vi.fn(),
-  getCountries: vi.fn(),
+  getCountries: vi.fn(() => [
+    { code: 'US', name: 'United States' },
+    { code: 'CA', name: 'Canada' },
+    { code: 'MX', name: 'Mexico' },
+  ]),
 }));
 
 // Mock the GraphQL API module
@@ -20,11 +24,14 @@ vi.mock('@/lib/api', () => ({
 }));
 
 // Mock the countries module
+const mockCountries = [
+  { code: 'US', name: 'United States' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'MX', name: 'Mexico' },
+];
+
 vi.mock('@/i18n/countries', () => ({
-  getCountries: vi.fn(() => [
-    { code: 'US', name: 'United States' },
-    { code: 'CA', name: 'Canada' },
-  ]),
+  getCountries: vi.fn(() => mockCountries),
 }));
 
 // Mock the translation hook
@@ -76,16 +83,65 @@ vi.mock('@/i18n/translations', () => ({
   },
 }));
 
-// Mock the countries data
-vi.mock('@/i18n/countries', () => ({
-  getCountries: () => [
-    { code: 'US', name: 'United States' },
-    { code: 'CA', name: 'Canada' },
-    { code: 'MX', name: 'Mexico' },
-  ],
+// Mock the useTranslation hook
+vi.mock('@/hooks/useTranslation', () => ({
+  TranslationProvider: ({ children }: any) => <>{children}</>,
+  useTranslation: () => ({
+    t: {
+      profile: {
+        title: 'Edit Profile',
+        subtitle: 'Update your profile information',
+        basicInfo: {
+          title: 'Basic Information',
+          fullName: { label: 'Full Name', placeholder: 'Enter your full name' },
+          nickname: { label: 'Nickname', placeholder: 'Enter your nickname', help: 'Choose a unique nickname' },
+          birthDate: { label: 'Birth Date', placeholder: 'Select your birth date' },
+        },
+        location: {
+          title: 'Location & Identity',
+          country: { label: 'Country', placeholder: 'Select your country' },
+          language: { label: 'Language' },
+        },
+        identity: {
+          title: 'Identity',
+          gender: { label: 'Gender', placeholder: 'Select your gender' },
+          pronouns: { label: 'Pronouns', placeholder: 'Enter your pronouns' },
+        },
+        about: {
+          title: 'About',
+          bio: { label: 'Bio', placeholder: 'Tell us about yourself', help: 'Optional' },
+          tags: { label: 'Tags', placeholder: 'Enter tags separated by commas', help: 'Optional' },
+        },
+        actions: {
+          save: 'Save Changes',
+          cancel: 'Cancel',
+          reset: 'Reset',
+        },
+        validation: {
+          required: 'This field is required',
+          nicknameTaken: 'This nickname is already taken',
+          invalidFormat: 'Invalid format',
+          tooLong: 'Too long',
+        },
+        messages: {
+          saveSuccess: 'Profile updated successfully',
+          saveError: 'Failed to update profile',
+          loading: 'Loading profile...',
+        },
+      },
+    },
+    language: 'en',
+  }),
 }));
 
-const mockCheckNicknameAvailability = vi.mocked(checkNicknameAvailability);
+// Mock the user context
+vi.mock('@/hooks/useUser', () => ({
+  useUser: () => ({
+    user: mockUserProfile,
+    isLoading: false,
+    error: null,
+  }),
+}));
 
 // Mock user profile data
 const mockUserProfile = {
@@ -109,6 +165,8 @@ const mockUserProfile = {
   updatedAt: 1640995200,
 };
 
+const mockCheckNicknameAvailability = vi.mocked(checkNicknameAvailability);
+
   const renderProfileEdit = () => {
     return render(
       <BrowserRouter>
@@ -124,6 +182,8 @@ describe('ProfileEdit', () => {
     vi.clearAllMocks();
     // Mock successful profile fetch
     vi.mocked(getProfile).mockResolvedValue(mockUserProfile);
+    // Mock successful nickname availability check
+    mockCheckNicknameAvailability.mockResolvedValue(true);
   });
 
   describe('Nickname Validation', () => {
@@ -133,7 +193,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -155,7 +215,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -176,7 +236,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -197,7 +257,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -221,7 +281,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -243,7 +303,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -262,7 +322,7 @@ describe('ProfileEdit', () => {
       // Wait for component to load
       await waitFor(() => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       const nicknameInput = screen.getByDisplayValue('johndoe');
       
@@ -286,7 +346,7 @@ describe('ProfileEdit', () => {
         expect(screen.getByText('Location & Identity')).toBeInTheDocument();
         expect(screen.getByText('Identity')).toBeInTheDocument();
         expect(screen.getByText('About')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Check form fields
       expect(screen.getByLabelText('Full Name')).toBeInTheDocument();
@@ -308,8 +368,10 @@ describe('ProfileEdit', () => {
         expect(screen.getByDisplayValue('johndoe')).toBeInTheDocument();
         expect(screen.getByDisplayValue('1990-01-01')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Test bio')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('developer, gamer')).toBeInTheDocument();
-      });
+        // Tags are displayed as individual chips, not as a comma-separated string
+        expect(screen.getByText('developer')).toBeInTheDocument();
+        expect(screen.getByText('gamer')).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
   });
 });

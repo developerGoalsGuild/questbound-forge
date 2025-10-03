@@ -19,10 +19,10 @@ enum GoalStatus {
 }
 
 enum TaskStatus {
-  open
-  in_progress
-  done
-  canceled
+  active
+  paused
+  completed
+  cancelled
 }
 
 # ----------------
@@ -72,6 +72,11 @@ type Goal {
   createdAt: AWSTimestamp
   updatedAt: AWSTimestamp
   answers: [Answer!]
+  # Progress fields
+  progress: Float
+  milestones: [Milestone!]
+  completedTasks: Int
+  totalTasks: Int
 }
 
 # Task type (simplified for example)
@@ -80,10 +85,53 @@ type Task {
   goalId: ID!
   title: String!
   dueAt: Int!
-  status: String!
+  status: TaskStatus!
   createdAt: AWSTimestamp!
   updatedAt: AWSTimestamp!
   tags: [String!]!
+}
+
+# Milestone type for progress tracking
+type Milestone {
+  id: ID!
+  name: String!
+  percentage: Float!
+  achieved: Boolean!
+  achievedAt: AWSTimestamp
+  description: String
+}
+
+# Goal progress type for detailed progress information
+type GoalProgress {
+  goalId: ID!
+  progressPercentage: Float!
+  taskProgress: Float!
+  timeProgress: Float!
+  completedTasks: Int!
+  totalTasks: Int!
+  milestones: [Milestone!]!
+  lastUpdated: AWSTimestamp!
+  isOverdue: Boolean!
+  isUrgent: Boolean!
+}
+
+# Simplified task type for progress calculation (no redundant fields)
+type TaskForProgress {
+  id: ID!
+  dueAt: Int!
+  status: TaskStatus!
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp!
+}
+
+# Goal with tasks type for frontend progress calculation
+type GoalWithTasks {
+  id: ID!
+  title: String!
+  deadline: AWSDate!
+  status: GoalStatus!
+  createdAt: AWSTimestamp!
+  tasks: [TaskForProgress!]!
 }
 
 type Message {
@@ -118,6 +166,13 @@ type Query {
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
   offers(tags: [String!], limit: Int = 20): [Offer!]!
+  
+  # Progress queries
+  goalProgress(goalId: ID!): GoalProgress!
+  myGoalsProgress: [GoalProgress!]!
+  
+  # Raw data queries for frontend progress calculation
+  myGoalsWithTasks: [GoalWithTasks!]!
 
   # Authenticated profile query: returns only caller's profile
   myProfile: User!

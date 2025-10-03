@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
-import { getGoal, deleteGoal, loadGoals } from '@/lib/apiGoal';
+import { getGoal, deleteGoal, loadGoals, getGoalsWithTasks } from '@/lib/apiGoal';
 import { loadTasks, createTask, updateTask, deleteTask } from '@/lib/apiTask';
 import { GoalStatus, formatGoalStatus, getStatusColorClass, formatDeadline } from '@/models/goal';
 import DualProgressBar from '@/components/ui/DualProgressBar';
@@ -12,6 +12,7 @@ import {
   calculateHybridProgress,
   type GoalProgressData 
 } from '@/lib/goalProgress';
+import { calculateGoalProgress, type GoalWithTasks } from '@/lib/progressCalculation';
 import TasksModal from '@/components/modals/TasksModal';
 import CreateTaskModal from '@/components/modals/CreateTaskModal';
 import { Button } from '@/components/ui/button';
@@ -93,6 +94,7 @@ const GoalDetails: React.FC = () => {
   const { toast } = useToast();
   
   const [goal, setGoal] = useState<GoalDetailsData | null>(null);
+  const [goalWithProgress, setGoalWithProgress] = useState<GoalProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -122,15 +124,83 @@ const GoalDetails: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Try the direct getGoal first
+      // Load goals with tasks for progress calculation
+      const goalsWithTasks = await getGoalsWithTasks();
+      const goalWithTasks = goalsWithTasks.find(g => g.id === id);
+      
+      if (goalWithTasks) {
+        // Calculate progress using frontend calculation
+        const progressData = calculateGoalProgress(goalWithTasks);
+        
+        // Create goal data for details display
+        const goalData: GoalDetailsData = {
+          id: goalWithTasks.id,
+          title: goalWithTasks.title,
+          description: '', // Not available in GoalWithTasks
+          status: goalWithTasks.status as GoalStatus,
+          deadline: goalWithTasks.deadline,
+          tags: [], // Not available in GoalWithTasks
+          createdAt: goalWithTasks.createdAt,
+          updatedAt: goalWithTasks.createdAt, // Use createdAt as fallback
+          answers: [], // Not available in GoalWithTasks
+          category: '', // Not available in GoalWithTasks
+          progress: progressData.progressPercentage,
+          taskProgress: progressData.taskProgress,
+          timeProgress: progressData.timeProgress,
+          completedTasks: progressData.completedTasks,
+          totalTasks: progressData.totalTasks,
+          milestones: progressData.milestones
+        };
+        
+        // Create progress data for DualProgressBar
+        const progressGoalData: GoalProgressData = {
+          id: goalWithTasks.id,
+          title: goalWithTasks.title,
+          deadline: goalWithTasks.deadline,
+          status: goalWithTasks.status,
+          createdAt: goalWithTasks.createdAt,
+          updatedAt: goalWithTasks.createdAt,
+          tags: [],
+          progress: progressData.progressPercentage,
+          taskProgress: progressData.taskProgress,
+          timeProgress: progressData.timeProgress,
+          completedTasks: progressData.completedTasks,
+          totalTasks: progressData.totalTasks,
+          milestones: progressData.milestones
+        };
+        
+        setGoal(goalData);
+        setGoalWithProgress(progressGoalData);
+        return;
+      }
+      
+      // Fallback: Try the direct getGoal method
       try {
         const goalData = await getGoal(id);
         setGoal(goalData);
+        
+        // Create basic progress data without tasks
+        const basicProgressData: GoalProgressData = {
+          id: goalData.id,
+          title: goalData.title,
+          deadline: goalData.deadline || undefined,
+          status: goalData.status,
+          createdAt: goalData.createdAt,
+          updatedAt: goalData.updatedAt,
+          tags: goalData.tags,
+          progress: goalData.progress || 0,
+          taskProgress: goalData.taskProgress || 0,
+          timeProgress: goalData.timeProgress || 0,
+          completedTasks: goalData.completedTasks || 0,
+          totalTasks: goalData.totalTasks || 0,
+          milestones: goalData.milestones || []
+        };
+        setGoalWithProgress(basicProgressData);
         return;
       } catch (getGoalError) {
         console.warn('[GoalDetails] getGoal failed, trying loadGoals workaround:', getGoalError);
         
-        // Fallback: Load all goals and filter by ID
+        // Final fallback: Load all goals and filter by ID
         const allGoals = await loadGoals();
         const foundGoal = allGoals.find(goal => goal.id === id);
         
@@ -150,6 +220,19 @@ const GoalDetails: React.FC = () => {
             progress: foundGoal.progress
           };
           setGoal(goalData);
+          
+          // Create basic progress data
+          const basicProgressData: GoalProgressData = {
+            id: foundGoal.id,
+            title: foundGoal.title,
+            deadline: foundGoal.deadline || undefined,
+            status: foundGoal.status,
+            createdAt: foundGoal.createdAt,
+            updatedAt: foundGoal.updatedAt,
+            tags: foundGoal.tags || [],
+            progress: foundGoal.progress || 0
+          };
+          setGoalWithProgress(basicProgressData);
         } else {
           throw new Error('Goal not found');
         }
@@ -777,11 +860,17 @@ const GoalDetails: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <DualProgressBar 
-                goal={goal as GoalProgressData} 
-                showMilestones={true}
-                showLabels={true}
-              />
+              {goalWithProgress ? (
+                <DualProgressBar 
+                  goal={goalWithProgress} 
+                  showMilestones={true}
+                  showLabels={true}
+                />
+              ) : (
+                <div className="text-center text-muted-foreground py-4">
+                  Loading progress data...
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

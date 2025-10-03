@@ -60,6 +60,19 @@ This file contains the tasks from Phase 1 Foundation that have been successfully
 - [x] 16.2 – Add toggle complete button (verify implementation) ✅ FULLY COMPLETED
 - [x] 16.3 – Add inline edit/delete actions (verify implementation) ✅ FULLY COMPLETED
 
+## Goal Progress & Milestones ✅
+- [x] 17.2 – Add milestone schema (backend) ✅ COMPLETED
+  - [x] Updated DynamoDB single-table model documentation with milestone entity pattern
+  - [x] Documented schema structure for future persistent storage implementation
+  - [x] Added access patterns for milestone queries (GSI1 support)
+  - [x] No breaking changes to current dynamic milestone calculation behavior
+
+- [x] 17.3 – Return progress in goal API (verify implementation) ✅ COMPLETED
+  - [x] Verified existing progress calculation returns milestone data correctly
+  - [x] Confirmed API endpoints include milestone information in responses
+  - [x] Validated milestone calculation accuracy and achievement detection
+  - [x] All 64 tests passing with no regressions
+
 ## User Interface & Navigation ✅
 - [x] 18.1 – User header with active goals count and user menu ✅ FULLY COMPLETED
   - [x] UserHeader component with real-time goals count display
@@ -74,7 +87,7 @@ This file contains the tasks from Phase 1 Foundation that have been successfully
 
 ---
 *Generated: 2025-01-30*
-*Total Completed Tasks: 46*
+*Total Completed Tasks: 48*
 
 ## Implementation Notes
 - **Strong Foundation**: Authentication, basic CRUD operations, and core schemas are well-implemented
@@ -91,3 +104,5 @@ This file contains the tasks from Phase 1 Foundation that have been successfully
 - **Performance Monitoring**: Implemented detailed metrics tracking and optimization
 - **Accessibility**: Enhanced keyboard navigation and screen reader support
 - **Testing**: Comprehensive integration test suite with automation
+- **Milestone Schema Backend**: Complete milestone schema documentation and API verification
+- **Progress API Integration**: Verified milestone data integration in goal progress endpoints

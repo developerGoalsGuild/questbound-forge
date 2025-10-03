@@ -18,7 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, UserProfile, ProfileUpdate
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, UserProfile, ProfileUpdate, GoalProgressResponse, Milestone
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
 
 
@@ -399,6 +399,34 @@ async def update_goal(
         if not updated_item:
             raise HTTPException(status_code=500, detail="Goal not found after update")
         
+        # Trigger progress recalculation if deadline was updated
+        if payload.deadline is not None:
+            try:
+                # Calculate progress and update goal record
+                progress_data = compute_goal_progress(goal_id, auth.user_id, table)
+                
+                # Update goal with progress data
+                goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
+                goal_expression_values = {
+                    ":progress": progress_data.progressPercentage,
+                    ":milestones": [milestone.dict() for milestone in progress_data.milestones],
+                    ":completedTasks": progress_data.completedTasks,
+                    ":totalTasks": progress_data.totalTasks,
+                    ":updatedAt": int(time.time() * 1000)
+                }
+                
+                table.update_item(
+                    Key={"PK": f"USER#{auth.user_id}", "SK": f"GOAL#{goal_id}"},
+                    UpdateExpression=goal_update_expression,
+                    ExpressionAttributeValues=goal_expression_values
+                )
+                
+                logger.info('progress.recalculated_after_goal_deadline_update', goal_id=goal_id, progress=progress_data.progressPercentage)
+                
+            except Exception as exc:
+                # Log error but don't fail the goal update
+                logger.error('progress.recalculation_failed_after_goal_deadline_update', goal_id=goal_id, exc_info=exc)
+
         log_event(logger, 'quests.update_success', user_id=auth.user_id, goal_id=goal_id)
         return _to_response(updated_item)
     except (ClientError, BotoCoreError) as exc:
@@ -619,6 +647,33 @@ async def create_task(
   except (ClientError, BotoCoreError) as exc:
     raise HTTPException(status_code=500, detail="Could not create task at this time")
 
+  # Trigger progress recalculation for the goal (asynchronous)
+  try:
+    # Calculate progress and update goal record
+    progress_data = compute_goal_progress(payload.goalId, user_id, table)
+    
+    # Update goal with progress data
+    goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
+    goal_expression_values = {
+      ":progress": progress_data.progressPercentage,
+      ":milestones": [milestone.dict() for milestone in progress_data.milestones],
+      ":completedTasks": progress_data.completedTasks,
+      ":totalTasks": progress_data.totalTasks,
+      ":updatedAt": int(time.time() * 1000)
+    }
+    
+    table.update_item(
+      Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{payload.goalId}"},
+      UpdateExpression=goal_update_expression,
+      ExpressionAttributeValues=goal_expression_values
+    )
+    
+    logger.info('progress.recalculated_after_task_creation', goal_id=payload.goalId, task_id=item.get('id'), progress=progress_data.progressPercentage)
+    
+  except Exception as exc:
+    # Log error but don't fail the task creation
+    logger.error('progress.recalculation_failed_after_task_creation', goal_id=payload.goalId, task_id=item.get('id'), exc_info=exc)
+
   return _task_to_response(item)
 
 
@@ -711,6 +766,35 @@ async def update_task(
     if not updated_task:
         raise HTTPException(status_code=500, detail="Could not retrieve updated task")
 
+    # Trigger progress recalculation for the goal (asynchronous)
+    goal_id = updated_task.get("goalId")
+    if goal_id:
+        try:
+            # Calculate progress and update goal record
+            progress_data = compute_goal_progress(goal_id, user_id, table)
+            
+            # Update goal with progress data
+            goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
+            goal_expression_values = {
+                ":progress": progress_data.progressPercentage,
+                ":milestones": [milestone.dict() for milestone in progress_data.milestones],
+                ":completedTasks": progress_data.completedTasks,
+                ":totalTasks": progress_data.totalTasks,
+                ":updatedAt": int(time.time() * 1000)
+            }
+            
+            table.update_item(
+                Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{goal_id}"},
+                UpdateExpression=goal_update_expression,
+                ExpressionAttributeValues=goal_expression_values
+            )
+            
+            logger.info('progress.recalculated_after_task_update', goal_id=goal_id, task_id=task_id, progress=progress_data.progressPercentage)
+            
+        except Exception as exc:
+            # Log error but don't fail the task update
+            logger.error('progress.recalculation_failed_after_task_update', goal_id=goal_id, task_id=task_id, exc_info=exc)
+
     return _task_to_response(updated_task)
 
 
@@ -734,6 +818,9 @@ async def delete_task(
     if not task_item:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # Get goal ID before deleting task
+    goal_id = task_item.get("goalId")
+    
     # Delete the task
     try:
         table.delete_item(
@@ -741,6 +828,34 @@ async def delete_task(
         )
     except (ClientError, BotoCoreError) as exc:
         raise HTTPException(status_code=500, detail="Could not delete task at this time")
+
+    # Trigger progress recalculation for the goal (asynchronous)
+    if goal_id:
+        try:
+            # Calculate progress and update goal record
+            progress_data = compute_goal_progress(goal_id, user_id, table)
+            
+            # Update goal with progress data
+            goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
+            goal_expression_values = {
+                ":progress": progress_data.progressPercentage,
+                ":milestones": [milestone.dict() for milestone in progress_data.milestones],
+                ":completedTasks": progress_data.completedTasks,
+                ":totalTasks": progress_data.totalTasks,
+                ":updatedAt": int(time.time() * 1000)
+            }
+            
+            table.update_item(
+                Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{goal_id}"},
+                UpdateExpression=goal_update_expression,
+                ExpressionAttributeValues=goal_expression_values
+            )
+            
+            logger.info('progress.recalculated_after_task_deletion', goal_id=goal_id, task_id=task_id, progress=progress_data.progressPercentage)
+            
+        except Exception as exc:
+            # Log error but don't fail the task deletion
+            logger.error('progress.recalculation_failed_after_task_deletion', goal_id=goal_id, task_id=task_id, exc_info=exc)
 
     return {"message": "Task deleted successfully"}
 
@@ -827,3 +942,379 @@ async def update_profile(
     return UserProfile(**{
         k: merged.get(k) for k in UserProfile.model_fields.keys()  # type: ignore[attr-defined]
     })
+
+
+# ---------- Progress Calculation Endpoints ----------
+
+@app.get("/quests/{goal_id}/progress", response_model=GoalProgressResponse)
+async def get_goal_progress(
+    goal_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Get progress information for a specific goal.
+    
+    Args:
+        goal_id: The goal ID
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        GoalProgressResponse with calculated progress data
+    """
+    logger.info('progress.get_requested', goal_id=goal_id, user_id=auth.user_id)
+    
+    try:
+        progress_data = compute_goal_progress(goal_id, auth.user_id, table)
+        logger.info('progress.calculated', goal_id=goal_id, progress=progress_data.progressPercentage)
+        return progress_data
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error('progress.get_failed', goal_id=goal_id, user_id=auth.user_id, exc_info=exc)
+        raise HTTPException(status_code=500, detail="Failed to calculate goal progress")
+
+
+@app.get("/quests/progress", response_model=List[GoalProgressResponse])
+async def get_all_goals_progress(
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Get progress information for all user goals.
+    
+    Args:
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        List of GoalProgressResponse objects
+    """
+    logger.info('progress.get_all_requested', user_id=auth.user_id)
+    
+    try:
+        # Get all goals for the user
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"USER#{auth.user_id}") & Key("SK").begins_with("GOAL#")
+        )
+        goals = response.get("Items", [])
+        
+        progress_list = []
+        for goal in goals:
+            try:
+                goal_id = goal.get("id")
+                if goal_id:
+                    progress_data = compute_goal_progress(goal_id, auth.user_id, table)
+                    progress_list.append(progress_data)
+            except Exception as exc:
+                logger.error('progress.calculation_failed_for_goal', goal_id=goal.get("id"), exc_info=exc)
+                # Continue with other goals even if one fails
+                continue
+        
+        logger.info('progress.all_calculated', user_id=auth.user_id, count=len(progress_list))
+        return progress_list
+        
+    except Exception as exc:
+        logger.error('progress.get_all_failed', user_id=auth.user_id, exc_info=exc)
+        raise HTTPException(status_code=500, detail="Failed to calculate goals progress")
+
+
+# ---------- Progress Calculation Functions ----------
+
+def get_goal_tasks(goal_id: str, user_id: str, table) -> List[Dict]:
+    """
+    Get all tasks for a specific goal.
+    
+    Args:
+        goal_id: The goal ID
+        user_id: The user ID
+        table: DynamoDB table resource
+        
+    Returns:
+        List of task dictionaries
+    """
+    try:
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("TASK#"),
+            FilterExpression=Key("goalId").eq(goal_id)
+        )
+        return response.get("Items", [])
+    except (ClientError, BotoCoreError) as exc:
+        logger.error('progress.get_tasks_failed', goal_id=goal_id, user_id=user_id, exc_info=exc)
+        return []
+
+
+def calculate_time_progress(goal: Dict) -> float:
+    """
+    Calculate time-based progress percentage.
+    Formula: (current_date - creation_date) / (deadline - creation_date) * 100
+    
+    Args:
+        goal: Goal dictionary from DynamoDB
+        
+    Returns:
+        Time progress percentage (0-100)
+    """
+    try:
+        now = datetime.datetime.now()
+        created = datetime.datetime.fromtimestamp(goal['createdAt'] / 1000)
+        deadline_str = goal.get('deadline')
+        
+        if not deadline_str:
+            return 0.0
+            
+        deadline = datetime.datetime.strptime(deadline_str, '%Y-%m-%d')
+        
+        total_days = (deadline - created).days
+        elapsed_days = (now - created).days
+        
+        if total_days <= 0:
+            return 100.0 if now > deadline else 0.0
+        
+        time_progress = min(100.0, max(0.0, (elapsed_days / total_days) * 100))
+        
+        # If overdue, return 100% but mark as overdue
+        if now > deadline:
+            return 100.0
+        
+        return time_progress
+    except (ValueError, KeyError, TypeError) as exc:
+        logger.error('progress.time_calculation_failed', goal_id=goal.get('id'), exc_info=exc)
+        return 0.0
+
+
+def calculate_milestones(progress_percentage: float, goal_id: str) -> List[Milestone]:
+    """
+    Calculate milestones based on current progress percentage (non-retroactive).
+    
+    Args:
+        progress_percentage: Current progress percentage
+        goal_id: Goal ID for milestone IDs
+        
+    Returns:
+        List of Milestone objects
+    """
+    milestones = []
+    
+    # Fixed milestone thresholds and names
+    milestone_configs = [
+        (25.0, "First Quarter"),
+        (50.0, "Halfway Point"), 
+        (75.0, "Three Quarters"),
+        (100.0, "Complete")
+    ]
+    
+    for threshold, name in milestone_configs:
+        # Non-retroactive: only add milestone if current progress >= threshold
+        if progress_percentage >= threshold:
+            milestones.append(Milestone(
+                id=f"milestone_{int(threshold)}_{goal_id}",
+                name=name,
+                percentage=threshold,
+                achieved=True,
+                achievedAt=int(time.time() * 1000),
+                description=f"Reached {name} milestone"
+            ))
+        else:
+            # Add unachieved milestone for progress bar markers
+            milestones.append(Milestone(
+                id=f"milestone_{int(threshold)}_{goal_id}",
+                name=name,
+                percentage=threshold,
+                achieved=False,
+                achievedAt=None,
+                description=f"Next milestone: {name}"
+            ))
+    
+    return milestones
+
+
+def is_goal_overdue(goal: Dict) -> bool:
+    """
+    Check if a goal is overdue.
+    
+    Args:
+        goal: Goal dictionary from DynamoDB
+        
+    Returns:
+        True if goal is overdue, False otherwise
+    """
+    try:
+        deadline_str = goal.get('deadline')
+        if not deadline_str:
+            return False
+            
+        deadline = datetime.datetime.strptime(deadline_str, '%Y-%m-%d')
+        return datetime.datetime.now() > deadline
+    except (ValueError, KeyError, TypeError):
+        return False
+
+
+def is_goal_urgent(goal: Dict) -> bool:
+    """
+    Check if a goal is urgent (due within 7 days).
+    
+    Args:
+        goal: Goal dictionary from DynamoDB
+        
+    Returns:
+        True if goal is urgent, False otherwise
+    """
+    try:
+        deadline_str = goal.get('deadline')
+        if not deadline_str:
+            return False
+            
+        deadline = datetime.datetime.strptime(deadline_str, '%Y-%m-%d')
+        days_remaining = (deadline - datetime.datetime.now()).days
+        return 0 <= days_remaining <= 7
+    except (ValueError, KeyError, TypeError):
+        return False
+
+
+def compute_goal_progress(goal_id: str, user_id: str, table) -> GoalProgressResponse:
+    """
+    Calculate goal progress using hybrid approach: task completion + time-based progress.
+    
+    Requirements:
+    - Fixed 70/30 weight split (task/time)
+    - Goals without tasks show 0% progress
+    - Deadline is mandatory for all goals
+    - Store progress data in Goal record
+    - Asynchronous recalculation on task operations
+    
+    Args:
+        goal_id: The goal ID
+        user_id: The user ID
+        table: DynamoDB table resource
+        
+    Returns:
+        GoalProgressResponse with calculated progress data
+    """
+    try:
+        # Step 1: Get all tasks for the goal
+        tasks = get_goal_tasks(goal_id, user_id, table)
+        
+        # Step 2: Calculate task completion progress
+        total_tasks = len(tasks)
+        completed_tasks = len([t for t in tasks if t.get('status') == 'completed'])
+        
+        # Goals without tasks show 0% progress (not time-based fallback)
+        task_progress = 0.0
+        if total_tasks > 0:
+            task_progress = (completed_tasks / total_tasks) * 100
+        
+        # Step 3: Get goal data for time calculation
+        goal_response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+        goal = goal_response.get("Item")
+        
+        if not goal:
+            logger.error('progress.goal_not_found', goal_id=goal_id, user_id=user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Step 4: Calculate time-based progress (deadline is mandatory)
+        time_progress = calculate_time_progress(goal)
+        
+        # Step 5: Calculate hybrid progress (fixed 70/30 weight split)
+        hybrid_progress = (task_progress * 0.7) + (time_progress * 0.3)
+        
+        # Step 6: Determine milestones (fixed thresholds, non-retroactive)
+        milestones = calculate_milestones(hybrid_progress, goal_id)
+        
+        # Step 7: Determine urgency and overdue status
+        is_overdue = is_goal_overdue(goal)
+        is_urgent = is_goal_urgent(goal)
+        
+        return GoalProgressResponse(
+            goalId=goal_id,
+            progressPercentage=round(hybrid_progress, 2),
+            taskProgress=round(task_progress, 2),
+            timeProgress=round(time_progress, 2),
+            completedTasks=completed_tasks,
+            totalTasks=total_tasks,
+            milestones=milestones,
+            lastUpdated=int(time.time() * 1000),
+            isOverdue=is_overdue,
+            isUrgent=is_urgent
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Log error to CloudWatch and continue API operation
+        logger.error('progress.calculation_failed', goal_id=goal_id, user_id=user_id, exc_info=exc)
+        # Return minimal progress data to maintain API functionality
+        return GoalProgressResponse(
+            goalId=goal_id,
+            progressPercentage=0.0,
+            taskProgress=0.0,
+            timeProgress=0.0,
+            completedTasks=0,
+            totalTasks=0,
+            milestones=[],
+            lastUpdated=int(time.time() * 1000),
+            isOverdue=False,
+            isUrgent=False
+        )
+
+# Lambda handler for GraphQL resolvers
+def lambda_handler(event, context):
+    """
+    Lambda handler for GraphQL resolver invocations
+    """
+    try:
+        operation = event.get('operation')
+        
+        if operation == 'getGoalProgress':
+            goal_id = event.get('goalId')
+            user_id = event.get('userId')
+            
+            if not goal_id or not user_id:
+                raise Exception('Missing required parameters: goalId and userId')
+            
+            # Get DynamoDB table
+            table = get_goals_table()
+            
+            # Calculate progress
+            progress_data = compute_goal_progress(goal_id, user_id, table)
+            
+            return progress_data.dict()
+            
+        elif operation == 'getAllGoalsProgress':
+            user_id = event.get('userId')
+            
+            if not user_id:
+                raise Exception('Missing required parameters: userId')
+            
+            # Get DynamoDB table
+            table = get_goals_table()
+            
+            # Get all user goals
+            response = table.query(
+                KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("GOAL#")
+            )
+            goals = response.get("Items", [])
+            
+            # Calculate progress for each goal
+            progress_list = []
+            for goal in goals:
+                goal_id = goal.get("id")
+                if goal_id:
+                    try:
+                        progress_data = compute_goal_progress(goal_id, user_id, table)
+                        progress_list.append(progress_data.dict())
+                    except Exception as exc:
+                        logger.error('progress.calculation_failed', goal_id=goal_id, user_id=user_id, exc_info=exc)
+                        continue
+            
+            return progress_list
+        
+        else:
+            raise Exception(f'Unknown operation: {operation}')
+            
+    except Exception as exc:
+        logger.error('lambda_handler.error', exc_info=exc)
+        raise exc

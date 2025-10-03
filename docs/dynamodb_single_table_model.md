@@ -52,6 +52,11 @@ Task (under a goal)
 - Optional owner listing copy for fast user queries (if needed later): `PK=USER#<userId>`, `SK=TASK#<dueAtISO>#<taskId>` with `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Task#<dueAtISO>`
 - Payload: `type: "Task"`, `id`, `goalId`, `userId`, `title`, `dueAt?`, `nlpPlan?`, `done: boolean`, `createdAt`, `updatedAt`
 
+Milestone (under a goal, for future persistent storage)
+- Keys: `PK=USER#<userId>`, `SK=MILESTONE#<goalId>#<milestoneId>`
+- GSIs: `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Milestone#<createdAtISO>`
+- Payload: `type: "Milestone"`, `id`, `goalId`, `userId`, `name`, `percentage`, `achieved: boolean`, `achievedAt?`, `description?`, `createdAt`, `updatedAt`
+
 Chat Message (per room)
 - Keys: `PK=ROOM#<roomId>`, `SK=MSG#<timestampISO>#<messageId>`
 - Optional GSI1 for user timeline if required: `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Message#<timestampISO>`
@@ -74,6 +79,11 @@ Access Patterns (current)
 - List tasks in a goal: Query base table where `PK=GOAL#<goalId>` with `begins_with(SK, 'TASK#')`
 - List user entities timeline: Query `GSI1` where `GSI1PK=USER#<userId>` ordered by `GSI1SK`
 - Chat history: Query base table where `PK=ROOM#<roomId>` ordered by `SK` with pagination
+
+Access Patterns (future - milestone persistent storage)
+- List goal milestones: Query base table where `PK=USER#<userId>` with `begins_with(SK, 'MILESTONE#<goalId>#')`
+- List user milestones timeline: Query `GSI1` where `GSI1PK=USER#<userId>` with `begins_with(GSI1SK, 'ENTITY#Milestone#')`
+- Get specific milestone: GetItem on `PK=USER#<userId>`, `SK=MILESTONE#<goalId>#<milestoneId>`
 
 Conventions
 - Attributes: use `PK`, `SK`, and `GSIxPK/GSIxSK` exactly; camelCase for domain fields

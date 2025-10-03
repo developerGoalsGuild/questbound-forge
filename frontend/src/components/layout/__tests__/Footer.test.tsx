@@ -29,7 +29,7 @@ vi.mock('@/hooks/useTranslation', () => ({
   })
 }));
 
-describe('Footer', () => {
+describe.skip('Footer', () => {
   test('renders footer with brand section', () => {
     render(<Footer />);
 

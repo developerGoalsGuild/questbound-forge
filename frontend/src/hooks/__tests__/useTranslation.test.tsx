@@ -5,6 +5,8 @@ import { render, screen } from '@testing-library/react';
 import { renderHook, act } from '@testing-library/react';
 import { TranslationProvider, useTranslation } from '../useTranslation';
 
+vi.unmock('@/hooks/useTranslation');
+
 // Mock the translations
 vi.mock('@/i18n/translations', () => ({
   translations: {

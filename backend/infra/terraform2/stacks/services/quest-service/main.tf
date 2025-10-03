@@ -5,7 +5,7 @@
 
 # Use existing ECR image directly (temporarily)
 locals {
-  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_quest_service:v10"
+  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_quest_service:v17"
 }
 
 module "quest_lambda" {
@@ -20,5 +20,22 @@ module "quest_lambda" {
     ENVIRONMENT         = var.environment
     SETTINGS_SSM_PREFIX = "/goalsguild/quest-service/"
   }
+  
+  # Enable function URL for AppSync HTTP data source
+  enable_function_url     = true
+  function_url_auth_type  = "AWS_IAM"  # Secure access for AppSync only
+  function_url_cors = {
+    allow_credentials = false
+    allow_headers     = ["content-type", "authorization"]
+    allow_methods     = ["POST", "GET"]
+    allow_origins     = ["*"]
+    max_age          = 86400
+  }
 }
+
+
+
+
+
+
 

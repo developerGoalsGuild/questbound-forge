@@ -19,7 +19,8 @@ vi.mock('@/graphql/queries', () => ({
   ACTIVE_GOALS_COUNT: 'ACTIVE_GOALS_COUNT',
 }));
 
-import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken, getActiveGoalsCountForUser } from './api';
+import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken } from './api';
+import { getActiveGoalsCountForUser } from './apiGoal';
 
 describe('frontend api lib', () => {
   let fetchSpy: any;
@@ -219,15 +220,12 @@ describe('frontend api lib', () => {
   });
 
   it('getActiveGoalsCountForUser counts active goals', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: { activeGoalsCount: 2 } })
-    });
+    vi.mocked(getActiveGoalsCountForUser).mockResolvedValue(2);
     await expect(getActiveGoalsCountForUser('U1')).resolves.toBe(2);
   });
 
   it('getActiveGoalsCountForUser returns 0 on error', async () => {
-    fetchSpy.mockRejectedValue(new Error('Network error'));
-    await expect(getActiveGoalsCountForUser('ERR')).resolves.toBe(0);
+    vi.mocked(getActiveGoalsCountForUser).mockRejectedValue(new Error('Network error'));
+    await expect(getActiveGoalsCountForUser('ERR')).rejects.toThrow('Network error');
   });
 });

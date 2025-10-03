@@ -111,23 +111,29 @@ export function calculateTimeProgress(goal: GoalProgressData): ProgressResult {
 }
 
 /**
- * Get progress bar color based on progress status
+ * Get progress bar color based on progress percentage (red to green gradient)
  */
 export function getProgressBarColor(progress: ProgressResult): string {
-  if (progress.isOverdue) return 'bg-red-500';
-  if (progress.isUrgent) return 'bg-yellow-500';
-  if (progress.isOnTrack) return 'bg-green-500';
-  return 'bg-gray-500';
+  const percentage = progress.percentage;
+  if (percentage >= 90) return 'bg-green-500';      // 90-100%: Green
+  if (percentage >= 75) return 'bg-lime-500';       // 75-89%: Lime green
+  if (percentage >= 60) return 'bg-yellow-500';     // 60-74%: Yellow
+  if (percentage >= 40) return 'bg-orange-500';     // 40-59%: Orange
+  if (percentage >= 20) return 'bg-red-400';        // 20-39%: Light red
+  return 'bg-red-500';                              // 0-19%: Red
 }
 
 /**
- * Get progress bar background color
+ * Get progress bar background color based on progress percentage (red to green gradient)
  */
 export function getProgressBarBgColor(progress: ProgressResult): string {
-  if (progress.isOverdue) return 'bg-red-100';
-  if (progress.isUrgent) return 'bg-yellow-100';
-  if (progress.isOnTrack) return 'bg-green-100';
-  return 'bg-gray-100';
+  const percentage = progress.percentage;
+  if (percentage >= 90) return 'bg-green-100';      // 90-100%: Green background
+  if (percentage >= 75) return 'bg-lime-100';       // 75-89%: Lime green background
+  if (percentage >= 60) return 'bg-yellow-100';     // 60-74%: Yellow background
+  if (percentage >= 40) return 'bg-orange-100';     // 40-59%: Orange background
+  if (percentage >= 20) return 'bg-red-100';        // 20-39%: Light red background
+  return 'bg-red-50';                               // 0-19%: Red background
 }
 
 /**
@@ -183,7 +189,10 @@ export function formatMilestoneText(milestone: Milestone): string {
 /**
  * Get milestone markers for progress bar
  */
-export function getMilestoneMarkers(milestones: Milestone[] = []): Array<{percentage: number; achieved: boolean; name: string}> {
+export function getMilestoneMarkers(milestones: Milestone[] | null | undefined = []): Array<{percentage: number; achieved: boolean; name: string}> {
+  if (!milestones || !Array.isArray(milestones)) {
+    return [];
+  }
   return milestones.map(m => ({
     percentage: m.percentage,
     achieved: m.achieved,
@@ -192,25 +201,27 @@ export function getMilestoneMarkers(milestones: Milestone[] = []): Array<{percen
 }
 
 /**
- * Get progress bar color for task progress
+ * Get progress bar color for task progress (red to green gradient)
  */
 export function getTaskProgressBarColor(percentage: number): string {
-  if (percentage >= 100) return 'bg-green-500';
-  if (percentage >= 75) return 'bg-blue-500';
-  if (percentage >= 50) return 'bg-yellow-500';
-  if (percentage >= 25) return 'bg-orange-500';
-  return 'bg-gray-500';
+  if (percentage >= 90) return 'bg-green-500';      // 90-100%: Green
+  if (percentage >= 75) return 'bg-lime-500';       // 75-89%: Lime green
+  if (percentage >= 60) return 'bg-yellow-500';     // 60-74%: Yellow
+  if (percentage >= 40) return 'bg-orange-500';     // 40-59%: Orange
+  if (percentage >= 20) return 'bg-red-400';        // 20-39%: Light red
+  return 'bg-red-500';                              // 0-19%: Red
 }
 
 /**
- * Get progress bar background color for task progress
+ * Get progress bar background color for task progress (red to green gradient)
  */
 export function getTaskProgressBarBgColor(percentage: number): string {
-  if (percentage >= 100) return 'bg-green-100';
-  if (percentage >= 75) return 'bg-blue-100';
-  if (percentage >= 50) return 'bg-yellow-100';
-  if (percentage >= 25) return 'bg-orange-100';
-  return 'bg-gray-100';
+  if (percentage >= 90) return 'bg-green-100';      // 90-100%: Green background
+  if (percentage >= 75) return 'bg-lime-100';       // 75-89%: Lime green background
+  if (percentage >= 60) return 'bg-yellow-100';     // 60-74%: Yellow background
+  if (percentage >= 40) return 'bg-orange-100';     // 40-59%: Orange background
+  if (percentage >= 20) return 'bg-red-100';        // 20-39%: Light red background
+  return 'bg-red-50';                               // 0-19%: Red background
 }
 
 /**

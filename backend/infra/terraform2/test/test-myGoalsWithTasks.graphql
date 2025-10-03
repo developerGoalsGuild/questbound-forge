@@ -1,0 +1,16 @@
+query TestMyGoalsWithTasks {
+  myGoalsWithTasks {
+    id
+    title
+    deadline
+    status
+    createdAt
+    tasks {
+      id
+      dueAt
+      status
+      createdAt
+      updatedAt
+    }
+  }
+}
