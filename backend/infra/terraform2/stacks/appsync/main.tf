@@ -258,6 +258,53 @@ data "terraform_remote_state" "quest_service" {
   config = { path = "../services/quest-service/terraform.tfstate" }
 }
 
+# User queries
+resource "aws_appsync_resolver" "query_me" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "me"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/me.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_user" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "user"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/user.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+# Removed query_goals resolver - already exists in AppSync API
+
+# Quest queries
+resource "aws_appsync_resolver" "query_myQuests" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myQuests"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/myQuests.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+# Removed task resolvers - already exist in AppSync API
+
+# Removed createTask mutation resolver - already exists in AppSync API
+
 locals {
   schema_path = "${path.module}/../../graphql/schema.graphql"
 }

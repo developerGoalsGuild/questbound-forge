@@ -39,6 +39,7 @@ backend/infra/terraform/plan.out
 *.*.backup
 backend/infra/terraform/terraform.tfstate.backup
 frontend/.env.development
+*.pyc
 
 # Coverage artifacts (all workspaces)
 **/coverage/

@@ -18,13 +18,43 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, UserProfile, ProfileUpdate, GoalProgressResponse, Milestone
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, GoalProgressResponse, Milestone, QuestCreatePayload, QuestUpdatePayload, QuestCancelPayload, QuestResponse
+from .db.quest_db import (
+    create_quest, get_quest, update_quest, change_quest_status, 
+    delete_quest, list_user_quests, QuestDBError, QuestNotFoundError,
+    QuestVersionConflictError, QuestPermissionError
+)
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
 
 
-_SERVICES_DIR = Path(__file__).resolve().parents[2]
-if str(_SERVICES_DIR) not in sys.path:
-    sys.path.append(str(_SERVICES_DIR))
+# Add common module to path - works both locally and in containers
+def _add_common_to_path():
+    """Add common module to Python path, supporting both local and container environments."""
+    # Try container path first (common is copied to /app/common)
+    container_common = Path("/app/common")
+    if container_common.exists():
+        if str(container_common.parent) not in sys.path:
+            sys.path.append(str(container_common.parent))
+        return
+    
+    # Try local development path
+    services_dir = Path(__file__).resolve().parents[3]
+    if (services_dir / "common").exists():
+        if str(services_dir) not in sys.path:
+            sys.path.append(str(services_dir))
+        return
+    
+    # Fallback: try relative to current file
+    current_dir = Path(__file__).resolve().parent
+    for _ in range(5):  # Go up max 5 levels
+        common_dir = current_dir / "common"
+        if common_dir.exists():
+            if str(current_dir) not in sys.path:
+                sys.path.append(str(current_dir))
+            return
+        current_dir = current_dir.parent
+
+_add_common_to_path()
 
 from common.logging import get_structured_logger, log_event
 
@@ -863,87 +893,6 @@ async def delete_task(
 __all__ = ["app"]
 
 
-# ---------- Profile: Read via AppSync (GraphQL) ----------
-# Note: Profile reads are handled by AppSync directly from the frontend
-# This service only handles profile updates via API Gateway
-
-
-# ---------- Profile: Update via API Gateway (this service) ----------
-@app.put("/profile", response_model=UserProfile)
-async def update_profile(
-    payload: ProfileUpdate,
-    auth: AuthContext = Depends(authenticate),
-    table=Depends(get_goals_table),
-):
-    # Single-table keys for profile entity
-    pk = f"USER#{auth.user_id}"
-    sk = f"PROFILE#{auth.user_id}"
-
-    # Fetch existing (tolerate not found)
-    try:
-        existing_resp = table.get_item(Key={"PK": pk, "SK": sk})
-    except (ClientError, BotoCoreError) as exc:
-        logger.error('profile.update_fetch_failed', exc_info=exc)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-    existing = existing_resp.get("Item") or {}
-
-    now_ms = int(time.time() * 1000)
-
-    # Build update attributes, only provided fields
-    updates: Dict[str, object] = {"updatedAt": now_ms}
-    
-    # Get the payload as a dict to check which fields were actually provided
-    payload_dict = payload.model_dump(exclude_unset=True)
-    
-    for key in [
-        "fullName", "nickname", "birthDate", "country", "language",
-        "gender", "pronouns", "bio", "tags",
-    ]:
-        if key in payload_dict:
-            value = payload_dict[key]
-            if value is not None:
-                updates[key] = value
-            else:
-                # Explicitly set to None to clear the field (only for optional fields)
-                if key in ["fullName", "nickname", "birthDate", "country", "gender", "pronouns", "bio", "tags"]:
-                    updates[key] = None
-
-    # Compose final item (upsert semantics)
-    new_item = {
-        **{"PK": pk, "SK": sk, "type": "UserProfile", "id": auth.user_id},
-        **existing,
-        **updates,
-        "userId": auth.user_id,
-        "updatedAt": now_ms,
-        "createdAt": existing.get("createdAt", now_ms),
-    }
-
-    try:
-        table.put_item(Item=new_item)
-    except (ClientError, BotoCoreError) as exc:
-        logger.error('profile.update_failed', exc_info=exc)
-        raise HTTPException(status_code=500, detail="Could not update profile")
-
-    # Shape response to UserProfile
-    # Provide defaults for required fields if missing in existing
-    defaulted = {
-        "email": existing.get("email", ""),
-        "role": existing.get("role", "user"),
-        "status": existing.get("status", "ACTIVE"),
-        "language": new_item.get("language", existing.get("language", "en")),
-        "tier": existing.get("tier", "free"),
-        "provider": existing.get("provider", "local"),
-        "email_confirmed": bool(existing.get("email_confirmed", False)),
-    }
-    merged = {**defaulted, **new_item}
-    # tags normalization
-    merged["tags"] = [str(t) for t in (merged.get("tags") or [])]
-    return UserProfile(**{
-        k: merged.get(k) for k in UserProfile.model_fields.keys()  # type: ignore[attr-defined]
-    })
-
-
 # ---------- Progress Calculation Endpoints ----------
 
 @app.get("/quests/{goal_id}/progress", response_model=GoalProgressResponse)
@@ -1259,6 +1208,300 @@ def compute_goal_progress(goal_id: str, user_id: str, table) -> GoalProgressResp
             isOverdue=False,
             isUrgent=False
         )
+
+# ---------- Quest Endpoints ----------
+
+@app.post("/quests/createQuest", response_model=QuestResponse, status_code=201)
+async def create_quest_endpoint(
+    payload: QuestCreatePayload,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Create a new quest (creates as draft).
+    
+    Args:
+        payload: Quest creation payload
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        QuestResponse object
+        
+    Raises:
+        HTTPException: If quest creation fails
+    """
+    log_event(logger, 'quests.createQuest_start', user_id=auth.user_id)
+    
+    try:
+        # Create quest using database helper
+        quest = create_quest(auth.user_id, payload)
+        
+        log_event(logger, 'quests.createQuest_success', 
+                 user_id=auth.user_id, quest_id=quest.id)
+        
+        return quest
+        
+    except QuestDBError as e:
+        logger.error('quests.createQuest_failed', 
+                    user_id=auth.user_id, 
+                    error=str(e),
+                    exc_info=e)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error('quests.createQuest_failed', 
+                    user_id=auth.user_id, 
+                    error=str(e),
+                    exc_info=e)
+        raise HTTPException(status_code=500, detail="Failed to create quest")
+
+
+@app.post("/quests/quests/{quest_id}/start", response_model=QuestResponse)
+async def start_quest_endpoint(
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Start a quest (draft -> active).
+    
+    Args:
+        quest_id: Quest ID
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        QuestResponse object
+        
+    Raises:
+        HTTPException: If quest start fails
+    """
+    log_event(logger, 'quests.startQuest_start', 
+             user_id=auth.user_id, quest_id=quest_id)
+    
+    try:
+        # Change quest status to active
+        quest = change_quest_status(auth.user_id, quest_id, "active")
+        
+        log_event(logger, 'quests.startQuest_success', 
+                 user_id=auth.user_id, quest_id=quest_id)
+        
+        return quest
+        
+    except QuestNotFoundError as e:
+        logger.warning('quests.startQuest_not_found', 
+                      user_id=auth.user_id, quest_id=quest_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except QuestPermissionError as e:
+        logger.warning('quests.startQuest_permission_denied', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestDBError as e:
+        logger.error('quests.startQuest_failed', 
+                    user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to start quest")
+
+
+@app.put("/quests/quests/{quest_id}", response_model=QuestResponse)
+async def update_quest_endpoint(
+    quest_id: str,
+    payload: QuestUpdatePayload,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Update a quest (draft only).
+    
+    Args:
+        quest_id: Quest ID
+        payload: Quest update payload
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        QuestResponse object
+        
+    Raises:
+        HTTPException: If quest update fails
+    """
+    log_event(logger, 'quests.updateQuest_start', 
+             user_id=auth.user_id, quest_id=quest_id)
+    
+    try:
+        # Get current quest to get version for optimistic locking
+        current_quest = get_quest(auth.user_id, quest_id)
+        
+        # Update quest using database helper
+        quest = update_quest(auth.user_id, quest_id, payload, current_quest.version)
+        
+        log_event(logger, 'quests.updateQuest_success', 
+                 user_id=auth.user_id, quest_id=quest_id)
+        
+        return quest
+        
+    except QuestNotFoundError as e:
+        logger.warning('quests.updateQuest_not_found', 
+                      user_id=auth.user_id, quest_id=quest_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except QuestPermissionError as e:
+        logger.warning('quests.updateQuest_permission_denied', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestVersionConflictError as e:
+        logger.warning('quests.updateQuest_version_conflict', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=409, detail="Quest was modified by another operation")
+    except QuestDBError as e:
+        logger.error('quests.updateQuest_failed', 
+                    user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update quest")
+
+
+@app.post("/quests/quests/{quest_id}/cancel", response_model=QuestResponse)
+async def cancel_quest_endpoint(
+    quest_id: str,
+    payload: QuestCancelPayload = Body(...),
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Cancel a quest (active -> cancelled).
+    
+    Args:
+        quest_id: Quest ID
+        payload: Quest cancellation payload
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        QuestResponse object
+        
+    Raises:
+        HTTPException: If quest cancellation fails
+    """
+    log_event(logger, 'quests.cancelQuest_start', 
+             user_id=auth.user_id, quest_id=quest_id)
+    
+    try:
+        # Change quest status to cancelled
+        quest = change_quest_status(auth.user_id, quest_id, "cancelled", 
+                                  payload.reason if payload else None)
+        
+        log_event(logger, 'quests.cancelQuest_success', 
+                 user_id=auth.user_id, quest_id=quest_id)
+        
+        return quest
+        
+    except QuestNotFoundError as e:
+        logger.warning('quests.cancelQuest_not_found', 
+                      user_id=auth.user_id, quest_id=quest_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except QuestPermissionError as e:
+        logger.warning('quests.cancelQuest_permission_denied', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestDBError as e:
+        logger.error('quests.cancelQuest_failed', 
+                    user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to cancel quest")
+
+
+@app.post("/quests/quests/{quest_id}/fail", response_model=QuestResponse)
+async def fail_quest_endpoint(
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Mark a quest as failed (active -> failed).
+    
+    Args:
+        quest_id: Quest ID
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        QuestResponse object
+        
+    Raises:
+        HTTPException: If quest failure marking fails
+    """
+    log_event(logger, 'quests.failQuest_start', 
+             user_id=auth.user_id, quest_id=quest_id)
+    
+    try:
+        # Change quest status to failed
+        quest = change_quest_status(auth.user_id, quest_id, "failed")
+        
+        log_event(logger, 'quests.failQuest_success', 
+                 user_id=auth.user_id, quest_id=quest_id)
+        
+        return quest
+        
+    except QuestNotFoundError as e:
+        logger.warning('quests.failQuest_not_found', 
+                      user_id=auth.user_id, quest_id=quest_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except QuestPermissionError as e:
+        logger.warning('quests.failQuest_permission_denied', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestDBError as e:
+        logger.error('quests.failQuest_failed', 
+                    user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to mark quest as failed")
+
+
+@app.delete("/quests/quests/{quest_id}")
+async def delete_quest_endpoint(
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Delete a quest (admin-only for active+ quests).
+    
+    Args:
+        quest_id: Quest ID
+        auth: Authentication context
+        table: DynamoDB table resource
+        
+    Returns:
+        Success message
+        
+    Raises:
+        HTTPException: If quest deletion fails
+    """
+    log_event(logger, 'quests.deleteQuest_start', 
+             user_id=auth.user_id, quest_id=quest_id)
+    
+    try:
+        # Check if user has admin role
+        is_admin = auth.claims.get('role') == 'admin'
+        
+        # Delete quest using database helper
+        success = delete_quest(auth.user_id, quest_id, is_admin)
+        
+        if success:
+            log_event(logger, 'quests.deleteQuest_success', 
+                     user_id=auth.user_id, quest_id=quest_id)
+            return {"message": "Quest deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete quest")
+        
+    except QuestNotFoundError as e:
+        logger.warning('quests.deleteQuest_not_found', 
+                      user_id=auth.user_id, quest_id=quest_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except QuestPermissionError as e:
+        logger.warning('quests.deleteQuest_permission_denied', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestDBError as e:
+        logger.error('quests.deleteQuest_failed', 
+                    user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete quest")
+
 
 # Lambda handler for GraphQL resolvers
 def lambda_handler(event, context):

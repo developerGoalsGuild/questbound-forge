@@ -62,7 +62,8 @@ A multi-platform ecosystem (web and mobile) that combines:
 - **As a user**, I want to participate in forums and discussions so that I can learn from the community
 - **As a user**, I want to share my achievements so that I can inspire others and receive recognition
 - **As a user**, I want to receive notifications about important updates so that I stay engaged
-
+- **As a user**, I want to follow users that has goals similar to mine and see their achievement
+- **As a user**, I want to follow users that has goals similar to mine and and talk to them
 ### 2.2 Business User Stories
 
 #### 2.2.1 Partner Companies

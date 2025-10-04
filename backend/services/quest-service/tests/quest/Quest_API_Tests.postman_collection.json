@@ -1,0 +1,1199 @@
+{
+	"info": {
+		"_postman_id": "quest-api-tests-2024",
+		"name": "Quest API Tests",
+		"description": "Comprehensive test collection for Quest API endpoints including authentication, CRUD operations, and error scenarios.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "quest-api-tests"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Get JWT Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.access_token) {",
+									"        pm.environment.set('jwt_token', response.access_token);",
+									"        console.log('JWT Token saved to environment');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"test@example.com\",\n    \"password\": \"testpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{auth_url}}/oauth2/token",
+							"host": [
+								"{{auth_url}}"
+							],
+							"path": [
+								"oauth2",
+								"token"
+							]
+						},
+						"description": "Get JWT token for authentication. Replace with your actual auth endpoint."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication setup for Quest API tests"
+		},
+		{
+			"name": "Quest Creation Tests",
+			"item": [
+				{
+					"name": "Create Linked Quest - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has quest ID', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.environment.set('quest_id', response.id);",
+									"});",
+									"",
+									"pm.test('Response has correct structure', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('title', 'Test Linked Quest');",
+									"    pm.expect(response).to.have.property('category', 'Health');",
+									"    pm.expect(response).to.have.property('difficulty', 'medium');",
+									"    pm.expect(response).to.have.property('kind', 'linked');",
+									"    pm.expect(response).to.have.property('status', 'draft');",
+									"    pm.expect(response).to.have.property('userId');",
+									"    pm.expect(response).to.have.property('version', 1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Linked Quest\",\n    \"category\": \"Health\",\n    \"difficulty\": \"medium\",\n    \"description\": \"Test quest for API validation\",\n    \"rewardXp\": 75,\n    \"tags\": [\"test\", \"health\"],\n    \"privacy\": \"private\",\n    \"kind\": \"linked\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Quantitative Quest - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has quest ID', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.environment.set('quantitative_quest_id', response.id);",
+									"});",
+									"",
+									"pm.test('Response has quantitative quest structure', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('kind', 'quantitative');",
+									"    pm.expect(response).to.have.property('targetCount', 10);",
+									"    pm.expect(response).to.have.property('countScope', 'any');",
+									"    pm.expect(response).to.have.property('startAt');",
+									"    pm.expect(response).to.have.property('periodSeconds', 86400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Quantitative Quest\",\n    \"category\": \"Work\",\n    \"difficulty\": \"hard\",\n    \"kind\": \"quantitative\",\n    \"targetCount\": 10,\n    \"countScope\": \"any\",\n    \"startAt\": 1704067200000,\n    \"periodSeconds\": 86400\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Quest - Validation Error (Empty Title)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400 or 422', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+									"});",
+									"",
+									"pm.test('Response has error detail', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"\",\n    \"category\": \"Health\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Quest - Validation Error (Invalid Category)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Response has error detail', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Quest\",\n    \"category\": \"InvalidCategory\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Quest - Authentication Required",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Quest\",\n    \"category\": \"Health\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test quest creation with various scenarios"
+		},
+		{
+			"name": "Quest Retrieval Tests",
+			"item": [
+				{
+					"name": "Get Quest by ID - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has quest data', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id', pm.environment.get('quest_id'));",
+									"    pm.expect(response).to.have.property('title');",
+									"    pm.expect(response).to.have.property('category');",
+									"    pm.expect(response).to.have.property('status');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quest_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quest_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Quest by ID - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Response has error detail', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/non-existent-quest-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"non-existent-quest-id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List User Quests - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is an array', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Response contains quest data', function () {",
+									"    const response = pm.response.json();",
+									"    if (response.length > 0) {",
+									"        pm.expect(response[0]).to.have.property('id');",
+									"        pm.expect(response[0]).to.have.property('title');",
+									"        pm.expect(response[0]).to.have.property('userId');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test quest retrieval operations"
+		},
+		{
+			"name": "Quest Status Management Tests",
+			"item": [
+				{
+					"name": "Start Quest - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Quest status is active', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('status', 'active');",
+									"    pm.expect(response).to.have.property('version', 2);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quest_id}}/start",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quest_id}}",
+								"start"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Start Quest - Already Active (Error)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Response has error detail', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quest_id}}/start",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quest_id}}",
+								"start"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Quest - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Quest status is cancelled', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('status', 'cancelled');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Test cancellation\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quest_id}}/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quest_id}}",
+								"cancel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Fail Quest - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Quest status is failed', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('status', 'failed');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quantitative_quest_id}}/fail",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quantitative_quest_id}}",
+								"fail"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test quest status management operations"
+		},
+		{
+			"name": "Quest Update Tests",
+			"item": [
+				{
+					"name": "Update Quest - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Quest is updated', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('title', 'Updated Quest Title');",
+									"    pm.expect(response).to.have.property('difficulty', 'hard');",
+									"    pm.expect(response).to.have.property('rewardXp', 100);",
+									"    pm.expect(response).to.have.property('version', 2);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Quest Title\",\n    \"difficulty\": \"hard\",\n    \"rewardXp\": 100,\n    \"tags\": [\"updated\", \"test\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quest_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quest_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Quest - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Response has error detail', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Title\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/quests/non-existent-quest-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"non-existent-quest-id"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test quest update operations"
+		},
+		{
+			"name": "Quest Deletion Tests",
+			"item": [
+				{
+					"name": "Delete Quest (Draft) - Success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response.message).to.include('deleted successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quantitative_quest_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quantitative_quest_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Quest - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Response has error detail', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests/non-existent-quest-id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"non-existent-quest-id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Quest - Authentication Required",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/quests/quests/{{quest_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests",
+								"{{quest_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test quest deletion operations"
+		},
+		{
+			"name": "Security Tests",
+			"item": [
+				{
+					"name": "XSS Prevention Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([201, 400]);",
+									"});",
+									"",
+									"pm.test('XSS is sanitized or rejected', function () {",
+									"    if (pm.response.code === 201) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.title).to.not.include('<script>');",
+									"        pm.expect(response.title).to.not.include('javascript:');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"<script>alert('xss')</script>Test Quest\",\n    \"category\": \"Health\",\n    \"difficulty\": \"medium\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "SQL Injection Prevention Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([201, 400]);",
+									"});",
+									"",
+									"pm.test('SQL injection is sanitized or rejected', function () {",
+									"    if (pm.response.code === 201) {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.title).to.not.include('DROP TABLE');",
+									"        pm.expect(response.title).to.not.include('DELETE FROM');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Quest'; DROP TABLE quests; --\",\n    \"category\": \"Health\",\n    \"difficulty\": \"medium\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid JWT Token Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer invalid-jwt-token"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Test Quest\",\n    \"category\": \"Health\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test security controls and vulnerability prevention"
+		},
+		{
+			"name": "Performance Tests",
+			"item": [
+				{
+					"name": "Create Multiple Quests - Performance",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response time is acceptable', function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+									"});",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Performance Test Quest {{$randomInt}}\",\n    \"category\": \"Health\",\n    \"difficulty\": \"medium\",\n    \"kind\": \"linked\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/quests/createQuest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"createQuest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Quests - Performance",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response time is acceptable', function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(3000);",
+									"});",
+									"",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/quests/quests",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"quests",
+								"quests"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Test performance and response times"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set default values if not already set",
+					"if (!pm.environment.get('base_url')) {",
+					"    pm.environment.set('base_url', 'http://localhost:8000');",
+					"}",
+					"",
+					"if (!pm.environment.get('auth_url')) {",
+					"    pm.environment.set('auth_url', 'https://your-auth-provider.com');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test for response time",
+					"pm.test('Response time is reasonable', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(10000);",
+					"});",
+					"",
+					"// Global test for response format",
+					"if (pm.response.code >= 200 && pm.response.code < 300) {",
+					"    pm.test('Response is valid JSON', function () {",
+					"        pm.response.to.be.json;",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "auth_url",
+			"value": "https://your-auth-provider.com",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "quest_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "quantitative_quest_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

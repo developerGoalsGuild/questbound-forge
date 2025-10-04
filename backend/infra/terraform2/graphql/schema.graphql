@@ -25,6 +25,24 @@ enum TaskStatus {
   cancelled
 }
 
+enum QuestStatus {
+  draft
+  active
+  completed
+  cancelled
+  failed
+}
+
+enum QuestKind {
+  linked
+  quantitative
+}
+
+enum QuestCountScope {
+  any
+  linked
+}
+
 # ----------------
 # Core Types
 # ----------------
@@ -134,6 +152,32 @@ type GoalWithTasks {
   tasks: [TaskForProgress!]!
 }
 
+# Quest type for user-created quests
+type Quest {
+  id: ID!
+  userId: ID!
+  title: String!
+  description: String
+  difficulty: String!
+  rewardXp: Int!
+  status: QuestStatus!
+  category: String!
+  tags: [String!]!
+  privacy: String!
+  deadline: AWSTimestamp
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp!
+  kind: QuestKind!
+  linkedGoalIds: [ID!]
+  linkedTaskIds: [ID!]
+  dependsOnQuestIds: [ID!]
+  # Quantitative fields
+  targetCount: Int
+  countScope: QuestCountScope
+  startAt: AWSTimestamp
+  periodSeconds: Int
+}
+
 type Message {
   id: ID!
   roomId: ID!
@@ -183,6 +227,9 @@ type Query {
   
   # Authorized checks (Lambda auth)
   isNicknameAvailableForUser(nickname: String!): Boolean!
+  
+  # Quest queries
+  myQuests(goalId: ID): [Quest!]!
 }
 
 # ----------------
@@ -200,6 +247,12 @@ type Mutation {
   Post a message to a chat room.
   """
   sendMessage(roomId: ID!, text: String!): Message!
+  
+  """
+  Non-public mutation to create a new task associated with a goal.
+  Requires authentication.
+  """
+  createTask(input: TaskInput!): Task!
 }
 
 # ----------------
@@ -258,16 +311,7 @@ input TaskInput {
 
 
 # Non-public mutation for creating a task
-extend type Mutation {
-  """
-  Non-public mutation to create a new task associated with a goal.
-  Requires authentication.
-  """
-  #  Add a task under a goal owned by the current user.
-  createTask(input: TaskInput!): Task!
-
-
-}
+# Note: createTask is now included in the main Mutation type below
 
 
 # ----------------

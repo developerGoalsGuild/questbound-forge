@@ -19,7 +19,7 @@ This file contains the incomplete or missing tasks from Phase 1 Foundation that 
 - [ ] 13.2 – Add validation + API integration for goal form (verify implementation)
 
 ## Goal Progress & Milestones
-- [ ] 17.1 – Compute goal progress % (backend)
+- [ x ] 17.1 – Compute goal progress % (backend)
 - [ ] 17.4 – Add user milestones (backend)
 - [ ] 18.2 – Add milestone list UI
 

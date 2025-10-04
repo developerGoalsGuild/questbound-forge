@@ -25,6 +25,9 @@ Questbound Forge is a serverless, cloud-agnostic goal-tracking application desig
 - **Single-table database**: DynamoDB with comprehensive GSI patterns named gg_core
 - **Microservices**: Modular Lambda functions for business logic
 - **Event-driven**: Async processing with EventBridge, SQS, and SNS
+- **Hybrid social feed**: fan-in (query-on-demand) by default; selective fan-out (materialized feeds) for power users/groups using DynamoDB Streams → SQS → Lambda. Lambda-backed mutations for all writes.
+- **Asynchronous chat**: room-partitioned messages in DynamoDB with AppSync queries/subscriptions; optional push via SNS.
+- **Hybrid groups**: start as project rooms tied to a goal; graduate to persistent communities (multiple goals/threads) when active.
 
 ### Client Architecture
 - **Web Frontend**: React/TypeScript SPA with Apollo GraphQL client
@@ -120,6 +123,14 @@ GSI1PK: USER#<userId>
 GSI1SK: ENTITY#Task#<createdAt>
 ```
 
+#### Quest (User-owned)
+```
+PK: USER#<userId>
+SK: QUEST#<questId>
+GSI1PK: USER#<userId>
+GSI1SK: ENTITY#Quest#<createdAt>
+```
+
 #### Email Uniqueness Lock
 ```
 PK: EMAIL#<email>
@@ -134,12 +145,13 @@ SK: UNIQUE#USER
 
 ### Access Patterns
 - Get user profile by ID
-- List user's goals/tasks
+- List user's goals/tasks/quests
 - Check email/nickname availability
 - Query goals/tasks by status/tags
 - User timeline views
 - Real-time chat messages
 - Gamification aggregates
+- Quest completion tracking
 
 ## Backend Services Architecture
 
@@ -152,6 +164,7 @@ SK: UNIQUE#USER
 - `getGoals.js`: Query user goals with filtering
 - `myGoals.js`: Get current user's goals
 - `activeGoalsCount.js`: Count active goals
+- `myQuests.js`: Query user quests (read-only)
 - `sendMessage.js`: Create chat messages
 
 #### 2. Lambda Microservices (Python FastAPI)
@@ -159,7 +172,7 @@ SK: UNIQUE#USER
 **Containerized**: Docker images via ECR
 **Services**:
 - **User Service**: Authentication, user management, profiles
-- **Quest Service**: Goals, tasks, AI features
+- **Quest Service**: Goals, tasks, quests, AI features
 - **Authorizer Service**: JWT validation for API Gateway/AppSync
 
 ### Lambda Function Patterns
@@ -180,9 +193,15 @@ SK: UNIQUE#USER
 - **Endpoints**:
   - `GET /quests`: List user goals
   - `POST /quests`: Create goal
-  - `POST /quests/createTask`: Add task to goal
-  - `POST /ai/inspiration-image`: Generate goal inspiration images
-  - `POST /ai/suggest-improvements`: AI goal improvement suggestions
+- `POST /quests/createTask`: Add task to goal
+- `POST /quests/createQuest`: Create quest (linked/quantitative)
+- `POST /quests/quests/{id}/cancel`: Cancel quest
+- `DELETE /quests/quests/{id}`: Delete quest (admin-only)
+- `POST /ai/inspiration-image`: Generate goal inspiration images
+- `POST /ai/suggest-improvements`: AI goal improvement suggestions
+- **Quest Operations**: 
+  - Reads: AppSync GraphQL (`myQuests`)
+  - Writes: API Gateway → Quest Service Lambda (`createQuest`, `cancelQuest`, `deleteQuest`)
 
 #### Authorizer Service (`backend/services/authorizer-service/`)
 - **Purpose**: Unified JWT validation across APIs
@@ -285,7 +304,7 @@ const form = useForm<z.infer<typeof schema>>({
 
 #### API Service Separation
 - **Dedicated API Files**: API integration logic must be in separate service files in `src/lib/`
-- **Pattern**: `src/lib/api[Feature].ts` (e.g., `apiProfile.ts`, `apiGoal.ts`, `apiTask.ts`)
+- **Pattern**: `src/lib/api[Feature].ts` (e.g., `apiProfile.ts`, `apiGoal.ts`, `apiTask.ts`, `apiQuest.ts`)
 - **Purpose**: Separation of concerns, improved testability, and reusability
 - **Functions**: CRUD operations, data transformation, error handling, and validation
 
@@ -308,7 +327,7 @@ export async function updateProfile(updates: ProfileUpdateInput): Promise<UserPr
 #### Model Definitions
 - **Location**: `src/models/` directory for TypeScript interfaces
 - **Purpose**: Centralized type definitions and data contracts
-- **Pattern**: Feature-specific model files (e.g., `profile.ts`, `goal.ts`)
+- **Pattern**: Feature-specific model files (e.g., `profile.ts`, `goal.ts`, `quest.ts`)
 - **Contents**: Interface definitions, type guards, and data transformation utilities
 
 ```typescript
@@ -584,10 +603,12 @@ frontend/src/
 │   ├── apiProfile.ts      # Profile API service functions
 │   ├── apiGoal.ts         # Goal API service functions
 │   ├── apiTask.ts         # Task API service functions
+│   ├── apiQuest.ts        # Quest API service functions
 │   └── validation/        # Validation schemas
 │       └── profileValidation.ts
 ├── models/                # TypeScript type definitions
-│   └── profile.ts         # Profile-related interfaces
+│   ├── profile.ts         # Profile-related interfaces
+│   └── quest.ts           # Quest-related interfaces
 ├── i18n/                  # Internationalization files
 │   ├── profile.ts         # Profile page translations
 │   ├── dashboard.ts       # Dashboard translations
@@ -660,3 +681,87 @@ When implementing new features, follow these architectural patterns:
 - **Secrets**: Secure credential storage
 
 This architecture guide provides the foundation for replicating Questbound Forge's patterns. The serverless, cloud-agnostic design ensures scalability, maintainability, and portability across different cloud providers while leveraging AWS's managed services for operational efficiency.
+
+# 11. Social & Communication Architecture (Hybrid)
+## 11. Social & Communication Architecture (Hybrid)
+
+### Overview
+We implement a **hybrid social architecture** that is cost-efficient at MVP scale and linearly scalable as the graph grows:
+
+- **Fan-in (query-on-demand)** for most users: write each Activity once, build timelines at read.
+- **Selective fan-out (materialized feeds)** for power users/groups: Streams → SQS → Lambda writes per-follower `FeedItem` entries for fast reads.
+- **Async Chat**: message items in room partitions; real-time delivery via AppSync subscriptions or short polling.
+- **Lambda-backed mutations** for all write paths to centralize validation, idempotency, and side effects.
+
+### Data Model Summary (DynamoDB single-table `gg_core`)
+Key prefixes (PK/SK):
+```
+USER#<id>   GROUP#<id>  GOAL#<id>  ROOM#<id>  ACTIVITY#<actorId>  FEED#<userId>
+```
+- **Follow edges**: `PK=USER#<followerId>`, `SK=FOLLOWING#<followeeId>` with reverse lookup on GSI (`GSI1PK=USER#<followeeId>`, `GSI1SK=FOLLOWER#<followerId>`). Counters maintained by Streams.
+- **Groups & membership**: `PK=GROUP#<groupId>` + `SK=MEMBER#<userId>`; reverse user→groups via GSI1. Flag `isPersistent` to “graduate” project rooms to communities.
+- **Activities** (canonical): `PK=ACTIVITY#<actorId>`, `SK=TS#<ts>#<activityId>`.
+- **FeedItems** (materialized, selective): `PK=FEED#<followerId>`, `SK=TS#<ts>#<activityId>` with `ttl` (30–60 days).
+- **Chat**: `PK=ROOM#<roomId>`, `SK=MSG#<ts>#<messageId>`.
+
+### API Layer (AppSync)
+- **Auth**: Lambda authorizer (supports Cognito JWT + local tokens).
+- **Queries** (mostly direct/resolver JS):
+  - Profiles, goals/tasks, groups & members, chat history (`ROOM#`), and **timeline**.
+  - Timeline resolver decides: if user has materialized `FEED#` then query it, else call a small aggregator Lambda to fan-in recent followees’ `ACTIVITY#` partitions and merge/sort.
+- **Mutations** (Lambda-backed):
+  - `followUser`, `unfollowUser` (edges + counters)
+  - `createGroup`, `joinGroup`, `leaveGroup`
+  - `createGoal`, `updateGoal`, `createTask`, `completeTask`
+  - `postActivity` (write Activity; fan-out processor may materialize)
+  - `sendMessage` (chat write)
+- **Subscriptions**:
+  - `onNewFeedItem(userId)`; `onMessage(roomId)`
+
+### Eventing & Pipelines
+- **DynamoDB Streams → SQS → Lambda**:
+  - Batched fan-out (materialize FeedItems) for **promoted** actors/groups only.
+  - Update denormalized counters (followers, group member counts).
+  - Publish domain events to EventBridge (optional) for notifications or analytics sinks.
+- **Promotion logic**:
+  - Nightly job + on-threshold triggers set `fanoutEnabled=true` for users/groups above **followers** or **posts/day** thresholds.
+  - Demote when inactive.
+
+### Matching & Discovery (2.1.2)
+- **MVP**: AI-generated tags persisted on profiles/goals; filter/sort with simple queries over recent timelines.
+- **Scale-out option**: **OpenSearch Serverless** as a read-side index fed by Streams for full-text queries.
+
+### Communication & Community (2.1.5)
+- **Async chat** with AppSync subscriptions, room partitions, optional SNS push.
+- **Hybrid groups** evolve from single-goal project rooms to communities with multiple threads and pinned posts.
+
+### Observability & Guardrails
+- CloudWatch/X-Ray dashboards: AppSync p95, Lambda duration/error, DDB RCUs/WCUs & throttles, SQS backlog, DLQs.
+- SLOs: Query p95 ≤ 200ms, Mutation p95 ≤ 300ms, Feed freshness ≤ 15s.
+- Hot-key protection: shard reverse edges for very large follower sets if required (`USER#<id>#shardN`).
+
+# 12. Rollout & SLOs
+## 12. Rollout & SLOs
+
+### Phased Delivery
+1. **MVP**: users, goals/tasks, follow/unfollow, project rooms, async chat, **fan-in feed**, AI tagging.
+2. **Engagement**: badges/XP hooks on activity, notifications, feed polish.
+3. **Scale knobs**: Streams→SQS fan-out for promoted users/groups, counters & promotion cron, optional OpenSearch.
+4. **Communities**: group graduation, pinned posts, moderation roles, forum threads.
+
+### SLO Targets
+- AppSync queries p95 ≤ 200ms; mutations p95 ≤ 300ms.
+- Feed freshness ≤ 15 seconds (fan-in short-poll or fan-out replication).
+- Error rate < 0.1%; DLQ empty within 5 minutes of backlog.
+
+# 13. Cost Strategy (Startup-Friendly)
+## 13. Cost Strategy (Startup-Friendly)
+
+- **Default to fan-in**: minimal writes and infra; cheapest for ≤10k DAU.
+- **Selective fan-out**: cap materialization to ~5–20% of active users/groups (promotion thresholds) to keep costs predictable.
+- **TTL & caps**: expire FeedItems after 30–60 days; keep last 500–1,000 per user.
+- **On-demand → provisioned**: start with on-demand; move hot partitions to provisioned+auto-scaling based on p95.
+- **Media off-table**: store in S3; DynamoDB stores lightweight metadata only.
+- **Feature flags**: enable/disable fan-out by cohort to A/B cost vs. latency.
+
+For a quantitative comparison, see the separate cost curves (fan-in vs fan-out vs hybrid) and adjust promotion share as DAU grows.

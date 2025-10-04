@@ -141,7 +141,14 @@ try {
         "DELETE /quests/{goal_id}",
         "GET /quests/tasks",
         "PUT /quests/tasks/{task_id}",
-        "DELETE /quests/tasks/{task_id}"
+        "DELETE /quests/tasks/{task_id}",
+        # Quest management endpoints
+        "POST /quests/createQuest",
+        "POST /quests/quests/{quest_id}/start",
+        "PUT /quests/quests/{quest_id}",
+        "POST /quests/quests/{quest_id}/cancel",
+        "POST /quests/quests/{quest_id}/fail",
+        "DELETE /quests/quests/{quest_id}"
       )
       
       Write-Log "Expected endpoints:" "INFO"

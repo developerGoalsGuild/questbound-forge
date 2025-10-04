@@ -1,107 +1,166 @@
-# DynamoDB Single-Table Model (Core)
+# DynamoDB Single-Table Model (Core + Social/Groups + Hybrid Feed)
 
-Purpose: a clear, shared model for all services using the core single-table in DynamoDB. This document defines keys, GSIs, entity item shapes, and access patterns that we will keep consistent across code, resolvers, and infra.
+> This updates the original single-table spec to support **follows**, **groups**, **asynchronous chat**, and a **hybrid feed** (fan-in by default with selective fan-out for power users/groups). Mutations are Lambda-backed; queries use AppSync resolvers.
 
-Table
-- Name: `gg_core` (see `backend/infra/terraform/main.tf` module `ddb`)
-- Primary key: `PK` (partition), `SK` (sort)
-- TTL: `ttl` (epoch seconds) enabled for ephemeral/expirable items
-- Streams: enabled (NEW_AND_OLD_IMAGES) for CDC when needed
+## Table
+- **Name**: `gg_core`
+- **PK/SK**: `PK` (partition), `SK` (sort)
+- **TTL**: `ttl` (epoch seconds) for expirable items (e.g., old feed entries, temp locks)
+- **Streams**: **enabled** (`NEW_AND_OLD_IMAGES`) to drive fan-out and notifications
 
-Indexes
-- GSI1: `GSI1PK`, `GSI1SK` — user-owned listings/timeline across entities
-- GSI2: `GSI2PK`, `GSI2SK` — unique nickname lookups (and other exact-match lookups)
-- GSI3: `GSI3PK`, `GSI3SK` — unique email lookups (and other exact-match lookups)`P
-  
-Notes:
-- Only GSI1–GSI3 are provisioned in Terraform today (`backend/infra/terraform/modules/dynamodb_single_table/main.tf`). Additional GSIs can be added later if access patterns require them.
+## Global Secondary Indexes
+- **GSI1**: `GSI1PK`, `GSI1SK` — **user-owned listings & reverse edges**
+  - Used for user timelines (entities created by a user) **and** reverse lookup for followers
+- **GSI2**: `GSI2PK`, `GSI2SK` — **unique nickname** / exact lookups
+- **GSI3**: `GSI3PK`, `GSI3SK` — **unique email** / exact lookups
 
-Key Prefix Conventions
-- User: `USER#<userId>`
-- Email: `EMAIL#<email>`
-- Nickname: `NICK#<nickname>`
-- Goal: `GOAL#<goalId>`
-- Task: `TASK#<taskId>`
-- Room (chat): `ROOM#<roomId>`
-- Assist thread: `ASSIST#<threadId>`
-- Offer/company/etc.: `OFFER#<offerId>`, `COMPANY#<companyId>` (future)
+> Additional GSIs are optional (e.g., tags, due buckets) and can be added when access patterns require.
 
-Entity Items (canonical examples)
+## Key Prefix Conventions
+```
+USER#<userId>      EMAIL#<email>       NICK#<nickname>
+GOAL#<goalId>      TASK#<taskId>       GROUP#<groupId>
+ROOM#<roomId>      ACTIVITY#<actorId>  FEED#<userId>
+PROMO#<userId>     COUNTER#<entity>
+```
 
-User Profile
-- Keys: `PK=USER#<userId>`, `SK=PROFILE#<userId>`
-- GSIs:
-  - `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#User#<createdAtISO>` (user timeline/listings)
-  - `GSI2PK=NICK#<nickname>`, `GSI2SK=PROFILE#<userId>` (unique nickname)
-  - `GSI3PK=EMAIL#<email>`, `GSI3SK=PROFILE#<userId>` (unique email)
-- Payload (camelCase aligns with GraphQL):
-  - `type: "User"`, `id`, `nickname`, `email`, `fullName`, `birthDate?`, `status`, `country?`, `language?`, `gender?`, `pronouns?`, `bio?`, `tags: string[]`, `tier: "free"|"pro"`, `createdAt`, `updatedAt`
+---
 
-Email Uniqueness Lock
-- Keys: `PK=EMAIL#<email>`, `SK=UNIQUE#USER>`
-- Purpose: guard against duplicate accounts by email
-- Payload: `type: "EmailUnique"`, `email`, `userId`, `createdAt`
+## Entity Items
 
-Goal (owned by a user)
-- Keys: `PK=USER#<userId>`, `SK=GOAL#<goalId>`
-- GSIs: `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Goal#<createdAtISO>`
-- Payload: `type: "Goal"`, `id`, `userId`, `title`, `description?`, `tags: string[]`, `createdAt`, `updatedAt`, `status`
+### 1) User Profile
+- **Keys**: `PK=USER#<userId>`, `SK=PROFILE#<userId>`  
+- **GSIs**:
+  - `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#User#<createdAtISO>`
+  - `GSI2PK=NICK#<nickname>`, `GSI2SK=PROFILE#<userId>`
+  - `GSI3PK=EMAIL#<email>`, `GSI3SK=PROFILE#<userId>`
+- **Payload**: `type:"User"`, `id`, `nickname`, `email`, `fullName`, `language`, `tags:string[]`, `tier`, `createdAt`, `updatedAt`
 
-Task (under a goal)
-- Keys: `PK=GOAL#<goalId>`, `SK=TASK#<taskId>`
-- Optional owner listing copy for fast user queries (if needed later): `PK=USER#<userId>`, `SK=TASK#<dueAtISO>#<taskId>` with `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Task#<dueAtISO>`
-- Payload: `type: "Task"`, `id`, `goalId`, `userId`, `title`, `dueAt?`, `nlpPlan?`, `done: boolean`, `createdAt`, `updatedAt`
+### 2) Follow Edge (user → user)
+Two items per relationship to support both directions efficiently.
+- **Who I follow (forward edge)**
+  - `PK=USER#<followerId>`, `SK=FOLLOWING#<followeeId>`
+  - Optional timeline copy: `GSI1PK=USER#<followerId>`, `GSI1SK=ENTITY#Following#<tsISO>#<followeeId>`
+  - Payload: `type:"Follow"`, `followerId`, `followeeId`, `createdAt`
+- **Who follows me (reverse edge via GSI1)**
+  - **Mirror index**: `GSI1PK=USER#<followeeId>`, `GSI1SK=FOLLOWER#<followerId>` (stored on the same item)
+  - Enables: “list my followers” by single GSI1 query
 
-Milestone (under a goal, for future persistent storage)
-- Keys: `PK=USER#<userId>`, `SK=MILESTONE#<goalId>#<milestoneId>`
-- GSIs: `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Milestone#<createdAtISO>`
-- Payload: `type: "Milestone"`, `id`, `goalId`, `userId`, `name`, `percentage`, `achieved: boolean`, `achievedAt?`, `description?`, `createdAt`, `updatedAt`
+> **Counters** (denormalized):  
+> `PK=USER#<userId>`, `SK=COUNTER#FOLLOWERS` (and `#FOLLOWING`), fields: `count`, `updatedAt`
 
-Chat Message (per room)
-- Keys: `PK=ROOM#<roomId>`, `SK=MSG#<timestampISO>#<messageId>`
-- Optional GSI1 for user timeline if required: `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Message#<timestampISO>`
-- Payload: `type: "Message"`, `id`, `roomId`, `userId`, `text`, `createdAt`
+### 3) Group & Membership (Hybrid “projects → communities”)
+- **Group metadata**
+  - `PK=GROUP#<groupId>`, `SK=GROUP#<groupId>`
+  - `type:"Group"`, `name`, `description`, `ownerId`, `tags:string[]`, `isPersistent:boolean`, `createdAt`, `updatedAt`
+- **Membership (list members)**
+  - `PK=GROUP#<groupId>`, `SK=MEMBER#<userId>`
+  - Payload: `type:"GroupMember"`, `groupId`, `userId`, `role:"owner"|"admin"|"member"`, `joinedAt`
+- **User → Groups (reverse)**
+  - `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Group#<joinedAt>#<groupId>`  
+  - Enables: “groups I’m in” by a single GSI1 query
 
-Assistance Thread Message
-- Keys: `PK=ASSIST#<threadId>`, `SK=MSG#<timestampISO>#<id>`
-- Payload: `type: "AssistMsg"`, `threadId`, `userId`, `text`, `createdAt`
+### 4) Goals & Tasks (unchanged + clarifications)
+- **Goal (owned by user)**: `PK=USER#<userId>`, `SK=GOAL#<goalId>`; `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Goal#<createdAt>`  
+- **Task (under a goal)**:
+  - Primary: `PK=GOAL#<goalId>`, `SK=TASK#<taskId>`
+  - Optional listing copy for user timeline: `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Task#<dueAtISO>#<taskId>`
 
-Offer (future)
-- Keys: `PK=OFFER#<offerId>`, `SK=OFFER#<offerId>`
-- Optional GSIs to be added if needed (e.g., by company, tag)
-- Payload: `type: "Offer"`, `id`, `companyId`, `title`, `tags: string[]`, `createdAt`, `status`
+### 5) Activities (write-once, canonical)
+Single source of truth for all social/feed events (posts, comments, goal updates).
+- **Keys**: `PK=ACTIVITY#<actorId>`, `SK=TS#<tsISO>#<activityId>`
+- **Payload**:
+  - `type:"Activity"`, `activityId`, `actorId`, `verb:"post"|"comment"|"goal_update"|...`,
+  - `objectType:"Goal"|"Task"|"Group"|"Post"`, `objectId`,
+  - `previewText`, `media?:{s3Key,contentType,width,height}`, `tags:string[]`,
+  - `createdAt`
+- **Why**: supports **fan-in** reads (query recent activities for each followee, then merge in app)
 
-Access Patterns (current)
-- Get profile by `userId`: GetItem on `PK=USER#<userId>`, `SK=PROFILE#<userId>`
-- Get profile by `email`: Query `GSI3` where `GSI3PK=EMAIL#<email>` → `PROFILE#...`
-- Get profile by `nickname`: Query `GSI2` where `GSI2PK=NICK#<nickname>` → `PROFILE#...`
-- List user goals: Query base table where `PK=USER#<userId>` with `begins_with(SK, 'GOAL#')`
-- List tasks in a goal: Query base table where `PK=GOAL#<goalId>` with `begins_with(SK, 'TASK#')`
-- List user entities timeline: Query `GSI1` where `GSI1PK=USER#<userId>` ordered by `GSI1SK`
-- Chat history: Query base table where `PK=ROOM#<roomId>` ordered by `SK` with pagination
+### 6) Materialized Feed Items (for promoted power users/groups)
+Only for users we enable **fan-out** to speed up reads.
+- **Keys**: `PK=FEED#<followerId>`, `SK=TS#<tsISO>#<activityId>`
+- **Payload**: `type:"FeedItem"`, `followerId`, `activityId`, `actorId`, `verb`, `objectType`, `objectId`, `previewText`, `createdAt`, `ttl` (e.g., 30–60 days)
+- **Produced by**: Streams → Lambda fan-out **when the actor/group is promoted**
 
-Access Patterns (future - milestone persistent storage)
-- List goal milestones: Query base table where `PK=USER#<userId>` with `begins_with(SK, 'MILESTONE#<goalId>#')`
-- List user milestones timeline: Query `GSI1` where `GSI1PK=USER#<userId>` with `begins_with(GSI1SK, 'ENTITY#Milestone#')`
-- Get specific milestone: GetItem on `PK=USER#<userId>`, `SK=MILESTONE#<goalId>#<milestoneId>`
+### 7) Promotion Flag (who should fan-out?)
+- **Keys**: `PK=PROMO#<userId>`, `SK=PROMO#<userId>`
+- **Payload**: `type:"Promotion"`, `userId`, `fanoutEnabled:boolean`, `reason:"followers"|"volume"`, `thresholds`, `updatedAt`
 
-Conventions
-- Attributes: use `PK`, `SK`, and `GSIxPK/GSIxSK` exactly; camelCase for domain fields
-- Timestamps: ISO 8601 strings in `createdAt`/`updatedAt` and when embedded in SK/GSI keys
-- Identifiers: `id` fields are ULID/UUID; prefix only in keys (`USER#…`, `GOAL#…`)
-- Types: every item includes a `type` discriminator (e.g., `User`, `Goal`, `Task`)
-- Ephemeral/expiring: set `ttl` for auto-expiration (e.g., tokens, temp messages)
+### 8) Quest (User-owned gamified actions)
+- **Keys**: `PK=USER#<userId>`, `SK=QUEST#<questId>`
+- **GSIs**:
+  - `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Quest#<createdAtISO>`
+- **Payload**: `type:"Quest"`, `id`, `userId`, `title`, `description?`, `difficulty:"easy"|"medium"|"hard"`, `rewardXp`, `status:"active"|"completed"|"cancelled"`, `tags:string[]`, `deadline?`, `kind:"linked"|"quantitative"`, `linkedGoalIds?:string[]`, `linkedTaskIds?:string[]`, `targetCount?`, `countScope?:"any"|"linked"`, `startAt?`, `periodSeconds?`, `createdAt`, `updatedAt`
 
-Alignment with Current Code
-- `backend/services/user-service/app/main.py` already writes profile items with `GSI1/2/3` as above and uses a separate `goalsguild_login_attempts` table for rate-limiting.
-- AppSync resolvers under `backend/infra/terraform/resolvers/` expect `GSI2` (nicknames) and `GSI3` (emails) to exist and use `GSI1` for user-owned listings.
+### 9) Chat (asynchronous)
+- **Room**: `PK=ROOM#<roomId>`, `SK=ROOM#<roomId>` — metadata (`type:"Room"`, `scope:"dm"|"group"`, `members:string[]`, `createdAt`)
+- **Message**: `PK=ROOM#<roomId>`, `SK=MSG#<tsISO>#<messageId>` — (`type:"Message"`, `roomId`, `userId`, `text`, `createdAt`, optional `ttl`)
 
-Future GSIs (optional, gated by need)
-- GSI4: due buckets (`GSI4PK=DUE#YYYYMMDD`, `GSI4SK=<dueAtISO>#TASK#<taskId>`) for reminders/notifications
-- GSI5: tag search (`GSI5PK=TAG#<tag>`, `GSI5SK=<entity>#<id>`) for discovery
-- GSI6: org/company listings (`GSI6PK=COMPANY#<companyId>`, `GSI6SK=<entity>#<id>`) for admin views
+---
 
-Terraform Pointers
-- Table and GSIs are defined in `backend/infra/terraform/modules/dynamodb_single_table/main.tf` and wired in `backend/infra/terraform/main.tf` as module `ddb` with `table_name = "gg_core"`.
-- If a future access pattern requires another GSI, add attributes and a `global_secondary_index { ... }` block, then reflect it here.
+## Core Access Patterns
 
+### Users & Follows
+- **Who I follow**: `Query PK=USER#<me> WHERE begins_with(SK,'FOLLOWING#')`
+- **Who follows me**: `Query GSI1 WHERE GSI1PK=USER#<me> AND begins_with(GSI1SK,'FOLLOWER#')`
+- **Counts**: `GetItem PK=USER#<me>, SK=COUNTER#FOLLOWERS` (and `#FOLLOWING`)
+
+### Groups
+- **Get group**: `GetItem PK=GROUP#<id>, SK=GROUP#<id>`
+- **List members**: `Query PK=GROUP#<id> WHERE begins_with(SK,'MEMBER#')`
+- **Groups I’m in**: `Query GSI1 WHERE GSI1PK=USER#<me> AND begins_with(GSI1SK,'ENTITY#Group#')`
+
+### Feed (Hybrid)
+- **Fan-in read (default)**: for each followee `u` → `Query PK=ACTIVITY#u LIMIT 50`, merge/sort client-side (or in Lambda/app tier)
+- **Fan-out read (promoted)**: `Query PK=FEED#<me> LIMIT 50`
+- **Write activity**: write `Activity` once; Streams processor **optionally** replicates to `FeedItem` if the actor is promoted
+- **TTL**: set on `FeedItem` to auto-trim storage
+
+### Quests
+- **List user quests**: `Query GSI1 WHERE GSI1PK=USER#<me> AND begins_with(GSI1SK,'ENTITY#Quest#')`
+- **Get specific quest**: `GetItem PK=USER#<me>, SK=QUEST#<questId>`
+- **Filter by linked goals/tasks**: Client-side filtering or future GSI patterns
+
+### Chat
+- **Send message**: `PutItem PK=ROOM#<roomId>, SK=MSG#<tsISO>#<id>`
+- **Read history**: `Query PK=ROOM#<roomId> ORDER BY SK DESC LIMIT 50` (paginate)
+
+---
+
+## Lambda-Backed Mutations (AppSync → Lambda)
+
+> All mutations validate auth (Lambda authorizer), perform idempotent writes, update counters, and emit domain events (EventBridge) as needed.
+
+- **`followUser(followeeId)`**
+  - Put `FOLLOWING` item; set GSI1 mirror attributes; update `COUNTER#FOLLOWING` for follower and `COUNTER#FOLLOWERS` for followee (with retry/backoff).
+- **`unfollowUser(followeeId)`**
+  - Delete `FOLLOWING` item; decrement counters safely (floor at 0).
+- **`joinGroup(groupId)` / `leaveGroup(groupId)`**
+  - Put/Delete `MEMBER#<userId>`; add/remove GSI1 listing; optional room membership update.
+- **`postActivity(input)`**
+  - Put `Activity` item; Streams triggers fan-out if `PROMO#actorId.fanoutEnabled==true`.
+- **`createQuest(input)`** (Quest Service Lambda)
+  - Put `Quest` item; validate ownership of linked goals/tasks; set GSI1 attributes
+- **`cancelQuest(questId)`** (Quest Service Lambda)
+  - Update `Quest` status to "cancelled" (immutable after creation)
+- **`deleteQuest(questId)`** (Quest Service Lambda, admin-only)
+  - Delete `Quest` item with admin authorization check
+- **`sendMessage(roomId, text)`**
+  - Put `Message` item (asynchronous chat).
+
+> **Error handling**: wrap DDB calls with exponential backoff; write idempotency key on mutations (e.g., `requestId`) to guard retries.
+
+---
+
+## Hot-Key & Scale Considerations
+- **Sharded followers** (if needed): encode shard in `GSI1PK=USER#<followeeId>#<shardN>` to spread reverse edge reads for very large accounts.
+- **Batch fan-out**: Streams → SQS → Lambda (batch `BatchWriteItem`) with DLQ for resilience.
+- **Capped feeds**: enforce per-user cap (e.g., last 500–1,000 items) + `ttl` for old items.
+- **Media**: store in S3 (presigned URLs in `Activity/FeedItem`).
+
+---
+
+## Alignment with Existing Docs/Infra
+- Keeps **single-table** and **GSI1–GSI3** intact; extends GSI1 usage for reverse edges and listings.
+- Uses **Streams + Lambda** for **selective fan-out** only (power users/groups), minimizing cost.
+- Fully compatible with **AppSync GraphQL** queries and **Lambda-backed mutations**.
