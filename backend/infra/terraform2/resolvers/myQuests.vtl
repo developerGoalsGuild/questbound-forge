@@ -1,0 +1,29 @@
+## myQuests Resolver - Query user's quests
+## Input: { "userId": "string", "goalId": "string" (optional) }
+## Output: Quest[] array
+
+# Set up variables
+#set($userId = $context.identity.resolverContext.sub)
+#set($goalId = $context.arguments.goalId)
+
+# Build query parameters
+#set($queryParams = {
+  "KeyConditionExpression": "PK = :pk AND begins_with(SK, :sk_prefix)",
+  "ExpressionAttributeValues": {
+    ":pk": {"S": "USER#$userId"},
+    ":sk_prefix": {"S": "QUEST#"}
+  }
+})
+
+# Add filter for goalId if provided
+#if($goalId)
+  #set($queryParams.FilterExpression = "contains(linkedGoalIds, :goalId)")
+  #set($queryParams.ExpressionAttributeValues[":goalId"] = {"S": "$goalId"})
+#end
+
+# Execute query
+{
+  "version": "2017-02-28",
+  "operation": "Query",
+  "query": $util.toJson($queryParams)
+}

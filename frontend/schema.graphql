@@ -23,6 +23,36 @@ enum TaskStatus {
   canceled
 }
 
+enum QuestStatus {
+  draft
+  active
+  completed
+  cancelled
+  failed
+}
+
+enum QuestDifficulty {
+  easy
+  medium
+  hard
+}
+
+enum QuestKind {
+  linked
+  quantitative
+}
+
+enum QuestCountScope {
+  any
+  linked
+}
+
+enum QuestPrivacy {
+  public
+  followers
+  private
+}
+
 # ----------------
 # Core Types
 # ----------------
@@ -84,6 +114,30 @@ type Task {
   updatedAt: AWSTimestamp
 }
 
+type Quest {
+  id: ID!
+  userId: ID!
+  title: String!
+  description: String
+  difficulty: QuestDifficulty!
+  rewardXp: Int!
+  status: QuestStatus!
+  category: String!
+  tags: [String!]!
+  privacy: QuestPrivacy!
+  deadline: AWSTimestamp
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp!
+  kind: QuestKind!
+  linkedGoalIds: [ID!]
+  linkedTaskIds: [ID!]
+  dependsOnQuestIds: [ID!]
+  targetCount: Int
+  countScope: QuestCountScope
+  startAt: AWSTimestamp
+  periodSeconds: Int
+}
+
 type Message {
   id: ID!
   roomId: ID!
@@ -113,6 +167,7 @@ type Query {
   myDashboardGoals(limit: Int, status: String, sortBy: String): [Goal!]!
   myTasks(goalId: ID!): [Task!]!
   tasks(goalId: ID!): [Task!]!
+  myQuests(goalId: ID): [Quest!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
   offers(tags: [String!], limit: Int = 20): [Offer!]!
   isEmailAvailable(email: String!): Boolean! @aws_api_key

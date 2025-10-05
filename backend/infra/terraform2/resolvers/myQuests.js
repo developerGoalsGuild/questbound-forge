@@ -1,50 +1,46 @@
 import { util } from '@aws-appsync/utils';
 
 /**
- * Query resolver for myQuests
- * Fetches quests for the current user, optionally filtered by goalId
+ * myQuests Resolver - Query user's quests
+ * Input: { "goalId": "string" (optional) }
+ * Output: Quest[] array
  */
-export function request(ctx) {
-  const { goalId } = ctx.args;
-  const userId = ctx.identity.sub;
-  
-  if (!userId) {
-    util.error('Unauthorized', 'UNAUTHORIZED');
-  }
 
-  // Build the query parameters
+export function request(ctx) {
+  const { goalId } = ctx.arguments;
+  const userId = ctx.identity.resolverContext.sub;
+
+  // Build query parameters
   const queryParams = {
-    operation: 'Query',
-    query: {
-      expression: 'PK = :pk AND begins_with(SK, :sk)',
-      expressionValues: {
-        ':pk': `USER#${userId}`,
-        ':sk': 'QUEST#'
-      }
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk_prefix)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userId}`,
+      ':sk_prefix': 'QUEST#'
     }
   };
 
-  // Add goalId filter if provided
+  // Add filter for goalId if provided
   if (goalId) {
-    queryParams.query.expression += ' AND contains(linkedGoalIds, :goalId)';
-    queryParams.query.expressionValues[':goalId'] = goalId;
+    queryParams.FilterExpression = 'contains(linkedGoalIds, :goalId)';
+    queryParams.ExpressionAttributeValues[':goalId'] = goalId;
   }
 
   return {
+    version: '2017-02-28',
     operation: 'Query',
-    query: queryParams.query
+    query: queryParams
   };
 }
 
 export function response(ctx) {
+  const { result } = ctx;
+
   if (ctx.error) {
     util.error(ctx.error.message, ctx.error.type);
   }
 
-  const items = ctx.result.items || [];
-  
-  // Transform DynamoDB items to GraphQL Quest type
-  const quests = items.map(item => ({
+  // Transform DynamoDB items to Quest objects
+  const quests = result.items.map(item => ({
     id: item.SK.replace('QUEST#', ''),
     userId: item.PK.replace('USER#', ''),
     title: item.title,

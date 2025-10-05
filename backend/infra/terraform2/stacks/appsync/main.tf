@@ -103,6 +103,20 @@ resource "aws_appsync_resolver" "query_goal" {
   }
 }
 
+# Quest resolvers
+resource "aws_appsync_resolver" "query_myQuests" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "myQuests"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code   = file("${local.resolvers_path}/myQuests.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
 resource "aws_appsync_resolver" "query_activeGoalsCount" {
   api_id = module.appsync.api_id
   type   = "Query"
