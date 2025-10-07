@@ -145,8 +145,8 @@ describe('GoalCreationForm', () => {
       );
 
       expect(screen.getByTestId('goal-creation-form')).toBeInTheDocument();
-      expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /title/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /description/i })).toBeInTheDocument();
       expect(screen.getByLabelText(/deadline/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
     });
@@ -189,7 +189,7 @@ describe('GoalCreationForm', () => {
         </TestWrapper>
       );
 
-      const titleInput = screen.getByLabelText(/title/i);
+      const titleInput = screen.getByRole('textbox', { name: /title/i });
       await user.type(titleInput, 'ab'); // Too short
 
       const submitButton = screen.getByRole('button', { name: /create goal/i });
@@ -216,8 +216,8 @@ describe('GoalCreationForm', () => {
       );
 
       // Fill basic information
-      await user.type(screen.getByLabelText(/title/i), 'Learn TypeScript');
-      await user.type(screen.getByLabelText(/description/i), 'Master TypeScript programming');
+      await user.type(screen.getByRole('textbox', { name: /title/i }), 'Learn TypeScript');
+      await user.type(screen.getByRole('textbox', { name: /description/i }), 'Master TypeScript programming');
       await user.type(screen.getByLabelText(/deadline/i), '2030-12-31');
 
       // Fill NLP answers (use testids as labels may vary)
@@ -253,8 +253,8 @@ describe('GoalCreationForm', () => {
       );
 
       // Fill form
-      await user.type(screen.getByLabelText(/title/i), 'Test Goal');
-      await user.type(screen.getByLabelText(/description/i), 'This is a test description.');
+      await user.type(screen.getByRole('textbox', { name: /title/i }), 'Test Goal');
+      await user.type(screen.getByRole('textbox', { name: /description/i }), 'This is a test description.');
       await user.type(screen.getByLabelText(/deadline/i), '2030-12-31');
       // Fill minimal NLP to pass validation
       await user.type(screen.getByTestId('nlp-positive-input'), 'This is valid');
@@ -286,7 +286,7 @@ describe('GoalCreationForm', () => {
         </TestWrapper>
       );
 
-      expect(screen.getByLabelText(/title/i)).toHaveAttribute('id', 'goal-title');
+      expect(screen.getByRole('textbox', { name: /title/i })).toHaveAttribute('id', 'goal-title');
       expect(screen.getByLabelText(/deadline/i)).toHaveAttribute('id', 'goal-deadline');
     });
   });
@@ -300,16 +300,16 @@ describe('GoalCreationForm', () => {
       );
 
       // Fill form
-      await user.type(screen.getByLabelText(/title/i), 'Test Goal');
-      await user.type(screen.getByLabelText(/description/i), 'Test Description');
+      await user.type(screen.getByRole('textbox', { name: /title/i }), 'Test Goal');
+      await user.type(screen.getByRole('textbox', { name: /description/i }), 'Test Description');
 
       // Click reset
       const resetButton = screen.getByRole('button', { name: /reset/i });
       await user.click(resetButton);
 
       // Form should be cleared
-      expect(screen.getByLabelText(/title/i)).toHaveValue('');
-      expect(screen.getByLabelText(/description/i)).toHaveValue('');
+      expect(screen.getByRole('textbox', { name: /title/i })).toHaveValue('');
+      expect(screen.getByRole('textbox', { name: /description/i })).toHaveValue('');
     });
   });
 

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { 
   createGoal, 
   buildTags,
@@ -8,6 +8,17 @@ import {
   loadGoals,
   buildAnswers
 } from '../apiGoal';
+
+// Mock logger before all other imports
+const mockLoggerError = vi.fn();
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: mockLoggerError,
+  },
+}));
 
 vi.unmock('@/lib/apiGoal');
 
@@ -34,6 +45,7 @@ vi.mock('@/lib/api', () => ({
 import * as utils from '@/lib/utils';
 import * as api from '@/lib/api';
 import * as mockGraphQL from '@/lib/graphql';
+import * as logger from '@/lib/logger';
 
 describe('buildAnswers', () => {
   test('builds answers array from NLP answers', () => {
@@ -270,34 +282,32 @@ describe('getActiveGoalsCountForUser', () => {
   });
 
   test('returns 0 on GraphQL error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGraphQL.graphqlRaw.mockRejectedValue(new Error('GraphQL error'));
 
     const result = await getActiveGoalsCountForUser('user-123');
 
     expect(result).toBe(0);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[getActiveGoalsCountForUser] GraphQL error:',
-      'GraphQL error'
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in getActiveGoalsCountForUser',
+      expect.objectContaining({
+        error: expect.any(Error),
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 
   test('handles GraphQL errors with details', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const graphQLError = { errors: [{ message: 'Field not found' }] };
     mockGraphQL.graphqlRaw.mockRejectedValue(graphQLError);
 
     const result = await getActiveGoalsCountForUser('user-123');
 
     expect(result).toBe(0);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[getActiveGoalsCountForUser] GraphQL error:',
-      graphQLError.errors
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in getActiveGoalsCountForUser',
+      expect.objectContaining({
+        error: graphQLError,
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 });
 
@@ -333,33 +343,31 @@ describe('loadGoals', () => {
   });
 
   test('returns empty array on GraphQL error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGraphQL.graphqlRaw.mockRejectedValue(new Error('GraphQL error'));
 
     const result = await loadGoals();
 
     expect(result).toEqual([]);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[loadGoals] GraphQL error:',
-      'GraphQL error'
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in loadGoals',
+      expect.objectContaining({
+        error: expect.any(Error),
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 
   test('handles GraphQL errors with details', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const graphQLError = { errors: [{ message: 'Authentication failed' }] };
     mockGraphQL.graphqlRaw.mockRejectedValue(graphQLError);
 
     const result = await loadGoals();
 
     expect(result).toEqual([]);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[loadGoals] GraphQL error:',
-      graphQLError.errors
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in loadGoals',
+      expect.objectContaining({
+        error: graphQLError,
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 });

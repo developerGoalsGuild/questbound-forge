@@ -2,6 +2,17 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { createTask, loadTasks } from '../apiTask';
 
+// Mock logger before all other imports
+const mockLoggerError = vi.fn();
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: mockLoggerError,
+  },
+}));
+
 // Mock dependencies
 vi.mock('@/lib/utils', () => ({
   getAccessToken: vi.fn(),
@@ -66,7 +77,7 @@ describe('createTask', () => {
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer mock-token',
-        'x-api-key': ''
+        'x-api-key': expect.any(String),
       },
       body: JSON.stringify(validInput)
     });
@@ -181,49 +192,46 @@ describe('loadTasks', () => {
   });
 
   test('returns null on GraphQL error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGraphQL.graphqlRaw.mockRejectedValue(new Error('GraphQL error'));
 
     const result = await loadTasks('goal-123');
 
     expect(result).toBeNull();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[loadTasks] GraphQL error:',
-      'GraphQL error'
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in loadTasks',
+      expect.objectContaining({
+        error: expect.any(Error),
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 
   test('handles GraphQL errors with details', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const graphQLError = { errors: [{ message: 'Goal not found' }] };
     mockGraphQL.graphqlRaw.mockRejectedValue(graphQLError);
 
     const result = await loadTasks('goal-123');
 
     expect(result).toBeNull();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[loadTasks] GraphQL error:',
-      graphQLError.errors
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in loadTasks',
+      expect.objectContaining({
+        error: graphQLError,
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 
   test('handles GraphQL errors with message', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const graphQLError = { message: 'Network timeout' };
     mockGraphQL.graphqlRaw.mockRejectedValue(graphQLError);
 
     const result = await loadTasks('goal-123');
 
     expect(result).toBeNull();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[loadTasks] GraphQL error:',
-      graphQLError.message
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'GraphQL error in loadTasks',
+      expect.objectContaining({
+        error: graphQLError,
+      })
     );
-
-    consoleSpy.mockRestore();
   });
 });

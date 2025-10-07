@@ -30,8 +30,27 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
       current: location.pathname === '/dashboard'
     });
 
-    // Add current page if not dashboard
-    if (location.pathname !== '/dashboard') {
+    // Handle quest pages with proper hierarchy
+    if (location.pathname.startsWith('/quests')) {
+      // Add Quests as parent
+      items.push({
+        label: 'Quests',
+        path: '/quests',
+        current: location.pathname === '/quests'
+      });
+
+      // Add specific quest page if not on main quests page
+      if (location.pathname !== '/quests') {
+        const questPage = getQuestPageLabel(location.pathname);
+        if (questPage) {
+          items.push({
+            label: questPage,
+            current: true
+          });
+        }
+      }
+    } else if (location.pathname !== '/dashboard') {
+      // Handle other pages
       const currentPage = getPageLabel(location.pathname);
       if (currentPage) {
         items.push({
@@ -42,6 +61,22 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
     }
 
     return items;
+  };
+
+  // Get quest page label based on path
+  const getQuestPageLabel = (path: string): string => {
+    if (path === '/quests/create') {
+      return 'Create';
+    }
+    if (path.startsWith('/quests/edit/')) {
+      return 'Edit';
+    }
+    if (path.startsWith('/quests/details/')) {
+      return 'View';
+    }
+    
+    // Default fallback for quest pages
+    return 'Quest';
   };
 
   // Get page label based on path

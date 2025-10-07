@@ -13,6 +13,7 @@ import { getUserIdFromToken } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
 import { useCommunityActivities } from '@/hooks/useCommunityData';
+import { logger } from '@/lib/logger';
 
 const UserDashboard = () => {
   const { t } = useTranslation() as any;
@@ -73,7 +74,7 @@ const UserDashboard = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to load progress data:', error);
+        logger.error('Failed to load dashboard progress data', { error });
         if (!cancelled) {
           setActiveCount(0);
           setProgressData({

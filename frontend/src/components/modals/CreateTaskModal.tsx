@@ -18,6 +18,7 @@ import useFocusManagement from '@/hooks/useFocusManagement';
 import { SkeletonFormField } from '@/components/ui/SkeletonFormField';
 import NetworkErrorRecovery, { useNetworkStatus } from '@/components/ui/NetworkErrorRecovery';
 import ARIALiveRegion, { useARIALiveAnnouncements, FormAnnouncements } from '@/components/ui/ARIALiveRegion';
+import { logger } from '@/lib/logger';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -309,7 +310,7 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
         variant: "default",
       });
     } catch (error: any) {
-      console.error('Error creating task:', error);
+      logger.error('Error creating task', { error });
       
       // Set network error if it's a network issue
       if (!navigator.onLine || error.name === 'NetworkError' || error.message.includes('fetch')) {
@@ -334,12 +335,12 @@ const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClose, onCr
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse create task error response', { parseError });
       }
       
       // Set field-specific errors
       Object.entries(fieldErrors).forEach(([field, message]) => {
-        console.log(`Setting field error for ${field}:`, message);
+        logger.debug(`Setting field error for ${field}`, { message });
         setErrors(prev => ({ ...prev, [field]: message }));
       });
       

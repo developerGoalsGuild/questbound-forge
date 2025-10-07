@@ -88,18 +88,18 @@ class TestQuestDBHelpers:
             difficulty="hard",
             kind="quantitative",
             targetCount=10,
-            countScope="any",
+            countScope="completed_tasks",
             startAt=future_time,
-            periodSeconds=86400
+            periodDays=1
         )
         
         item = _build_quest_item(user_id, payload)
         
         assert item["kind"] == "quantitative"
         assert item["targetCount"] == 10
-        assert item["countScope"] == "any"
+        assert item["countScope"] == "completed_tasks"
         assert item["startAt"] == future_time
-        assert item["periodSeconds"] == 86400
+        assert item["periodDays"] == 1
     
     def test_quest_item_to_response(self):
         """Test converting DynamoDB item to QuestResponse."""
@@ -123,7 +123,7 @@ class TestQuestDBHelpers:
             "linkedTaskIds": ["task-1"],
             "dependsOnQuestIds": ["quest-2"],
             "targetCount": 5,
-            "countScope": "linked",
+            "countScope": "completed_goals",
             "startAt": 1234567890000,
             "periodSeconds": 3600,
             "auditTrail": []
@@ -151,9 +151,9 @@ class TestQuestDBHelpers:
         assert response.linkedTaskIds == ["task-1"]
         assert response.dependsOnQuestIds == ["quest-2"]
         assert response.targetCount == 5
-        assert response.countScope == "linked"
+        assert response.countScope == "completed_goals"
         assert response.startAt == 1234567890000
-        assert response.periodSeconds == 3600
+        assert response.periodDays == 1
         assert response.auditTrail == []
 
     def test_build_quest_item_with_deadline_and_description(self):

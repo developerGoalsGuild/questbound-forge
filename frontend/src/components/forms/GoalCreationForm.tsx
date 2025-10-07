@@ -29,6 +29,7 @@ import useFocusManagement from '@/hooks/useFocusManagement';
 import { SkeletonFormSection, SkeletonNLPQuestions, SkeletonFormActions } from '@/components/ui/SkeletonFormField';
 import NetworkErrorRecovery, { useNetworkStatus } from '@/components/ui/NetworkErrorRecovery';
 import ARIALiveRegion, { useARIALiveAnnouncements, FormAnnouncements } from '@/components/ui/ARIALiveRegion';
+import { logger } from '@/lib/logger';
 
 interface GoalCreationFormProps {
   className?: string;
@@ -200,7 +201,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
 
   // Handle form submission
   const onSubmit = async (data: GoalCreateInput) => {
-    console.log('Form submitted with data:', data);
+    logger.debug('Goal creation form submitted', { data });
     
     // Clear previous validation errors
     clearError();
@@ -208,9 +209,9 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     // Manual validation using Zod
     try {
       const validatedData = goalCreateSchema.parse(data);
-      console.log('Validation passed:', validatedData);
+      logger.debug('Goal creation validation passed', { validatedData });
     } catch (error: any) {
-      console.log('Validation failed:', error);
+      logger.warn('Goal creation validation failed', { error });
       
       
       // Handle validation errors
@@ -247,9 +248,9 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
       // Announce loading state
       announce(FormAnnouncements.loading('Goal creation'), 'polite');
       
-      console.log('Calling createGoal API...');
+      logger.info('Calling createGoal API...');
       const goalResponse = await createGoal(data);
-      console.log('Goal created successfully:', goalResponse);
+      logger.info('Goal created successfully', { goalId: goalResponse.id });
       
       // Clear any network errors
       clearError();
@@ -270,7 +271,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
         navigate('/goals');
       }
     } catch (error: any) {
-      console.error('Error creating goal:', error);
+      logger.error('Error creating goal', { error });
       
       // Set network error if it's a network issue
       if (!navigator.onLine || error.name === 'NetworkError' || error.message.includes('fetch')) {
@@ -282,14 +283,14 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
       let errorMessage = error?.message || 'Failed to create goal';
       let fieldErrors: { [key: string]: string } = {};
       
-      console.log('Raw error:', error);
-      console.log('Error message:', errorMessage);
+      logger.debug('Raw goal creation error', { rawError: error });
+      logger.debug('Goal creation error message', { errorMessage });
       
       try {
         // Try to parse error response if it's a string
         if (typeof error?.message === 'string') {
           const parsedError = JSON.parse(error.message);
-          console.log('Parsed error:', parsedError);
+          logger.debug('Parsed goal creation error', { parsedError });
           if (parsedError.message) {
             errorMessage = parsedError.message;
           }
@@ -299,12 +300,12 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.debug('Could not parse error response', { parseError });
       }
       
       // Set field-specific errors
       Object.entries(fieldErrors).forEach(([field, message]) => {
-        console.log(`Setting field error for ${field}:`, message);
+        logger.debug(`Setting field error for ${field}`, { message });
         if (field === 'deadline') {
           setError('deadline', { message });
         } else if (field === 'title') {
@@ -323,7 +324,7 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
       
       // If no specific field errors, check if it's a deadline error
       if (Object.keys(fieldErrors).length === 0 && errorMessage.includes('Deadline')) {
-        console.log('Setting deadline error:', errorMessage);
+        logger.debug('Setting deadline error from general message', { errorMessage });
         setError('deadline', { message: errorMessage });
       }
       

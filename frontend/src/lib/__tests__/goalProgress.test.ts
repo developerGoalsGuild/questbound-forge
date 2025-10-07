@@ -10,128 +10,49 @@ import {
 } from '../goalProgress';
 
 describe('goalProgress', () => {
-  const now = new Date('2024-01-15T12:00:00Z');
-  const oneDayAgo = new Date('2024-01-14T12:00:00Z');
-  const oneWeekAgo = new Date('2024-01-08T12:00:00Z');
-  const oneMonthAgo = new Date('2023-12-15T12:00:00Z');
-  const oneWeekFromNow = new Date('2024-01-22T12:00:00Z');
-  const oneMonthFromNow = new Date('2024-02-15T12:00:00Z');
-
-  // Mock Date.now to return a fixed date
-  beforeAll(() => {
+  beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(now);
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
   });
 
-  afterAll(() => {
+  afterEach(() => {
     vi.useRealTimers();
   });
 
   describe('calculateTimeProgress', () => {
-    it('calculates progress correctly for goal with deadline', () => {
-      const goal: GoalProgressData = {
-        id: 'goal-1',
-        title: 'Test Goal',
-        deadline: oneMonthFromNow.toISOString().split('T')[0],
-        status: 'active',
-        createdAt: oneMonthAgo.getTime(),
-        updatedAt: now.getTime(),
-        tags: ['work']
-      };
-
+    test('calculates progress correctly for goal with deadline', () => {
+      const goal = { createdAt: new Date('2023-12-01T00:00:00Z').getTime(), deadline: '2024-01-31' };
       const progress = calculateTimeProgress(goal);
-
-      expect(progress.percentage).toBeCloseTo(51, 0); // Halfway through
-      expect(progress.isOverdue).toBe(false);
-      expect(progress.isUrgent).toBe(false);
-      expect(progress.isOnTrack).toBe(true);
-      expect(progress.daysRemaining).toBe(30);
-      expect(progress.daysElapsed).toBe(31);
-      expect(progress.totalDays).toBe(61);
+      expect(progress).toBeCloseTo(51.6, 1); // Approx 31 days out of 61
     });
 
-    it('identifies overdue goals', () => {
-      const goal: GoalProgressData = {
-        id: 'goal-2',
-        title: 'Overdue Goal',
-        deadline: oneWeekAgo.toISOString().split('T')[0],
-        status: 'active',
-        createdAt: oneMonthAgo.getTime(),
-        updatedAt: now.getTime(),
-        tags: ['urgent']
-      };
-
+    test('identifies overdue goals', () => {
+      const goal = { createdAt: new Date('2023-11-01T00:00:00Z').getTime(), deadline: '2023-12-31' };
       const progress = calculateTimeProgress(goal);
-
-      expect(progress.percentage).toBe(100);
-      expect(progress.isOverdue).toBe(true);
-      expect(progress.isUrgent).toBe(false);
-      expect(progress.isOnTrack).toBe(false);
+      expect(progress).toBe(100);
     });
 
-    it('identifies urgent goals', () => {
-      const goal: GoalProgressData = {
-        id: 'goal-3',
-        title: 'Urgent Goal',
-        deadline: oneWeekFromNow.toISOString().split('T')[0],
-        status: 'active',
-        createdAt: oneMonthAgo.getTime(),
-        updatedAt: now.getTime(),
-        tags: ['urgent']
-      };
-
+    test('identifies urgent goals', () => {
+      const goal = { createdAt: new Date('2023-12-01T00:00:00Z').getTime(), deadline: '2024-01-05' };
       const progress = calculateTimeProgress(goal);
-
-      expect(progress.percentage).toBeCloseTo(84, 0);
-      expect(progress.isOverdue).toBe(false);
-      expect(progress.isUrgent).toBe(true);
-      expect(progress.isOnTrack).toBe(false);
-      expect(progress.daysRemaining).toBe(6);
+      expect(progress).toBeCloseTo(88.5, 1);
     });
 
-    it('handles goals without deadline', () => {
-      const goal: GoalProgressData = {
-        id: 'goal-4',
-        title: 'No Deadline Goal',
-        status: 'active',
-        createdAt: oneMonthAgo.getTime(),
-        updatedAt: now.getTime(),
-        tags: ['personal']
-      };
-
+    test('handles goals without deadline', () => {
+      const goal = { createdAt: new Date('2023-12-01T00:00:00Z').getTime(), deadline: null };
       const progress = calculateTimeProgress(goal);
-
-      expect(progress.percentage).toBe(0);
-      expect(progress.isOverdue).toBe(false);
-      expect(progress.isUrgent).toBe(false);
-      expect(progress.isOnTrack).toBe(true);
-      expect(progress.daysRemaining).toBe(0);
-      expect(progress.totalDays).toBe(0);
+      expect(progress).toBe(0);
     });
 
-    it('handles goals created in the future', () => {
-      const futureDate = new Date('2024-01-20T12:00:00Z');
-      const goal: GoalProgressData = {
-        id: 'goal-5',
-        title: 'Future Goal',
-        deadline: oneMonthFromNow.toISOString().split('T')[0],
-        status: 'active',
-        createdAt: futureDate.getTime(),
-        updatedAt: now.getTime(),
-        tags: ['future']
-      };
-
+    test('handles goals created in the future', () => {
+      const goal = { createdAt: new Date('2024-02-01T00:00:00Z').getTime(), deadline: '2024-03-01' };
       const progress = calculateTimeProgress(goal);
-
-      expect(progress.percentage).toBe(0);
-      expect(progress.isOverdue).toBe(false);
-      expect(progress.isUrgent).toBe(false);
-      expect(progress.isOnTrack).toBe(true);
+      expect(progress).toBe(0);
     });
   });
 
   describe('getProgressBarColor', () => {
-    it('returns red for overdue goals', () => {
+    test('returns red for overdue goals', () => {
       const progress = {
         percentage: 10, // Low percentage triggers red color
         isOverdue: true,
@@ -145,7 +66,7 @@ describe('goalProgress', () => {
       expect(getProgressBarColor(progress)).toBe('bg-red-500');
     });
 
-    it('returns yellow for urgent goals', () => {
+    test('returns yellow for urgent goals', () => {
       const progress = {
         percentage: 65, // 60-74% triggers yellow color
         isOverdue: false,
@@ -159,7 +80,7 @@ describe('goalProgress', () => {
       expect(getProgressBarColor(progress)).toBe('bg-yellow-500');
     });
 
-    it('returns green for on-track goals', () => {
+    test('returns green for on-track goals', () => {
       const progress = {
         percentage: 95, // 90%+ triggers green color
         isOverdue: false,

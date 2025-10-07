@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { logger } from '@/lib/logger';
 
 export interface HeaderPerformanceMetrics {
   renderTime: number;
@@ -63,7 +64,11 @@ export function useHeaderPerformance(options: HeaderPerformanceOptions = {}) {
 
     // Log performance issues in development
     if (enableLogging && renderTime > logThreshold) {
-      console.warn(`[HeaderPerformance] Slow render detected: ${renderTime.toFixed(2)}ms (threshold: ${logThreshold}ms)`);
+      logger.warn(`Slow header render detected`, {
+          component: 'UserHeader',
+          renderTime: `${renderTime.toFixed(2)}ms`,
+          threshold: `${logThreshold}ms`,
+      });
     }
   }, [enableLogging, logThreshold]);
 
@@ -88,7 +93,9 @@ export function useHeaderPerformance(options: HeaderPerformanceOptions = {}) {
     }));
 
     if (enableLogging) {
-      console.log(`[HeaderPerformance] API call completed in ${responseTime.toFixed(2)}ms`);
+      logger.debug(`Header API call completed`, {
+          responseTime: `${responseTime.toFixed(2)}ms`
+      });
     }
   }, [trackApiCalls, enableLogging]);
 
@@ -108,7 +115,9 @@ export function useHeaderPerformance(options: HeaderPerformanceOptions = {}) {
     }));
 
     if (enableLogging) {
-      console.warn(`[HeaderPerformance] Error tracked. Error rate: ${errorRate.toFixed(2)}%`);
+      logger.warn('Header error tracked', {
+          errorRate: `${errorRate.toFixed(2)}%`
+      });
     }
   }, [trackErrors, enableLogging]);
 
@@ -142,18 +151,22 @@ export function useHeaderPerformance(options: HeaderPerformanceOptions = {}) {
     });
 
     if (enableLogging) {
-      console.log('[HeaderPerformance] Metrics reset');
+      logger.info('Header performance metrics reset');
     }
   }, [enableLogging]);
 
   // Performance warning effect
   useEffect(() => {
     if (metrics.averageRenderTime > 50) { // 50ms average is concerning
-      console.warn(`[HeaderPerformance] High average render time: ${metrics.averageRenderTime.toFixed(2)}ms`);
+      logger.warn('High average render time for header', {
+          averageRenderTime: `${metrics.averageRenderTime.toFixed(2)}ms`
+      });
     }
 
     if (metrics.errorRate > 10) { // 10% error rate is concerning
-      console.warn(`[HeaderPerformance] High error rate: ${metrics.errorRate.toFixed(2)}%`);
+      logger.warn('High error rate for header', {
+          errorRate: `${metrics.errorRate.toFixed(2)}%`
+      });
     }
   }, [metrics.averageRenderTime, metrics.errorRate]);
 

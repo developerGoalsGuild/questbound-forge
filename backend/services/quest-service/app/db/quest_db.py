@@ -82,6 +82,11 @@ class QuestPermissionError(QuestDBError):
     pass
 
 
+class QuestValidationError(QuestDBError):
+    """Raised when quest validation fails."""
+    pass
+
+
 def _get_dynamodb_table():
     """Get DynamoDB table resource."""
     import boto3
@@ -148,10 +153,8 @@ def _build_quest_item(user_id: str, payload: QuestCreatePayload) -> Dict[str, An
             item["targetCount"] = payload.targetCount
         if payload.countScope:
             item["countScope"] = payload.countScope
-        if payload.startAt:
-            item["startAt"] = payload.startAt
-        if payload.periodSeconds:
-            item["periodSeconds"] = payload.periodSeconds
+        if payload.periodDays:
+            item["periodDays"] = payload.periodDays
     
     return item
 
@@ -187,10 +190,61 @@ def _quest_item_to_response(item: Dict[str, Any]) -> QuestResponse:
         dependsOnQuestIds=item.get("dependsOnQuestIds"),
         targetCount=item.get("targetCount"),
         countScope=item.get("countScope"),
-        startAt=item.get("startAt"),
-        periodSeconds=item.get("periodSeconds"),
+        periodDays=item.get("periodDays"),
         auditTrail=item.get("auditTrail", [])
     )
+
+
+def _validate_quest_can_start(quest: QuestResponse) -> None:
+    """
+    Validate that a quest can be started (has all required fields).
+    
+    Args:
+        quest: QuestResponse object to validate
+        
+    Raises:
+        QuestValidationError: If quest validation fails
+    """
+    # Check if quest exists
+    if not quest:
+        raise QuestValidationError("Quest not found. Please refresh the page and try again.")
+    
+    # Check if quest is in draft status
+    if quest.status != "draft":
+        status_display = quest.status.replace("_", " ").title()
+        raise QuestValidationError(f"Cannot start quest. Quest is currently {status_display}. Only draft quests can be started.")
+    
+    # Check required fields for all quests
+    if not quest.title or not quest.title.strip():
+        raise QuestValidationError("Quest title is required. Please add a title to your quest before starting it.")
+    
+    if not quest.category or not quest.category.strip():
+        raise QuestValidationError("Quest category is required. Please select a category for your quest before starting it.")
+    
+    if not quest.difficulty or quest.difficulty not in ["easy", "medium", "hard"]:
+        raise QuestValidationError("Quest difficulty is required. Please select a difficulty level (Easy, Medium, or Hard) before starting your quest.")
+    
+    if not quest.kind or quest.kind not in ["linked", "quantitative"]:
+        raise QuestValidationError("Quest type is required. Please select whether this is a Linked or Quantitative quest before starting it.")
+    
+    # Validate quantitative quest requirements
+    if quest.kind == "quantitative":
+        if not quest.targetCount or quest.targetCount <= 0:
+            raise QuestValidationError("Quantitative quest requires a target count. Please set how many items you want to complete before starting your quest.")
+        
+        if not quest.countScope or quest.countScope not in ["completed_tasks", "completed_goals", "any"]:
+            raise QuestValidationError("Quantitative quest requires a count scope. Please select what to count (completed tasks or goals) before starting your quest.")
+        
+        if not quest.periodDays or quest.periodDays <= 0:
+            raise QuestValidationError("Quantitative quest requires a time period. Please set how many days you want to complete this quest in before starting it.")
+    
+    # Validate linked quest requirements
+    if quest.kind == "linked":
+        if not quest.linkedGoalIds or len(quest.linkedGoalIds) == 0:
+            raise QuestValidationError("Linked quest requires at least one goal. Please select the goals you want to work on before starting your quest.")
+        
+        if not quest.linkedTaskIds or len(quest.linkedTaskIds) == 0:
+            raise QuestValidationError("Linked quest requires at least one task. Please select the tasks you want to work on before starting your quest.")
 
 
 def create_quest(user_id: str, payload: QuestCreatePayload) -> QuestResponse:
@@ -470,6 +524,17 @@ def change_quest_status(user_id: str, quest_id: str, new_status: QuestStatus,
                           new_status=new_status)
             raise QuestPermissionError(f"Cannot change status from {current_quest.status} to {new_status}")
         
+        # Validate quest can be started (only when transitioning to active)
+        if new_status == "active":
+            try:
+                _validate_quest_can_start(current_quest)
+            except QuestValidationError as e:
+                logger.warning('quest.start_validation_failed', 
+                              user_id=user_id, 
+                              quest_id=quest_id,
+                              validation_error=str(e))
+                raise QuestValidationError(f"Cannot start quest: {str(e)}")
+        
         # Build audit entry
         audit_entry = {
             "action": "status_changed",
@@ -512,6 +577,8 @@ def change_quest_status(user_id: str, quest_id: str, new_status: QuestStatus,
     except QuestNotFoundError:
         raise
     except QuestPermissionError:
+        raise
+    except QuestValidationError:
         raise
     except Exception as e:
         logger.error('quest.status_change_failed', 

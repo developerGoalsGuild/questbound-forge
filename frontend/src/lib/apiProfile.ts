@@ -2,23 +2,28 @@ import { authFetch, isNicknameAvailableForUser, updateUserProfile, type UserProf
 import { MY_PROFILE } from '@/graphql/queries';
 import { type Language } from '@/i18n/translations';
 import { getCountries as i18nGetCountries } from '@/i18n/countries';
+import { logger } from './logger';
 
 export { type UserProfile, type ProfileUpdateInput };
 
 export async function getProfile(): Promise<UserProfile> {
+  const operation = 'getProfile';
   try {
     const data = await graphqlRaw<{ myProfile: UserProfile }>(MY_PROFILE);
     return data?.myProfile as UserProfile;
   } catch (e: any) {
-    console.error('[getProfile] Complete error object:', e);
-    console.error('[getProfile] Error errors:', e?.errors);
-    console.error('[getProfile] Error message:', e?.message);
-    console.error('[getProfile] Error response:', e?.response);
+    const errorContext = {
+      operation,
+      error: e,
+      errors: e?.errors,
+      errorMessage: e?.message,
+      response: e?.response,
+    };
+    logger.error('Failed to fetch profile', errorContext);
     
     // Handle specific GraphQL errors
     if (e?.errors && Array.isArray(e.errors)) {
       const error = e.errors[0];
-      console.error('[getProfile] First GraphQL error:', error);
       if (error?.errorType === 'NotFound' && error?.message === 'Profile not found') {
         throw new Error('PROFILE_NOT_FOUND');
       }

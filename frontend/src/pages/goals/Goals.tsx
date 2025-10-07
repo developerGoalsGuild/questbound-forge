@@ -9,6 +9,7 @@ import TasksModal from '@/components/modals/TasksModal';
 
 // Import task API calls
 import { createTask as createTaskApi, loadTasks as loadTasksApi, updateTask, deleteTask } from '@/lib/apiTask';
+import { logger } from '@/lib/logger';
 
 // Parse a date-only string (YYYY-MM-DD or datetime-local) into epoch seconds in UTC
 const toEpochSeconds = (input: string): number => {
@@ -54,13 +55,13 @@ const GoalsPageInner: React.FC = () => {
 
   async function loadMyTasks(goalId: string) {
     try {
-      console.log('Loading tasks for goalId:', goalId);
+      logger.debug('Loading tasks for goal', { goalId });
       const tasks = await loadTasksApi(goalId);
-      console.log('Loaded tasks:', tasks);
+      logger.debug('Loaded tasks successfully', { goalId, taskCount: tasks?.length || 0 });
       setTasks(Array.isArray(tasks) ? tasks : tasks ? [tasks] : []);
-      console.log('Set tasks state');
+      logger.debug('Set tasks state');
     } catch (e: any) {
-      console.error('Error loading tasks:', e);
+      logger.error('Error loading tasks', { goalId, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to load tasks';
@@ -75,7 +76,7 @@ const GoalsPageInner: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse load tasks error response', { parseError });
       }
       
       toast({
@@ -113,7 +114,7 @@ const GoalsPageInner: React.FC = () => {
       toast({ title: 'Task created' });
       await loadMyTasks(selectedGoalId);
     } catch (e: any) {
-      console.error('Error creating task:', e);
+      logger.error('Error creating task', { goalId: selectedGoalId, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to create task';
@@ -128,7 +129,7 @@ const GoalsPageInner: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse create task error response', { parseError });
       }
       
       toast({ 
@@ -155,7 +156,7 @@ const GoalsPageInner: React.FC = () => {
       setTasks(prev => prev.map(t => (t.id === updatedTask.id ? updatedTask : t)));
       toast({ title: 'Task updated' });
     } catch (e: any) {
-      console.error('Error updating task:', e);
+      logger.error('Error updating task', { taskId: updatedTask.id, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to update task';
@@ -170,7 +171,7 @@ const GoalsPageInner: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse update task error response', { parseError });
       }
       
       toast({ 
@@ -190,7 +191,7 @@ const GoalsPageInner: React.FC = () => {
       setTasks(prev => prev.filter(t => t.id !== taskId));
       toast({ title: 'Task deleted' });
     } catch (e: any) {
-      console.error('Error deleting task:', e);
+      logger.error('Error deleting task', { taskId, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to delete task';
@@ -205,7 +206,7 @@ const GoalsPageInner: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse delete task error response', { parseError });
       }
       
       toast({ 

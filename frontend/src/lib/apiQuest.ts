@@ -11,6 +11,8 @@ import {
   QuestUpdateInputSchema, 
   QuestCancelInputSchema 
 } from '@/models/quest';
+import { logger } from './logger';
+import { reportError } from './error-reporter';
 
 // ============================================================================
 // Phase 1: Core API Service Structure
@@ -50,8 +52,7 @@ const MY_QUESTS = /* GraphQL */ `
       dependsOnQuestIds
       targetCount
       countScope
-      startAt
-      periodSeconds
+      periodDays
     }
   }
 `;
@@ -72,25 +73,70 @@ const MY_QUESTS = /* GraphQL */ `
  * ```
  */
 export async function loadQuests(goalId?: string): Promise<Quest[]> {
+  const operation = 'loadQuests';
+  logger.info('Loading quests', { operation, goalId });
+  const startTime = Date.now();
   try {
-    console.info('[Quest API] Loading quests', { goalId });
-    
     const data = await graphqlRaw<{ myQuests: Quest[] }>(MY_QUESTS, { goalId });
     const quests = data?.myQuests ?? [];
     
-    console.info('[Quest API] Loaded quests successfully', { 
-      count: quests.length, 
-      goalId 
+    const duration = Date.now() - startTime;
+    logger.info(`Loaded ${quests.length} quests successfully`, {
+      operation,
+      goalId,
+      count: quests.length,
+      duration,
     });
     
     return quests;
   } catch (error: any) {
-    console.error('[Quest API] Failed to load quests:', {
-      error: error?.message || error,
+    logger.error('Failed to load quests', {
+      operation,
       goalId,
+      error: error?.message || error,
       timestamp: new Date().toISOString()
     });
     throw new Error(error?.message || 'Failed to load quests');
+  }
+}
+
+/**
+ * Load a single quest by ID
+ * 
+ * @param questId - Quest ID to load
+ * @returns Promise<Quest> - Quest object
+ * 
+ * @example
+ * ```typescript
+ * const quest = await loadQuest('quest-123');
+ * ```
+ */
+export async function loadQuest(questId: string): Promise<Quest> {
+  const operation = 'loadQuest';
+  logger.info('Loading quest', { operation, questId });
+  const startTime = Date.now();
+  try {
+    const data = await graphqlRaw<{ myQuests: Quest[] }>(MY_QUESTS, {});
+    const quests = data?.myQuests ?? [];
+    const quest = quests.find(q => q.id === questId);
+    
+    if (!quest) {
+      throw new Error(`Quest with ID ${questId} not found`);
+    }
+    
+    const duration = Date.now() - startTime;
+    logger.info('Quest loaded successfully', { operation, questId, duration });
+    return quest;
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    logger.error('Failed to load quest', {
+      operation,
+      questId,
+      error: error?.message || error,
+      duration,
+      timestamp: new Date().toISOString()
+    });
+    throw new Error(error?.message || 'Failed to load quest');
   }
 }
 
@@ -115,6 +161,8 @@ export async function loadQuests(goalId?: string): Promise<Quest[]> {
  * ```
  */
 export async function createQuest(payload: QuestCreateInput): Promise<Quest> {
+  const operation = 'createQuest';
+  logger.debug('Entering createQuest', { operation, inputPayload: payload });
   const token = getAccessToken();
   if (!token) {
     throw new Error('You must be signed in to create a quest.');
@@ -125,16 +173,25 @@ export async function createQuest(payload: QuestCreateInput): Promise<Quest> {
   try {
     validatedPayload = QuestCreateInputSchema.parse(payload) as QuestCreateInput;
   } catch (error: any) {
-    console.error('[Quest API] Input validation failed:', error);
+    logger.error('Input validation failed', { operation, error });
     throw new Error(error?.issues?.[0]?.message || 'Invalid quest data');
   }
 
-  console.info('[Quest API] Creating quest', { payload: validatedPayload });
+  logger.info('Creating quest', { operation, payload: validatedPayload });
 
   return withRetry(async (retryCount = 0) => {
     const startTime = Date.now();
     const requestId = generateRequestId();
     
+    logger.debug('Sending request to API', {
+        operation,
+        url: '/quests/createQuest',
+        method: 'POST',
+        requestId,
+        retryCount,
+        body: validatedPayload
+    });
+
     const response = await authFetch('/quests/createQuest', {
       method: 'POST',
       headers: {
@@ -161,10 +218,13 @@ export async function createQuest(payload: QuestCreateInput): Promise<Quest> {
     }
 
     const questData = await response.json();
+    logger.debug('Received successful API response', { operation, questData });
     const quest = validateQuestResponse(questData);
-    console.info('[Quest API] Quest created successfully', { 
+    const duration = Date.now() - startTime;
+    logger.info('Quest created successfully', { 
+      operation,
       questId: quest.id,
-      duration: Date.now() - startTime,
+      duration,
       requestId
     });
     
@@ -184,16 +244,26 @@ export async function createQuest(payload: QuestCreateInput): Promise<Quest> {
  * ```
  */
 export async function startQuest(questId: string): Promise<Quest> {
+  const operation = 'startQuest';
+  logger.debug('Entering startQuest', { operation, questId });
   const token = getAccessToken();
   if (!token) {
     throw new Error('You must be signed in to start a quest.');
   }
 
-  console.info('[Quest API] Starting quest', { questId });
+  logger.info('Starting quest', { operation, questId });
 
   return withRetry(async (retryCount = 0) => {
     const startTime = Date.now();
     const requestId = generateRequestId();
+    
+    logger.debug('Sending request to API', {
+        operation,
+        url: `/quests/quests/${questId}/start`,
+        method: 'POST',
+        requestId,
+        retryCount,
+    });
     
     const response = await authFetch(`/quests/quests/${questId}/start`, {
       method: 'POST',
@@ -220,10 +290,13 @@ export async function startQuest(questId: string): Promise<Quest> {
     }
 
     const questData = await response.json();
+    logger.debug('Received successful API response', { operation, questData });
     const quest = validateQuestResponse(questData);
-    console.info('[Quest API] Quest started successfully', { 
+    const duration = Date.now() - startTime;
+    logger.info('Quest started successfully', { 
+      operation,
       questId,
-      duration: Date.now() - startTime,
+      duration,
       requestId
     });
     
@@ -247,6 +320,8 @@ export async function startQuest(questId: string): Promise<Quest> {
  * ```
  */
 export async function editQuest(questId: string, payload: QuestUpdateInput): Promise<Quest> {
+  const operation = 'editQuest';
+  logger.debug('Entering editQuest', { operation, questId, payload });
   const token = getAccessToken();
   if (!token) {
     throw new Error('You must be signed in to edit a quest.');
@@ -257,16 +332,25 @@ export async function editQuest(questId: string, payload: QuestUpdateInput): Pro
   try {
     validatedPayload = QuestUpdateInputSchema.parse(payload);
   } catch (error: any) {
-    console.error('[Quest API] Input validation failed:', error);
+    logger.error('Input validation failed', { operation, error });
     throw new Error(error?.issues?.[0]?.message || 'Invalid quest update data');
   }
 
-  console.info('[Quest API] Editing quest', { questId, payload: validatedPayload });
+  logger.info('Editing quest', { operation, questId, payload: validatedPayload });
 
   return withRetry(async (retryCount = 0) => {
     const startTime = Date.now();
     const requestId = generateRequestId();
     
+    logger.debug('Sending request to API', {
+        operation,
+        url: `/quests/quests/${questId}`,
+        method: 'PUT',
+        requestId,
+        retryCount,
+        body: validatedPayload
+    });
+
     const response = await authFetch(`/quests/quests/${questId}`, {
       method: 'PUT',
       headers: {
@@ -293,10 +377,13 @@ export async function editQuest(questId: string, payload: QuestUpdateInput): Pro
     }
 
     const questData = await response.json();
+    logger.debug('Received successful API response', { operation, questData });
     const quest = validateQuestResponse(questData);
-    console.info('[Quest API] Quest edited successfully', { 
+    const duration = Date.now() - startTime;
+    logger.info('Quest edited successfully', { 
+      operation,
       questId,
-      duration: Date.now() - startTime,
+      duration,
       requestId
     });
     
@@ -317,6 +404,8 @@ export async function editQuest(questId: string, payload: QuestUpdateInput): Pro
  * ```
  */
 export async function cancelQuest(questId: string, payload?: QuestCancelInput): Promise<Quest> {
+  const operation = 'cancelQuest';
+  logger.debug('Entering cancelQuest', { operation, questId, payload });
   const token = getAccessToken();
   if (!token) {
     throw new Error('You must be signed in to cancel a quest.');
@@ -328,16 +417,25 @@ export async function cancelQuest(questId: string, payload?: QuestCancelInput): 
     try {
       validatedPayload = QuestCancelInputSchema.parse(payload);
     } catch (error: any) {
-      console.error('[Quest API] Input validation failed:', error);
+      logger.error('Input validation failed', { operation, error });
       throw new Error(error?.issues?.[0]?.message || 'Invalid quest cancellation data');
     }
   }
 
-  console.info('[Quest API] Cancelling quest', { questId, payload: validatedPayload });
+  logger.info('Cancelling quest', { operation, questId, payload: validatedPayload });
 
   return withRetry(async (retryCount = 0) => {
     const startTime = Date.now();
     const requestId = generateRequestId();
+    
+    logger.debug('Sending request to API', {
+        operation,
+        url: `/quests/quests/${questId}/cancel`,
+        method: 'POST',
+        requestId,
+        retryCount,
+        body: validatedPayload
+    });
     
     const response = await authFetch(`/quests/quests/${questId}/cancel`, {
       method: 'POST',
@@ -365,10 +463,13 @@ export async function cancelQuest(questId: string, payload?: QuestCancelInput): 
     }
 
     const questData = await response.json();
+    logger.debug('Received successful API response', { operation, questData });
     const quest = validateQuestResponse(questData);
-    console.info('[Quest API] Quest cancelled successfully', { 
+    const duration = Date.now() - startTime;
+    logger.info('Quest cancelled successfully', { 
+      operation,
       questId,
-      duration: Date.now() - startTime,
+      duration,
       requestId
     });
     
@@ -388,16 +489,26 @@ export async function cancelQuest(questId: string, payload?: QuestCancelInput): 
  * ```
  */
 export async function failQuest(questId: string): Promise<Quest> {
+  const operation = 'failQuest';
+  logger.debug('Entering failQuest', { operation, questId });
   const token = getAccessToken();
   if (!token) {
     throw new Error('You must be signed in to mark a quest as failed.');
   }
 
-  console.info('[Quest API] Marking quest as failed', { questId });
+  logger.info('Marking quest as failed', { operation, questId });
 
   return withRetry(async (retryCount = 0) => {
     const startTime = Date.now();
     const requestId = generateRequestId();
+    
+    logger.debug('Sending request to API', {
+        operation,
+        url: `/quests/quests/${questId}/fail`,
+        method: 'POST',
+        requestId,
+        retryCount,
+    });
     
     const response = await authFetch(`/quests/quests/${questId}/fail`, {
       method: 'POST',
@@ -424,10 +535,13 @@ export async function failQuest(questId: string): Promise<Quest> {
     }
 
     const questData = await response.json();
+    logger.debug('Received successful API response', { operation, questData });
     const quest = validateQuestResponse(questData);
-    console.info('[Quest API] Quest marked as failed successfully', { 
+    const duration = Date.now() - startTime;
+    logger.info('Quest marked as failed successfully', { 
+      operation,
       questId,
-      duration: Date.now() - startTime,
+      duration,
       requestId
     });
     
@@ -447,16 +561,26 @@ export async function failQuest(questId: string): Promise<Quest> {
  * ```
  */
 export async function deleteQuest(questId: string): Promise<void> {
+  const operation = 'deleteQuest';
+  logger.debug('Entering deleteQuest', { operation, questId });
   const token = getAccessToken();
   if (!token) {
     throw new Error('You must be signed in to delete a quest.');
   }
 
-  console.info('[Quest API] Deleting quest', { questId });
+  logger.info('Deleting quest', { operation, questId });
 
   return withRetry(async (retryCount = 0) => {
     const startTime = Date.now();
     const requestId = generateRequestId();
+    
+    logger.debug('Sending request to API', {
+        operation,
+        url: `/quests/quests/${questId}`,
+        method: 'DELETE',
+        requestId,
+        retryCount,
+    });
     
     const response = await authFetch(`/quests/quests/${questId}`, {
       method: 'DELETE',
@@ -482,9 +606,11 @@ export async function deleteQuest(questId: string): Promise<void> {
       );
     }
 
-    console.info('[Quest API] Quest deleted successfully', { 
+    const duration = Date.now() - startTime;
+    logger.info('Quest deleted successfully', { 
+      operation,
       questId,
-      duration: Date.now() - startTime,
+      duration,
       requestId
     });
   });
@@ -554,7 +680,7 @@ async function withRetry<T>(
         break;
       }
       
-      console.warn(`[Quest API] Retry attempt ${attempt}/${maxRetries}`, { 
+      logger.warn(`Retry attempt ${attempt}/${maxRetries}`, { 
         error: error.message,
         attempt,
         maxRetries,
@@ -646,7 +772,7 @@ async function handleQuestApiError(
   };
 
   // Enhanced error logging with more context
-  console.error('[Quest API] Error occurred:', {
+  logger.error('API Error occurred', {
     ...errorInfo,
     // Additional debugging context
     environment: import.meta.env.MODE,
@@ -682,7 +808,9 @@ async function handleQuestApiError(
 
   // Add request ID to error message for support purposes
   const errorMessage = `${message} (Request ID: ${requestId})`;
-  throw new Error(errorMessage);
+  const error = new Error(errorMessage);
+  reportError(error, errorInfo);
+  throw error;
 }
 
 /**

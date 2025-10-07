@@ -4,6 +4,7 @@
 
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { debounce } from 'lodash-es';
+import { logger } from '@/lib/logger';
 
 /**
  * Debounced search hook for goal filtering
@@ -302,11 +303,11 @@ export function usePerformanceMonitoring(componentName: string) {
       
       // Log performance metrics in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`${componentName} render #${renderCount.current}: ${renderTime.toFixed(2)}ms`);
+        logger.debug(`${componentName} render #${renderCount.current}: ${renderTime.toFixed(2)}ms`);
         
         // Warn about slow renders
         if (renderTime > 100) {
-          console.warn(`${componentName} slow render detected: ${renderTime.toFixed(2)}ms`);
+          logger.warn(`${componentName} slow render detected`, { renderTime: `${renderTime.toFixed(2)}ms` });
         }
       }
     };

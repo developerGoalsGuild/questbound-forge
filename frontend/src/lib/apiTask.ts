@@ -1,6 +1,7 @@
 import { getAccessToken, graphQLClient } from './utils';
 import {  MY_TASKS } from '@/graphql/queries';
 import { graphqlRaw } from './api';
+import { logger } from './logger';
 
 
 interface CreateTaskInput {
@@ -27,6 +28,7 @@ interface TaskResponse {
  * Requires authenticated user token.
  */
 export async function createTask(input: CreateTaskInput): Promise<TaskResponse> {
+  const operation = 'createTask';
   const token = getAccessToken();
   if (!token) {
     throw new Error('User is not authenticated');
@@ -48,7 +50,8 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     const message = errorBody.detail || response.statusText || 'Failed to create task';
-    console.error('CreateTask API Error:', {
+    logger.error('CreateTask API Error', {
+      operation,
       status: response.status,
       statusText: response.statusText,
       errorBody,
@@ -63,6 +66,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
 }
 
 export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
+  const operation = 'loadTasks';
   try {
     const QUERY = /* GraphQL */ `
         query myTasks($goalId: ID!) {
@@ -84,7 +88,11 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
     return tasks || null;
 
   } catch (e: any) {
-    console.error('[loadTasks] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in loadTasks', {
+        operation,
+        goalId,
+        error: e?.errors || e?.message || e
+    });
     return null;
   }
 }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { reportError } from '@/lib/error-reporter';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -45,10 +46,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       errorInfo,
     });
 
-    // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
-    }
+    // Always report the error
+    reportError(error, { componentStack: errorInfo.componentStack });
 
     // Call custom error handler if provided
     if (this.props.onError) {

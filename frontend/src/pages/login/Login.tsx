@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/useTranslation';
 import { login as apiLogin, LoginResponse } from '@/lib/api';
 import { PasswordInput } from '@/components/ui/password-input';
+import { logger } from '@/lib/logger';
 
 const Login = () => {
   const { t } = useTranslation();
@@ -70,7 +71,9 @@ const Login = () => {
     const scope = (import.meta.env.VITE_COGNITO_SCOPE as string | undefined) || 'openid+email+profile';
 
     if (!domain || !clientId) {
-      console.error('Cognito Hosted UI env vars missing. Set VITE_COGNITO_DOMAIN and VITE_COGNITO_CLIENT_ID.');
+      logger.error('Cognito Hosted UI environment variables are missing.', {
+          variables: ['VITE_COGNITO_DOMAIN', 'VITE_COGNITO_CLIENT_ID']
+      });
       return;
     }
 

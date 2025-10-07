@@ -21,7 +21,7 @@ QuestDifficulty = Literal["easy", "medium", "hard"]
 QuestKind = Literal["linked", "quantitative"]
 
 # Quest count scope options
-QuestCountScope = Literal["any", "linked"]
+QuestCountScope = Literal["completed_tasks", "completed_goals", "any"]  # 'any' for backward compatibility
 
 # Quest privacy options
 QuestPrivacy = Literal["public", "followers", "private"]
@@ -118,14 +118,10 @@ class QuestCreatePayload(BaseModel):
         None,
         description="Scope for counting in quantitative quests"
     )
-    startAt: Optional[int] = Field(
-        None,
-        description="Quest start time as epoch milliseconds"
-    )
-    periodSeconds: Optional[int] = Field(
+    periodDays: Optional[int] = Field(
         None,
         gt=0,
-        description="Counting period duration in seconds"
+        description="Counting period duration in days"
     )
     
     @field_validator("title")
@@ -255,31 +251,19 @@ class QuestCreatePayload(BaseModel):
         
         return v
     
-    @field_validator("startAt")
-    @classmethod
-    def validate_start_at(cls, v: Optional[int]) -> Optional[int]:
-        """Validate start time for quantitative quests"""
-        if v is None:
-            return None
-        
-        now_ms = int(datetime.now().timestamp() * 1000)
-        if v < now_ms:
-            raise ValueError("Start time cannot be in the past")
-        
-        return v
     
-    @field_validator("periodSeconds")
+    @field_validator("periodDays")
     @classmethod
-    def validate_period_seconds(cls, v: Optional[int]) -> Optional[int]:
+    def validate_period_days(cls, v: Optional[int]) -> Optional[int]:
         """Validate period duration for quantitative quests"""
         if v is None:
             return None
         
         if v <= 0:
-            raise ValueError("Period must be greater than 0 seconds")
+            raise ValueError("Period must be greater than 0 days")
         
         # Maximum 1 year
-        max_period = 365 * 24 * 60 * 60
+        max_period = 365
         if v > max_period:
             raise ValueError("Period cannot exceed 1 year")
         
@@ -293,10 +277,8 @@ class QuestCreatePayload(BaseModel):
                 raise ValueError("targetCount is required for quantitative quests")
             if self.countScope is None:
                 raise ValueError("countScope is required for quantitative quests")
-            if self.startAt is None:
-                raise ValueError("startAt is required for quantitative quests")
-            if self.periodSeconds is None:
-                raise ValueError("periodSeconds is required for quantitative quests")
+            if self.periodDays is None:
+                raise ValueError("periodDays is required for quantitative quests")
         
         # Note: For linked quests, we allow creation without linked items
         # The validation will happen when the quest is started, not when created
@@ -369,14 +351,10 @@ class QuestUpdatePayload(BaseModel):
         None,
         description="Scope for counting in quantitative quests"
     )
-    startAt: Optional[int] = Field(
-        None,
-        description="Quest start time as epoch milliseconds"
-    )
-    periodSeconds: Optional[int] = Field(
+    periodDays: Optional[int] = Field(
         None,
         gt=0,
-        description="Counting period duration in seconds"
+        description="Counting period duration in days"
     )
     
     # Reuse validation methods from QuestCreatePayload
@@ -436,21 +414,14 @@ class QuestUpdatePayload(BaseModel):
             return None
         return QuestCreatePayload.validate_target_count(v)
     
-    @field_validator("startAt")
-    @classmethod
-    def validate_start_at(cls, v: Optional[int]) -> Optional[int]:
-        """Validate start time for quantitative quests"""
-        if v is None:
-            return None
-        return QuestCreatePayload.validate_start_at(v)
     
-    @field_validator("periodSeconds")
+    @field_validator("periodDays")
     @classmethod
-    def validate_period_seconds(cls, v: Optional[int]) -> Optional[int]:
+    def validate_period_days(cls, v: Optional[int]) -> Optional[int]:
         """Validate period duration for quantitative quests"""
         if v is None:
             return None
-        return QuestCreatePayload.validate_period_seconds(v)
+        return QuestCreatePayload.validate_period_days(v)
 
 
 class QuestCancelPayload(BaseModel):
@@ -506,8 +477,7 @@ class QuestResponse(BaseModel):
     # Quantitative Quest fields
     targetCount: Optional[int] = Field(None, description="Target count for quantitative quests")
     countScope: Optional[QuestCountScope] = Field(None, description="Count scope for quantitative quests")
-    startAt: Optional[int] = Field(None, description="Start time for quantitative quests")
-    periodSeconds: Optional[int] = Field(None, description="Period duration for quantitative quests")
+    periodDays: Optional[int] = Field(None, description="Period duration for quantitative quests")
     
     # Audit trail
     auditTrail: List[dict] = Field(default_factory=list, description="Audit trail events")

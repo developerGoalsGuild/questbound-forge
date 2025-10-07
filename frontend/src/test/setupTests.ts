@@ -172,7 +172,7 @@ vi.mock('lucide-react', () => ({
 
 /* Optional: stub console error noise from React act() warnings during tests */
 // const origError = console.error;
-// console.error = (...args) => {
+// logger.error = (...args) => {
 //   const msg = String(args[0] ?? '');
 //   if (msg.includes('Warning: An update to') && msg.includes('not wrapped in act')) return;
 //   origError(...args);

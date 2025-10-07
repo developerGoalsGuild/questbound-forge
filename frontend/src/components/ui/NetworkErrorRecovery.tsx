@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface NetworkErrorRecoveryProps {
   /**
@@ -105,7 +106,7 @@ const NetworkErrorRecovery: React.FC<NetworkErrorRecoveryProps> = ({
         await onRetry();
       }
     } catch (error) {
-      console.error('Retry failed:', error);
+      logger.error('Retry failed in NetworkErrorRecovery', { error });
     } finally {
       setIsRetrying(false);
     }

@@ -106,3 +106,4 @@ backend/services/quest-service/app/__pycache__/models.cpython-313.pyc
 backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/tests/__pycache__/test_performance.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/tests/__pycache__/test_profile.cpython-313-pytest-8.4.1.pyc
+frontend/package-lock.json

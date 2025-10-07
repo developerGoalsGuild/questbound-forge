@@ -171,7 +171,7 @@ class TestQuestCreatePayloadComprehensive:
                 kind="quantitative",
                 targetCount=5,
                 startAt=future_time,
-                countScope="any"
+                countScope="completed_tasks"
             )
         assert "periodSeconds is required for quantitative quests" in str(exc_info.value)
         
@@ -183,14 +183,14 @@ class TestQuestCreatePayloadComprehensive:
             kind="quantitative",
             targetCount=5,
             startAt=future_time,
-            countScope="any",
-            periodSeconds=3600
+            countScope="completed_tasks",
+                periodDays=1
         )
         assert payload.kind == "quantitative"
         assert payload.targetCount == 5
         assert payload.startAt == future_time
-        assert payload.countScope == "any"
-        assert payload.periodSeconds == 3600
+        assert payload.countScope == "completed_tasks"
+        assert payload.periodDays == 1
     
     def test_quest_create_payload_deadline_validation(self):
         """Test deadline validation rules."""
@@ -230,9 +230,9 @@ class TestQuestCreatePayloadComprehensive:
             privacy="public",
             kind="quantitative",
             targetCount=10,
-            countScope="linked",
+            countScope="completed_goals",
             startAt=future_time,
-            periodSeconds=7200
+            periodDays=1
         )
         
         # Test model_dump()
@@ -246,9 +246,9 @@ class TestQuestCreatePayloadComprehensive:
         assert data["privacy"] == "public"
         assert data["kind"] == "quantitative"
         assert data["targetCount"] == 10
-        assert data["countScope"] == "linked"
+        assert data["countScope"] == "completed_goals"
         assert data["startAt"] == future_time
-        assert data["periodSeconds"] == 7200
+        assert data["periodDays"] == 1
         
         # Test model_dump_json()
         json_str = payload.model_dump_json()
@@ -327,10 +327,10 @@ class TestQuestUpdatePayloadComprehensive:
             tags=["updated", "test"],
             privacy="public",
             targetCount=20,
-            countScope="any",
+            countScope="completed_tasks",
             deadline=future_time,
             startAt=future_time,
-            periodSeconds=3600
+                periodDays=1
         )
         
         # Test model_dump()
@@ -341,10 +341,10 @@ class TestQuestUpdatePayloadComprehensive:
         assert data["tags"] == ["updated", "test"]
         assert data["privacy"] == "public"
         assert data["targetCount"] == 20
-        assert data["countScope"] == "any"
+        assert data["countScope"] == "completed_tasks"
         assert data["deadline"] == future_time
         assert data["startAt"] == future_time
-        assert data["periodSeconds"] == 3600
+        assert data["periodDays"] == 1
         
         # Test model_dump_json()
         json_str = payload.model_dump_json()
@@ -419,7 +419,7 @@ class TestQuestResponseComprehensive:
             kind="quantitative",
             tags=["learning", "comprehensive", "test"],
             targetCount=50,
-            countScope="linked",
+            countScope="completed_goals",
             deadline=future_deadline,
             startAt=future_time,
             periodSeconds=86400,
@@ -571,7 +571,7 @@ class TestQuestModelEdgeCasesComprehensive:
             privacy="public",
             kind="quantitative",
             targetCount=10000,  # Maximum target count
-            countScope="any",
+            countScope="completed_tasks",
             startAt=future_time,
             periodSeconds=86400
         )

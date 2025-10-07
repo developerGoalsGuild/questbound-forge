@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from './logger';
 
 export interface LogoutOptions {
   showToast?: boolean;
@@ -46,7 +47,7 @@ export async function logout(options: LogoutOptions = {}): Promise<LogoutResult>
         try {
           localStorage.removeItem(key);
         } catch (error) {
-          console.warn(`Failed to remove ${key} from localStorage:`, error);
+          logger.warn(`Failed to remove ${key} from localStorage during logout`, { error });
         }
       });
     }
@@ -54,14 +55,14 @@ export async function logout(options: LogoutOptions = {}): Promise<LogoutResult>
     // Show success toast if requested
     if (showToast) {
       // Note: This will be handled by the component using the hook
-      console.log('Logout successful');
+      logger.info('Logout successful');
     }
 
     return {
       success: true,
     };
   } catch (error) {
-    console.error('Logout failed:', error);
+    logger.error('Logout failed', { error });
     
     return {
       success: false,

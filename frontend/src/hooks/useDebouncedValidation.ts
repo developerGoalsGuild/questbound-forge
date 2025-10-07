@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ZodSchema, ZodError } from 'zod';
+import { logger } from '@/lib/logger';
 
 // Validation configuration
 export interface ValidationConfig {
@@ -283,7 +284,7 @@ export const useDebouncedValidation = (config: ValidationConfig = {}) => {
       try {
         await validateField(fieldName, value, schema);
       } catch (error) {
-        console.error(`Validation error for field ${fieldName}:`, error);
+        logger.error(`Validation error for field ${fieldName}`, { fieldName, value, error });
       }
     }, finalConfig.debounceMs);
   }, [validateField, finalConfig.debounceMs]);

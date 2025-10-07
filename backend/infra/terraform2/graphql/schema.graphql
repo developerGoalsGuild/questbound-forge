@@ -39,8 +39,8 @@ enum QuestKind {
 }
 
 enum QuestCountScope {
-  any
-  linked
+  completed_tasks
+  completed_goals
 }
 
 # ----------------
@@ -174,8 +174,7 @@ type Quest {
   # Quantitative fields
   targetCount: Int
   countScope: QuestCountScope
-  startAt: AWSTimestamp
-  periodSeconds: Int
+  periodDays: Int
 }
 
 type Message {

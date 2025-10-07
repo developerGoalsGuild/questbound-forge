@@ -26,13 +26,15 @@ vi.mock('@/i18n/translations', () => ({
 }));
 
 describe('useTranslation', () => {
-  test('throws error when used outside TranslationProvider', () => {
-    // Mock console.error to avoid noise in test output
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  test('returns fallback when used outside TranslationProvider', () => {
+    // Mock console.warn to avoid noise in test output
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(() => {
-      renderHook(() => useTranslation());
-    }).toThrow('useTranslation must be used within TranslationProvider');
+    const { result } = renderHook(() => useTranslation());
+    
+    expect(result.current.language).toBe('en');
+    expect(result.current.t).toBeDefined();
+    expect(typeof result.current.setLanguage).toBe('function');
 
     consoleSpy.mockRestore();
   });

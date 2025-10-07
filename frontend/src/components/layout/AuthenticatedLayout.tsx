@@ -5,6 +5,7 @@ import UserHeader from './UserHeader';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import ErrorBoundary, { HeaderErrorFallback } from '@/components/ui/ErrorBoundary';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
   children,
@@ -19,7 +20,10 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
       <ErrorBoundary
         fallback={<HeaderErrorFallback onRetry={() => window.location.reload()} />}
         onError={(error, errorInfo) => {
-          console.error('Header Error:', error, errorInfo);
+          logger.error('Error in UserHeader component', { 
+              error, 
+              componentStack: errorInfo.componentStack 
+          });
           // Could send to error reporting service here
         }}
       >

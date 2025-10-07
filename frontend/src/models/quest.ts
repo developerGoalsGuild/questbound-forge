@@ -22,7 +22,7 @@ type QuestKind = 'linked' | 'quantitative';
 /**
  * Quest count scope options - must match backend exactly
  */
-type QuestCountScope = 'any' | 'linked';
+type QuestCountScope = 'completed_tasks' | 'completed_goals';
 
 /**
  * Quest privacy options - must match backend exactly
@@ -30,30 +30,65 @@ type QuestCountScope = 'any' | 'linked';
 type QuestPrivacy = 'public' | 'followers' | 'private';
 
 /**
- * Quest category interface - no descriptions, will use i18n
+ * Quest category interface with descriptions
  */
 interface QuestCategory {
   id: string;
   name: string;
+  description?: string;
 }
 
 /**
- * Exact categories from backend QUEST_CATEGORIES list
+ * Quest categories with descriptions for better UX
  */
 const QUEST_CATEGORIES: QuestCategory[] = [
-  { id: 'Health', name: 'Health' },
-  { id: 'Work', name: 'Work' },
-  { id: 'Personal', name: 'Personal' },
-  { id: 'Learning', name: 'Learning' },
-  { id: 'Fitness', name: 'Fitness' },
-  { id: 'Creative', name: 'Creative' },
-  { id: 'Financial', name: 'Financial' },
-  { id: 'Social', name: 'Social' },
-  { id: 'Spiritual', name: 'Spiritual' },
-  { id: 'Hobby', name: 'Hobby' },
-  { id: 'Travel', name: 'Travel' },
-  { id: 'Other', name: 'Other' }
+  { id: 'Health', name: 'Health', description: 'Physical and mental health related quests' },
+  { id: 'Work', name: 'Work', description: 'Professional and career development quests' },
+  { id: 'Personal', name: 'Personal', description: 'Personal growth and self-improvement quests' },
+  { id: 'Learning', name: 'Learning', description: 'Education and skill development quests' },
+  { id: 'Fitness', name: 'Fitness', description: 'Physical fitness and exercise quests' },
+  { id: 'Creative', name: 'Creative', description: 'Artistic and creative expression quests' },
+  { id: 'Financial', name: 'Financial', description: 'Money management and financial goals' },
+  { id: 'Social', name: 'Social', description: 'Social connections and relationships' },
+  { id: 'Spiritual', name: 'Spiritual', description: 'Spiritual growth and mindfulness quests' },
+  { id: 'Hobby', name: 'Hobby', description: 'Recreational and hobby-related quests' },
+  { id: 'Travel', name: 'Travel', description: 'Travel and adventure quests' },
+  { id: 'Other', name: 'Other', description: 'Other types of quests' }
 ];
+
+/**
+ * Quest difficulties with labels for UI display
+ */
+const QUEST_DIFFICULTIES = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' }
+] as const;
+
+/**
+ * Quest privacy options with labels for UI display
+ */
+const QUEST_PRIVACY_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'followers', label: 'Followers' },
+  { value: 'private', label: 'Private' }
+] as const;
+
+/**
+ * Quest kind options with labels for UI display
+ */
+const QUEST_KIND_OPTIONS = [
+  { value: 'linked', label: 'Linked Quest' },
+  { value: 'quantitative', label: 'Quantitative Quest' }
+] as const;
+
+/**
+ * Quest count scope options with labels for UI display
+ */
+const QUEST_COUNT_SCOPE_OPTIONS = [
+  { value: 'completed_tasks', label: 'Completed Tasks' },
+  { value: 'completed_goals', label: 'Completed Goals' }
+] as const;
 
 /**
  * Validation constants - UPPER_SNAKE_CASE per React Guidelines
@@ -101,8 +136,10 @@ interface Quest {
   // Quantitative Quest fields
   targetCount?: number;
   countScope?: QuestCountScope;
-  startAt?: number;
-  periodSeconds?: number;
+  periodDays?: number;
+
+  // Quest timing
+  startedAt?: number; // Unix timestamp when quest was started
 
   // Audit trail
   auditTrail?: object[];
@@ -126,8 +163,7 @@ interface QuestFormData {
   dependsOnQuestIds: string[];
   targetCount?: number;
   countScope?: QuestCountScope;
-  startAt?: number;
-  periodSeconds?: number;
+  periodDays?: number;
 }
 
 /**
@@ -148,8 +184,7 @@ interface QuestCreateInput {
   dependsOnQuestIds?: string[];
   targetCount?: number;
   countScope?: QuestCountScope;
-  startAt?: number;
-  periodSeconds?: number;
+  periodDays?: number;
 }
 
 /**
@@ -169,8 +204,7 @@ interface QuestUpdateInput {
   dependsOnQuestIds?: string[];
   targetCount?: number;
   countScope?: QuestCountScope;
-  startAt?: number;
-  periodSeconds?: number;
+  periodDays?: number;
 }
 
 /**
@@ -190,7 +224,7 @@ interface QuestCancelInput {
 const QuestStatusSchema = z.enum(['draft', 'active', 'completed', 'cancelled', 'failed']);
 const QuestDifficultySchema = z.enum(['easy', 'medium', 'hard']);
 const QuestKindSchema = z.enum(['linked', 'quantitative']);
-const QuestCountScopeSchema = z.enum(['any', 'linked']);
+const QuestCountScopeSchema = z.enum(['completed_tasks', 'completed_goals']);
 const QuestPrivacySchema = z.enum(['public', 'followers', 'private']);
 
 /**
@@ -278,25 +312,17 @@ const QuestCreateInputSchema = z.object({
   // Quantitative Quest fields
   targetCount: z.number().int().positive('Target count must be greater than 0').optional(),
   countScope: QuestCountScopeSchema.optional(),
-  startAt: z.number().int().positive('Start time must be positive').optional()
-    .refine((val) => {
-      if (val === undefined) return true;
-      const now = Date.now();
-      const oneMinute = 60 * 1000; // Allow 1 minute clock skew
-      return val > now - oneMinute;
-    }, 'Start time must be in the future'),
-  periodSeconds: z.number().int().positive('Period must be greater than 0 seconds').optional(),
+  periodDays: z.number().int().positive('Period must be greater than 0 days').optional(),
 }).refine((data) => {
   // Quantitative quest validation - all fields required for quantitative quests
   if (data.kind === 'quantitative') {
     return data.targetCount !== undefined &&
            data.countScope !== undefined &&
-           data.startAt !== undefined &&
-           data.periodSeconds !== undefined;
+           data.periodDays !== undefined;
   }
   return true;
 }, {
-  message: 'Quantitative quests require targetCount, countScope, startAt, and periodSeconds',
+  message: 'Quantitative quests require targetCount, countScope, and periodDays',
   path: ['kind']
 }).refine((data) => {
   // Linked quest validation - allow creation without linked items (validation happens when started)
@@ -369,8 +395,7 @@ interface QuestValidationErrors {
   // Quantitative quest field errors
   targetCount?: string;
   countScope?: string;
-  startAt?: string;
-  periodSeconds?: string;
+  periodDays?: string;
 
   // General form errors
   form?: string;
@@ -636,6 +661,10 @@ export {
 
   // Constants
   QUEST_CATEGORIES,
+  QUEST_DIFFICULTIES,
+  QUEST_PRIVACY_OPTIONS,
+  QUEST_KIND_OPTIONS,
+  QUEST_COUNT_SCOPE_OPTIONS,
   MAX_TITLE_LENGTH,
   MIN_TITLE_LENGTH,
   MAX_DESCRIPTION_LENGTH,

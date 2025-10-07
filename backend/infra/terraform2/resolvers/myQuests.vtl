@@ -2,8 +2,14 @@
 ## Input: { "userId": "string", "goalId": "string" (optional) }
 ## Output: Quest[] array
 
-# Set up variables
+# Set up variables with proper authorization check
 #set($userId = $context.identity.resolverContext.sub)
+#if(!$userId)
+  #set($userId = $context.identity.sub)
+#end
+#if(!$userId)
+  $util.error("Unauthorized", "UNAUTHORIZED")
+#end
 #set($goalId = $context.arguments.goalId)
 
 # Build query parameters

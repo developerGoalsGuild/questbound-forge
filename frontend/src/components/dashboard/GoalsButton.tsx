@@ -20,6 +20,7 @@ import {
   type GoalProgressData 
 } from '@/lib/goalProgress';
 import DualProgressBar from '@/components/ui/DualProgressBar';
+import { logger } from '@/lib/logger';
 
 const GoalsButton: React.FC = () => {
   const { t } = useTranslation();
@@ -48,7 +49,7 @@ const GoalsButton: React.FC = () => {
         const count = await getActiveGoalsCountForUser(userId);
         setActiveCount(count);
       } catch (err) {
-        console.error('Failed to load active goals count:', err);
+        logger.error('Failed to load active goals count for dashboard button', { error: err });
         setError('Failed to load goals count');
         setActiveCount(0);
       } finally {
@@ -68,7 +69,7 @@ const GoalsButton: React.FC = () => {
           const dashboardGoals = await loadDashboardGoalsWithProgress(sortBy);
           setGoals(dashboardGoals);
         } catch (err) {
-          console.error('Failed to load dashboard goals:', err);
+          logger.error('Failed to load dashboard goals', { error: err });
           setGoals([]); // Clear goals on error
         } finally {
           setGoalsLoading(false);

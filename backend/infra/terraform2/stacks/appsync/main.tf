@@ -301,19 +301,7 @@ resource "aws_appsync_resolver" "query_user" {
 
 # Removed query_goals resolver - already exists in AppSync API
 
-# Quest queries
-resource "aws_appsync_resolver" "query_myQuests" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "myQuests"
-  kind   = "UNIT"
-  data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/myQuests.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
-  }
-}
+# Quest queries - removed duplicate, already defined above
 
 # Removed task resolvers - already exist in AppSync API
 

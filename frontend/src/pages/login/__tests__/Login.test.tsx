@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import Login from '../Login';
 import { TranslationProvider, useTranslation } from '@/hooks/useTranslation';
@@ -35,6 +36,7 @@ const renderWithLanguage = (lang: 'en'|'es'|'fr') => {
 
 describe('Login page', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     localStorage.clear();
     // default env for API base URL
@@ -42,6 +44,8 @@ describe('Login page', () => {
   });
   afterEach(() => {
     cleanup();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -72,39 +76,46 @@ describe('Login page', () => {
   });
 
   test('validation: shows error for empty email', async () => {
+    const user = userEvent.setup();
     renderComponent();
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    vi.mocked(api.login).mockRejectedValue(new Error('API should not be called'));
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/email is required/i);
   });
 
   test('validation: shows error for invalid email', async () => {
+    const user = userEvent.setup();
     renderComponent();
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'bad' } });
-    fireEvent.change(screen.getByLabelText(/password/i, { selector: 'input' }), { target: { value: 'pass' } });
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    vi.mocked(api.login).mockRejectedValue(new Error('API should not be called'));
+    await user.type(screen.getByLabelText(/email/i), 'bad');
+    await user.type(screen.getByLabelText(/password/i, { selector: 'input' }), 'pass');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByText(/valid email/i)).toBeInTheDocument();
   });
 
   test('validation: shows error for empty password', async () => {
+    const user = userEvent.setup();
     renderComponent();
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'user@example.com' } });
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    vi.mocked(api.login).mockRejectedValue(new Error('API should not be called'));
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/password is required/i);
   });
 
   test('calls API, stores JWT, and redirects to dashboard (default user)', async () => {
+    const user = userEvent.setup();
     const tok = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ sub: 'u', role: 'user' })) + '.sig';
-    (api.login as any).mockResolvedValue({ token_type: 'Bearer', access_token: tok, expires_in: 3600 });
+    vi.mocked(api.login).mockResolvedValue({ token_type: 'Bearer', access_token: tok, expires_in: 3600 });
 
     delete (window as any).location;
     (window as any).location = { href: '', assign: vi.fn() } as any;
 
     renderComponent();
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i, { selector: 'input' }), { target: { value: 'Aa1!aaaa' } });
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+    await user.type(screen.getByLabelText(/password/i, { selector: 'input' }), 'Aa1!aaaa');
 
     // clicking submit
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
       expect(api.login).toHaveBeenCalledWith('user@example.com', 'Aa1!aaaa');
@@ -114,15 +125,16 @@ describe('Login page', () => {
   });
 
   test('redirects based on user type from id_token (partner)', async () => {
+    const user = userEvent.setup();
     const idTok = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ role: 'partner' })) + '.sig';
-    (api.login as any).mockResolvedValue({ token_type: 'Bearer', access_token: 'x.y.z', id_token: idTok, expires_in: 3600 });
+    vi.mocked(api.login).mockResolvedValue({ token_type: 'Bearer', access_token: 'x.y.z', id_token: idTok, expires_in: 3600 });
     delete (window as any).location;
     (window as any).location = { href: '', assign: vi.fn() } as any;
 
     renderComponent();
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'p@example.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i, { selector: 'input' }), { target: { value: 'Aa1!aaaa' } });
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await user.type(screen.getByLabelText(/email/i), 'p@example.com');
+    await user.type(screen.getByLabelText(/password/i, { selector: 'input' }), 'Aa1!aaaa');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
       expect((window as any).location.href).toMatch(/\/dashboard\?type=partner/);
@@ -130,11 +142,12 @@ describe('Login page', () => {
   });
 
   test('shows API error message on failure', async () => {
-    (api.login as any).mockRejectedValue(new Error('Invalid credentials'));
+    const user = userEvent.setup();
+    vi.mocked(api.login).mockRejectedValue(new Error('Invalid credentials'));
     renderComponent();
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'fail@example.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'bad' } });
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await user.type(screen.getByLabelText(/email/i), 'fail@example.com');
+    await user.type(screen.getByLabelText(/password/i), { target: { value: 'bad' } });
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid credentials/i);
   });
 });

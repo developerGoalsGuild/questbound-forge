@@ -99,9 +99,9 @@ class TestDataHelpers:
             "category": category,
             "kind": "quantitative",
             "targetCount": target_count,
-            "countScope": "any",
+            "countScope": "completed_tasks",
             "startAt": future_time,
-            "periodSeconds": 86400,  # 1 day
+            "periodDays": 1,  # 1 day
             **kwargs
         }
         return payload

@@ -19,6 +19,10 @@ import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
 import ChangePassword from './pages/account/ChangePassword';
 import ProfileView from './pages/profile/ProfileView';
 import ProfileEdit from './pages/profile/ProfileEdit';
+import QuestListPage from './pages/quests/QuestList';
+import QuestCreatePage from './pages/quests/QuestCreate';
+import QuestDetailsPage from './pages/quests/QuestDetails';
+import QuestEditPage from './pages/quests/QuestEdit';
 
 
 
@@ -31,7 +35,12 @@ const App = () => (
         <Toaster />
         <Sonner />
         <SessionKeepAlive />
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           <AuthWatcher />
           <Routes>
             <Route path="/" element={<Index />} />
@@ -45,6 +54,10 @@ const App = () => (
             <Route path="/goals/details/:id" element={<ProtectedRoute><AuthenticatedLayout><GoalDetails /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/goals/:id" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/goals/:id/tasks" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/quests" element={<ProtectedRoute><AuthenticatedLayout><QuestListPage /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/quests/create" element={<ProtectedRoute><AuthenticatedLayout><QuestCreatePage /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/quests/details/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestDetailsPage /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/quests/edit/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestEditPage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />

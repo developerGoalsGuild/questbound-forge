@@ -1,11 +1,24 @@
 // vitest.setup.ts
-import { afterEach, vi } from 'vitest';
+import { afterEach, vi, beforeEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+
+// Memory optimization: Clear all mocks and cleanup between tests
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.clearAllTimers();
+});
 
 // Ensure JSDOM is reset between tests
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
+  vi.clearAllTimers();
+  
+  // Force garbage collection if available
+  if ((global as any).gc) {
+    (global as any).gc();
+  }
 });
 
 // Mock common UI components that might cause issues in tests
@@ -170,6 +183,8 @@ vi.mock('@/lib/apiGoal', () => ({
   getActiveGoalsCountForUser: vi.fn().mockResolvedValue(0),
 }));
 
+// Mock quest API functions - removed global mock to allow per-test mocking
+
 // Mock API header functions
 vi.mock('@/lib/apiHeader', () => ({
   getUserProfileForHeader: vi.fn().mockRejectedValue(new Error('No authentication token found')),
@@ -185,7 +200,7 @@ vi.mock('@/hooks/useDebouncedValidation', () => ({
     isFieldValidating: vi.fn(() => false),
     getFieldError: vi.fn(() => undefined),
     isFieldValid: vi.fn(() => undefined),
-    isFormValid: true,
+    isFormValid: vi.fn(() => true),
     getValidationSummary: vi.fn(() => ({ isValid: true, errors: {} }))
   })),
   registerFieldSchema: vi.fn()
@@ -399,30 +414,38 @@ vi.mock('lucide-react', async (importOriginal) => {
 
 
 // Add JSDOM polyfills for missing browser APIs
-Object.defineProperty(Element.prototype, 'hasPointerCapture', {
-  value: vi.fn().mockReturnValue(false),
-});
+if (!Element.prototype.hasPointerCapture) {
+  Object.defineProperty(Element.prototype, 'hasPointerCapture', {
+    value: vi.fn().mockReturnValue(false),
+  });
+}
 
-Object.defineProperty(Element.prototype, 'setPointerCapture', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
+if (!Element.prototype.setPointerCapture) {
+  Object.defineProperty(Element.prototype, 'setPointerCapture', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+}
 
-Object.defineProperty(Element.prototype, 'releasePointerCapture', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
+if (!Element.prototype.releasePointerCapture) {
+  Object.defineProperty(Element.prototype, 'releasePointerCapture', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+}
 
-Object.defineProperty(Element.prototype, 'scrollIntoView', {
-  value: vi.fn(),
-  writable: true,
-  configurable: true,
-});
+if (!Element.prototype.scrollIntoView) {
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+}
 
 // Add polyfill for HTMLElement.scrollIntoView
-if (typeof HTMLElement !== 'undefined') {
+if (typeof HTMLElement !== 'undefined' && !HTMLElement.prototype.scrollIntoView) {
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     value: vi.fn(),
     writable: true,

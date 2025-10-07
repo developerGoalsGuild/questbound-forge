@@ -26,9 +26,26 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useTranslation = () => {
-  const context = useContext(TranslationContext);
-  if (!context) {
-    throw new Error('useTranslation must be used within TranslationProvider');
+  try {
+    const context = useContext(TranslationContext);
+    
+    // Always return a fallback if context is not available
+    if (!context) {
+      console.warn('useTranslation must be used within TranslationProvider, using fallback');
+      return {
+        language: 'en' as Language,
+        setLanguage: () => {},
+        t: translations['en'],
+      };
+    }
+    
+    return context;
+  } catch (error) {
+    console.warn('Error in useTranslation, using fallback:', error);
+    return {
+      language: 'en' as Language,
+      setLanguage: () => {},
+      t: translations['en'],
+    };
   }
-  return context;
 };

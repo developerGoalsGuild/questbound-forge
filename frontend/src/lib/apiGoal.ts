@@ -3,6 +3,7 @@ import { getAccessToken, getApiBase, graphQLClient } from '@/lib/utils';
 import { ACTIVE_GOALS_COUNT } from '@/graphql/queries';
 import { graphqlRaw, graphqlWithApiKey } from './api';
 import { sortGoals } from './goalProgress';
+import { logger } from './logger';
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -132,13 +133,16 @@ export async function createGoal(input: GoalInput): Promise<GoalResponse> {
 
   if (!response.ok) {
     const detail = body?.detail || text || 'Goal creation failed';
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    const error = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    logger.error('Goal creation failed', { error, url, input });
+    throw error;
   }
 
   return body as GoalResponse;
 }
 
 export async function getActiveGoalsCountForUser(userId: string): Promise<number> {
+  const operation = 'getActiveGoalsCountForUser';
   try {
     const QUERY = /* GraphQL */ `
       query ActiveGoalsCount($userId: ID!) {
@@ -149,7 +153,10 @@ export async function getActiveGoalsCountForUser(userId: string): Promise<number
     const data = await graphqlRaw<{ activeGoalsCount: number }>(QUERY, { userId });
     return Number(data?.activeGoalsCount ?? 0);
   } catch (e: any) {
-    console.error('[getActiveGoalsCountForUser] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in getActiveGoalsCountForUser', { 
+        operation, 
+        error: e?.errors || e?.message || e 
+    });
     return 0;
   }
 }
@@ -157,6 +164,7 @@ export async function getActiveGoalsCountForUser(userId: string): Promise<number
 
 
 export async function loadGoals() {
+  const operation = 'loadGoals';
   try {
     const data = await graphqlRaw<{
       myGoals: Array<{ 
@@ -222,13 +230,17 @@ export async function loadGoals() {
       milestones: goal.milestones || [],
     }));
   } catch (e: any) {
-    console.error('[loadGoals] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in loadGoals', { 
+        operation, 
+        error: e?.errors || e?.message || e 
+    });
     return []; // safe fallback for UI
   }
 }
 
 // Dashboard-specific function for top 3 goals (using myGoals with frontend filtering)
 export async function loadDashboardGoals(sortBy: string = 'deadline-asc'): Promise<GoalResponse[]> {
+  const operation = 'loadDashboardGoals';
   try {
     const data = await graphqlRaw<{
       myGoals: Array<{ 
@@ -297,7 +309,10 @@ export async function loadDashboardGoals(sortBy: string = 'deadline-asc'): Promi
     // Return top 3
     return sortedGoals.slice(0, 3) as GoalResponse[];
   } catch (e: any) {
-    console.error('[loadDashboardGoals] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in loadDashboardGoals', { 
+        operation, 
+        error: e?.errors || e?.message || e 
+    });
     return []; // safe fallback for UI
   }
 }
@@ -367,7 +382,9 @@ export async function updateGoal(goalId: string, updates: GoalUpdateInput): Prom
 
   if (!response.ok) {
     const detail = body?.detail || text || 'Goal update failed';
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    const error = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    logger.error('Goal update failed', { error, url, updates });
+    throw error;
   }
 
   return body as GoalResponse;
@@ -399,11 +416,14 @@ export async function deleteGoal(goalId: string): Promise<void> {
       body = {};
     }
     const detail = body?.detail || text || 'Goal deletion failed';
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    const error = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    logger.error('Goal deletion failed', { error, url, goalId });
+    throw error;
   }
 }
 
 export async function getGoal(goalId: string): Promise<GoalResponse> {
+  const operation = 'getGoal';
   try {
     const QUERY = /* GraphQL */ `
       query GetGoal($goalId: ID!) {
@@ -444,7 +464,11 @@ export async function getGoal(goalId: string): Promise<GoalResponse> {
     }
     return data.goal;
   } catch (e: any) {
-    console.error('[getGoal] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in getGoal', { 
+        operation,
+        goalId,
+        error: e?.errors || e?.message || e 
+    });
     throw new Error(e?.message || 'Failed to load goal');
   }
 }
@@ -480,6 +504,7 @@ export async function getGoalCategories(): Promise<string[]> {
  * Get progress data for a specific goal from the backend using GraphQL
  */
 export async function getGoalProgress(goalId: string): Promise<GoalProgressResponse> {
+  const operation = 'getGoalProgress';
   try {
     const QUERY = /* GraphQL */ `
       query GoalProgress($goalId: ID!) {
@@ -511,7 +536,11 @@ export async function getGoalProgress(goalId: string): Promise<GoalProgressRespo
     }
     return data.goalProgress;
   } catch (e: any) {
-    console.error('[getGoalProgress] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in getGoalProgress', { 
+        operation,
+        goalId,
+        error: e?.errors || e?.message || e 
+    });
     throw new Error(e?.message || 'Failed to load goal progress');
   }
 }
@@ -520,6 +549,7 @@ export async function getGoalProgress(goalId: string): Promise<GoalProgressRespo
  * Get raw goals and tasks data for frontend progress calculation
  */
 export async function getGoalsWithTasks(): Promise<import('./progressCalculation').GoalWithTasks[]> {
+  const operation = 'getGoalsWithTasks';
   try {
     const QUERY = /* GraphQL */ `
       query MyGoalsWithTasks {
@@ -543,12 +573,16 @@ export async function getGoalsWithTasks(): Promise<import('./progressCalculation
     const data = await graphqlRaw<{ myGoalsWithTasks: import('./progressCalculation').GoalWithTasks[] }>(QUERY);
     return data?.myGoalsWithTasks ?? [];
   } catch (e: any) {
-    console.error('[getGoalsWithTasks] GraphQL error:', e?.errors || e?.message || e);
+    logger.error('GraphQL error in getGoalsWithTasks', { 
+        operation,
+        error: e?.errors || e?.message || e 
+    });
     return []; // safe fallback for UI
   }
 }
 
 export async function getAllGoalsProgress(): Promise<GoalProgressResponse[]> {
+  const operation = 'getAllGoalsProgress';
   try {
     const { calculateMultipleGoalsProgress } = await import('./progressCalculation');
     const goalsWithTasks = await getGoalsWithTasks();
@@ -568,7 +602,10 @@ export async function getAllGoalsProgress(): Promise<GoalProgressResponse[]> {
       isUrgent: p.isUrgent
     }));
   } catch (e: any) {
-    console.error('[getAllGoalsProgress] Error:', e?.errors || e?.message || e);
+    logger.error('Error in getAllGoalsProgress', {
+        operation,
+        error: e?.errors || e?.message || e
+    });
     return []; // safe fallback for UI
   }
 }
@@ -609,7 +646,9 @@ export async function loadGoalsWithProgress(): Promise<GoalResponse[]> {
       } as GoalResponse;
     });
   } catch (e: any) {
-    console.error('[loadGoalsWithProgress] Error:', e?.message || e);
+    logger.error('Error in loadGoalsWithProgress', { 
+        error: e?.message || e 
+    });
     // Fallback to regular goals loading
     return loadGoals();
   }
@@ -633,7 +672,9 @@ export async function loadDashboardGoalsWithProgress(sortBy: string = 'deadline-
     // Return top 3
     return sortedGoals.slice(0, 3) as GoalResponse[];
   } catch (e: any) {
-    console.error('[loadDashboardGoalsWithProgress] Error:', e?.message || e);
+    logger.error('Error in loadDashboardGoalsWithProgress', {
+        error: e?.message || e
+    });
     // Fallback to regular dashboard goals loading
     return await loadDashboardGoals(sortBy);
   }

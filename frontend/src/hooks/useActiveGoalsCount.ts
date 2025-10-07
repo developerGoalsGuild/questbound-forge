@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getActiveGoalsCountForUser } from '@/lib/apiGoal';
 import { getUserIdFromToken } from '@/lib/utils';
 import { ActiveGoalsState, HeaderError } from '@/models/header';
+import { logger } from '@/lib/logger';
 
 interface UseActiveGoalsCountOptions {
   pollInterval?: number; // milliseconds
@@ -83,7 +84,11 @@ export const useActiveGoalsCount = (
         retryCount: 0,
       }));
     } catch (error) {
-      console.error('[useActiveGoalsCount] Error fetching goals count:', error);
+      logger.error('Failed to fetch active goals count', {
+          operation: 'useActiveGoalsCount',
+          error,
+          retryCount: state.retryCount,
+      });
       
       if (!isMountedRef.current) return;
 

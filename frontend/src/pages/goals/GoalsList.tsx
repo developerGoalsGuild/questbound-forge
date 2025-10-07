@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { formatDeadline, getStatusColorClass, formatGoalStatus } from '@/models/goal';
 import FieldTooltip from '@/components/ui/FieldTooltip';
+import { logger } from '@/lib/logger';
 
 const GoalsListPage: React.FC = () => {
   const { t } = useTranslation();
@@ -76,7 +77,7 @@ const GoalsListPage: React.FC = () => {
         status: goal.status as GoalStatus
       })) : []);
     } catch (e: any) {
-      console.error('Error loading goals:', e);
+      logger.error('Error loading goals', { error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to load goals';
@@ -91,7 +92,7 @@ const GoalsListPage: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse goal loading error response', { parseError });
       }
       
       setError(errorMessage);
@@ -176,7 +177,7 @@ const GoalsListPage: React.FC = () => {
       });
       await loadMyGoals();
     } catch (e: any) {
-      console.error('Error deleting goal:', e);
+      logger.error('Error deleting goal', { goalId, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to delete goal';
@@ -191,7 +192,7 @@ const GoalsListPage: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse delete goal error response', { parseError });
       }
       
       toast({
@@ -211,7 +212,7 @@ const GoalsListPage: React.FC = () => {
       });
       await loadMyGoals();
     } catch (e: any) {
-      console.error('Error updating goal status:', e);
+      logger.error('Error updating goal status', { goalId, newStatus, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to update goal status';
@@ -226,7 +227,7 @@ const GoalsListPage: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse update status error response', { parseError });
       }
       
       toast({

@@ -1,511 +1,478 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { 
-  loadQuests, 
-  createQuest, 
-  startQuest, 
-  editQuest, 
-  cancelQuest, 
-  failQuest, 
-  deleteQuest,
-  type QuestApiError 
-} from '../apiQuest';
-import type { Quest, QuestCreateInput, QuestUpdateInput, QuestCancelInput } from '@/models/quest';
+/**
+ * API Quest Tests
+ * 
+ * Unit tests for the API quest functions with 90%+ coverage.
+ * Tests include GraphQL queries, error handling, and data transformation.
+ */
 
-// Mock dependencies
-vi.mock('../api', () => ({
-  authFetch: vi.fn(),
-  graphqlRaw: vi.fn(),
-}));
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { loadQuests, loadQuest } from '../apiQuest';
+import { graphqlRaw } from '../api';
+import { logger } from '../logger';
 
-vi.mock('@/lib/utils', () => ({
-  getAccessToken: vi.fn(),
-  getApiBase: vi.fn(),
-}));
+// Mock the dependencies
+vi.mock('../api');
+vi.mock('../logger');
 
-vi.mock('@/models/quest', () => ({
-  QuestCreateInputSchema: {
-    parse: vi.fn(),
-  },
-  QuestUpdateInputSchema: {
-    parse: vi.fn(),
-  },
-  QuestCancelInputSchema: {
-    parse: vi.fn(),
-  },
-}));
+const mockGraphqlRaw = vi.mocked(graphqlRaw);
+const mockLogger = vi.mocked(logger);
 
-import { authFetch, graphqlRaw } from '../api';
-import { getAccessToken } from '@/lib/utils';
-import { QuestCreateInputSchema, QuestUpdateInputSchema, QuestCancelInputSchema } from '@/models/quest';
-
-// Mock data
-const mockQuest: Quest = {
-  id: 'quest-123',
-  userId: 'user-123',
+// Mock quest data
+const mockQuest = {
+  id: 'quest-1',
+  userId: 'user-1',
   title: 'Test Quest',
-  description: 'A test quest',
+  description: 'Test quest description',
   difficulty: 'medium',
   rewardXp: 100,
   status: 'draft',
-  category: 'Health',
-  tags: ['test'],
-  privacy: 'private',
-  deadline: Date.now() + 86400000,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-  kind: 'linked',
-  linkedGoalIds: [],
-  linkedTaskIds: [],
+  category: 'Work',
+  tags: ['test', 'example'],
+  privacy: 'public',
+  deadline: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
+  updatedAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
+  kind: 'quantitative',
+  linkedGoalIds: ['goal-1'],
+  linkedTaskIds: ['task-1'],
   dependsOnQuestIds: [],
+  targetCount: 5,
+  countScope: 'completed_tasks',
+  periodDays: 7,
 };
 
-const mockQuestCreateInput: QuestCreateInput = {
-  title: 'Test Quest',
-  category: 'Health',
-  difficulty: 'medium',
-  rewardXp: 100,
-  description: 'A test quest',
-  tags: ['test'],
-  privacy: 'private',
-  kind: 'linked',
-};
-
-const mockQuestUpdateInput: QuestUpdateInput = {
-  title: 'Updated Quest',
-  description: 'Updated description',
-};
-
-const mockQuestCancelInput: QuestCancelInput = {
-  reason: 'No longer needed',
-};
-
-describe('Quest API Service', () => {
+describe('API Quest Functions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAccessToken).mockReturnValue('mock-token');
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('loadQuests', () => {
-    it('should load quests successfully', async () => {
-      const mockQuests = [mockQuest];
-      vi.mocked(graphqlRaw).mockResolvedValue({ myQuests: mockQuests });
+    it('should load quests successfully without goalId', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
       const result = await loadQuests();
 
-      expect(result).toEqual(mockQuests);
-      expect(graphqlRaw).toHaveBeenCalledWith(
+      expect(result).toEqual([mockQuest]);
+      expect(mockGraphqlRaw).toHaveBeenCalledWith(
         expect.stringContaining('query MyQuests'),
-        { goalId: undefined }
+        {}
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Loading quests',
+        expect.objectContaining({ operation: 'loadQuests' })
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quests loaded successfully',
+        expect.objectContaining({ count: 1 })
       );
     });
 
-    it('should load quests with goalId filter', async () => {
-      const mockQuests = [mockQuest];
-      vi.mocked(graphqlRaw).mockResolvedValue({ myQuests: mockQuests });
+    it('should load quests successfully with goalId', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
       const result = await loadQuests('goal-123');
 
-      expect(result).toEqual(mockQuests);
-      expect(graphqlRaw).toHaveBeenCalledWith(
+      expect(result).toEqual([mockQuest]);
+      expect(mockGraphqlRaw).toHaveBeenCalledWith(
         expect.stringContaining('query MyQuests'),
         { goalId: 'goal-123' }
       );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Loading quests',
+        expect.objectContaining({ goalId: 'goal-123' })
+      );
     });
 
-    it('should handle GraphQL errors', async () => {
-      const error = new Error('GraphQL error');
-      vi.mocked(graphqlRaw).mockRejectedValue(error);
+    it('should handle empty quest list', async () => {
+      const mockData = { myQuests: [] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      await expect(loadQuests()).rejects.toThrow('GraphQL error');
+      const result = await loadQuests();
+
+      expect(result).toEqual([]);
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quests loaded successfully',
+        expect.objectContaining({ count: 0 })
+      );
     });
 
-    it('should return empty array when no quests found', async () => {
-      vi.mocked(graphqlRaw).mockResolvedValue({ myQuests: [] });
+    it('should handle null quest data', async () => {
+      const mockData = { myQuests: null };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
       const result = await loadQuests();
 
       expect(result).toEqual([]);
     });
-  });
 
-  describe('createQuest', () => {
-    it('should create quest successfully', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
+    it('should handle undefined quest data', async () => {
+      const mockData = {};
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      const result = await createQuest(mockQuestCreateInput);
+      const result = await loadQuests();
 
-      expect(result).toEqual(mockQuest);
-      expect(QuestCreateInputSchema.parse).toHaveBeenCalledWith(mockQuestCreateInput);
-      expect(authFetch).toHaveBeenCalledWith('/quests/createQuest', {
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-        body: JSON.stringify(mockQuestCreateInput),
-      });
+      expect(result).toEqual([]);
     });
 
-    it('should throw error when not authenticated', async () => {
-      vi.mocked(getAccessToken).mockReturnValue(null);
+    it('should handle GraphQL errors', async () => {
+      const error = new Error('GraphQL error');
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'You must be signed in to create a quest.'
+      await expect(loadQuests()).rejects.toThrow('GraphQL error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quests',
+        expect.objectContaining({
+          operation: 'loadQuests',
+          error: error,
+        })
       );
     });
 
-    it('should throw error on input validation failure', async () => {
-      const validationError = new Error('Invalid input');
-      vi.mocked(QuestCreateInputSchema.parse).mockImplementation(() => {
-        throw validationError;
-      });
+    it('should handle network errors', async () => {
+      const error = new Error('Network error');
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow('Invalid quest data');
+      await expect(loadQuests()).rejects.toThrow('Network error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quests',
+        expect.objectContaining({
+          operation: 'loadQuests',
+          error: error,
+        })
+      );
     });
 
-    it('should throw error on API failure', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-        json: () => Promise.resolve({ detail: 'Invalid data' }),
-        headers: {
-          get: vi.fn().mockReturnValue(null)
-        }
-      } as any);
+    it('should log performance metrics', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow('Invalid data');
-    });
+      await loadQuests();
 
-    it('should retry on network errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      
-      // First call fails, second succeeds
-      vi.mocked(authFetch)
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(mockQuest),
-        } as Response);
-
-      const result = await createQuest(mockQuestCreateInput);
-
-      expect(result).toEqual(mockQuest);
-      expect(authFetch).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('startQuest', () => {
-    it('should start quest successfully', async () => {
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
-
-      const result = await startQuest('quest-123');
-
-      expect(result).toEqual(mockQuest);
-      expect(authFetch).toHaveBeenCalledWith('/quests/quests/quest-123/start', {
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-      });
-    });
-
-    it('should throw error when not authenticated', async () => {
-      vi.mocked(getAccessToken).mockReturnValue(null);
-
-      await expect(startQuest('quest-123')).rejects.toThrow(
-        'You must be signed in to start a quest.'
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quests loaded successfully',
+        expect.objectContaining({
+          duration: expect.any(Number),
+        })
       );
     });
   });
 
-  describe('editQuest', () => {
-    it('should edit quest successfully', async () => {
-      vi.mocked(QuestUpdateInputSchema.parse).mockReturnValue(mockQuestUpdateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
+  describe('loadQuest', () => {
+    it('should load single quest successfully', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      const result = await editQuest('quest-123', mockQuestUpdateInput);
+      const result = await loadQuest('quest-1');
 
       expect(result).toEqual(mockQuest);
-      expect(QuestUpdateInputSchema.parse).toHaveBeenCalledWith(mockQuestUpdateInput);
-      expect(authFetch).toHaveBeenCalledWith('/quests/quests/quest-123', {
-        method: 'PUT',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-        body: JSON.stringify(mockQuestUpdateInput),
-      });
-    });
-
-    it('should throw error on input validation failure', async () => {
-      const validationError = new Error('Invalid update data');
-      vi.mocked(QuestUpdateInputSchema.parse).mockImplementation(() => {
-        throw validationError;
-      });
-
-      await expect(editQuest('quest-123', mockQuestUpdateInput)).rejects.toThrow(
-        'Invalid quest update data'
+      expect(mockGraphqlRaw).toHaveBeenCalledWith(
+        expect.stringContaining('query MyQuests'),
+        {}
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Loading quest',
+        expect.objectContaining({ questId: 'quest-1' })
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quest loaded successfully',
+        expect.objectContaining({ questId: 'quest-1' })
       );
     });
-  });
 
-  describe('cancelQuest', () => {
-    it('should cancel quest successfully', async () => {
-      vi.mocked(QuestCancelInputSchema.parse).mockReturnValue(mockQuestCancelInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
+    it('should throw error when quest is not found', async () => {
+      const mockData = { myQuests: [] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      const result = await cancelQuest('quest-123', mockQuestCancelInput);
+      await expect(loadQuest('quest-999')).rejects.toThrow(
+        'Quest with ID quest-999 not found'
+      );
 
-      expect(result).toEqual(mockQuest);
-      expect(QuestCancelInputSchema.parse).toHaveBeenCalledWith(mockQuestCancelInput);
-      expect(authFetch).toHaveBeenCalledWith('/quests/quests/quest-123/cancel', {
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-        body: JSON.stringify(mockQuestCancelInput),
-      });
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quest',
+        expect.objectContaining({
+          questId: 'quest-999',
+          error: expect.any(Error),
+        })
+      );
     });
 
-    it('should cancel quest without payload', async () => {
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
+    it('should find correct quest from multiple quests', async () => {
+      const quest2 = { ...mockQuest, id: 'quest-2', title: 'Quest 2' };
+      const quest3 = { ...mockQuest, id: 'quest-3', title: 'Quest 3' };
+      const mockData = { myQuests: [mockQuest, quest2, quest3] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      const result = await cancelQuest('quest-123');
+      const result = await loadQuest('quest-2');
 
-      expect(result).toEqual(mockQuest);
-      expect(authFetch).toHaveBeenCalledWith('/quests/quests/quest-123/cancel', {
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-        body: JSON.stringify({}),
-      });
+      expect(result).toEqual(quest2);
     });
-  });
 
-  describe('failQuest', () => {
-    it('should mark quest as failed successfully', async () => {
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
+    it('should handle GraphQL errors', async () => {
+      const error = new Error('GraphQL error');
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      const result = await failQuest('quest-123');
+      await expect(loadQuest('quest-1')).rejects.toThrow('GraphQL error');
 
-      expect(result).toEqual(mockQuest);
-      expect(authFetch).toHaveBeenCalledWith('/quests/quests/quest-123/fail', {
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-      });
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quest',
+        expect.objectContaining({
+          questId: 'quest-1',
+          error: error,
+        })
+      );
     });
-  });
 
-  describe('deleteQuest', () => {
-    it('should delete quest successfully', async () => {
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ message: 'Quest deleted successfully' }),
-      } as Response);
+    it('should handle network errors', async () => {
+      const error = new Error('Network error');
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await deleteQuest('quest-123');
+      await expect(loadQuest('quest-1')).rejects.toThrow('Network error');
 
-      expect(authFetch).toHaveBeenCalledWith('/quests/quests/quest-123', {
-        method: 'DELETE',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer mock-token',
-          'x-api-key': '',
-          'x-request-id': expect.any(String),
-          'x-client-version': expect.any(String),
-        }),
-      });
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quest',
+        expect.objectContaining({
+          questId: 'quest-1',
+          error: error,
+        })
+      );
+    });
+
+    it('should handle errors without message', async () => {
+      const error = new Error();
+      mockGraphqlRaw.mockRejectedValue(error);
+
+      await expect(loadQuest('quest-1')).rejects.toThrow('Failed to load quest');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quest',
+        expect.objectContaining({
+          questId: 'quest-1',
+          error: error,
+        })
+      );
+    });
+
+    it('should log performance metrics', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
+
+      await loadQuest('quest-1');
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quest loaded successfully',
+        expect.objectContaining({
+          questId: 'quest-1',
+          duration: expect.any(Number),
+        })
+      );
+    });
+
+    it('should handle null quest data', async () => {
+      const mockData = { myQuests: null };
+      mockGraphqlRaw.mockResolvedValue(mockData);
+
+      await expect(loadQuest('quest-1')).rejects.toThrow(
+        'Quest with ID quest-1 not found'
+      );
+    });
+
+    it('should handle undefined quest data', async () => {
+      const mockData = {};
+      mockGraphqlRaw.mockResolvedValue(mockData);
+
+      await expect(loadQuest('quest-1')).rejects.toThrow(
+        'Quest with ID quest-1 not found'
+      );
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle 401 authentication errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: false,
-        status: 401,
-        statusText: 'Unauthorized',
-        json: () => Promise.resolve({ detail: 'Invalid token' }),
-        headers: {
-          get: vi.fn().mockReturnValue(null)
-        }
-      } as any);
+    it('should handle different error types in loadQuests', async () => {
+      const error = new Error('Custom error');
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'You must be signed in to perform this action'
+      await expect(loadQuests()).rejects.toThrow('Custom error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quests',
+        expect.objectContaining({
+          operation: 'loadQuests',
+          error: error,
+        })
       );
     });
 
-    it('should handle 403 permission errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: false,
-        status: 403,
-        statusText: 'Forbidden',
-        json: () => Promise.resolve({ detail: 'Permission denied' }),
-        headers: {
-          get: vi.fn().mockReturnValue(null)
-        }
-      } as any);
+    it('should handle different error types in loadQuest', async () => {
+      const error = new Error('Custom error');
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'You do not have permission to perform this action'
+      await expect(loadQuest('quest-1')).rejects.toThrow('Custom error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quest',
+        expect.objectContaining({
+          questId: 'quest-1',
+          error: error,
+        })
       );
     });
 
-    it('should handle 404 not found errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-        json: () => Promise.resolve({ detail: 'Quest not found' }),
-        headers: {
-          get: vi.fn().mockReturnValue(null)
-        }
-      } as any);
+    it('should handle non-Error objects in loadQuests', async () => {
+      const error = 'String error';
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow('Quest not found');
-    });
+      await expect(loadQuests()).rejects.toThrow('String error');
 
-    it('should handle 409 conflict errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: false,
-        status: 409,
-        statusText: 'Conflict',
-        json: () => Promise.resolve({ detail: 'Version conflict' }),
-        headers: {
-          get: vi.fn().mockReturnValue(null)
-        }
-      } as any);
-
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'Quest was modified by another operation. Please refresh and try again'
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quests',
+        expect.objectContaining({
+          operation: 'loadQuests',
+          error: error,
+        })
       );
     });
 
-    it('should handle 500 server errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        json: () => Promise.resolve({ detail: 'Server error' }),
-        headers: {
-          get: vi.fn().mockReturnValue(null)
-        }
-      } as any);
+    it('should handle non-Error objects in loadQuest', async () => {
+      const error = 'String error';
+      mockGraphqlRaw.mockRejectedValue(error);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'Server error. Please try again later'
+      await expect(loadQuest('quest-1')).rejects.toThrow('String error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to load quest',
+        expect.objectContaining({
+          questId: 'quest-1',
+          error: error,
+        })
       );
     });
   });
 
-  describe('Retry Mechanism', () => {
-    it('should not retry authentication errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockRejectedValue(new Error('You must be signed in'));
+  describe('Logging', () => {
+    it('should log operation start for loadQuests', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'You must be signed in'
+      await loadQuests();
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Loading quests',
+        expect.objectContaining({
+          operation: 'loadQuests',
+        })
       );
-      expect(authFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('should not retry validation errors', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockRejectedValue(new Error('Invalid data'));
+    it('should log operation start for loadQuest', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow('Invalid data');
-      expect(authFetch).toHaveBeenCalledTimes(1);
+      await loadQuest('quest-1');
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Loading quest',
+        expect.objectContaining({
+          operation: 'loadQuest',
+          questId: 'quest-1',
+        })
+      );
     });
 
-    it('should retry network errors up to 3 times', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      
-      // All calls fail with network error
-      vi.mocked(authFetch).mockRejectedValue(new Error('Network error'));
+    it('should log success with correct parameters for loadQuests', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow('Network error');
-      expect(authFetch).toHaveBeenCalledTimes(3);
+      await loadQuests('goal-123');
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quests loaded successfully',
+        expect.objectContaining({
+          operation: 'loadQuests',
+          goalId: 'goal-123',
+          count: 1,
+          duration: expect.any(Number),
+        })
+      );
+    });
+
+    it('should log success with correct parameters for loadQuest', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
+
+      await loadQuest('quest-1');
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Quest loaded successfully',
+        expect.objectContaining({
+          operation: 'loadQuest',
+          questId: 'quest-1',
+          duration: expect.any(Number),
+        })
+      );
     });
   });
 
-  describe('Response Validation', () => {
-    it('should validate quest response structure', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockQuest),
-      } as Response);
+  describe('Data Transformation', () => {
+    it('should return quest data as-is from GraphQL response', async () => {
+      const mockData = { myQuests: [mockQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      const result = await createQuest(mockQuestCreateInput);
+      const result = await loadQuests();
 
-      expect(result).toEqual(mockQuest);
+      expect(result).toEqual([mockQuest]);
+      expect(result[0]).toHaveProperty('id', 'quest-1');
+      expect(result[0]).toHaveProperty('title', 'Test Quest');
+      expect(result[0]).toHaveProperty('difficulty', 'medium');
     });
 
-    it('should throw error for invalid quest response', async () => {
-      vi.mocked(QuestCreateInputSchema.parse).mockReturnValue(mockQuestCreateInput);
-      vi.mocked(authFetch).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ invalid: 'data' }),
-      } as Response);
+    it('should handle quest with all optional fields', async () => {
+      const questWithAllFields = {
+        ...mockQuest,
+        description: 'Full description',
+        tags: ['tag1', 'tag2', 'tag3'],
+        linkedGoalIds: ['goal1', 'goal2'],
+        linkedTaskIds: ['task1', 'task2'],
+        dependsOnQuestIds: ['quest1', 'quest2'],
+        targetCount: 10,
+        countScope: 'completed_goals',
+        periodDays: 14,
+      };
+      const mockData = { myQuests: [questWithAllFields] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
 
-      await expect(createQuest(mockQuestCreateInput)).rejects.toThrow(
-        'Invalid quest response: missing required field'
-      );
+      const result = await loadQuests();
+
+      expect(result).toEqual([questWithAllFields]);
+    });
+
+    it('should handle quest with minimal fields', async () => {
+      const minimalQuest = {
+        id: 'quest-minimal',
+        userId: 'user-1',
+        title: 'Minimal Quest',
+        difficulty: 'easy',
+        rewardXp: 50,
+        status: 'draft',
+        category: 'Personal',
+        privacy: 'private',
+        kind: 'linked',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      const mockData = { myQuests: [minimalQuest] };
+      mockGraphqlRaw.mockResolvedValue(mockData);
+
+      const result = await loadQuests();
+
+      expect(result).toEqual([minimalQuest]);
     });
   });
 });

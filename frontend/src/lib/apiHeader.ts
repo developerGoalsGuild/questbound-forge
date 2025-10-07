@@ -1,6 +1,7 @@
 import { getApiBase } from '@/lib/utils';
 import { getAccessToken } from '@/lib/utils';
 import { UserProfile } from '@/models/header';
+import { logger } from './logger';
 
 const API_BASE = getApiBase();
 
@@ -12,6 +13,7 @@ const API_BASE = getApiBase();
  * Get user profile data for header display
  */
 export async function getUserProfileForHeader(): Promise<UserProfile | null> {
+  const operation = 'getUserProfileForHeader';
   try {
     const token = getAccessToken();
     if (!token) {
@@ -30,7 +32,8 @@ export async function getUserProfileForHeader(): Promise<UserProfile | null> {
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       const message = errorBody.detail || response.statusText || 'Failed to fetch profile';
-      console.error('API Error:', {
+      logger.error('API Error fetching user profile', {
+        operation,
         status: response.status,
         statusText: response.statusText,
         errorBody,
@@ -58,7 +61,10 @@ export async function getUserProfileForHeader(): Promise<UserProfile | null> {
       updatedAt: data.updatedAt || data.updated_at || 0,
     };
   } catch (error) {
-    console.error('[getUserProfileForHeader] Error:', error);
+    logger.error('Failed to get user profile for header', { 
+        operation,
+        error 
+    });
     return null;
   }
 }

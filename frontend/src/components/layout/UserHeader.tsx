@@ -9,6 +9,7 @@ import UserMenu from './UserMenu';
 import { Button } from '@/components/ui/button';
 import { Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 const UserHeader: React.FC<UserHeaderProps> = ({ className = '' }) => {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({ className = '' }) => {
       const profile = await getUserProfileForHeader();
       setUserProfile(profile);
     } catch (error) {
-      console.error('[UserHeader] Error loading user profile:', error);
+      logger.error('Failed to load user profile in UserHeader', { error });
     } finally {
       setIsLoadingProfile(false);
     }

@@ -180,9 +180,9 @@ def quantitative_quest_test_data(test_user_id):
         "difficulty": "hard",
         "kind": "quantitative",
         "targetCount": 10,
-        "countScope": "any",
+        "countScope": "completed_tasks",
         "startAt": future_time,
-        "periodSeconds": 86400
+        "periodDays": 1
     }
 
 

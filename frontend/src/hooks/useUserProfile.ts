@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserProfile, ProfileUpdateInput, updateUserProfile } from '@/lib/api';
 import { getProfile } from '@/lib/apiProfile';
+import { logger } from '@/lib/logger';
 
 interface UseUserProfileReturn {
   profile: UserProfile | null;
@@ -24,10 +25,12 @@ export const useUserProfile = (): UseUserProfileReturn => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch profile';
       setError(errorMessage);
-      console.error('Profile fetch error - complete error:', err);
-      console.error('Profile fetch error - error message:', errorMessage);
-      console.error('Profile fetch error - error type:', typeof err);
-      console.error('Profile fetch error - error constructor:', err?.constructor?.name);
+      logger.error('Profile fetch error', {
+        error: err,
+        errorMessage,
+        errorType: typeof err,
+        constructor: err?.constructor?.name,
+      });
       
       // Don't set profile to null for PROFILE_NOT_FOUND - let the component handle it
       if (errorMessage !== 'PROFILE_NOT_FOUND') {
@@ -46,7 +49,7 @@ export const useUserProfile = (): UseUserProfileReturn => {
       setProfile(updatedProfile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
-      console.error('Profile update error:', err);
+      logger.error('Profile update error', { error: err });
       throw err; // Re-throw to allow caller to handle
     } finally {
       setLoading(false);

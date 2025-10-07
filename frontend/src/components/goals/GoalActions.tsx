@@ -35,6 +35,7 @@ import {
   Calendar,
   Loader2
 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface GoalActionsProps {
   goalId: string;
@@ -115,7 +116,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
           variant: 'default'
         });
       } catch (error: any) {
-        console.error('Error changing goal status:', error);
+        logger.error('Error changing goal status', { goalId, newStatus, error });
         
         // Parse API error response
         let errorMessage = error?.message || 'Failed to change goal status';
@@ -130,7 +131,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
           }
         } catch (parseError) {
           // If parsing fails, use the original error message
-          console.log('Could not parse error response:', parseError);
+          logger.warn('Could not parse status change error response', { parseError });
         }
         
         toast({
@@ -156,7 +157,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
           variant: 'default'
         });
       } catch (error: any) {
-        console.error('Error deleting goal:', error);
+        logger.error('Error deleting goal', { goalId, error });
         
         // Parse API error response
         let errorMessage = error?.message || 'Failed to delete goal';
@@ -171,7 +172,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
           }
         } catch (parseError) {
           // If parsing fails, use the original error message
-          console.log('Could not parse error response:', parseError);
+          logger.warn('Could not parse delete error response', { parseError });
         }
         
         toast({

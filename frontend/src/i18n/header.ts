@@ -10,6 +10,7 @@ export const headerTranslations: Record<string, HeaderTranslations> = {
     },
     userMenu: {
       dashboard: 'Dashboard',
+      quests: 'Quests',
       profile: 'Edit Profile',
       changePassword: 'Change Password',
       logout: 'Logout',
@@ -31,6 +32,7 @@ export const headerTranslations: Record<string, HeaderTranslations> = {
     },
     userMenu: {
       dashboard: 'Panel de Control',
+      quests: 'Misiones',
       profile: 'Editar Perfil',
       changePassword: 'Cambiar Contraseña',
       logout: 'Cerrar Sesión',
@@ -52,6 +54,7 @@ export const headerTranslations: Record<string, HeaderTranslations> = {
     },
     userMenu: {
       dashboard: 'Tableau de Bord',
+      quests: 'Quêtes',
       profile: 'Modifier le Profil',
       changePassword: 'Changer le Mot de Passe',
       logout: 'Se Déconnecter',

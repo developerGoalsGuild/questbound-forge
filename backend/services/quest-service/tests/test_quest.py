@@ -200,9 +200,9 @@ class TestQuestCreation:
             "privacy": "private",
             "kind": "quantitative",
             "targetCount": 5,
-            "countScope": "any",
+            "countScope": "completed_tasks",
             "startAt": future_time,
-            "periodSeconds": 604800,  # 7 days
+            "periodDays": 7,  # 7 days
             "createdAt": int(time.time() * 1000),
             "updatedAt": int(time.time() * 1000),
             "version": 1,
@@ -218,7 +218,7 @@ class TestQuestCreation:
                 "difficulty": "easy",
                 "kind": "quantitative",
                 "targetCount": 5,
-                "countScope": "any",
+                "countScope": "completed_tasks",
                 "startAt": future_time,
                 "periodSeconds": 604800
             }
@@ -234,7 +234,7 @@ class TestQuestCreation:
             assert data["id"] == "quest-456"
             assert data["kind"] == "quantitative"
             assert data["targetCount"] == 5
-            assert data["countScope"] == "any"
+            assert data["countScope"] == "completed_tasks"
 
     def test_create_quest_missing_title(self):
         """Test quest creation fails with missing title."""
@@ -291,7 +291,7 @@ class TestQuestCreation:
             "title": "Test Quest",
             "category": "Health",
             "kind": "quantitative"
-            # Missing targetCount, countScope, startAt, periodSeconds
+            # Missing targetCount, countScope, periodDays
         }
 
         response = client.post(
@@ -1144,6 +1144,90 @@ class TestQuestStart:
 
             assert response.status_code == 404
             assert "not found" in response.json()["detail"].lower()
+
+    def test_start_quest_validation_failed_missing_title(self):
+        """Test starting a quest with missing title fails validation."""
+        with patch('app.main.change_quest_status') as mock_change_status:
+            from app.db.quest_db import QuestValidationError
+            mock_change_status.side_effect = QuestValidationError("Quest title is required")
+
+            response = client.post(
+                "/quests/quests/quest-123/start",
+                headers=self.get_auth_headers()
+            )
+
+            assert response.status_code == 400
+            assert "title is required" in response.json()["detail"]
+
+    def test_start_quest_validation_failed_missing_category(self):
+        """Test starting a quest with missing category fails validation."""
+        with patch('app.main.change_quest_status') as mock_change_status:
+            from app.db.quest_db import QuestValidationError
+            mock_change_status.side_effect = QuestValidationError("Quest category is required")
+
+            response = client.post(
+                "/quests/quests/quest-123/start",
+                headers=self.get_auth_headers()
+            )
+
+            assert response.status_code == 400
+            assert "category is required" in response.json()["detail"]
+
+    def test_start_quest_validation_failed_quantitative_missing_target_count(self):
+        """Test starting a quantitative quest with missing target count fails validation."""
+        with patch('app.main.change_quest_status') as mock_change_status:
+            from app.db.quest_db import QuestValidationError
+            mock_change_status.side_effect = QuestValidationError("Quantitative quest requires a valid target count greater than 0")
+
+            response = client.post(
+                "/quests/quests/quest-123/start",
+                headers=self.get_auth_headers()
+            )
+
+            assert response.status_code == 400
+            assert "target count" in response.json()["detail"]
+
+    def test_start_quest_validation_failed_linked_missing_goals(self):
+        """Test starting a linked quest with missing goals fails validation."""
+        with patch('app.main.change_quest_status') as mock_change_status:
+            from app.db.quest_db import QuestValidationError
+            mock_change_status.side_effect = QuestValidationError("Linked quest requires at least one goal to be selected")
+
+            response = client.post(
+                "/quests/quests/quest-123/start",
+                headers=self.get_auth_headers()
+            )
+
+            assert response.status_code == 400
+            assert "goal" in response.json()["detail"]
+
+    def test_start_quest_validation_failed_linked_missing_tasks(self):
+        """Test starting a linked quest with missing tasks fails validation."""
+        with patch('app.main.change_quest_status') as mock_change_status:
+            from app.db.quest_db import QuestValidationError
+            mock_change_status.side_effect = QuestValidationError("Linked quest requires at least one task to be selected")
+
+            response = client.post(
+                "/quests/quests/quest-123/start",
+                headers=self.get_auth_headers()
+            )
+
+            assert response.status_code == 400
+            assert "task" in response.json()["detail"]
+
+    def test_start_quest_validation_failed_wrong_status(self):
+        """Test starting a quest that's not in draft status fails validation."""
+        with patch('app.main.change_quest_status') as mock_change_status:
+            from app.db.quest_db import QuestValidationError
+            mock_change_status.side_effect = QuestValidationError("Quest cannot be started - current status: active")
+
+            response = client.post(
+                "/quests/quests/quest-123/start",
+                headers=self.get_auth_headers()
+            )
+
+            assert response.status_code == 400
+            assert "cannot be started" in response.json()["detail"]
 
 
 class TestQuestCancellation:

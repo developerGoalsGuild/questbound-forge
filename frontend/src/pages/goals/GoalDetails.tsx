@@ -51,6 +51,7 @@ import {
   Plus,
 } from 'lucide-react';
 import FieldTooltip from '@/components/ui/FieldTooltip';
+import { logger } from '@/lib/logger';
 
 interface GoalDetailsData {
   id: string;
@@ -187,7 +188,7 @@ const GoalDetails: React.FC = () => {
           status: goalData.status,
           createdAt: goalData.createdAt,
           updatedAt: goalData.updatedAt,
-          tags: goalData.tags,
+          tags: goalData.tags || [],
           progress: goalData.progress || 0,
           taskProgress: goalData.taskProgress || 0,
           timeProgress: goalData.timeProgress || 0,
@@ -198,7 +199,7 @@ const GoalDetails: React.FC = () => {
         setGoalWithProgress(basicProgressData);
         return;
       } catch (getGoalError) {
-        console.warn('[GoalDetails] getGoal failed, trying loadGoals workaround:', getGoalError);
+        logger.warn('getGoal failed, trying loadGoals workaround', { goalId: id, error: getGoalError });
         
         // Final fallback: Load all goals and filter by ID
         const allGoals = await loadGoals();
@@ -295,7 +296,7 @@ const GoalDetails: React.FC = () => {
       const goalTasks = await loadTasks(goal.id);
       setTasks(goalTasks || []);
     } catch (e: any) {
-      console.error('[loadGoalTasks] Error loading tasks:', e);
+      logger.error('Error loading tasks', { goalId: goal.id, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to load tasks';
@@ -310,7 +311,7 @@ const GoalDetails: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse error response for loading tasks', { parseError });
       }
       
       toast({
@@ -359,7 +360,7 @@ const GoalDetails: React.FC = () => {
       setShowCreateTaskModal(false);
       loadGoalTasks(); // Refresh tasks list
     } catch (e: any) {
-      console.error('Error creating task:', e);
+      logger.error('Error creating task', { goalId: goal.id, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to create task';
@@ -374,7 +375,7 @@ const GoalDetails: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse create task error response', { parseError });
       }
       
       toast({
@@ -404,7 +405,7 @@ const GoalDetails: React.FC = () => {
 
       loadGoalTasks(); // Refresh tasks list
     } catch (e: any) {
-      console.error('Error updating task:', e);
+      logger.error('Error updating task', { taskId: task.id, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to update task';
@@ -419,7 +420,7 @@ const GoalDetails: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse update task error response', { parseError });
       }
       
       toast({
@@ -443,7 +444,7 @@ const GoalDetails: React.FC = () => {
 
       loadGoalTasks(); // Refresh tasks list
     } catch (e: any) {
-      console.error('Error deleting task:', e);
+      logger.error('Error deleting task', { taskId, error: e });
       
       // Parse API error response
       let errorMessage = e?.message || 'Failed to delete task';
@@ -458,7 +459,7 @@ const GoalDetails: React.FC = () => {
         }
       } catch (parseError) {
         // If parsing fails, use the original error message
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse delete task error response', { parseError });
       }
       
       toast({

@@ -83,7 +83,7 @@ export function calculateTimeProgress(createdAt: number, deadline: string): numb
     
     return timeProgress;
   } catch (error) {
-    console.error('Error calculating time progress:', error);
+    logger.error('Error calculating time progress', { error, createdAt, deadline });
     return 0;
   }
 }

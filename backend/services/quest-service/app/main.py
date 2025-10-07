@@ -22,7 +22,7 @@ from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalC
 from .db.quest_db import (
     create_quest, get_quest, update_quest, change_quest_status, 
     delete_quest, list_user_quests, QuestDBError, QuestNotFoundError,
-    QuestVersionConflictError, QuestPermissionError
+    QuestVersionConflictError, QuestPermissionError, QuestValidationError
 )
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
 
@@ -1296,6 +1296,15 @@ async def start_quest_endpoint(
         logger.warning('quests.startQuest_permission_denied', 
                       user_id=auth.user_id, quest_id=quest_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+    except QuestValidationError as e:
+        logger.warning('quests.startQuest_validation_failed', 
+                      user_id=auth.user_id, quest_id=quest_id, error=str(e))
+        # Return user-friendly error message
+        raise HTTPException(status_code=400, detail={
+            "error": "Quest validation failed",
+            "message": str(e),
+            "code": "QUEST_VALIDATION_ERROR"
+        })
     except QuestDBError as e:
         logger.error('quests.startQuest_failed', 
                     user_id=auth.user_id, quest_id=quest_id, error=str(e))

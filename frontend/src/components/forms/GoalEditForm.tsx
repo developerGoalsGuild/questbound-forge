@@ -25,6 +25,7 @@ import NLPQuestionsSection from './NLPQuestionsSection';
 import GoalCategorySelector from './GoalCategorySelector';
 import TagsInput from './TagsInput';
 import FieldTooltip from '@/components/ui/FieldTooltip';
+import { logger } from '@/lib/logger';
 
 interface GoalEditFormProps {
   goalId: string;
@@ -219,7 +220,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         setValue('nlpAnswers', answersObj, { shouldValidate: false });
         
       } catch (error: any) {
-        console.error('Error loading goal data:', error);
+        logger.error('Error loading goal data for editing', { goalId, error });
         
         // Parse API error response
         let errorMessage = error?.message || 'Failed to load goal data';
@@ -232,7 +233,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             }
           }
         } catch (parseError) {
-          console.log('Could not parse error response:', parseError);
+          logger.warn('Could not parse goal loading error response', { parseError });
         }
         
         toast({
@@ -258,14 +259,14 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
 
   // Handle form submission
   const onSubmit = async (data: GoalCreateInput) => {
-    console.log('Form submitted with data:', data);
+    logger.debug('Goal edit form submitted', { goalId, data });
     
     // Manual validation using Zod
     try {
       const validatedData = goalCreateSchema.parse(data);
-      console.log('Validation passed:', validatedData);
+      logger.debug('Goal edit validation passed', { validatedData });
     } catch (error: any) {
-      console.log('Validation failed:', error);
+      logger.warn('Goal edit validation failed', { error });
       
       // Handle validation errors
       if (error.errors) {
@@ -328,19 +329,19 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         navigate('/goals');
       }
     } catch (error: any) {
-      console.error('Error updating goal:', error);
+      logger.error('Error updating goal', { goalId, error });
       
       // Parse API error response for field-specific errors
       let errorMessage = error?.message || 'Failed to update goal';
       let fieldErrors: { [key: string]: string } = {};
       
-      console.log('Raw error:', error);
-      console.log('Error message:', errorMessage);
+      logger.debug('Raw goal update error', { rawError: error });
+      logger.debug('Goal update error message', { errorMessage });
       
       try {
         if (typeof error?.message === 'string') {
           const parsedError = JSON.parse(error.message);
-          console.log('Parsed error:', parsedError);
+          logger.debug('Parsed goal update error', { parsedError });
           if (parsedError.message) {
             errorMessage = parsedError.message;
           }
@@ -349,12 +350,12 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           }
         }
       } catch (parseError) {
-        console.log('Could not parse error response:', parseError);
+        logger.warn('Could not parse goal update error response', { parseError });
       }
       
       // Set field-specific errors
       Object.entries(fieldErrors).forEach(([field, message]) => {
-        console.log(`Setting field error for ${field}:`, message);
+        logger.debug(`Setting field error for ${field}`, { message });
         if (field === 'deadline') {
           setError('deadline', { type: 'server', message });
         } else if (field === 'title') {
@@ -373,7 +374,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
       
       // Special handling for deadline errors
       if (Object.keys(fieldErrors).length === 0 && errorMessage.includes('Deadline')) {
-        console.log('Setting deadline error:', errorMessage);
+        logger.debug('Setting deadline error from general message', { errorMessage });
         setError('deadline', { type: 'server', message: errorMessage });
       }
       
@@ -423,12 +424,12 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
   // AI Features (placeholder functions)
   const handleGenerateImage = async () => {
     // Placeholder for AI image generation
-    console.log('Generate image for goal:', watchedValues.title);
+    logger.info('Generating AI image for goal', { title: watchedValues.title });
   };
 
   const handleSuggestImprovements = async () => {
     // Placeholder for AI suggestions
-    console.log('Suggest improvements for goal:', watchedValues.title);
+    logger.info('Suggesting improvements for goal', { title: watchedValues.title });
   };
 
   if (isLoading) {

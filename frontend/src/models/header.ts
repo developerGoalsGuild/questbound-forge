@@ -78,6 +78,8 @@ export interface HeaderTranslations {
     retry: string;
   };
   userMenu: {
+    dashboard: string;
+    quests: string;
     profile: string;
     changePassword: string;
     logout: string;

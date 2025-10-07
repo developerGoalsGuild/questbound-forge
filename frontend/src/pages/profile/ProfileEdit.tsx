@@ -14,6 +14,7 @@ import { type ProfileFormData } from '@/models/profile';
 import { profileUpdateSchema } from '@/lib/validation/profileValidation';
 import { getProfile, updateProfile, getCountries, checkNicknameAvailability } from '@/lib/apiProfile';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
@@ -120,11 +121,11 @@ const ProfileEdit = () => {
   };
 
   const onSubmit = useCallback(async (data: ProfileFormData) => {
-    console.log('[ProfileEdit] Form submission started with data:', data);
-    console.log('[ProfileEdit] Form validation errors:', formState.errors);
+    logger.debug('Profile edit form submission started', { data });
+    logger.debug('Profile edit form validation errors', { errors: formState.errors });
     try {
       setIsSubmitting(true);
-      console.log('[ProfileEdit] Processed tags:', data.tags);
+      logger.debug('Processing tags for profile update', { tags: data.tags });
       const updateData = {
         fullName: data.fullName || undefined,
         nickname: data.nickname || undefined,
@@ -136,13 +137,13 @@ const ProfileEdit = () => {
         bio: data.bio || undefined,
         tags: data.tags && data.tags.length ? data.tags : undefined,
       };
-      console.log('[ProfileEdit] Sending update data:', updateData);
+      logger.info('Sending profile update data to API', { updateData });
       await updateProfile(updateData);
-      console.log('[ProfileEdit] Profile updated successfully');
+      logger.info('Profile updated successfully');
       toast.success(t.profile.messages.saveSuccess);
       navigate('/profile');
     } catch (err: any) {
-      console.error('[ProfileEdit] Error updating profile:', err);
+      logger.error('Error updating profile', { error: err });
       toast.error(t.profile.messages.saveError);
     } finally {
       setIsSubmitting(false);
@@ -196,7 +197,7 @@ const ProfileEdit = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit, (errors) => {
-          console.error('[ProfileEdit] Form validation failed:', errors);
+          logger.warn('Profile edit form validation failed on submit', { errors });
           toast.error('Please fix the form errors before saving');
         })} aria-label="Edit Profile Form">
           {/* Basic Information */}

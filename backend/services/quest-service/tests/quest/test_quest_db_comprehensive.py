@@ -470,9 +470,9 @@ class TestQuestDatabaseEdgeCases:
             difficulty="medium",
             kind="quantitative",
             targetCount=10,
-            countScope="any",  # Use valid literal value
+            countScope="completed_tasks",  # Use valid literal value
             startAt=future_time,  # Use future timestamp
-            periodSeconds=86400  # Add required periodSeconds for quantitative quests
+            periodDays=1  # Add required periodDays for quantitative quests
         )
         
         # Call function
@@ -482,7 +482,7 @@ class TestQuestDatabaseEdgeCases:
         assert hasattr(result, 'id')  # QuestResponse object
         assert result.kind == "quantitative"
         assert result.targetCount == 10
-        assert result.countScope == "any"
+        assert result.countScope == "completed_tasks"
     
     @patch('app.db.quest_db._get_dynamodb_table')
     def test_create_quest_with_deadline(self, mock_get_table):

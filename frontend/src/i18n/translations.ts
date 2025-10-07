@@ -31,6 +31,7 @@ import type { GoalActionsTranslations } from './goalActions';
 import type { GoalDashboardTranslations } from './goalDashboard';
 import type { GoalDetailsTranslations } from './goalDetails';
 import type { HeaderTranslations } from '@/models/header';
+import type { QuestTranslations } from './quest';
 
 import { navTranslations } from './nav';
 import { loginTranslations } from './login';
@@ -48,6 +49,7 @@ import { goalActionsTranslations } from './goalActions';
 import { goalDashboardTranslations } from './goalDashboard';
 import { goalDetailsTranslations } from './goalDetails';
 import { headerTranslations } from './header';
+import { questTranslations } from './quest';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -64,6 +66,7 @@ export type Translations = { [key: string]: any } & {
   goalDashboard: GoalDashboardTranslations;
   goalDetails: GoalDetailsTranslations;
   header: HeaderTranslations;
+  quest: QuestTranslations;
 };
 
 /**
@@ -86,6 +89,7 @@ export const translations: Record<Language, Translations> = {
     goalDashboard: goalDashboardTranslations.en,
     goalDetails: goalDetailsTranslations.en,
     header: headerTranslations.en,
+    quest: questTranslations.en,
     ...commonTranslations.en,
   },
   es: {
@@ -104,6 +108,7 @@ export const translations: Record<Language, Translations> = {
     goalDashboard: goalDashboardTranslations.es,
     goalDetails: goalDetailsTranslations.es,
     header: headerTranslations.es,
+    quest: questTranslations.es,
     ...commonTranslations.es,
   },
   fr: {
@@ -122,6 +127,7 @@ export const translations: Record<Language, Translations> = {
     goalDashboard: goalDashboardTranslations.fr,
     goalDetails: goalDetailsTranslations.fr,
     header: headerTranslations.fr,
+    quest: questTranslations.fr,
     ...commonTranslations.fr,
   },
 };

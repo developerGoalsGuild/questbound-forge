@@ -15,13 +15,15 @@ import {
   LogOut, 
   ChevronDown,
   Loader2,
-  Home
+  Home,
+  Target
 } from 'lucide-react';
 import { UserMenuProps, MenuItem } from '@/models/header';
 import { getUserInitials, getUserDisplayName } from '@/lib/apiHeader';
 import { useLogout } from '@/lib/logout';
 import { useTranslation } from '@/hooks/useTranslation';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 const UserMenu: React.FC<UserMenuProps> = ({
   userData,
@@ -53,6 +55,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
       label: headerTranslations?.userMenu?.dashboard || 'Dashboard',
       icon: Home,
       path: '/dashboard',
+    },
+    {
+      id: 'quests',
+      label: headerTranslations?.userMenu?.quests || 'Quests',
+      icon: Target,
+      path: '/quests',
     },
     {
       id: 'profile',
@@ -153,7 +161,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
       await performLogout();
       onLogout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      logger.error('Logout failed from UserMenu', { error });
     } finally {
       setIsLoggingOut(false);
     }

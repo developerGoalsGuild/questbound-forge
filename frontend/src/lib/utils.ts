@@ -3,6 +3,7 @@ import { twMerge } from "tailwind-merge"
 import { generateClient } from "aws-amplify/api";
 import awsConfigDev from '@/config/aws-exports.dev';
 import awsConfigProd from '@/config/aws-exports.prod';
+import { logger } from "./logger";
 
 
 
@@ -109,7 +110,7 @@ export function graphQLClient() {
   const cfg = import.meta.env.PROD ? awsConfigProd : awsConfigDev;
   try {
     // Log the resolved GraphQL endpoint used by Amplify
-    console.info('[AppSync] GraphQL endpoint:', cfg?.API?.GraphQL?.endpoint);
+    logger.debug('AppSync GraphQL endpoint', { endpoint: cfg?.API?.GraphQL?.endpoint });
   } catch {}
 
   const haveApiKey = !!(import.meta.env.VITE_APPSYNC_API_KEY as string | undefined);
@@ -121,7 +122,7 @@ export function graphQLClient() {
         authToken: () => {
           const tok = getAccessToken();
           if (!tok) {
-            console.error('[AuthToken] missing token');
+            logger.error('AuthToken missing for GraphQL client');
             throw new Error('NO_TOKEN');
           }
           return tok; // raw JWT without Bearer prefix
@@ -130,10 +131,12 @@ export function graphQLClient() {
 
   const originalGraphql = client.graphql.bind(client);
   (client as any).graphql = async (args: any) => {
-    try {
-      const opName = (args?.query as any)?.definitions?.[0]?.name?.value || 'anonymous';
-      console.info('[GraphQL] request:', cfg?.API?.GraphQL?.endpoint, 'op:', opName, 'authMode:', args?.authMode || 'lambda');
-    } catch {}
+    const opName = (args?.query as any)?.definitions?.[0]?.name?.value || 'anonymous';
+    logger.debug('GraphQL request', { 
+        endpoint: cfg?.API?.GraphQL?.endpoint, 
+        operation: opName, 
+        authMode: args?.authMode || 'lambda' 
+    });
     return originalGraphql(args);
   };
 
