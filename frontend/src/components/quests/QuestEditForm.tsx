@@ -58,10 +58,18 @@ import {
   Info,
   AlertCircle,
   Target,
+  Plus,
+  X,
   Calendar,
   Hash,
   ShieldCheck,
-  X
+  Star,
+  Tag,
+  Users,
+  Lock,
+  Globe,
+  UserCheck,
+  Clock
 } from 'lucide-react';
 
 // ============================================================================
@@ -139,6 +147,15 @@ const BasicInfoStep: React.FC<StepProps> = ({
 
   return (
     <div className="space-y-6">
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold">
+          {questTranslations?.steps?.basicInfo || 'Basic Information'}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {questTranslations?.steps?.basicInfoDescription || 'Provide the essential details for your quest.'}
+        </p>
+      </div>
+
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -151,7 +168,7 @@ const BasicInfoStep: React.FC<StepProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs">
-                  {questTranslations?.tooltips?.title || 'Enter a clear, descriptive title for your quest.'}
+                  {questTranslations?.tooltips?.title || 'Choose a clear, descriptive title for your quest. This will help you and others understand what needs to be accomplished.'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -192,7 +209,7 @@ const BasicInfoStep: React.FC<StepProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs">
-                  {questTranslations?.tooltips?.description || 'Provide a detailed description of your quest.'}
+                  {questTranslations?.tooltips?.description || 'Provide a detailed description of your quest. This helps you and others understand what needs to be accomplished.'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -202,14 +219,14 @@ const BasicInfoStep: React.FC<StepProps> = ({
             value={formData.description}
             onChange={(e) => onFieldChange('description', e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.ctrlKey) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (onNext) {
                   onNext();
                 }
               }
             }}
-            placeholder={questTranslations?.placeholders?.description || 'Enter quest description...'}
+            placeholder={questTranslations?.placeholders?.description || 'Describe your quest...'}
             rows={3}
             className={errors.description ? 'border-red-500' : ''}
             aria-invalid={!!errors.description}
@@ -243,7 +260,7 @@ const BasicInfoStep: React.FC<StepProps> = ({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    {questTranslations?.tooltips?.difficulty || 'Select the difficulty level for your quest.'}
+                    {questTranslations?.tooltips?.difficulty || 'Select the difficulty level. This affects the reward XP you\'ll earn when completing the quest.'}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -265,6 +282,40 @@ const BasicInfoStep: React.FC<StepProps> = ({
                 {errors.difficulty}
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Reward XP - Calculated automatically */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="rewardXp" className="text-sm font-medium">
+              {questTranslations?.fields?.rewardXp || 'Reward XP'}
+            </Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">
+                  {questTranslations?.tooltips?.rewardXp || 'XP reward is calculated automatically based on quest difficulty.'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+            <span className="text-sm font-medium">
+              {(() => {
+                switch (formData.difficulty) {
+                  case 'easy': return '50 XP';
+                  case 'medium': return '100 XP';
+                  case 'hard': return '200 XP';
+                  default: return '100 XP';
+                }
+              })()}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ({questTranslations?.messages?.calculated || 'Calculated based on difficulty'})
+            </span>
           </div>
         </div>
       </div>
@@ -295,6 +346,7 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
 
   // Initialize selectedGoalIds with existing linked goals
   useEffect(() => {
@@ -311,8 +363,8 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
           const allTasks: TaskResponse[] = [];
           for (const goalId of selectedGoalIds) {
             const tasksData = await loadTasks(goalId);
-            const activeTasks = (tasksData || []).filter(task => task.status === 'active');
-            allTasks.push(...activeTasks);
+            // Load all tasks from the goal, not just active ones
+            allTasks.push(...(tasksData || []));
           }
           onTasksChange?.(allTasks);
         } catch (error) {
@@ -388,9 +440,38 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
     onFieldChange('linkedTaskIds', currentLinkedTasks.filter(id => id !== taskId));
   }, [formData.linkedTaskIds, onFieldChange]);
 
+  const handleAddTag = useCallback(() => {
+    if (newTag.trim() && !formData.tags?.includes(newTag.trim())) {
+      const updatedTags = [...(formData.tags || []), newTag.trim()];
+      onFieldChange('tags', updatedTags);
+      setNewTag('');
+    }
+  }, [newTag, formData.tags, onFieldChange]);
+
+  const handleRemoveTag = useCallback((tagToRemove: string) => {
+    const updatedTags = formData.tags?.filter(tag => tag !== tagToRemove) || [];
+    onFieldChange('tags', updatedTags);
+  }, [formData.tags, onFieldChange]);
+
+  const handleTagKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  }, [handleAddTag]);
+
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold">
+          {questTranslations?.steps?.advancedOptions || 'Advanced Options'}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {questTranslations?.steps?.advancedOptionsDescription || 'Configure additional quest settings.'}
+        </p>
+      </div>
+
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -463,6 +544,66 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
           </div>
         </div>
 
+        {/* Tags */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="tags" className="text-sm font-medium">
+              {questTranslations?.fields?.tags || 'Tags'}
+            </Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">
+                  {questTranslations?.tooltips?.tags || 'Add tags to help categorize and find your quest. Tags make it easier to organize and search through your quests.'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Input
+                id="tags"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder={questTranslations?.placeholders?.tags || 'Add a tag...'}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddTag}
+                disabled={!newTag.trim() || formData.tags?.includes(newTag.trim())}
+                aria-label="Add tag"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {formData.tags && formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {formData.tags.map((tag, index) => (
+                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                    {tag}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => handleRemoveTag(tag)}
+                      aria-label={`Remove tag ${tag}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Linked Items for Linked Quests */}
         {formData.kind === 'linked' && (
           <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
@@ -516,13 +657,9 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
                   {formData.linkedGoalIds && formData.linkedGoalIds.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-sm font-medium">Linked Goals:</div>
-                      <div className="text-xs text-gray-500">
-                        Debug: formData.linkedGoalIds = {JSON.stringify(formData.linkedGoalIds)}, goals.length = {goals.length}
-                      </div>
                       <div className="flex flex-wrap gap-2">
                         {formData.linkedGoalIds.map((goalId) => {
                           const goal = goals.find(g => g.id === goalId);
-                          console.log(`Looking for goal ${goalId}, found:`, goal);
                           return goal ? (
                             <Badge key={goalId} variant="secondary" className="flex items-center gap-1">
                               {goal.title}
@@ -597,13 +734,9 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
                     {formData.linkedTaskIds && formData.linkedTaskIds.length > 0 && (
                       <div className="space-y-2">
                         <div className="text-sm font-medium">Linked Tasks:</div>
-                        <div className="text-xs text-gray-500">
-                          Debug: formData.linkedTaskIds = {JSON.stringify(formData.linkedTaskIds)}, tasks.length = {tasks.length}
-                        </div>
                         <div className="flex flex-wrap gap-2">
                           {formData.linkedTaskIds.map((taskId) => {
                             const task = tasks.find(t => t.id === taskId);
-                            console.log(`Looking for task ${taskId}, found:`, task);
                             return task ? (
                               <Badge key={taskId} variant="secondary" className="flex items-center gap-1">
                                 {task.title}
@@ -821,6 +954,40 @@ const ReviewStep: React.FC<StepProps> = ({
 
   const displayRewardXp = calculateRewardXp(formData.difficulty);
 
+  const getPrivacyIcon = (privacy: string) => {
+    switch (privacy) {
+      case 'public':
+        return <Globe className="h-4 w-4" />;
+      case 'followers':
+        return <Users className="h-4 w-4" />;
+      case 'private':
+        return <Lock className="h-4 w-4" />;
+      default:
+        return <Globe className="h-4 w-4" />;
+    }
+  };
+
+  const getPrivacyLabel = (privacy: string) => {
+    switch (privacy) {
+      case 'public':
+        return questTranslations?.privacy?.public || 'Public';
+      case 'followers':
+        return questTranslations?.privacy?.followers || 'Followers';
+      case 'private':
+        return questTranslations?.privacy?.private || 'Private';
+      default:
+        return privacy;
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString();
+  };
+
+  const formatDateTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString();
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -845,30 +1012,49 @@ const ReviewStep: React.FC<StepProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">{questTranslations?.fields?.category || 'Category'}:</span>
-                <span className="ml-2">{questTranslations?.category?.[formData.category] || formData.category}</span>
+                <span className="ml-2">{formData.category}</span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.difficulty || 'Difficulty'}:</span>
-                <span className="ml-2">{questTranslations?.difficulty?.[formData.difficulty] || formData.difficulty}</span>
+                <span className="ml-2 capitalize">{formData.difficulty}</span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.rewardXp || 'Reward XP'}:</span>
-                <span className="ml-2 font-bold text-primary bg-primary/10 px-2 py-1 rounded">
-                  {displayRewardXp} XP
+                <span className="ml-2 flex items-center gap-1">
+                  <Star className="h-4 w-4" />
+                  {displayRewardXp}
                 </span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.privacy || 'Privacy'}:</span>
-                <span className="ml-2">{questTranslations?.privacy?.[formData.privacy] || formData.privacy}</span>
+                <span className="ml-2 flex items-center gap-1">
+                  {getPrivacyIcon(formData.privacy)}
+                  {getPrivacyLabel(formData.privacy)}
+                </span>
               </div>
+              <div>
+                <span className="font-medium">{questTranslations?.fields?.kind || 'Quest Type'}:</span>
+                <span className="ml-2 capitalize">{formData.kind}</span>
+              </div>
+              {formData.deadline && (
+                <div>
+                  <span className="font-medium">{questTranslations?.fields?.deadline || 'Deadline'}:</span>
+                  <span className="ml-2 flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    {formatDate(formData.deadline)}
+                  </span>
+                </div>
+              )}
             </div>
 
+            {/* Tags */}
             {formData.tags && formData.tags.length > 0 && (
               <div>
                 <span className="font-medium text-sm">{questTranslations?.fields?.tags || 'Tags'}:</span>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="flex flex-wrap gap-1 mt-1">
                   {formData.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary">
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      <Tag className="h-3 w-3" />
                       {tag}
                     </Badge>
                   ))}
@@ -876,52 +1062,72 @@ const ReviewStep: React.FC<StepProps> = ({
               </div>
             )}
 
-            {formData.deadline && (
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4" />
-                <span className="font-medium">{questTranslations?.fields?.deadline || 'Deadline'}:</span>
-                <span>{new Date(formData.deadline).toLocaleDateString()}</span>
-              </div>
-            )}
-
-            {formData.kind === 'quantitative' && formData.targetCount && (
-              <div className="flex items-center gap-2 text-sm">
-                <Hash className="h-4 w-4" />
-                <span className="font-medium">{questTranslations?.fields?.targetCount || 'Target Count'}:</span>
-                <span>{formData.targetCount}</span>
-              </div>
-            )}
-
-            {formData.kind === 'linked' && formData.linkedGoalIds && formData.linkedGoalIds.length > 0 && (
+            {/* Quantitative Quest Details */}
+            {formData.kind === 'quantitative' && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <ShieldCheck className="h-4 w-4" />
-                  <span className="font-medium">{questTranslations?.sections?.linkedItems || 'Linked Items'}:</span>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-sm font-medium">{questTranslations?.fields?.linkedGoals || 'Selected Goals'}:</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {formData.linkedGoalIds.map((goalId) => {
-                        const goal = goals.find(g => g.id === goalId);
-                        return (
-                          <Badge key={goalId} variant="secondary">
-                            {goal ? goal.title : `Goal ${goalId}`}
-                          </Badge>
-                        );
-                      })}
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  {questTranslations?.sections?.quantitativeInfo || 'Quantitative Quest Details'}
+                </h4>
+                <div className="grid grid-cols-1 gap-2 text-sm pl-6">
+                  {formData.targetCount && (
+                    <div>
+                      <span className="font-medium">{questTranslations?.fields?.targetCount || 'Target Count'}:</span>
+                      <span className="ml-2">{formData.targetCount}</span>
                     </div>
-                  </div>
+                  )}
+                  {formData.countScope && (
+                    <div>
+                      <span className="font-medium">{questTranslations?.fields?.countScope || 'Count Scope'}:</span>
+                      <span className="ml-2">{formData.countScope}</span>
+                    </div>
+                  )}
+                  {formData.periodDays && (
+                    <div>
+                      <span className="font-medium">{questTranslations?.fields?.period || 'Period'}:</span>
+                      <span className="ml-2 flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {formData.periodDays} {questTranslations?.fields?.days || 'days'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Linked Items */}
+            {(formData.linkedGoalIds?.length > 0 || formData.linkedTaskIds?.length > 0) && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  {questTranslations?.sections?.linkedItems || 'Linked Items'}
+                </h4>
+                <div className="space-y-1 text-sm pl-6">
+                  {formData.linkedGoalIds && formData.linkedGoalIds.length > 0 && (
+                    <div>
+                      <span className="font-medium">{questTranslations?.fields?.linkedGoals || 'Linked Goals'}:</span>
+                      <div className="space-y-1 mt-1">
+                        {formData.linkedGoalIds.map((goalId) => {
+                          const goal = goals.find(g => g.id === goalId);
+                          return (
+                            <div key={goalId} className="text-muted-foreground">
+                              {goal ? goal.title : goalId}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {formData.linkedTaskIds && formData.linkedTaskIds.length > 0 && (
                     <div>
-                      <span className="text-sm font-medium">{questTranslations?.fields?.linkedTasks || 'Selected Tasks'}:</span>
-                      <div className="flex flex-wrap gap-2 mt-1">
+                      <span className="font-medium">{questTranslations?.fields?.linkedTasks || 'Linked Tasks'}:</span>
+                      <div className="space-y-1 mt-1">
                         {formData.linkedTaskIds.map((taskId) => {
                           const task = tasks.find(t => t.id === taskId);
                           return (
-                            <Badge key={taskId} variant="secondary">
-                              {task ? task.title : `Task ${taskId}`}
-                            </Badge>
+                            <div key={taskId} className="text-muted-foreground">
+                              {task ? task.title : taskId}
+                            </div>
                           );
                         })}
                       </div>
@@ -932,6 +1138,31 @@ const ReviewStep: React.FC<StepProps> = ({
             )}
           </CardContent>
         </Card>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <Star className="h-4 w-4 text-yellow-500" />
+            <div>
+              <div className="font-medium">{questTranslations?.fields?.rewardXp || 'Reward XP'}</div>
+              <div className="text-muted-foreground">{displayRewardXp}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <Target className="h-4 w-4 text-blue-500" />
+            <div>
+              <div className="font-medium">{questTranslations?.fields?.difficulty || 'Difficulty'}</div>
+              <div className="text-muted-foreground capitalize">{formData.difficulty}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            {getPrivacyIcon(formData.privacy)}
+            <div>
+              <div className="font-medium">{questTranslations?.fields?.privacy || 'Privacy'}</div>
+              <div className="text-muted-foreground">{getPrivacyLabel(formData.privacy)}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex justify-between">
@@ -1031,7 +1262,6 @@ export const QuestEditForm: React.FC<QuestEditFormProps> = ({
         try {
           // Load all goals (not just linked ones) for the selection interface
           const goalsData = await loadGoals();
-          console.log('Loaded all goals for quest edit:', goalsData);
           const activeGoals = (goalsData || []).filter(goal => goal.status === 'active');
           setGoals(activeGoals);
 
@@ -1040,11 +1270,9 @@ export const QuestEditForm: React.FC<QuestEditFormProps> = ({
             const allTasks: TaskResponse[] = [];
             for (const goalId of quest.linkedGoalIds) {
               const tasksData = await loadTasks(goalId);
-              console.log(`Loaded tasks for goal ${goalId}:`, tasksData);
-              const activeTasks = (tasksData || []).filter(task => task.status === 'active');
-              allTasks.push(...activeTasks);
+              // Load all tasks from the goal, not just active ones
+              allTasks.push(...(tasksData || []));
             }
-            console.log('All loaded tasks:', allTasks);
             setTasks(allTasks);
           }
         } catch (error) {
@@ -1305,6 +1533,33 @@ export const QuestEditForm: React.FC<QuestEditFormProps> = ({
             className="h-2"
             aria-label={`Quest edit progress: ${Math.round(progress)}% complete`}
           />
+        </div>
+
+        {/* Step Indicators */}
+        <div className="flex justify-center space-x-4">
+          {steps.map((step, index) => (
+            <div
+              key={step.id}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm ${
+                index === currentStep
+                  ? 'bg-primary text-primary-foreground'
+                  : index < currentStep
+                  ? 'bg-primary/20 text-primary'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                index === currentStep
+                  ? 'bg-primary-foreground text-primary'
+                  : index < currentStep
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted-foreground text-muted'
+              }`}>
+                {index < currentStep ? '✓' : index + 1}
+              </div>
+              <span className="hidden sm:inline">{step.title}</span>
+            </div>
+          ))}
         </div>
 
         {/* Error Display */}
