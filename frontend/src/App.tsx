@@ -24,6 +24,7 @@ import QuestCreatePage from './pages/quests/QuestCreate';
 import QuestDetailsPage from './pages/quests/QuestDetails';
 import QuestEditPage from './pages/quests/QuestEdit';
 import QuestDashboard from './pages/quests/QuestDashboard';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 
 
@@ -56,7 +57,7 @@ const App = () => (
             <Route path="/goals/:id" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/goals/:id/tasks" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests" element={<ProtectedRoute><AuthenticatedLayout><QuestListPage /></AuthenticatedLayout></ProtectedRoute>} />
-            <Route path="/quests/dashboard" element={<ProtectedRoute><AuthenticatedLayout><QuestDashboard /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/quests/dashboard" element={<ProtectedRoute><AuthenticatedLayout><ErrorBoundary><QuestDashboard /></ErrorBoundary></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/create" element={<ProtectedRoute><AuthenticatedLayout><QuestCreatePage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/details/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestDetailsPage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/edit/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestEditPage /></AuthenticatedLayout></ProtectedRoute>} />

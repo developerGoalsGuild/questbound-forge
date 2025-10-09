@@ -6,6 +6,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useQuests } from '@/hooks/useQuest';
 import { useQuestFilters } from '@/hooks/useQuestFilters';
 import { filterAndSortQuests } from '@/lib/questFilters';
+import { useOptimizedQuestFiltering, useOptimizedQuestSorting } from '@/lib/performance/questFiltersOptimizations';
 import QuestCard from './QuestCard';
 import { QuestFilters } from './QuestFilters';
 import { Quest } from '@/models/quest';
@@ -40,11 +41,9 @@ const QuestList: React.FC<QuestListProps> = ({
 
 
 
-  // Filter and sort quests using the new utility functions
-  const filteredQuests = useMemo(() => {
-    const result = filterAndSortQuests(quests || [], filters, 'updatedAt', 'desc');
-    return result;
-  }, [quests, filters, hasActiveFilters]);
+  // Filter and sort quests using optimized performance hooks
+  const filteredQuests = useOptimizedQuestFiltering(quests || [], filters);
+  const sortedAndFilteredQuests = useOptimizedQuestSorting(filteredQuests, 'updatedAt', 'desc');
 
   // Callback to handle filter changes from QuestFilters component
   const handleFiltersChange = useCallback((newFilters: QuestFilters) => {
@@ -102,7 +101,7 @@ const QuestList: React.FC<QuestListProps> = ({
       />
 
       {/* Empty state or Quest Grid */}
-      {filteredQuests.length === 0 ? (
+      {sortedAndFilteredQuests.length === 0 ? (
         <div className="text-center py-12">
           <div className="space-y-4">
             <div className="text-muted-foreground">
@@ -128,7 +127,7 @@ const QuestList: React.FC<QuestListProps> = ({
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredQuests.map((quest: Quest) => (
+            {sortedAndFilteredQuests.map((quest: Quest) => (
               <QuestCard
                 key={quest.id}
                 quest={quest}
@@ -145,7 +144,7 @@ const QuestList: React.FC<QuestListProps> = ({
 
           {/* Results count */}
           <div className="text-sm text-muted-foreground text-center">
-            Showing {filteredQuests.length} of {quests?.length || 0} quests
+            Showing {sortedAndFilteredQuests.length} of {quests?.length || 0} quests
           </div>
         </>
       )}

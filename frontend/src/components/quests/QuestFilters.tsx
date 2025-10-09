@@ -191,15 +191,9 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
                 placeholder={questTranslations?.filters?.searchPlaceholder || 'Search quests...'}
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                className={`pl-10 ${validationErrors.search ? 'border-red-500' : ''}`}
+                className="pl-10"
                 aria-label={questTranslations?.filters?.searchAriaLabel || 'Search quests'}
               />
-            </div>
-            {validationErrors.search && (
-              <p className="text-xs text-red-600" role="alert">
-                {validationErrors.search}
-              </p>
-            )}
           </div>
 
           {/* Status Filter */}
@@ -259,6 +253,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
               </SelectContent>
             </Select>
           </div>
+        </div>
         </div>
 
         {/* Filter Statistics */}

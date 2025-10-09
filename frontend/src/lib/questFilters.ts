@@ -53,11 +53,8 @@ const STATUS_WEIGHTS = {
  */
 export function filterQuests(quests: Quest[], filters: QuestFilters): Quest[] {
   if (!quests || !Array.isArray(quests)) {
-    console.log('filterQuests: No quests array provided', { quests, filters });
     return [];
   }
-
-  console.log('filterQuests: Starting filter', { totalQuests: quests.length, filters });
 
   const result = quests.filter((quest: Quest) => {
     // Status filter
@@ -97,7 +94,6 @@ export function filterQuests(quests: Quest[], filters: QuestFilters): Quest[] {
     return true;
   });
 
-  console.log('filterQuests: Filter complete', { filteredCount: result.length });
   return result;
 }
 

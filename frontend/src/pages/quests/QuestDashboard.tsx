@@ -159,12 +159,12 @@ const QuestDashboard: React.FC = () => {
         <QuestTabs
           myQuestsContent={
             <div className="text-center py-8 text-muted-foreground">
-              <p>My quests content will be implemented here.</p>
+              <p>{questTranslations?.dashboard?.tabs?.myQuestsPlaceholder || 'My quests content will be implemented here.'}</p>
             </div>
           }
           followingQuestsContent={
             <div className="text-center py-8 text-muted-foreground">
-              <p>Following quests content will be implemented here.</p>
+              <p>{questTranslations?.dashboard?.tabs?.followingQuestsPlaceholder || 'Following quests content will be implemented here.'}</p>
             </div>
           }
         />

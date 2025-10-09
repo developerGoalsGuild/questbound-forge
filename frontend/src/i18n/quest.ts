@@ -246,6 +246,8 @@ export interface QuestTranslations {
       myQuests: string;
       followingQuests: string;
       comingSoon: string;
+      myQuestsPlaceholder: string;
+      followingQuestsPlaceholder: string;
     };
   };
 
@@ -586,7 +588,9 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
         title: 'Quest Overview',
         myQuests: 'My Quests',
         followingQuests: 'Following',
-        comingSoon: 'Quest tabs coming soon...'
+        comingSoon: 'Quest tabs coming soon...',
+        myQuestsPlaceholder: 'My quests content will be implemented here.',
+        followingQuestsPlaceholder: 'Following quests content will be implemented here.'
       }
     }
   },
@@ -863,7 +867,9 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
         title: 'Resumen de Misiones',
         myQuests: 'Mis Misiones',
         followingQuests: 'Siguiendo',
-        comingSoon: 'Pestañas de misiones próximamente...'
+        comingSoon: 'Pestañas de misiones próximamente...',
+        myQuestsPlaceholder: 'El contenido de mis misiones se implementará aquí.',
+        followingQuestsPlaceholder: 'El contenido de misiones seguidas se implementará aquí.'
       }
     }
   },
@@ -1140,7 +1146,9 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
         title: 'Aperçu des Quêtes',
         myQuests: 'Mes Quêtes',
         followingQuests: 'Abonnements',
-        comingSoon: 'Onglets de quête bientôt disponibles...'
+        comingSoon: 'Onglets de quête bientôt disponibles...',
+        myQuestsPlaceholder: 'Le contenu de mes quêtes sera implémenté ici.',
+        followingQuestsPlaceholder: 'Le contenu des quêtes suivies sera implémenté ici.'
       }
     }
   }
