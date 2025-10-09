@@ -31,8 +31,8 @@ import { reportError } from './error-reporter';
  * GraphQL query for fetching user's quests
  */
 const MY_QUESTS = /* GraphQL */ `
-  query MyQuests($goalId: ID) {
-    myQuests(goalId: $goalId) {
+  query MyQuests {
+    myQuests {
       id
       userId
       title
@@ -77,9 +77,11 @@ export async function loadQuests(goalId?: string): Promise<Quest[]> {
   logger.info('Loading quests', { operation, goalId });
   const startTime = Date.now();
   try {
-    const data = await graphqlRaw<{ myQuests: Quest[] }>(MY_QUESTS, { goalId });
+    // Note: Backend doesn't support goalId filtering, so we always load all quests
+    // Client-side filtering is handled by useGoalQuests hook
+    const data = await graphqlRaw<{ myQuests: Quest[] }>(MY_QUESTS, {});
     const quests = data?.myQuests ?? [];
-    
+
     const duration = Date.now() - startTime;
     logger.info(`Loaded ${quests.length} quests successfully`, {
       operation,
@@ -87,7 +89,7 @@ export async function loadQuests(goalId?: string): Promise<Quest[]> {
       count: quests.length,
       duration,
     });
-    
+
     return quests;
   } catch (error: any) {
     logger.error('Failed to load quests', {

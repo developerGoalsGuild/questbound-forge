@@ -15,6 +15,7 @@ import {
 import { calculateGoalProgress, type GoalWithTasks } from '@/lib/progressCalculation';
 import TasksModal from '@/components/modals/TasksModal';
 import CreateTaskModal from '@/components/modals/CreateTaskModal';
+import { GoalQuestsSection } from '@/components/goals/GoalQuestsSection';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -748,6 +749,12 @@ const GoalDetails: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Goal Quests Section */}
+          <GoalQuestsSection
+            goalId={goal.id}
+            goalTitle={goal.title}
+          />
         </div>
 
         {/* Sidebar */}

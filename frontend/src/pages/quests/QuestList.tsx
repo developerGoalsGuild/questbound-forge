@@ -6,7 +6,7 @@ import QuestDetails from '@/components/quests/QuestDetails';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useQuests, useQuestStart } from '@/hooks/useQuest';
 import { Button } from '@/components/ui/button';
-import { Plus, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowLeft, Eye } from 'lucide-react';
 
 const QuestListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -185,10 +185,20 @@ const QuestListPage: React.FC = () => {
               {questTranslations?.description || 'Manage your quests and track your progress'}
             </p>
           </div>
-          <Button onClick={handleCreateQuest} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            {questTranslations?.actions?.create || 'Create Quest'}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleCreateQuest} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              {questTranslations?.actions?.create || 'Create Quest'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/quests/dashboard')}
+              className="flex items-center gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              {questTranslations?.dashboard?.viewDashboard || 'View Dashboard'}
+            </Button>
+          </div>
         </div>
 
         {/* Quest List */}

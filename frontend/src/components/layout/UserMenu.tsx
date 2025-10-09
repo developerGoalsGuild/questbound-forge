@@ -9,14 +9,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  User, 
-  Key, 
-  LogOut, 
+import {
+  User,
+  Key,
+  LogOut,
   ChevronDown,
   Loader2,
   Home,
-  Target
+  Target,
+  BarChart3
 } from 'lucide-react';
 import { UserMenuProps, MenuItem } from '@/models/header';
 import { getUserInitials, getUserDisplayName } from '@/lib/apiHeader';
@@ -61,6 +62,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
       label: headerTranslations?.userMenu?.quests || 'Quests',
       icon: Target,
       path: '/quests',
+    },
+    {
+      id: 'quest-dashboard',
+      label: headerTranslations?.userMenu?.questDashboard || 'Quest Dashboard',
+      icon: BarChart3,
+      path: '/quests/dashboard',
     },
     {
       id: 'profile',

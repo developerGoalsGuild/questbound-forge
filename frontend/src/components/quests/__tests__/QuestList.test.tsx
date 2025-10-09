@@ -42,6 +42,12 @@ vi.mock('@/hooks/useQuest', () => ({
   useQuests: () => mockUseQuests(),
 }));
 
+// Mock the useQuestFilters hook
+const mockUseQuestFilters = vi.fn();
+vi.mock('@/hooks/useQuestFilters', () => ({
+  useQuestFilters: (...args: any[]) => mockUseQuestFilters(...args),
+}));
+
 describe('QuestList', () => {
   const mockHandlers = {
     onViewDetails: vi.fn(),
@@ -110,6 +116,27 @@ describe('QuestList', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock for useQuestFilters
+    mockUseQuestFilters.mockReturnValue({
+      filters: {
+        status: 'all',
+        difficulty: 'all',
+        category: 'all',
+        search: '',
+      },
+      hasActiveFilters: false,
+      updateFilters: vi.fn(),
+      clearFilters: vi.fn(),
+      setStatus: vi.fn(),
+      setDifficulty: vi.fn(),
+      setCategory: vi.fn(),
+      setSearch: vi.fn(),
+      getActiveFilterCount: vi.fn(() => 0),
+      validationErrors: {},
+      hasValidationErrors: false,
+      isFormValid: true,
+    });
   });
 
   describe('Loading State', () => {
@@ -197,12 +224,28 @@ describe('QuestList', () => {
         refresh: vi.fn(),
       });
 
-      render(<QuestList {...mockHandlers} />);
+      // Mock filters with a status that matches no quests
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'failed',
+          difficulty: 'all',
+          category: 'all',
+          search: '',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
 
-      // Set a filter that will return no results
-      const statusSelect = screen.getByRole('combobox', { name: /status/i });
-      fireEvent.click(statusSelect);
-      fireEvent.click(screen.getByTestId('select-item-failed'));
+      render(<QuestList {...mockHandlers} />);
 
       expect(screen.getByText('No quests match your current filters.')).toBeInTheDocument();
       expect(screen.getByText('Clear Filters')).toBeInTheDocument();
@@ -245,88 +288,240 @@ describe('QuestList', () => {
     });
 
     it('filters by status', () => {
+      // Mock filters to show filtering is working
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'draft',
+          difficulty: 'all',
+          category: 'all',
+          search: '',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
       render(<QuestList {...mockHandlers} />);
 
-      const statusSelect = screen.getByRole('combobox', { name: /status/i });
-      fireEvent.click(statusSelect);
-      fireEvent.click(screen.getByTestId('select-item-draft'));
-
+      // With status filter set to 'draft', only Test Quest 1 should be visible
       expect(screen.getByText('Test Quest 1')).toBeInTheDocument();
       expect(screen.queryByText('Test Quest 2')).not.toBeInTheDocument();
       expect(screen.queryByText('Completed Quest')).not.toBeInTheDocument();
     });
 
     it('filters by difficulty', () => {
+      // Mock filters to show filtering is working
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'easy',
+          category: 'all',
+          search: '',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
       render(<QuestList {...mockHandlers} />);
 
-      const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i });
-      fireEvent.click(difficultySelect);
-      fireEvent.click(screen.getByTestId('select-item-easy'));
-
+      // With difficulty filter set to 'easy', only Test Quest 2 should be visible
       expect(screen.getByText('Test Quest 2')).toBeInTheDocument();
       expect(screen.queryByText('Test Quest 1')).not.toBeInTheDocument();
       expect(screen.queryByText('Completed Quest')).not.toBeInTheDocument();
     });
 
     it('filters by category', () => {
+      // Mock filters to show filtering is working
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'Work',
+          search: '',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
       render(<QuestList {...mockHandlers} />);
 
-      const categorySelect = screen.getByRole('combobox', { name: /category/i });
-      fireEvent.click(categorySelect);
-      fireEvent.click(screen.getByTestId('select-item-work'));
-
+      // With category filter set to 'Work', only Test Quest 1 should be visible
       expect(screen.getByText('Test Quest 1')).toBeInTheDocument();
       expect(screen.queryByText('Test Quest 2')).not.toBeInTheDocument();
       expect(screen.queryByText('Completed Quest')).not.toBeInTheDocument();
     });
 
     it('filters by search term', () => {
+      // Mock filters to show filtering is working
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'all',
+          search: 'Test Quest 1',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
       render(<QuestList {...mockHandlers} />);
 
-      const searchInput = screen.getByPlaceholderText('Search quests...');
-      fireEvent.change(searchInput, { target: { value: 'Test Quest 1' } });
-
+      // With search filter set to 'Test Quest 1', only Test Quest 1 should be visible
       expect(screen.getByText('Test Quest 1')).toBeInTheDocument();
       expect(screen.queryByText('Test Quest 2')).not.toBeInTheDocument();
       expect(screen.queryByText('Completed Quest')).not.toBeInTheDocument();
     });
 
     it('searches in title, description, and category', () => {
-      render(<QuestList {...mockHandlers} />);
+      // Test search by title
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'all',
+          search: 'Test Quest 1',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
 
-      const searchInput = screen.getByPlaceholderText('Search quests...');
-      
-      // Search by title
-      fireEvent.change(searchInput, { target: { value: 'Test Quest 1' } });
+      const { rerender } = render(<QuestList {...mockHandlers} />);
       expect(screen.getByText('Test Quest 1')).toBeInTheDocument();
-      
-      // Search by description
-      fireEvent.change(searchInput, { target: { value: 'Another test quest' } });
+
+      // Test search by description
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'all',
+          search: 'Another test quest',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
+      rerender(<QuestList {...mockHandlers} />);
       expect(screen.getByText('Test Quest 2')).toBeInTheDocument();
-      
-      // Search by category
-      fireEvent.change(searchInput, { target: { value: 'Health' } });
+
+      // Test search by category
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'all',
+          search: 'Health',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
+      rerender(<QuestList {...mockHandlers} />);
       expect(screen.getByText('Test Quest 2')).toBeInTheDocument();
     });
 
     it('clears all filters when clear button is clicked', () => {
+      const mockUpdateFilters = vi.fn();
+      // Mock filters to show active filters
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'draft',
+          difficulty: 'all',
+          category: 'all',
+          search: 'test',
+        },
+        hasActiveFilters: true,
+        updateFilters: mockUpdateFilters,
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 2),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
       render(<QuestList {...mockHandlers} />);
 
-      // Set some filters
-      const statusSelect = screen.getByRole('combobox', { name: /status/i });
-      fireEvent.click(statusSelect);
-      fireEvent.click(screen.getByTestId('select-item-draft'));
-
-      const searchInput = screen.getByPlaceholderText('Search quests...');
-      fireEvent.change(searchInput, { target: { value: 'test' } });
-
-      // Clear filters
-      fireEvent.click(screen.getByText('Clear'));
-
-      // All quests should be visible again
+      // Verify filtering is applied (only Test Quest 1 visible due to draft status)
       expect(screen.getByText('Test Quest 1')).toBeInTheDocument();
-      expect(screen.getByText('Test Quest 2')).toBeInTheDocument();
-      expect(screen.getByText('Completed Quest')).toBeInTheDocument();
+      expect(screen.queryByText('Test Quest 2')).not.toBeInTheDocument();
+
+      // Click clear filters button (should be visible since hasActiveFilters is true)
+      const clearButton = screen.getByRole('button', { name: /clear all filters/i });
+      expect(clearButton).toBeInTheDocument();
+      fireEvent.click(clearButton);
+
+      // Verify updateFilters was called with cleared filters
+      expect(mockUpdateFilters).toHaveBeenCalledWith({
+        status: 'all',
+        difficulty: 'all',
+        category: 'all',
+        search: '',
+      });
     });
   });
 
@@ -343,9 +538,14 @@ describe('QuestList', () => {
     it('sorts quests by updatedAt descending (most recent first)', () => {
       render(<QuestList {...mockHandlers} />);
 
-      const questCards = screen.getAllByText(/Test Quest|Completed Quest/);
-      // The most recent quest should be first
-      expect(questCards[0]).toHaveTextContent('Test Quest 1');
+      // Get all quest titles in order
+      const questTitles = screen.getAllByRole('heading', { level: 3 });
+      // The most recent quest (Test Quest 1 - updated 1 day ago) should be first
+      expect(questTitles[0]).toHaveTextContent('Test Quest 1');
+      // Test Quest 2 (updated 2 days ago) should be second
+      expect(questTitles[1]).toHaveTextContent('Test Quest 2');
+      // Completed Quest (updated 3 days ago) should be third
+      expect(questTitles[2]).toHaveTextContent('Completed Quest');
     });
   });
 
@@ -381,19 +581,37 @@ describe('QuestList', () => {
     });
 
     it('has proper form labels and accessibility attributes', () => {
+      // Mock active filters to show clear button
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'all',
+          search: 'test',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
+
       render(<QuestList {...mockHandlers} />);
 
       const searchInput = screen.getByPlaceholderText('Search quests...');
       expect(searchInput).toBeInTheDocument();
+      expect(searchInput).toHaveAttribute('aria-label', 'Search quests');
 
-      const statusSelect = screen.getByRole('combobox', { name: /status/i });
-      expect(statusSelect).toBeInTheDocument();
-
-      const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i });
-      expect(difficultySelect).toBeInTheDocument();
-
-      const categorySelect = screen.getByRole('combobox', { name: /category/i });
-      expect(categorySelect).toBeInTheDocument();
+      // In compact mode, QuestFilters only shows search input, no select elements
+      // Check for clear filters button when filters are active
+      const clearButton = screen.getByRole('button', { name: /clear all filters/i });
+      expect(clearButton).toBeInTheDocument();
     });
   });
 
@@ -419,10 +637,28 @@ describe('QuestList', () => {
         refresh: vi.fn(),
       });
 
-      render(<QuestList {...mockHandlers} />);
+      // Mock filters with a search term that matches no quests
+      mockUseQuestFilters.mockReturnValue({
+        filters: {
+          status: 'all',
+          difficulty: 'all',
+          category: 'all',
+          search: 'nonexistent quest',
+        },
+        hasActiveFilters: true,
+        updateFilters: vi.fn(),
+        clearFilters: vi.fn(),
+        setStatus: vi.fn(),
+        setDifficulty: vi.fn(),
+        setCategory: vi.fn(),
+        setSearch: vi.fn(),
+        getActiveFilterCount: vi.fn(() => 1),
+        validationErrors: {},
+        hasValidationErrors: false,
+        isFormValid: true,
+      });
 
-      const searchInput = screen.getByPlaceholderText('Search quests...');
-      fireEvent.change(searchInput, { target: { value: 'nonexistent quest' } });
+      render(<QuestList {...mockHandlers} />);
 
       expect(screen.getByText('No quests match your current filters.')).toBeInTheDocument();
     });

@@ -62,6 +62,26 @@ export interface QuestTranslations {
     startedAt: string;
   };
 
+  // Filters
+  filters: {
+    title: 'Filters',
+    search: 'Search',
+    searchPlaceholder: 'Search quests...',
+    searchAriaLabel: 'Search quests',
+    status: 'Status',
+    statusPlaceholder: 'All statuses',
+    difficulty: 'Difficulty',
+    difficultyPlaceholder: 'All difficulties',
+    category: 'Category',
+    categoryPlaceholder: 'All categories',
+    clear: 'Clear',
+    clearAll: 'Clear All',
+    clearFilters: 'Clear all filters',
+    active: 'active',
+    activeFilters: 'active filters',
+    showing: 'Showing',
+  };
+
   // Tooltips
   tooltips: {
     title: string;
@@ -185,6 +205,48 @@ export interface QuestTranslations {
     noGoals: string;
     noTasks: string;
     loading: string;
+  };
+
+  // Goal Integration
+  goalIntegration: {
+    title: 'Goal Quests',
+    statistics: 'Quest Progress',
+    questsList: 'Associated Quests',
+    noQuests: 'No quests yet',
+    createQuest: 'Create Quest',
+    viewAll: 'View All',
+    moreQuests: 'And {count} more quests...',
+    viewAllQuests: 'View All Quests',
+    createFirstQuest: 'Create Your First Quest',
+    error: 'Failed to load goal quests',
+    emptyState: {
+      title: 'No quests for this goal',
+      description: 'Create quests to break down this goal into actionable steps.',
+    },
+  };
+
+  // Dashboard
+  dashboard: {
+    title: string;
+    description: string;
+    viewDashboard: string;
+    statistics: {
+      title: string;
+      comingSoon: string;
+    };
+    quickActions: {
+      title: string;
+      createQuest: string;
+      viewAllQuests: string;
+      joinChallenges: string;
+      viewActivity: string;
+    };
+    tabs: {
+      title: string;
+      myQuests: string;
+      followingQuests: string;
+      comingSoon: string;
+    };
   };
 
   // Sections
@@ -504,6 +566,28 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     loading: {
       loadingQuest: 'Loading quest...'
+    },
+    dashboard: {
+      title: 'Quest Dashboard',
+      description: 'Track your quest progress and statistics',
+      viewDashboard: 'View Dashboard',
+      statistics: {
+        title: 'Quest Statistics',
+        comingSoon: 'Statistics coming soon...'
+      },
+      quickActions: {
+        title: 'Quick Actions',
+        createQuest: 'Create Quest',
+        viewAllQuests: 'View All',
+        joinChallenges: 'Challenges',
+        viewActivity: 'Activity'
+      },
+      tabs: {
+        title: 'Quest Overview',
+        myQuests: 'My Quests',
+        followingQuests: 'Following',
+        comingSoon: 'Quest tabs coming soon...'
+      }
     }
   },
   es: {
@@ -634,6 +718,24 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       finish: 'Finalizar',
       finishing: 'Finalizando...'
     },
+    filters: {
+      title: 'Filtros',
+      search: 'Buscar',
+      searchPlaceholder: 'Buscar misiones...',
+      searchAriaLabel: 'Buscar misiones',
+      status: 'Estado',
+      statusPlaceholder: 'Todos los estados',
+      difficulty: 'Dificultad',
+      difficultyPlaceholder: 'Todas las dificultades',
+      category: 'Categoría',
+      categoryPlaceholder: 'Todas las categorías',
+      clear: 'Limpiar',
+      clearAll: 'Limpiar Todo',
+      clearFilters: 'Limpiar todos los filtros',
+      active: 'activos',
+      activeFilters: 'filtros activos',
+      showing: 'Mostrando',
+    },
     messages: {
       createSuccess: 'Misión creada exitosamente',
       editSuccess: 'Misión actualizada exitosamente',
@@ -725,6 +827,44 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     loading: {
       loadingQuest: 'Cargando misión...'
+    },
+    goalIntegration: {
+      title: 'Misiones de Meta',
+      statistics: 'Progreso de Misiones',
+      questsList: 'Misiones Asociadas',
+      noQuests: 'Sin misiones aún',
+      createQuest: 'Crear Misión',
+      viewAll: 'Ver Todas',
+      moreQuests: 'Y {count} misiones más...',
+      viewAllQuests: 'Ver Todas las Misiones',
+      createFirstQuest: 'Crear Tu Primera Misión',
+      error: 'Error al cargar misiones de meta',
+      emptyState: {
+        title: 'Sin misiones para esta meta',
+        description: 'Crea misiones para dividir esta meta en pasos accionables.',
+      },
+    },
+    dashboard: {
+      title: 'Panel de Misiones',
+      description: 'Rastrea el progreso y estadísticas de tus misiones',
+      viewDashboard: 'Ver Panel',
+      statistics: {
+        title: 'Estadísticas de Misiones',
+        comingSoon: 'Estadísticas próximamente...'
+      },
+      quickActions: {
+        title: 'Acciones Rápidas',
+        createQuest: 'Crear Misión',
+        viewAllQuests: 'Ver Todas',
+        joinChallenges: 'Desafíos',
+        viewActivity: 'Actividad'
+      },
+      tabs: {
+        title: 'Resumen de Misiones',
+        myQuests: 'Mis Misiones',
+        followingQuests: 'Siguiendo',
+        comingSoon: 'Pestañas de misiones próximamente...'
+      }
     }
   },
   fr: {
@@ -946,6 +1086,62 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     loading: {
       loadingQuest: 'Chargement de la quête...'
+    },
+    goalIntegration: {
+      title: 'Quêtes d\'Objectif',
+      statistics: 'Progrès des Quêtes',
+      questsList: 'Quêtes Associées',
+      noQuests: 'Pas encore de quêtes',
+      createQuest: 'Créer une Quête',
+      viewAll: 'Voir Tout',
+      moreQuests: 'Et {count} quêtes de plus...',
+      viewAllQuests: 'Voir Toutes les Quêtes',
+      createFirstQuest: 'Créer Votre Première Quête',
+      error: 'Échec du chargement des quêtes d\'objectif',
+      emptyState: {
+        title: 'Aucune quête pour cet objectif',
+        description: 'Créez des quêtes pour diviser cet objectif en étapes actionnables.',
+      },
+    },
+    filters: {
+      title: 'Filtres',
+      search: 'Rechercher',
+      searchPlaceholder: 'Rechercher des quêtes...',
+      searchAriaLabel: 'Rechercher des quêtes',
+      status: 'Statut',
+      statusPlaceholder: 'Tous les statuts',
+      difficulty: 'Difficulté',
+      difficultyPlaceholder: 'Toutes les difficultés',
+      category: 'Catégorie',
+      categoryPlaceholder: 'Toutes les catégories',
+      clear: 'Effacer',
+      clearAll: 'Tout Effacer',
+      clearFilters: 'Effacer tous les filtres',
+      active: 'actifs',
+      activeFilters: 'filtres actifs',
+      showing: 'Affichage',
+    },
+    dashboard: {
+      title: 'Tableau de Bord des Quêtes',
+      description: 'Suivez vos progrès et statistiques de quête',
+      viewDashboard: 'Voir le Tableau',
+      statistics: {
+        title: 'Statistiques des Quêtes',
+        comingSoon: 'Statistiques bientôt disponibles...'
+      },
+      quickActions: {
+        title: 'Actions Rapides',
+        createQuest: 'Créer une Quête',
+        viewAllQuests: 'Voir Tout',
+        joinChallenges: 'Défis',
+        viewActivity: 'Activité'
+      },
+      tabs: {
+        title: 'Aperçu des Quêtes',
+        myQuests: 'Mes Quêtes',
+        followingQuests: 'Abonnements',
+        comingSoon: 'Onglets de quête bientôt disponibles...'
+      }
     }
   }
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import QuestCreateForm from '@/components/quests/QuestCreateForm';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/button';
@@ -7,14 +7,23 @@ import { ArrowLeft } from 'lucide-react';
 
 const QuestCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
-  
+
+  // Extract goalId from URL parameters
+  const goalId = searchParams.get('goalId') || undefined;
+
   // Get translations with safety checks
   const questTranslations = (t as any)?.quest;
   const commonTranslations = (t as any)?.common;
 
   const handleBack = () => {
-    navigate('/quests');
+    // If goalId is present, go back to goal details, otherwise go to quests list
+    if (goalId) {
+      navigate(`/goals/details/${goalId}`);
+    } else {
+      navigate('/quests');
+    }
   };
 
   const handleQuestCreated = (quest: any) => {
@@ -23,7 +32,12 @@ const QuestCreatePage: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate('/quests');
+    // If goalId is present, go back to goal details, otherwise go to quests list
+    if (goalId) {
+      navigate(`/goals/details/${goalId}`);
+    } else {
+      navigate('/quests');
+    }
   };
 
   return (
@@ -47,6 +61,7 @@ const QuestCreatePage: React.FC = () => {
 
         {/* Quest Create Form */}
         <QuestCreateForm
+          goalId={goalId}
           onSuccess={handleQuestCreated}
           onCancel={handleCancel}
         />

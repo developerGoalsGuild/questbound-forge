@@ -69,7 +69,7 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
   const operation = 'loadTasks';
   try {
     const QUERY = /* GraphQL */ `
-        query myTasks($goalId: ID!) {
+        query myTasks($goalId: ID) {
           myTasks(goalId: $goalId) {
             id
             goalId
@@ -83,9 +83,23 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
         }
       `;
 
-    const data = await graphqlRaw<{ myTasks: TaskResponse[] }>(QUERY, { goalId });
-    const tasks = (data as any)?.myTasks ?? (data as any)?.MyTasks;
-    return tasks || null;
+    // Backend may or may not require goalId parameter
+    // We'll pass it and handle any filtering issues
+    const data = await graphqlRaw<{ myTasks: TaskResponse[] }>(QUERY, goalId ? { goalId } : {});
+    const allTasks = ((data as any)?.myTasks ?? (data as any)?.MyTasks) || [];
+
+    // If backend doesn't filter, we may need to filter client-side
+    // For now, assume backend handles filtering correctly
+    const tasks = allTasks.filter(task => task.goalId === goalId);
+
+    logger.info(`Loaded ${tasks.length} tasks for goal ${goalId}`, {
+      operation,
+      goalId,
+      totalTasks: allTasks.length,
+      filteredTasks: tasks.length
+    });
+
+    return tasks;
 
   } catch (e: any) {
     logger.error('GraphQL error in loadTasks', {

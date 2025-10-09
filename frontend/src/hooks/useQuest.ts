@@ -204,7 +204,8 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
     setError(null);
     try {
       const api = await getApiImplementation();
-      const questsData = await api.loadQuests(goalId);
+      // Note: Backend doesn't support goalId filtering, so we load all quests and filter client-side
+      const questsData = await api.loadQuests();
       if (!controller.signal.aborted) {
         setQuests(questsData);
         onAnnounce?.('Quests loaded successfully', 'polite');
@@ -221,7 +222,7 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
         setLoading(false);
       }
     }
-  }, [goalId, onAnnounce]);
+  }, [onAnnounce]);
 
   useEffect(() => {
     if (autoLoad) {

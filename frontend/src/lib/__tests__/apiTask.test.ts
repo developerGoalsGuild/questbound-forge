@@ -172,14 +172,14 @@ describe('loadTasks', () => {
       updatedAt: 1640995200
     };
 
-    mockGraphQL.graphqlRaw.mockResolvedValue({ MyTasks: mockTask });
+    mockGraphQL.graphqlRaw.mockResolvedValue({ MyTasks: [mockTask] });
 
     const result = await loadTasks('goal-123');
 
-    expect(result).toEqual(mockTask);
+    expect(result).toEqual([mockTask]);
     expect(mockGraphQL.graphqlRaw).toHaveBeenCalledWith(
       expect.stringContaining('query myTasks'),
-      { goalId: 'goal-123' }
+      { goalId: 'goal-123' } // goalId parameter sent to GraphQL when provided
     );
   });
 
@@ -200,6 +200,7 @@ describe('loadTasks', () => {
     expect(mockLoggerError).toHaveBeenCalledWith(
       'GraphQL error in loadTasks',
       expect.objectContaining({
+        goalId: 'goal-123',
         error: expect.any(Error),
       })
     );
@@ -215,6 +216,7 @@ describe('loadTasks', () => {
     expect(mockLoggerError).toHaveBeenCalledWith(
       'GraphQL error in loadTasks',
       expect.objectContaining({
+        goalId: 'goal-123',
         error: graphQLError,
       })
     );
@@ -230,6 +232,7 @@ describe('loadTasks', () => {
     expect(mockLoggerError).toHaveBeenCalledWith(
       'GraphQL error in loadTasks',
       expect.objectContaining({
+        goalId: 'goal-123',
         error: graphQLError,
       })
     );
