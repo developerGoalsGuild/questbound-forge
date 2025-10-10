@@ -60,6 +60,18 @@ class ConfirmEmailResponse(BaseModel):
   message: str
 
 
+class NotificationPreferences(BaseModel):
+  """User notification preferences for quest-related events"""
+  questStarted: bool = True
+  questCompleted: bool = True
+  questFailed: bool = True
+  progressMilestones: bool = True
+  deadlineWarnings: bool = True
+  streakAchievements: bool = True
+  challengeUpdates: bool = True
+  channels: dict = Field(default_factory=lambda: {"inApp": True, "email": False, "push": False})
+
+
 class UserProfile(BaseModel):
   id: str
   email: EmailStr
@@ -77,6 +89,7 @@ class UserProfile(BaseModel):
   tier: str = 'free'
   provider: str
   email_confirmed: bool = False
+  notificationPreferences: Optional[NotificationPreferences] = None
   createdAt: int
   updatedAt: int
 
@@ -91,3 +104,4 @@ class ProfileUpdate(BaseModel):
   pronouns: Optional[str] = None
   bio: Optional[str] = None
   tags: Optional[list[str]] = None
+  notificationPreferences: Optional[dict] = None

@@ -17,9 +17,9 @@ import {
   getQuestDifficultyKey,
   getQuestDifficultyColorClass,
   formatRewardXp,
-  calculateQuestProgress,
 } from '@/models/quest';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useQuestProgress } from '@/hooks/useQuest';
 import {
   ShieldCheck,
   Star,
@@ -32,6 +32,9 @@ import {
   Eye,
   Info,
   Loader2,
+  CheckCircle,
+  Clock,
+  Circle,
 } from 'lucide-react';
 
 interface QuestCardProps {
@@ -56,6 +59,22 @@ const QuestCard: React.FC<QuestCardProps> = ({
   loadingStates = {},
 }) => {
   const { t } = useTranslation();
+  
+  // Use the new quest progress hook
+  const {
+    progress,
+    progressPercentage,
+    isCalculating,
+    isCompleted,
+    isInProgress,
+    isNotStarted,
+    progressData,
+    completedCount,
+    totalCount,
+    remainingCount,
+    status: progressStatus,
+    error: progressError,
+  } = useQuestProgress(quest, { enableRealTime: false });
   
   // Check if quest can be started with comprehensive validation
   const canStartQuest = () => {
@@ -112,7 +131,20 @@ const QuestCard: React.FC<QuestCardProps> = ({
   
   const isStartDisabled = !canStartQuest();
   const hasInvalidCountScope = quest.kind === 'quantitative' && (quest.countScope === null || quest.countScope === undefined);
-  const progress = calculateQuestProgress(quest);
+  
+  // Get progress status icon
+  const getProgressIcon = () => {
+    if (isCompleted) return <CheckCircle className="h-3 w-3 text-green-600" />;
+    if (isInProgress) return <Clock className="h-3 w-3 text-blue-600" />;
+    return <Circle className="h-3 w-3 text-gray-400" />;
+  };
+  
+  // Get progress status text
+  const getProgressStatusText = () => {
+    if (isCompleted) return t.quest.progress.completed;
+    if (isInProgress) return t.quest.progress.inProgress;
+    return t.quest.progress.notStarted;
+  };
   
   // Loading states
   const isStarting = loadingStates[`start-${quest.id}`] || false;
@@ -338,25 +370,59 @@ const QuestCard: React.FC<QuestCardProps> = ({
                   </Badge>
                 )}
               </div>
-              <div className="mb-1 flex justify-between items-baseline">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {t.quest.progress.inProgress}
-                  </span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">
-                        {t.quest?.tooltips?.progressQuantitative || 'Progress for quantitative quests is calculated based on completed tasks or goals within the specified period.'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
+              
+              {/* Progress section */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    {getProgressIcon()}
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {t.quest.progress.quantitativeProgress}
+                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          {t.quest?.tooltips?.progressQuantitative || 'Progress for quantitative quests is calculated based on completed tasks or goals within the specified period.'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="flex items-center gap-2" aria-live="polite">
+                    <span className="text-xs font-bold" aria-label={`Progress percentage: ${progressPercentage}%`}>{progressPercentage}%</span>
+                    {isCalculating && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Calculating progress" />}
+                  </div>
                 </div>
-                <span className="text-xs font-bold">{progress.toFixed(0)}%</span>
+                
+                <Progress 
+                  value={progress} 
+                  className="h-2"
+                  aria-label={`Quest progress: ${progressPercentage}% complete`}
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  role="progressbar"
+                />
+                
+                {/* Progress details */}
+                <div className="flex justify-between items-center text-xs text-muted-foreground" role="status" aria-live="polite">
+                  <span>
+                    {completedCount} / {totalCount} {t.quest.progress.completedItems}
+                  </span>
+                  <span>
+                    {remainingCount} {t.quest.progress.remaining}
+                  </span>
+                </div>
+                
+                {/* Error display */}
+                {progressError && (
+                  <div className="text-xs text-red-600 bg-red-50 p-2 rounded" role="alert" aria-live="assertive">
+                    {progressError}
+                  </div>
+                )}
               </div>
-              <Progress value={progress} className="h-2" />
             </div>
           )}
           {quest.kind === 'linked' && (
@@ -372,25 +438,59 @@ const QuestCard: React.FC<QuestCardProps> = ({
                   </Badge>
                 </div>
               </div>
-              <div className="mb-1 flex justify-between items-baseline">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {t.quest.progress.inProgress}
-                  </span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">
-                        {t.quest?.tooltips?.progressLinked || 'Progress for linked quests is calculated based on completion of linked goals and tasks.'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
+              
+              {/* Progress section */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    {getProgressIcon()}
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {t.quest.progress.linkedProgress}
+                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          {t.quest?.tooltips?.progressLinked || 'Progress for linked quests is calculated based on completion of linked goals and tasks.'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="flex items-center gap-2" aria-live="polite">
+                    <span className="text-xs font-bold" aria-label={`Progress percentage: ${progressPercentage}%`}>{progressPercentage}%</span>
+                    {isCalculating && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" aria-label="Calculating progress" />}
+                  </div>
                 </div>
-                <span className="text-xs font-bold">{progress.toFixed(0)}%</span>
+                
+                <Progress 
+                  value={progress} 
+                  className="h-2"
+                  aria-label={`Quest progress: ${progressPercentage}% complete`}
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  role="progressbar"
+                />
+                
+                {/* Progress details */}
+                <div className="flex justify-between items-center text-xs text-muted-foreground" role="status" aria-live="polite">
+                  <span>
+                    {completedCount} / {totalCount} {t.quest.progress.completedItems}
+                  </span>
+                  <span>
+                    {remainingCount} {t.quest.progress.remaining}
+                  </span>
+                </div>
+                
+                {/* Error display */}
+                {progressError && (
+                  <div className="text-xs text-red-600 bg-red-50 p-2 rounded" role="alert" aria-live="assertive">
+                    {progressError}
+                  </div>
+                )}
               </div>
-              <Progress value={progress} className="h-2" />
             </div>
           )}
         </div>

@@ -89,7 +89,7 @@ Only for users we enable **fan-out** to speed up reads.
 ### 8) Quest (User-owned gamified actions)
 - **Keys**: `PK=USER#<userId>`, `SK=QUEST#<questId>`
 - **GSIs**:
-  - `GSI1PK=USER#<userId>`, `GSI1SK=ENTITY#Quest#<createdAtISO>`
+  - `GSI1PK=USER#<userId>`, `GSI1SK=QUEST#<createdAtISO>`
 - **Payload**: `type:"Quest"`, `id`, `userId`, `title`, `description?`, `difficulty:"easy"|"medium"|"hard"`, `rewardXp`, `status:"active"|"completed"|"cancelled"`, `tags:string[]`, `deadline?`, `kind:"linked"|"quantitative"`, `linkedGoalIds?:string[]`, `linkedTaskIds?:string[]`, `targetCount?`, `countScope?:"any"|"linked"`, `startAt?`, `periodSeconds?`, `createdAt`, `updatedAt`
 
 ### 9) Chat (asynchronous)
@@ -117,7 +117,7 @@ Only for users we enable **fan-out** to speed up reads.
 - **TTL**: set on `FeedItem` to auto-trim storage
 
 ### Quests
-- **List user quests**: `Query GSI1 WHERE GSI1PK=USER#<me> AND begins_with(GSI1SK,'ENTITY#Quest#')`
+- **List user quests**: `Query GSI1 WHERE GSI1PK=USER#<me> AND begins_with(GSI1SK,'QUEST#')`
 - **Get specific quest**: `GetItem PK=USER#<me>, SK=QUEST#<questId>`
 - **Filter by linked goals/tasks**: Client-side filtering or future GSI patterns
 

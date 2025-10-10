@@ -6,14 +6,18 @@ import { Button } from '@/components/ui/button';
 import { QuestStatisticsCard } from '@/components/quests/QuestStatisticsCard';
 import { QuestQuickActions } from '@/components/quests/QuestQuickActions';
 import { QuestTabs } from '@/components/quests/QuestTabs';
+import QuestList from '@/components/quests/QuestList';
 import { calculateQuestStatistics, formatQuestStatistics } from '@/lib/questStatistics';
-import { Plus, Loader2, Target, CheckCircle, TrendingUp, Calendar, Activity, Trophy, ArrowLeft } from 'lucide-react';
+import { triggerManualQuestCompletionCheck } from '@/lib/apiTask';
+import { Plus, Loader2, Target, CheckCircle, TrendingUp, Calendar, Activity, Trophy, ArrowLeft, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const QuestDashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'my' | 'following'>('my');
+  const [isCheckingCompletion, setIsCheckingCompletion] = useState(false);
+  const [completionCheckResult, setCompletionCheckResult] = useState<{ completed_quests: string[], errors: string[] } | null>(null);
   const { quests, loading, error, refresh } = useQuests();
 
   // Calculate statistics from quests
@@ -33,6 +37,58 @@ const QuestDashboard: React.FC = () => {
 
   const handleCreateQuest = () => {
     navigate('/quests/create');
+  };
+
+  const handleManualQuestCheck = async () => {
+    setIsCheckingCompletion(true);
+    setCompletionCheckResult(null);
+
+    try {
+      const result = await triggerManualQuestCompletionCheck();
+      setCompletionCheckResult(result);
+
+      // Refresh quests if any were completed
+      if (result.completed_quests.length > 0) {
+        refresh();
+      }
+    } catch (error) {
+      console.error('Manual quest completion check failed:', error);
+      setCompletionCheckResult({
+        completed_quests: [],
+        errors: [error instanceof Error ? error.message : 'Unknown error occurred']
+      });
+    } finally {
+      setIsCheckingCompletion(false);
+    }
+  };
+
+  // Quest action handlers
+  const handleViewDetails = (id: string) => {
+    navigate(`/quests/details/${id}`);
+  };
+
+  const handleStart = (id: string) => {
+    // Quest start logic will be handled by the QuestCard component
+    console.log('Starting quest:', id);
+  };
+
+  const handleEdit = (id: string) => {
+    navigate(`/quests/edit/${id}`);
+  };
+
+  const handleCancel = (id: string) => {
+    // Quest cancel logic will be handled by the QuestCard component
+    console.log('Cancelling quest:', id);
+  };
+
+  const handleFail = (id: string) => {
+    // Quest fail logic will be handled by the QuestCard component
+    console.log('Failing quest:', id);
+  };
+
+  const handleDelete = (id: string) => {
+    // Quest delete logic will be handled by the QuestCard component
+    console.log('Deleting quest:', id);
   };
 
   if (loading) {
@@ -97,10 +153,25 @@ const QuestDashboard: React.FC = () => {
               </p>
             </div>
           </div>
-          <Button onClick={handleCreateQuest} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            {questTranslations?.actions?.create || 'Create Quest'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleManualQuestCheck}
+              disabled={isCheckingCompletion}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              {isCheckingCompletion ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+              {questTranslations?.actions?.checkCompletion || 'Check Completion'}
+            </Button>
+            <Button onClick={handleCreateQuest} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              {questTranslations?.actions?.create || 'Create Quest'}
+            </Button>
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -155,16 +226,67 @@ const QuestDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Manual Quest Completion Check Results */}
+        {completionCheckResult && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Check className="h-5 w-5" />
+                {questTranslations?.dashboard?.completionCheck?.title || 'Quest Completion Check Results'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {completionCheckResult.completed_quests.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-green-600 font-medium">
+                    ✅ {questTranslations?.dashboard?.completionCheck?.completed || 'Completed Quests'}: {completionCheckResult.completed_quests.length}
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-1">
+                    {completionCheckResult.completed_quests.map((questId) => (
+                      <li key={questId}>{questId}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {completionCheckResult.errors.length > 0 && (
+                <div>
+                  <p className="text-red-600 font-medium">
+                    ❌ {questTranslations?.dashboard?.completionCheck?.errors || 'Errors'}: {completionCheckResult.errors.length}
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-1">
+                    {completionCheckResult.errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {completionCheckResult.completed_quests.length === 0 && completionCheckResult.errors.length === 0 && (
+                <p className="text-muted-foreground">
+                  {questTranslations?.dashboard?.completionCheck?.noChanges || 'No quests were completed or had errors.'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quest Tabs */}
         <QuestTabs
           myQuestsContent={
-            <div className="text-center py-8 text-muted-foreground">
-              <p>{questTranslations?.dashboard?.tabs?.myQuestsPlaceholder || 'My quests content will be implemented here.'}</p>
-            </div>
+            <QuestList
+              onViewDetails={handleViewDetails}
+              onStart={handleStart}
+              onEdit={handleEdit}
+              onCancel={handleCancel}
+              onFail={handleFail}
+              onDelete={handleDelete}
+              onCreateQuest={handleCreateQuest}
+            />
           }
           followingQuestsContent={
             <div className="text-center py-8 text-muted-foreground">
-              <p>{questTranslations?.dashboard?.tabs?.followingQuestsPlaceholder || 'Following quests content will be implemented here.'}</p>
+              <p>{questTranslations?.dashboard?.tabs?.followingQuestsPlaceholder || 'Following quests feature will be implemented in a future update.'}</p>
             </div>
           }
         />

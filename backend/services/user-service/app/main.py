@@ -1182,6 +1182,21 @@ async def get_profile(auth: AuthContext = Depends(authenticate)):
         except (ValueError, AttributeError):
             return 0
     
+    # Get notification preferences, provide defaults if not set
+    notification_prefs = item.get("notificationPreferences")
+    if notification_prefs is None:
+        # Default notification preferences for existing users
+        notification_prefs = {
+            "questStarted": True,
+            "questCompleted": True,
+            "questFailed": True,
+            "progressMilestones": True,
+            "deadlineWarnings": True,
+            "streakAchievements": True,
+            "challengeUpdates": True,
+            "channels": {"inApp": True, "email": False, "push": False}
+        }
+    
     profile_data = {
         "id": item.get("id"),
         "email": item.get("email"),
@@ -1199,6 +1214,7 @@ async def get_profile(auth: AuthContext = Depends(authenticate)):
         "tier": item.get("tier", "free"),
         "provider": item.get("provider", "local"),
         "email_confirmed": item.get("email_confirmed", False),
+        "notificationPreferences": notification_prefs,
         "createdAt": iso_to_timestamp(item.get("createdAt")),
         "updatedAt": iso_to_timestamp(item.get("updatedAt")),
     }
@@ -1321,6 +1337,8 @@ async def update_profile(
         update_fields["bio"] = payload.bio
     if payload.tags is not None:
         update_fields["tags"] = payload.tags
+    if payload.notificationPreferences is not None:
+        update_fields["notificationPreferences"] = payload.notificationPreferences
 
     update_fields["updatedAt"] = int(time.time() * 1000)
 

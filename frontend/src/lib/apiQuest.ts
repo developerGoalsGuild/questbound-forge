@@ -46,6 +46,7 @@ const MY_QUESTS = /* GraphQL */ `
       deadline
       createdAt
       updatedAt
+      startedAt
       kind
       linkedGoalIds
       linkedTaskIds

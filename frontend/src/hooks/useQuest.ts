@@ -36,6 +36,7 @@ import {
   deleteQuest 
 } from '@/lib/apiQuest';
 import * as mockApiQuest from '@/lib/apiQuestMock';
+import { useQuestNotifications } from './useQuestNotifications';
 import type { 
   Quest, 
   QuestCreateInput, 
@@ -53,6 +54,7 @@ import {
 import { useDebouncedValidation } from './useDebouncedValidation';
 import { logger } from '@/lib/logger';
 import { produce } from 'immer';
+import { calculateQuestProgress, type QuestProgress } from '@/lib/questProgress';
 
 // ============================================================================
 // Backend Detection and Fallback
@@ -152,6 +154,9 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
     enableOptimisticUpdates = true,
     debounceMs = 300,
   } = options;
+
+  // Quest notifications hook
+  const { notifyQuestEvent } = useQuestNotifications();
 
   // ============================================================================
   // State
@@ -329,6 +334,10 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
         setQuests(originalQuests.map(q => q.id === questId ? updatedQuest : q));
       }
       onAnnounce?.('Quest started successfully', 'polite');
+      
+      // Trigger notification
+      notifyQuestEvent('questStarted', updatedQuest);
+      
       return updatedQuest;
     } catch (err: any) {
       if (enableOptimisticUpdates) setQuests(originalQuests);
@@ -703,65 +712,82 @@ export const useQuestProgress = (quest: Quest, options: QuestProgressOptions = {
     updateInterval = 5000
   } = options;
 
-  const [progress, setProgress] = useState(0);
+  const [progressData, setProgressData] = useState<QuestProgress | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // Calculate progress based on quest type
-  const calculateProgress = useCallback((quest: Quest): number => {
-    // TODO: This hook is a stub. It needs to be connected to real goal and task
-    // data to calculate progress accurately. The logic below is a placeholder.
-    // See ticket #PROJ-123 for implementation details.
-    if (quest.kind === 'linked') {
-      // For linked quests, calculate based on linked items completion
-      const totalItems = (quest.linkedGoalIds?.length || 0) + (quest.linkedTaskIds?.length || 0);
-      if (totalItems === 0) return 0;
-      
-      // This would need actual completion data from goals/tasks
-      // For now, return 0 - will be implemented when integrating with actual data
-      return 0;
-    } else if (quest.kind === 'quantitative') {
-      // For quantitative quests, calculate based on count progress
-      if (!quest.targetCount) return 0;
-      
-      // This would need actual count data
-      // For now, return 0 - will be implemented when integrating with actual data
-      return 0;
+  // Calculate progress using the new questProgress library (now async)
+  const calculateProgress = useCallback(async (quest: Quest): Promise<QuestProgress> => {
+    try {
+      return await calculateQuestProgress(quest);
+    } catch (error) {
+      logger.error('Failed to calculate quest progress', { questId: quest.id, error });
+      // Return a default progress object on error
+      return {
+        percentage: 0,
+        status: 'not_started',
+        completedCount: 0,
+        totalCount: 0,
+        remainingCount: 0,
+        lastUpdated: new Date(),
+        isCalculating: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
-    
-    return 0;
   }, []);
 
-  // Update progress
-  const updateProgress = useCallback(() => {
+  // Update progress (now async)
+  const updateProgress = useCallback(async () => {
+    if (!quest || !quest.id) return;
+    
     setIsCalculating(true);
     try {
-      const newProgress = calculateProgress(quest);
-      setProgress(newProgress);
+      const newProgress = await calculateProgress(quest);
+      setProgressData(newProgress);
+    } catch (error) {
+      logger.error('Failed to update quest progress', { questId: quest.id, error });
+      setProgressData({
+        percentage: 0,
+        status: 'not_started',
+        completedCount: 0,
+        totalCount: 0,
+        remainingCount: 0,
+        lastUpdated: new Date(),
+        isCalculating: false,
+        error: error instanceof Error ? error.message : 'Failed to update progress'
+      });
     } finally {
       setIsCalculating(false);
     }
-  }, [quest, calculateProgress]);
+  }, [quest?.id, quest?.status, quest?.kind, quest?.linkedGoalIds, quest?.linkedTaskIds, quest?.targetCount, quest?.countScope, quest?.periodDays, calculateProgress]);
 
   // Initial progress calculation
   useEffect(() => {
-    updateProgress();
+    updateProgress().catch(error => {
+      logger.error('Failed to calculate initial quest progress', { questId: quest?.id, error });
+    });
   }, [updateProgress]);
 
   // Real-time updates
   useEffect(() => {
     if (!enableRealTime) return;
 
-    const interval = setInterval(updateProgress, updateInterval);
+    const interval = setInterval(() => {
+      updateProgress().catch(error => {
+        logger.error('Failed to update quest progress in interval', { questId: quest?.id, error });
+      });
+    }, updateInterval);
     return () => clearInterval(interval);
   }, [enableRealTime, updateInterval, updateProgress]);
 
   // Computed values
+  const progress = useMemo(() => progressData?.percentage || 0, [progressData]);
   const progressPercentage = useMemo(() => Math.round(progress), [progress]);
-  const isCompleted = useMemo(() => progress >= 100, [progress]);
-  const isInProgress = useMemo(() => progress > 0 && progress < 100, [progress]);
-  const isNotStarted = useMemo(() => progress === 0, [progress]);
+  const isCompleted = useMemo(() => progressData?.status === 'completed', [progressData]);
+  const isInProgress = useMemo(() => progressData?.status === 'in_progress', [progressData]);
+  const isNotStarted = useMemo(() => progressData?.status === 'not_started', [progressData]);
 
   return {
+    // Legacy compatibility
     progress,
     progressPercentage,
     isCalculating,
@@ -769,6 +795,16 @@ export const useQuestProgress = (quest: Quest, options: QuestProgressOptions = {
     isInProgress,
     isNotStarted,
     updateProgress,
+    
+    // New detailed progress data
+    progressData,
+    completedCount: progressData?.completedCount || 0,
+    totalCount: progressData?.totalCount || 0,
+    remainingCount: progressData?.remainingCount || 0,
+    status: progressData?.status || 'not_started',
+    estimatedCompletion: progressData?.estimatedCompletion,
+    lastUpdated: progressData?.lastUpdated,
+    error: progressData?.error,
   };
 };
 

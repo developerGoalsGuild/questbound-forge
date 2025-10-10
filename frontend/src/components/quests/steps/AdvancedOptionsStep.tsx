@@ -231,7 +231,16 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
             </div>
             <Select
               value={formData.kind || ''}
-              onValueChange={(value) => onFieldChange('kind', value as QuestKind)}
+              onValueChange={(value) => {
+                const newKind = value as QuestKind;
+                onFieldChange('kind', newKind);
+                
+                // Clear linked quest data when switching to quantitative
+                if (newKind === 'quantitative') {
+                  onFieldChange('linkedGoalIds', []);
+                  onFieldChange('linkedTaskIds', []);
+                }
+              }}
             >
               <SelectTrigger 
                 id="kind"

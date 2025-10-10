@@ -161,6 +161,13 @@ resource "aws_api_gateway_resource" "quests_quests_id_fail" {
   path_part   = "fail"
 }
 
+# Quest auto-completion endpoint
+resource "aws_api_gateway_resource" "quests_check_completion" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quests.id
+  path_part   = "check-completion"
+}
+
 # Progress endpoints
 resource "aws_api_gateway_resource" "quests_progress" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
@@ -1356,6 +1363,70 @@ resource "aws_api_gateway_integration_response" "quests_quests_id_fail_options_i
   resource_id = aws_api_gateway_resource.quests_quests_id_fail.id
   http_method = aws_api_gateway_method.quests_quests_id_fail_options.http_method
   status_code = aws_api_gateway_method_response.quests_quests_id_fail_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /quests/check-completion
+resource "aws_api_gateway_method" "quests_check_completion_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_check_completion.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "quests_check_completion_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_check_completion.id
+  http_method             = aws_api_gateway_method.quests_check_completion_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_method" "quests_check_completion_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_check_completion.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "quests_check_completion_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_check_completion.id
+  http_method = aws_api_gateway_method.quests_check_completion_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "quests_check_completion_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_check_completion.id
+  http_method = aws_api_gateway_method.quests_check_completion_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "quests_check_completion_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_check_completion.id
+  http_method = aws_api_gateway_method.quests_check_completion_options.http_method
+  status_code = aws_api_gateway_method_response.quests_check_completion_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"

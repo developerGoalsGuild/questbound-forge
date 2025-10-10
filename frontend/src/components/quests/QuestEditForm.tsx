@@ -524,7 +524,16 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <Select value={formData.kind} onValueChange={(value) => onFieldChange('kind', value)}>
+            <Select value={formData.kind} onValueChange={(value) => {
+              const newKind = value as QuestKind;
+              onFieldChange('kind', newKind);
+              
+              // Clear linked quest data when switching to quantitative
+              if (newKind === 'quantitative') {
+                onFieldChange('linkedGoalIds', []);
+                onFieldChange('linkedTaskIds', []);
+              }
+            }}>
               <SelectTrigger className={errors.kind ? 'border-red-500' : ''}>
                 <SelectValue placeholder={questTranslations?.placeholders?.kind || 'Select quest type...'} />
               </SelectTrigger>
@@ -1440,15 +1449,22 @@ export const QuestEditForm: React.FC<QuestEditFormProps> = ({
         questData.targetCount = formData.targetCount;
         questData.countScope = formData.countScope;
         questData.periodDays = formData.periodDays;
+        
+        // For quantitative quests, explicitly clear linked quest fields
+        questData.linkedGoalIds = null as any;
+        questData.linkedTaskIds = null as any;
       }
 
-      // Only include linked arrays if they have values
-      if (formData.linkedGoalIds && formData.linkedGoalIds.length > 0) {
-        questData.linkedGoalIds = formData.linkedGoalIds;
+      // Only include linked arrays if they have values and quest is linked type
+      if (formData.kind === 'linked') {
+        if (formData.linkedGoalIds && formData.linkedGoalIds.length > 0) {
+          questData.linkedGoalIds = formData.linkedGoalIds;
+        }
+        if (formData.linkedTaskIds && formData.linkedTaskIds.length > 0) {
+          questData.linkedTaskIds = formData.linkedTaskIds;
+        }
       }
-      if (formData.linkedTaskIds && formData.linkedTaskIds.length > 0) {
-        questData.linkedTaskIds = formData.linkedTaskIds;
-      }
+      
       if (formData.dependsOnQuestIds && formData.dependsOnQuestIds.length > 0) {
         questData.dependsOnQuestIds = formData.dependsOnQuestIds;
       }

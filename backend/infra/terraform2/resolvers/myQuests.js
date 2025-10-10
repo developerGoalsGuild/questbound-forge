@@ -65,6 +65,8 @@ export function response(ctx) {
       deadline: item.deadline,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+      startedAt: item.startedAt,
+      completedAt: item.completedAt,
       kind: item.kind,
       linkedGoalIds: item.linkedGoalIds || [],
       linkedTaskIds: item.linkedTaskIds || [],

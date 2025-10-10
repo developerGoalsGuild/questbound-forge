@@ -326,6 +326,10 @@ class QuestUpdatePayload(BaseModel):
         None,
         description="Quest template sharing privacy"
     )
+    kind: Optional[QuestKind] = Field(
+        None,
+        description="Quest type (linked or quantitative)"
+    )
     
     # Linked Quest Fields
     linkedGoalIds: Optional[List[str]] = Field(
@@ -398,6 +402,15 @@ class QuestUpdatePayload(BaseModel):
             return None
         return QuestCreatePayload.validate_deadline(v)
     
+    @field_validator("kind")
+    @classmethod
+    def validate_kind(cls, v: Optional[QuestKind]) -> Optional[QuestKind]:
+        """Validate quest kind"""
+        if v is None:
+            return None
+        # QuestKind is an enum, so it's already validated by Pydantic
+        return v
+    
     @field_validator("linkedGoalIds", "linkedTaskIds", "dependsOnQuestIds")
     @classmethod
     def validate_id_lists(cls, v: Optional[List[str]]) -> Optional[List[str]]:
@@ -464,6 +477,8 @@ class QuestResponse(BaseModel):
     deadline: Optional[int] = Field(None, description="Quest deadline (epoch ms)")
     createdAt: int = Field(..., description="Creation timestamp (epoch ms)")
     updatedAt: int = Field(..., description="Last update timestamp (epoch ms)")
+    startedAt: Optional[int] = Field(None, description="Quest start timestamp (epoch ms)")
+    completedAt: Optional[int] = Field(None, description="Quest completion timestamp (epoch ms)")
     version: int = Field(..., description="Optimistic locking version")
     
     # Quest type and configuration

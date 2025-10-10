@@ -338,6 +338,21 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
   return fetch(url, { ...init, headers });
 }
 
+export interface NotificationPreferences {
+  questStarted: boolean;
+  questCompleted: boolean;
+  questFailed: boolean;
+  progressMilestones: boolean;
+  deadlineWarnings: boolean;
+  streakAchievements: boolean;
+  challengeUpdates: boolean;
+  channels: {
+    inApp: boolean;
+    email: boolean;
+    push: boolean;
+  };
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -355,6 +370,7 @@ export interface UserProfile {
   tier: string;
   provider: string;
   email_confirmed: boolean;
+  notificationPreferences?: NotificationPreferences;
   createdAt: number;
   updatedAt: number;
 }
@@ -369,6 +385,7 @@ export interface ProfileUpdateInput {
   pronouns?: string;
   bio?: string;
   tags?: string[];
+  notificationPreferences?: NotificationPreferences;
 }
 
 export async function getUserProfile(): Promise<UserProfile> {

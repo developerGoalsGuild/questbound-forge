@@ -167,6 +167,8 @@ type Quest {
   deadline: AWSTimestamp
   createdAt: AWSTimestamp!
   updatedAt: AWSTimestamp!
+  startedAt: AWSTimestamp
+  completedAt: AWSTimestamp
   kind: QuestKind!
   linkedGoalIds: [ID!]
   linkedTaskIds: [ID!]

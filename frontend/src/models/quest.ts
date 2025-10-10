@@ -121,7 +121,7 @@ interface Quest {
   category: string;
   tags: string[];
   privacy: QuestPrivacy;
-  deadline?: number;
+  deadline?: number; // Unix timestamp for deadline
   createdAt: number;
   updatedAt: number;
 
@@ -140,6 +140,8 @@ interface Quest {
 
   // Quest timing
   startedAt?: number; // Unix timestamp when quest was started
+  startDate?: Date; // Date when quest was started (for progress calculations)
+  deadlineDate?: Date; // Date when quest expires (for progress calculations)
 
   // Audit trail
   auditTrail?: object[];
@@ -179,9 +181,9 @@ interface QuestCreateInput {
   deadline?: number;
   privacy?: QuestPrivacy;
   kind?: QuestKind;
-  linkedGoalIds?: string[];
-  linkedTaskIds?: string[];
-  dependsOnQuestIds?: string[];
+  linkedGoalIds?: string[] | null;
+  linkedTaskIds?: string[] | null;
+  dependsOnQuestIds?: string[] | null;
   targetCount?: number;
   countScope?: QuestCountScope;
   periodDays?: number;
@@ -199,9 +201,9 @@ interface QuestUpdateInput {
   tags?: string[];
   deadline?: number;
   privacy?: QuestPrivacy;
-  linkedGoalIds?: string[];
-  linkedTaskIds?: string[];
-  dependsOnQuestIds?: string[];
+  linkedGoalIds?: string[] | null;
+  linkedTaskIds?: string[] | null;
+  dependsOnQuestIds?: string[] | null;
   targetCount?: number;
   countScope?: QuestCountScope;
   periodDays?: number;
@@ -305,9 +307,9 @@ const QuestCreateInputSchema = z.object({
   kind: QuestKindSchema.default('linked'),
 
   // Linked Quest fields
-  linkedGoalIds: z.array(z.string().uuid('Invalid goal ID')).optional(),
-  linkedTaskIds: z.array(z.string().uuid('Invalid task ID')).optional(),
-  dependsOnQuestIds: z.array(z.string().uuid('Invalid quest ID')).optional(),
+  linkedGoalIds: z.array(z.string().uuid('Invalid goal ID')).optional().nullable(),
+  linkedTaskIds: z.array(z.string().uuid('Invalid task ID')).optional().nullable(),
+  dependsOnQuestIds: z.array(z.string().uuid('Invalid quest ID')).optional().nullable(),
 
   // Quantitative Quest fields
   targetCount: z.number().int().positive('Target count must be greater than 0').optional(),

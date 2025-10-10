@@ -805,8 +805,9 @@ async def update_task(
             
             # Update goal with progress data
             goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
+            from decimal import Decimal
             goal_expression_values = {
-                ":progress": progress_data.progressPercentage,
+                ":progress": Decimal(str(progress_data.progressPercentage)),
                 ":milestones": [milestone.dict() for milestone in progress_data.milestones],
                 ":completedTasks": progress_data.completedTasks,
                 ":totalTasks": progress_data.totalTasks,
@@ -867,8 +868,9 @@ async def delete_task(
             
             # Update goal with progress data
             goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
+            from decimal import Decimal
             goal_expression_values = {
-                ":progress": progress_data.progressPercentage,
+                ":progress": Decimal(str(progress_data.progressPercentage)),
                 ":milestones": [milestone.dict() for milestone in progress_data.milestones],
                 ":completedTasks": progress_data.completedTasks,
                 ":totalTasks": progress_data.totalTasks,
@@ -1007,7 +1009,8 @@ def calculate_time_progress(goal: Dict) -> float:
     """
     try:
         now = datetime.datetime.now()
-        created = datetime.datetime.fromtimestamp(goal['createdAt'] / 1000)
+        created_timestamp = float(goal['createdAt']) / 1000
+        created = datetime.datetime.fromtimestamp(created_timestamp)
         deadline_str = goal.get('deadline')
         
         if not deadline_str:
@@ -1512,12 +1515,89 @@ async def delete_quest_endpoint(
         raise HTTPException(status_code=500, detail="Failed to delete quest")
 
 
-# Lambda handler for GraphQL resolvers
-def lambda_handler(event, context):
+class QuestCompletionRequest(BaseModel):
+    completed_task_id: str
+    completed_goal_id: str
+
+@app.post("/quests/check-completion")
+async def check_quest_completion(
+    request: QuestCompletionRequest,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    logger.info('quests.checkCompletion_endpoint_called', user_id=auth.user_id, task_id=request.completed_task_id, goal_id=request.completed_goal_id)
     """
-    Lambda handler for GraphQL resolver invocations
+    Check and auto-complete quests when a task is completed.
+    This endpoint is called by the goals service when a task is marked as completed.
+    Accessible via API Gateway.
     """
     try:
+        logger.info('quests.checkCompletion_started', 
+                   user_id=auth.user_id,
+                   task_id=request.completed_task_id,
+                   goal_id=request.completed_goal_id,
+                   timestamp=time.time())
+        
+        # Import the quest auto-completion function
+        from .db.quest_db import check_and_complete_quests
+        
+        logger.info('quests.checkCompletion_calling_function',
+                   user_id=auth.user_id,
+                   function='check_and_complete_quests')
+
+        # Add a small delay to allow DynamoDB eventual consistency to propagate
+        import asyncio
+        await asyncio.sleep(0.1)  # 100ms delay
+
+        # Check and complete quests
+        result = await check_and_complete_quests(
+            user_id=auth.user_id,
+            completed_task_id=request.completed_task_id,
+            completed_goal_id=request.completed_goal_id
+        )
+        
+        logger.info('quests.checkCompletion_finished', 
+                   user_id=auth.user_id,
+                   completed_quests=result['completed_quests'],
+                   errors=result['errors'],
+                   result_summary={
+                       'total_completed': len(result['completed_quests']),
+                       'total_errors': len(result['errors']),
+                       'completed_quest_ids': result['completed_quests'],
+                       'error_messages': result['errors']
+                   })
+        
+        return {
+            "success": True,
+            "completed_quests": result['completed_quests'],
+            "errors": result['errors']
+        }
+        
+    except Exception as e:
+        logger.error('quests.checkCompletion_failed', 
+                    user_id=auth.user_id,
+                    task_id=request.completed_task_id,
+                    goal_id=request.completed_goal_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    exc_info=e)
+        raise HTTPException(status_code=500, detail="Failed to check quest completion")
+
+
+# Lambda handler for both GraphQL resolvers and API Gateway requests
+def lambda_handler(event, context):
+    """
+    Lambda handler for GraphQL resolver invocations and API Gateway requests
+    """
+    try:
+        # Check if this is an API Gateway request
+        if 'httpMethod' in event and 'path' in event:
+            # This is an API Gateway request, use the FastAPI app
+            from mangum import Mangum
+            handler = Mangum(app)
+            return handler(event, context)
+        
+        # Otherwise, handle as GraphQL resolver
         operation = event.get('operation')
         
         if operation == 'getGoalProgress':

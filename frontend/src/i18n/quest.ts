@@ -319,7 +319,15 @@ export interface QuestTranslations {
     completed: string;
     inProgress: string;
     notStarted: string;
+    percentage: string;
+    remaining: string;
     status: string;
+    linkedProgress: string;
+    quantitativeProgress: string;
+    completedItems: string;
+    totalItems: string;
+    targetReached: string;
+    progressUpdated: string;
   };
   
   // Steps
@@ -334,6 +342,45 @@ export interface QuestTranslations {
   // Loading
   loading: {
     loadingQuest: string;
+  };
+
+  // Notifications (6.2)
+  notifications: {
+    title: string;
+    preferences: {
+      title: string;
+      questStarted: string;
+      questCompleted: string;
+      questFailed: string;
+      progressMilestones: string;
+      deadlineWarnings: string;
+      streakAchievements: string;
+      challengeUpdates: string;
+      channels: {
+        title: string;
+        inApp: string;
+        email: string;
+        push: string;
+      };
+      language: {
+        title: string;
+        english: string;
+        spanish: string;
+        french: string;
+        currentLanguage: string;
+        selectLanguage: string;
+      };
+    };
+    messages: {
+      questStarted: string;
+      questCompleted: string;
+      questFailed: string;
+      progressMilestone: string;
+      deadlineWarning: string;
+      streakAchieved: string;
+      challengeJoined: string;
+      languageChanged: string;
+    };
   };
 }
 
@@ -557,7 +604,15 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       completed: 'Completed',
       inProgress: 'Progress',
       notStarted: 'Not Started',
-      status: 'Status:'
+      percentage: 'Progress',
+      remaining: 'remaining',
+      status: 'Status:',
+      linkedProgress: 'Linked Progress',
+      quantitativeProgress: 'Quantitative Progress',
+      completedItems: 'Completed Items',
+      totalItems: 'Total Items',
+      targetReached: 'Target Reached',
+      progressUpdated: 'Progress Updated'
     },
     steps: {
       basicInfo: 'Basic Info',
@@ -568,6 +623,43 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     loading: {
       loadingQuest: 'Loading quest...'
+    },
+    notifications: {
+      title: 'Quest Notifications',
+      preferences: {
+        title: 'Notification Preferences',
+        questStarted: 'Quest Started',
+        questCompleted: 'Quest Completed',
+        questFailed: 'Quest Failed',
+        progressMilestones: 'Progress Milestones',
+        deadlineWarnings: 'Deadline Warnings',
+        streakAchievements: 'Streak Achievements',
+        challengeUpdates: 'Challenge Updates',
+        channels: {
+          title: 'Notification Channels',
+          inApp: 'In-App Notifications',
+          email: 'Email Notifications',
+          push: 'Push Notifications'
+        },
+        language: {
+          title: 'Preferred Language',
+          english: 'English',
+          spanish: 'Spanish',
+          french: 'French',
+          currentLanguage: 'Current Language',
+          selectLanguage: 'Select Language'
+        }
+      },
+      messages: {
+        questStarted: 'Quest "{title}" has been started!',
+        questCompleted: 'Congratulations! Quest "{title}" completed!',
+        questFailed: 'Quest "{title}" has failed',
+        progressMilestone: 'You\'ve reached {percentage}% on quest "{title}"!',
+        deadlineWarning: 'Quest "{title}" deadline is approaching!',
+        streakAchieved: 'Amazing! You\'ve achieved a {days}-day quest streak!',
+        challengeJoined: 'You\'ve joined the challenge "{title}"',
+        languageChanged: 'Language changed successfully'
+      }
     },
     dashboard: {
       title: 'Quest Dashboard',
@@ -820,7 +912,15 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       completed: 'Completado',
       inProgress: 'Progreso',
       notStarted: 'No Iniciado',
-      status: 'Estado:'
+      percentage: 'Progreso',
+      remaining: 'restantes',
+      status: 'Estado:',
+      linkedProgress: 'Progreso Vinculado',
+      quantitativeProgress: 'Progreso Cuantitativo',
+      completedItems: 'Elementos Completados',
+      totalItems: 'Total de Elementos',
+      targetReached: 'Objetivo Alcanzado',
+      progressUpdated: 'Progreso Actualizado'
     },
     steps: {
       basicInfo: 'Información Básica',
@@ -831,6 +931,43 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     loading: {
       loadingQuest: 'Cargando misión...'
+    },
+    notifications: {
+      title: 'Notificaciones de Misiones',
+      preferences: {
+        title: 'Preferencias de Notificación',
+        questStarted: 'Misión Iniciada',
+        questCompleted: 'Misión Completada',
+        questFailed: 'Misión Fallida',
+        progressMilestones: 'Hitos de Progreso',
+        deadlineWarnings: 'Avisos de Fecha Límite',
+        streakAchievements: 'Logros de Racha',
+        challengeUpdates: 'Actualizaciones de Desafío',
+        channels: {
+          title: 'Canales de Notificación',
+          inApp: 'Notificaciones en la Aplicación',
+          email: 'Notificaciones por Correo',
+          push: 'Notificaciones Push'
+        },
+        language: {
+          title: 'Idioma Preferido',
+          english: 'Inglés',
+          spanish: 'Español',
+          french: 'Francés',
+          currentLanguage: 'Idioma Actual',
+          selectLanguage: 'Seleccionar Idioma'
+        }
+      },
+      messages: {
+        questStarted: '¡La misión "{title}" ha comenzado!',
+        questCompleted: '¡Felicitaciones! ¡Misión "{title}" completada!',
+        questFailed: 'La misión "{title}" ha fallado',
+        progressMilestone: '¡Has alcanzado {percentage}% en la misión "{title}"!',
+        deadlineWarning: '¡La fecha límite de la misión "{title}" se acerca!',
+        streakAchieved: '¡Increíble! ¡Has logrado una racha de {days} días!',
+        challengeJoined: 'Te has unido al desafío "{title}"',
+        languageChanged: 'Idioma cambiado exitosamente'
+      }
     },
     goalIntegration: {
       title: 'Misiones de Meta',
@@ -1081,7 +1218,15 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       completed: 'Terminé',
       inProgress: 'Progrès',
       notStarted: 'Non Démarré',
-      status: 'Statut:'
+      percentage: 'Progrès',
+      remaining: 'restants',
+      status: 'Statut:',
+      linkedProgress: 'Progrès Lié',
+      quantitativeProgress: 'Progrès Quantitatif',
+      completedItems: 'Éléments Terminés',
+      totalItems: 'Total des Éléments',
+      targetReached: 'Objectif Atteint',
+      progressUpdated: 'Progrès Mis à Jour'
     },
     steps: {
       basicInfo: 'Informations de Base',
@@ -1092,6 +1237,43 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     loading: {
       loadingQuest: 'Chargement de la quête...'
+    },
+    notifications: {
+      title: 'Notifications de Quête',
+      preferences: {
+        title: 'Préférences de Notification',
+        questStarted: 'Quête Commencée',
+        questCompleted: 'Quête Terminée',
+        questFailed: 'Quête Échouée',
+        progressMilestones: 'Jalons de Progrès',
+        deadlineWarnings: 'Avertissements d\'Échéance',
+        streakAchievements: 'Succès de Série',
+        challengeUpdates: 'Mises à Jour de Défi',
+        channels: {
+          title: 'Canaux de Notification',
+          inApp: 'Notifications dans l\'Application',
+          email: 'Notifications par Email',
+          push: 'Notifications Push'
+        },
+        language: {
+          title: 'Langue Préférée',
+          english: 'Anglais',
+          spanish: 'Espagnol',
+          french: 'Français',
+          currentLanguage: 'Langue Actuelle',
+          selectLanguage: 'Sélectionner la Langue'
+        }
+      },
+      messages: {
+        questStarted: 'La quête "{title}" a commencé !',
+        questCompleted: 'Félicitations ! Quête "{title}" terminée !',
+        questFailed: 'La quête "{title}" a échoué',
+        progressMilestone: 'Vous avez atteint {percentage}% sur la quête "{title}" !',
+        deadlineWarning: 'L\'échéance de la quête "{title}" approche !',
+        streakAchieved: 'Incroyable ! Vous avez atteint une série de {days} jours !',
+        challengeJoined: 'Vous avez rejoint le défi "{title}"',
+        languageChanged: 'Langue changée avec succès'
+      }
     },
     goalIntegration: {
       title: 'Quêtes d\'Objectif',

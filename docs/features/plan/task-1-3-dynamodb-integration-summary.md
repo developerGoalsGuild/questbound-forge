@@ -43,7 +43,7 @@ Implemented 7 comprehensive database functions:
 ### 3. **Single-Table Design Integration** ✅
 Follows existing DynamoDB patterns:
 - **Primary Key:** `PK = USER#{userId}`, `SK = QUEST#{questId}`
-- **GSI1:** `GSI1PK = USER#{userId}`, `GSI1SK = ENTITY#Quest#{createdAt}`
+- **GSI1:** `GSI1PK = USER#{userId}`, `GSI1SK = QUEST#{createdAt}`
 - **Item Type:** `type = "Quest"`
 - **Consistent with existing:** Goals, Tasks, and other entities
 
@@ -161,7 +161,7 @@ backend/services/quest-service/tests/
     }
   ],
   "GSI1PK": "USER#user-123",
-  "GSI1SK": "ENTITY#Quest#1234567890000"
+  "GSI1SK": "QUEST#1234567890000"
 }
 ```
 

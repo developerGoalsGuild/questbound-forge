@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,6 +16,7 @@ import { profileUpdateSchema } from '@/lib/validation/profileValidation';
 import { getProfile, updateProfile, getCountries, checkNicknameAvailability } from '@/lib/apiProfile';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
+import NotificationPreferences from './NotificationPreferences';
 
 const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
@@ -196,12 +198,19 @@ const ProfileEdit = () => {
           <p className="text-muted-foreground">{t.profile.subtitle}</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit, (errors) => {
-          logger.warn('Profile edit form validation failed on submit', { errors });
-          toast.error('Please fix the form errors before saving');
-        })} aria-label="Edit Profile Form">
-          {/* Basic Information */}
-          <Card className="mb-6">
+        <Tabs defaultValue="basic" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="basic">
+            <form onSubmit={handleSubmit(onSubmit, (errors) => {
+              logger.warn('Profile edit form validation failed on submit', { errors });
+              toast.error('Please fix the form errors before saving');
+            })} aria-label="Edit Profile Form">
+              {/* Basic Information */}
+              <Card className="mb-6">
             <CardHeader>
               <CardTitle>{t.profile.basicInfo.title}</CardTitle>
             </CardHeader>
@@ -332,19 +341,25 @@ const ProfileEdit = () => {
             </CardContent>
           </Card>
 
-          {/* Actions */}
-          <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={() => navigate('/profile')}>
-              {t.profile.actions.cancel}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => reset()}>
-              {t.profile.actions.reset}
-            </Button>
-            <Button type="submit" disabled={isSubmitting || nicknameTaken}>
-              {t.profile.actions.save}
-            </Button>
-          </div>
-        </form>
+              {/* Actions */}
+              <div className="flex gap-3 justify-end">
+                <Button type="button" variant="outline" onClick={() => navigate('/profile')}>
+                  {t.profile.actions.cancel}
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => reset()}>
+                  {t.profile.actions.reset}
+                </Button>
+                <Button type="submit" disabled={isSubmitting || nicknameTaken}>
+                  {t.profile.actions.save}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <NotificationPreferences />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

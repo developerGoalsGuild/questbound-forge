@@ -128,7 +128,7 @@ GSI1SK: ENTITY#Task#<createdAt>
 PK: USER#<userId>
 SK: QUEST#<questId>
 GSI1PK: USER#<userId>
-GSI1SK: ENTITY#Quest#<createdAt>
+GSI1SK: QUEST#<createdAt>
 ```
 
 #### Email Uniqueness Lock
