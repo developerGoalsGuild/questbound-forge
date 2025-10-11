@@ -71,6 +71,29 @@ This document tracks advanced quest features that were considered but not implem
 - User notifications for template changes
 - Template fork/clone functionality
 
+## Goal Form Validation (13.2)
+
+### Discarded: Real-time Goal Validation Endpoints
+**Reason**: Current goal form validation is sufficient for MVP, real-time validation adds unnecessary complexity
+**Description**: Backend endpoints for real-time validation of goal titles, deadlines, and categories during form input
+**Requirements if implemented**:
+- Title uniqueness validation endpoint (`GET /quests/validate/title`)
+- Deadline validation endpoint (`GET /quests/validate/deadline`)
+- Goal categories endpoint (`GET /quests/categories`)
+- Enhanced error response models with field-level validation
+- Comprehensive unit tests for validation logic
+- Real-time form validation integration
+
+### Discarded: Advanced Goal Validation Logic
+**Reason**: Current Pydantic validation and basic sanitization provide adequate validation
+**Description**: Enhanced validation with business rules, title uniqueness checking, and advanced deadline validation
+**Requirements if implemented**:
+- Title uniqueness checking across user's goals
+- Advanced deadline validation with business rules (minimum time, working days)
+- Enhanced error response models with detailed field validation
+- Validation caching for performance optimization
+- Comprehensive validation test coverage
+
 ## General Discarded Features
 
 ### Quest Collaboration Features

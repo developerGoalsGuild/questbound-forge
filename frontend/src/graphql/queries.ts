@@ -42,6 +42,7 @@ export const IS_NICKNAME_AVAILABLE_FOR_USER = /* GraphQL */ `
   }
 `;
 
+
 // Goals by user (minimal fields for counting)
 export const GOALS_BY_USER = gql`
   query Goals($userId: ID!) {

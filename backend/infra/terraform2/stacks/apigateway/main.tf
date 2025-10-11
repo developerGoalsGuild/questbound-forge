@@ -32,4 +32,9 @@ module "apigw" {
   lambda_authorizer_arn     = local.authorizer_arn
   user_service_lambda_arn   = local.user_lambda_arn
   quest_service_lambda_arn  = local.quest_lambda_arn
+  
+  # Performance optimization controls
+  enable_api_gateway_waf    = var.enable_api_gateway_waf
+  enable_appsync_caching    = var.enable_appsync_caching
+  appsync_cache_ttl_seconds = var.appsync_cache_ttl_seconds
 }

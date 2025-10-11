@@ -119,14 +119,14 @@ export function graphQLClient() {
     ? generateClient({ authMode: 'apiKey' })
     : generateClient({
         authMode: 'lambda',
-        authToken: () => {
+        authToken: (() => {
           const tok = getAccessToken();
           if (!tok) {
             logger.error('AuthToken missing for GraphQL client');
             throw new Error('NO_TOKEN');
           }
           return tok; // raw JWT without Bearer prefix
-        },
+        })(),
       });
 
   const originalGraphql = client.graphql.bind(client);

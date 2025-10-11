@@ -10,7 +10,27 @@ export async function getProfile(): Promise<UserProfile> {
   const operation = 'getProfile';
   try {
     const data = await graphqlRaw<{ myProfile: UserProfile }>(MY_PROFILE);
-    return data?.myProfile as UserProfile;
+    const profile = data?.myProfile as UserProfile;
+    
+    // Add default notification preferences since GraphQL schema doesn't have the field yet
+    if (profile) {
+      profile.notificationPreferences = {
+        questStarted: true,
+        questCompleted: true,
+        questFailed: true,
+        progressMilestones: true,
+        deadlineWarnings: true,
+        streakAchievements: true,
+        challengeUpdates: true,
+        channels: {
+          inApp: true,
+          email: false,
+          push: false
+        }
+      };
+    }
+    
+    return profile;
   } catch (e: any) {
     const errorContext = {
       operation,

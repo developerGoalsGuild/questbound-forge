@@ -10,6 +10,11 @@ enable_appsync_waf = false
 waf_enforce = false
 enable_appsync_waf_logging = false
 enable_waf_logging_stream = false
+
+# Performance optimization controls
+enable_api_gateway_waf = false
+enable_appsync_caching = false
+appsync_cache_ttl_seconds = 300
 api_stage_name = "v1"
 
 # API Gateway overrides (to avoid remote_state dependency in dev)

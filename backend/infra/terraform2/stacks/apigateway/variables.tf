@@ -68,3 +68,22 @@ variable "core_table_arn" {
     type    = string
     default = ""
 }
+
+# Performance optimization controls
+variable "enable_api_gateway_waf" {
+    type        = bool
+    default     = false
+    description = "Enable WAF for API Gateway"
+}
+
+variable "enable_appsync_caching" {
+    type        = bool
+    default     = false
+    description = "Enable AppSync resolver caching"
+}
+
+variable "appsync_cache_ttl_seconds" {
+    type        = number
+    default     = 300
+    description = "AppSync cache TTL in seconds"
+}

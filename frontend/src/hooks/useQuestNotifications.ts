@@ -1,74 +1,115 @@
-/**
- * Quest Notifications Hook
- * 
- * Provides functionality to trigger notifications based on quest events
- * and user notification preferences.
- */
-
 import { useCallback } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { toast } from 'sonner';
-import { useTranslation } from './useTranslation';
-import { getUserProfile } from '@/lib/apiProfile';
-import type { Quest } from '@/models/quest';
-import type { NotificationPreferences } from '@/models/profile';
-import {
-  shouldNotify,
-  getNotificationMessage,
-  type QuestEvent,
-  type QuestEventType
+import { Quest } from '@/models/quest';
+import { 
+  QuestEvent, 
+  QuestEventType, 
+  getNotificationMessage, 
+  shouldNotify 
 } from '@/lib/questNotifications';
+import { logger } from '@/lib/logger';
 
 export const useQuestNotifications = () => {
   const { t } = useTranslation();
+  const { profile: user } = useUserProfile();
 
-  const notifyQuestEvent = useCallback(async (
-    eventType: QuestEventType,
-    quest: Quest,
-    metadata?: { percentage?: number; days?: number; title?: string }
-  ) => {
+  /**
+   * Trigger a notification for a quest event
+   */
+  const notifyQuestEvent = useCallback((event: QuestEvent) => {
     try {
-      // Get user preferences
-      const profile = await getUserProfile();
-      const preferences = profile.notificationPreferences;
-
-      // Check if notification should be shown
-      if (!shouldNotify(eventType, preferences)) {
+      // Check if user should receive this notification
+      if (!shouldNotify(event.type, user?.notificationPreferences)) {
+        logger.debug('Notification skipped due to user preferences', { 
+          eventType: event.type, 
+          preferences: user?.notificationPreferences 
+        });
         return;
       }
 
-      // Create event
-      const event: QuestEvent = {
-        type: eventType,
-        quest,
-        metadata
-      };
-
-      // Get notification message
+      // Get the notification message
       const message = getNotificationMessage(event, t);
-
+      
       // Show toast notification
-      const toastType = eventType === 'questCompleted' ? 'success' :
-                       eventType === 'questFailed' ? 'error' :
-                       eventType === 'deadlineWarning' ? 'warning' :
-                       'info';
+      toast.info(message, {
+        duration: 5000,
+        position: 'top-right',
+      });
 
-      if (toastType === 'success') {
-        toast.success(message);
-      } else if (toastType === 'error') {
-        toast.error(message);
-      } else if (toastType === 'warning') {
-        toast.warning(message);
-      } else {
-        toast.info(message);
-      }
+      logger.info('Quest notification sent', { 
+        eventType: event.type, 
+        questId: event.quest.id,
+        questTitle: event.quest.title 
+      });
     } catch (error) {
-      console.error('Failed to show quest notification:', error);
-      // Don't throw - notifications are non-critical
+      logger.error('Failed to send quest notification', { error, event });
     }
-  }, [t]);
+  }, [user, t]);
+
+  /**
+   * Convenience method for common quest events
+   */
+  const notifyQuestStarted = useCallback((quest: Quest) => {
+    notifyQuestEvent({
+      type: 'questStarted',
+      quest
+    });
+  }, [notifyQuestEvent]);
+
+  const notifyQuestCompleted = useCallback((quest: Quest) => {
+    notifyQuestEvent({
+      type: 'questCompleted',
+      quest
+    });
+  }, [notifyQuestEvent]);
+
+  const notifyQuestFailed = useCallback((quest: Quest) => {
+    notifyQuestEvent({
+      type: 'questFailed',
+      quest
+    });
+  }, [notifyQuestEvent]);
+
+  const notifyProgressMilestone = useCallback((quest: Quest, percentage: number) => {
+    notifyQuestEvent({
+      type: 'progressMilestone',
+      quest,
+      data: { percentage }
+    });
+  }, [notifyQuestEvent]);
+
+  const notifyDeadlineWarning = useCallback((quest: Quest) => {
+    notifyQuestEvent({
+      type: 'deadlineWarning',
+      quest
+    });
+  }, [notifyQuestEvent]);
+
+  const notifyStreakAchieved = useCallback((quest: Quest, days: number) => {
+    notifyQuestEvent({
+      type: 'streakAchieved',
+      quest,
+      data: { days }
+    });
+  }, [notifyQuestEvent]);
+
+  const notifyChallengeJoined = useCallback((quest: Quest) => {
+    notifyQuestEvent({
+      type: 'challengeJoined',
+      quest
+    });
+  }, [notifyQuestEvent]);
 
   return {
-    notifyQuestEvent
+    notifyQuestEvent,
+    notifyQuestStarted,
+    notifyQuestCompleted,
+    notifyQuestFailed,
+    notifyProgressMilestone,
+    notifyDeadlineWarning,
+    notifyStreakAchieved,
+    notifyChallengeJoined,
   };
 };
-

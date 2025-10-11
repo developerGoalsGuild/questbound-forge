@@ -1,12 +1,5 @@
-/**
- * Quest Notifications Utility
- * 
- * Provides functions for generating notification messages and detecting quest events
- * for the notification system.
- */
-
-import type { Quest } from '@/models/quest';
-import type { NotificationPreferences } from '@/models/profile';
+import { Quest } from '@/models/quest';
+import { NotificationPreferences } from '@/models/profile';
 
 export type QuestEventType = 
   | 'questStarted'
@@ -20,161 +13,244 @@ export type QuestEventType =
 export interface QuestEvent {
   type: QuestEventType;
   quest: Quest;
-  metadata?: {
+  data?: {
     percentage?: number;
     days?: number;
-    title?: string;
+    [key: string]: any;
   };
 }
 
 /**
- * Check if a notification should be shown based on user preferences
- */
-export const shouldNotify = (
-  eventType: QuestEventType,
-  preferences?: NotificationPreferences
-): boolean => {
-  if (!preferences) {
-    // Default to all notifications enabled if preferences not set
-    return true;
-  }
-
-  // Check if in-app notifications are enabled
-  if (!preferences.channels?.inApp) {
-    return false;
-  }
-
-  // Check if specific event type is enabled
-  switch (eventType) {
-    case 'questStarted':
-      return preferences.questStarted;
-    case 'questCompleted':
-      return preferences.questCompleted;
-    case 'questFailed':
-      return preferences.questFailed;
-    case 'progressMilestone':
-      return preferences.progressMilestones;
-    case 'deadlineWarning':
-      return preferences.deadlineWarnings;
-    case 'streakAchieved':
-      return preferences.streakAchievements;
-    case 'challengeJoined':
-      return preferences.challengeUpdates;
-    default:
-      return true;
-  }
-};
-
-/**
- * Generate notification message for a quest event
+ * Get notification message for a quest event
  */
 export const getNotificationMessage = (
   event: QuestEvent,
-  translations?: any
+  translations: any
 ): string => {
-  const { type, quest, metadata } = event;
-  const messages = translations?.quest?.notifications?.messages;
+  // Validate event structure
+  if (!event || !event.quest || !event.type) {
+    return 'Invalid notification event';
+  }
 
-  if (!messages) {
-    // Fallback messages if translations not available
+  const questTranslations = translations?.quest?.notifications?.messages;
+  if (!questTranslations) {
+    // Fallback messages when translations are not available
+    const { type, quest, data } = event;
+    const title = quest.title || 'Unknown Quest';
+
     switch (type) {
       case 'questStarted':
-        return `Quest "${quest.title}" has been started!`;
+        return `Quest "${title}" has been started!`;
       case 'questCompleted':
-        return `Congratulations! Quest "${quest.title}" completed!`;
+        return `Congratulations! Quest "${title}" completed!`;
       case 'questFailed':
-        return `Quest "${quest.title}" has failed`;
+        return `Quest "${title}" has failed`;
       case 'progressMilestone':
-        return `You've reached ${metadata?.percentage || 0}% on quest "${quest.title}"!`;
+        const percentage = data?.percentage || 0;
+        return `You've reached ${percentage}% on quest "${title}"!`;
       case 'deadlineWarning':
-        return `Quest "${quest.title}" deadline is approaching!`;
+        return `Quest "${title}" deadline is approaching!`;
       case 'streakAchieved':
-        return `Amazing! You've achieved a ${metadata?.days || 0}-day quest streak!`;
+        const days = data?.days || 0;
+        return `Amazing! You've achieved a ${days}-day quest streak!`;
       case 'challengeJoined':
-        return `You've joined the challenge "${metadata?.title || quest.title}"`;
+        return `You've joined the challenge "${title}"`;
       default:
-        return `Quest "${quest.title}" updated`;
+        return `Quest ${type}`;
     }
   }
 
-  // Use translations with dynamic values
+  const { type, quest, data } = event;
+  const title = quest.title || 'Unknown Quest';
+
   switch (type) {
     case 'questStarted':
-      return messages.questStarted.replace('{title}', quest.title);
+      return questTranslations.questStarted?.replace('{title}', title) || `Quest "${title}" has been started!`;
+    
     case 'questCompleted':
-      return messages.questCompleted.replace('{title}', quest.title);
+      return questTranslations.questCompleted?.replace('{title}', title) || `Congratulations! Quest "${title}" completed!`;
+    
     case 'questFailed':
-      return messages.questFailed.replace('{title}', quest.title);
+      return questTranslations.questFailed?.replace('{title}', title) || `Quest "${title}" has failed`;
+    
     case 'progressMilestone':
-      return messages.progressMilestone
-        .replace('{title}', quest.title)
-        .replace('{percentage}', String(metadata?.percentage || 0));
+      const percentage = data?.percentage || 0;
+      return questTranslations.progressMilestone
+        ?.replace('{percentage}', percentage.toString())
+        ?.replace('{title}', title) || `You've reached ${percentage}% on quest "${title}"!`;
+    
     case 'deadlineWarning':
-      return messages.deadlineWarning.replace('{title}', quest.title);
+      return questTranslations.deadlineWarning?.replace('{title}', title) || `Quest "${title}" deadline is approaching!`;
+    
     case 'streakAchieved':
-      return messages.streakAchieved.replace('{days}', String(metadata?.days || 0));
+      const days = data?.days || 0;
+      return questTranslations.streakAchieved
+        ?.replace('{days}', days.toString())
+        ?.replace('{title}', title) || `Amazing! You've achieved a ${days}-day quest streak!`;
+    
     case 'challengeJoined':
-      return messages.challengeJoined.replace('{title}', metadata?.title || quest.title);
+      return questTranslations.challengeJoined?.replace('{title}', title) || `You've joined the challenge "${title}"`;
+    
     default:
-      return `Quest "${quest.title}" updated`;
+      return `Quest ${type}`;
   }
 };
 
 /**
- * Detect quest status changes between old and new quest state
+ * Check if user should receive notification for event type
+ */
+export const shouldNotify = (
+  eventType: QuestEventType,
+  preferences: NotificationPreferences | undefined
+): boolean => {
+  if (!preferences) return false;
+  
+  // Map event types to preference keys
+  const eventPreferenceMap: Record<QuestEventType, keyof NotificationPreferences> = {
+    questStarted: 'questStarted',
+    questCompleted: 'questCompleted',
+    questFailed: 'questFailed',
+    progressMilestone: 'progressMilestones',
+    deadlineWarning: 'deadlineWarnings',
+    streakAchieved: 'streakAchievements',
+    challengeJoined: 'challengeUpdates'
+  };
+  
+  // Check if the specific event type is enabled
+  const preferenceKey = eventPreferenceMap[eventType];
+  const eventEnabled = preferences[preferenceKey];
+  if (!eventEnabled) return false;
+  
+  // Check if in-app notifications are enabled
+  return preferences.channels?.inApp === true;
+};
+
+/**
+ * Detect quest status changes for notifications
  */
 export const detectQuestChanges = (
-  oldQuest: Quest | null,
-  newQuest: Quest
-): QuestEvent | null => {
-  if (!oldQuest) {
-    // New quest, check if it was just started
-    if (newQuest.status === 'active' && newQuest.startedAt) {
-      return {
-        type: 'questStarted',
-        quest: newQuest
-      };
+  previousQuests: Quest[],
+  currentQuests: Quest[]
+): QuestEvent[] => {
+  const events: QuestEvent[] = [];
+  
+  // Create maps for easier lookup
+  const prevMap = new Map(previousQuests.map(q => [q.id, q]));
+  const currMap = new Map(currentQuests.map(q => [q.id, q]));
+  
+  // Check for status changes
+  for (const [id, currentQuest] of currMap) {
+    const previousQuest = prevMap.get(id);
+    
+    if (!previousQuest) {
+      // New quest started
+      if (currentQuest.status === 'active') {
+        events.push({
+          type: 'questStarted',
+          quest: currentQuest
+        });
+      }
+    } else {
+      // Check for status changes
+      if (previousQuest.status !== currentQuest.status) {
+        switch (currentQuest.status) {
+          case 'completed':
+            events.push({
+              type: 'questCompleted',
+              quest: currentQuest
+            });
+            break;
+          case 'failed':
+            events.push({
+              type: 'questFailed',
+              quest: currentQuest
+            });
+            break;
+          case 'active':
+            if (previousQuest.status === 'draft') {
+              events.push({
+                type: 'questStarted',
+                quest: currentQuest
+              });
+            }
+            break;
+        }
+      }
+      
+      // Check for progress milestones (if quest is active)
+      if (currentQuest.status === 'active' && previousQuest.status === 'active') {
+        const prevProgress = calculateQuestProgress(previousQuest);
+        const currProgress = calculateQuestProgress(currentQuest);
+        
+        // Check for milestone achievements (25%, 50%, 75%, 100%)
+        const milestones = [25, 50, 75, 100];
+        for (const milestone of milestones) {
+          if (prevProgress.percentage < milestone && currProgress.percentage >= milestone) {
+            events.push({
+              type: 'progressMilestone',
+              quest: currentQuest,
+              data: { percentage: milestone }
+            });
+            break; // Only trigger one milestone per update
+          }
+        }
+      }
+      
+      // Check for deadline warnings (if quest has deadline)
+      if (currentQuest.deadline && currentQuest.status === 'active') {
+        const deadline = new Date(currentQuest.deadline);
+        const now = new Date();
+        const hoursUntilDeadline = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+        
+        // Warn if deadline is within 24 hours and we haven't warned recently
+        if (hoursUntilDeadline <= 24 && hoursUntilDeadline > 0) {
+          // This is a simplified check - in a real implementation, you'd track when warnings were last sent
+          events.push({
+            type: 'deadlineWarning',
+            quest: currentQuest
+          });
+        }
+      }
     }
-    return null;
   }
-
-  // Detect status changes
-  if (oldQuest.status !== newQuest.status) {
-    if (newQuest.status === 'active') {
-      return {
-        type: 'questStarted',
-        quest: newQuest
-      };
-    }
-    if (newQuest.status === 'completed') {
-      return {
-        type: 'questCompleted',
-        quest: newQuest
-      };
-    }
-    if (newQuest.status === 'failed') {
-      return {
-        type: 'questFailed',
-        quest: newQuest
-      };
-    }
-  }
-
-  return null;
+  
+  return events;
 };
 
 /**
- * Check if a quest is approaching its deadline (within 24 hours)
+ * Calculate quest progress (simplified version)
+ * This should match the logic from questProgress.ts
  */
-export const isApproachingDeadline = (quest: Quest): boolean => {
-  if (!quest.deadline || quest.status !== 'active') {
-    return false;
+const calculateQuestProgress = (quest: Quest) => {
+  if (quest.kind === 'linked') {
+    const linkedGoalIds = quest.linkedGoalIds || [];
+    const linkedTaskIds = quest.linkedTaskIds || [];
+    const totalItems = linkedGoalIds.length + linkedTaskIds.length;
+    
+    // For now, return 0 since we don't have actual completion data
+    // This would need to be integrated with actual goal/task completion status
+    return {
+      percentage: 0,
+      completedCount: 0,
+      totalCount: totalItems
+    };
   }
-
-  const now = Date.now();
-  const deadline = new Date(quest.deadline).getTime();
-  const twentyFourHours = 24 * 60 * 60 * 1000;
-
-  return deadline - now <= twentyFourHours && deadline > now;
+  
+  if (quest.kind === 'quantitative') {
+    const targetCount = quest.targetCount || 0;
+    
+    // For now, return 0 since we don't have actual completion data
+    // This would need to be integrated with actual task completion counts
+    return {
+      percentage: 0,
+      completedCount: 0,
+      totalCount: targetCount
+    };
+  }
+  
+  return {
+    percentage: 0,
+    completedCount: 0,
+    totalCount: 0
+  };
 };
-

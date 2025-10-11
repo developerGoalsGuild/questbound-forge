@@ -58,6 +58,20 @@ export function response(ctx) {
     bio: a.bio,
     tags: a.tags || [],
     tier: a.tier || 'free',
+    notificationPreferences: a.notificationPreferences ? {
+      questStarted: a.notificationPreferences.questStarted || true,
+      questCompleted: a.notificationPreferences.questCompleted || true,
+      questFailed: a.notificationPreferences.questFailed || true,
+      progressMilestones: a.notificationPreferences.progressMilestones || true,
+      deadlineWarnings: a.notificationPreferences.deadlineWarnings || true,
+      streakAchievements: a.notificationPreferences.streakAchievements || true,
+      challengeUpdates: a.notificationPreferences.challengeUpdates || true,
+      channels: {
+        inApp: a.notificationPreferences.channels?.inApp || true,
+        email: a.notificationPreferences.channels?.email || false,
+        push: a.notificationPreferences.channels?.push || false,
+      }
+    } : null,
     createdAt: null,
     updatedAt: null,
     ageYears: a.ageYears || null,

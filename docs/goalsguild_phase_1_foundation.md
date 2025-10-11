@@ -1,4 +1,4 @@
-# Phase 1 – Foundation
+khlhj# Phase 1 – Foundation
 _Generated: 2025-09-24_
 
 ## 1.1 – Create GitHub repo and branch structure

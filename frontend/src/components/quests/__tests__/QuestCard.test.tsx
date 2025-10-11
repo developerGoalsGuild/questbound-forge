@@ -36,6 +36,34 @@ vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: mockT }),
 }));
 
+// Mock the useQuest hook
+const mockUseQuestProgress = vi.fn(() => ({
+  progress: 75,
+  progressPercentage: 75,
+  isCalculating: false,
+  isCompleted: false,
+  isInProgress: true,
+  isNotStarted: false,
+  progressData: {
+    percentage: 75,
+    status: 'in_progress',
+    completedCount: 3,
+    totalCount: 4,
+    remainingCount: 1,
+    lastUpdated: new Date(),
+    isCalculating: false,
+  },
+  completedCount: 3,
+  totalCount: 4,
+  remainingCount: 1,
+  status: 'in_progress',
+  error: null,
+}));
+
+vi.mock('@/hooks/useQuest', () => ({
+  useQuestProgress: mockUseQuestProgress,
+}));
+
 // Mock the quest model functions
 vi.mock('@/models/quest', async () => {
   const actual = await vi.importActual('@/models/quest');

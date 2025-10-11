@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 import boto3
 from botocore.exceptions import ClientError, BotoCoreError
+from botocore.config import Config
 
 from fastapi import Depends, FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,6 +50,28 @@ from .cognito import exchange_auth_code_for_tokens, verify_cognito_jwt
 from .attempts import record_attempt, failed_count_last_month
 from .ses_email import send_email
 from .tokens import TokenPurpose, decode_link_token, issue_link_token
+
+# Configure AWS SDK for optimal Lambda performance
+AWS_CONFIG = Config(
+    # Enable HTTP keep-alive for better connection reuse
+    max_pool_connections=50,
+    retries={
+        'max_attempts': 3,
+        'mode': 'adaptive'
+    },
+    # Optimize timeouts for Lambda environment
+    read_timeout=30,
+    connect_timeout=10,
+    # Enable keep-alive
+    tcp_keepalive=True,
+    # Use regional endpoints for better performance
+    region_name=os.getenv('AWS_REGION', 'us-east-1')
+)
+
+# Initialize boto3 session with optimized config
+boto3_session = boto3.Session()
+dynamodb = boto3_session.resource('dynamodb', config=AWS_CONFIG)
+dynamodb_client = boto3_session.client('dynamodb', config=AWS_CONFIG)
 
 # -------------------------
 # Constants
@@ -295,7 +318,7 @@ async def _handle_unexpected(_: Request, exc: Exception):
 # -------------------------
 def _ddb() -> boto3.resources.base.ServiceResource:
     try:
-        return boto3.resource("dynamodb")
+        return dynamodb  # Use the pre-configured optimized resource
     except Exception as e:
         logger.error("dynamodb.init_error", exc_info=True)
         raise

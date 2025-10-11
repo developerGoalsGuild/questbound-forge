@@ -22,6 +22,17 @@ resource "aws_appsync_resolver" "query_myProfile" {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
+  }
 }
 
 resource "aws_appsync_resolver" "query_isEmailAvailable" {
@@ -75,6 +86,17 @@ resource "aws_appsync_resolver" "query_myGoals" {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
+  }
 }
 
 resource "aws_appsync_resolver" "query_myDashboardGoals" {
@@ -115,6 +137,18 @@ resource "aws_appsync_resolver" "query_myQuests" {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub",
+        "$context.arguments.goalId"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
+  }
 }
 
 resource "aws_appsync_resolver" "query_activeGoalsCount" {
@@ -127,6 +161,17 @@ resource "aws_appsync_resolver" "query_activeGoalsCount" {
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
+  }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
   }
 }
 
@@ -142,6 +187,18 @@ resource "aws_appsync_resolver" "query_goalProgress" {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub",
+        "$context.arguments.goalId"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
+  }
 }
 
 resource "aws_appsync_resolver" "query_myGoalsProgress" {
@@ -154,6 +211,17 @@ resource "aws_appsync_resolver" "query_myGoalsProgress" {
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
+  }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
   }
 }
 
@@ -284,6 +352,17 @@ resource "aws_appsync_resolver" "query_me" {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
+  }
 }
 
 resource "aws_appsync_resolver" "query_user" {
@@ -296,6 +375,18 @@ resource "aws_appsync_resolver" "query_user" {
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
+  }
+  
+  # Enable caching for better performance - conditional
+  dynamic "caching_config" {
+    for_each = var.enable_appsync_caching ? [1] : []
+    content {
+      caching_keys = [
+        "$context.identity.sub",
+        "$context.arguments.userId"
+      ]
+      ttl = var.appsync_cache_ttl_seconds
+    }
   }
 }
 

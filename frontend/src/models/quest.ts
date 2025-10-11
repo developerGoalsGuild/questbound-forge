@@ -634,17 +634,18 @@ export type {
   QuestPrivacy,
 };
 
-export {
-  // Types
-  type Quest,
-  type QuestCategory,
-  type QuestFormData,
-  type QuestCreateInput,
-  type QuestUpdateInput,
-  type QuestCancelInput,
-  type QuestValidationErrors,
-  type QuestFormValidation,
+export type {
+  Quest,
+  QuestCategory,
+  QuestFormData,
+  QuestCreateInput,
+  QuestUpdateInput,
+  QuestCancelInput,
+  QuestValidationErrors,
+  QuestFormValidation,
+};
 
+export {
   // Schemas
   QuestStatusSchema,
   QuestDifficultySchema,

@@ -13,19 +13,60 @@ from uuid import uuid4
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
+from botocore.config import Config
 from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, GoalProgressResponse, Milestone, QuestCreatePayload, QuestUpdatePayload, QuestCancelPayload, QuestResponse
+from .models.quest_template import QuestTemplateCreatePayload, QuestTemplateUpdatePayload, QuestTemplateResponse, QuestTemplateListResponse
+from .models.analytics import QuestAnalytics, AnalyticsPeriod
 from .db.quest_db import (
     create_quest, get_quest, update_quest, change_quest_status, 
     delete_quest, list_user_quests, QuestDBError, QuestNotFoundError,
     QuestVersionConflictError, QuestPermissionError, QuestValidationError
 )
+from .db.quest_template_db import (
+    create_template, get_template, update_template, delete_template,
+    list_user_templates, list_public_templates, QuestTemplateDBError,
+    QuestTemplateNotFoundError, QuestTemplatePermissionError, QuestTemplateValidationError
+)
+from .db.analytics_db import get_cached_analytics, cache_analytics, AnalyticsDBError
+from .analytics.quest_analytics import calculate_quest_analytics
 from .utils import _normalize_date_only,_normalize_deadline_output,_sanitize_string,_validate_answers,_serialize_answers,_validate_tags
+from .security.input_validation import (
+    validate_user_id, validate_quest_title, validate_quest_description,
+    validate_difficulty, validate_reward_xp, validate_category, validate_privacy,
+    validate_quest_kind, validate_tags, validate_target_count, validate_count_scope,
+    validate_period_days, validate_estimated_duration, validate_instructions,
+    validate_linked_goal_ids, validate_linked_task_ids, validate_depends_on_quest_ids,
+    validate_deadline, SecurityValidationError
+)
+from .security.audit_logger import get_audit_logger, AuditEventType
 
+
+# Configure AWS SDK for optimal Lambda performance
+AWS_CONFIG = Config(
+    # Enable HTTP keep-alive for better connection reuse
+    max_pool_connections=50,
+    retries={
+        'max_attempts': 3,
+        'mode': 'adaptive'
+    },
+    # Optimize timeouts for Lambda environment
+    read_timeout=30,
+    connect_timeout=10,
+    # Enable keep-alive
+    tcp_keepalive=True,
+    # Use regional endpoints for better performance
+    region_name=os.getenv('AWS_REGION', 'us-east-1')
+)
+
+# Initialize boto3 session with optimized config
+boto3_session = boto3.Session()
+dynamodb = boto3_session.resource('dynamodb', config=AWS_CONFIG)
+dynamodb_client = boto3_session.client('dynamodb', config=AWS_CONFIG)
 
 # Add common module to path - works both locally and in containers
 def _add_common_to_path():
@@ -136,7 +177,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # ---------- Dependencies ----------
 @lru_cache(maxsize=1)
 def _dynamodb_resource():
-    return boto3.resource("dynamodb", region_name=settings.aws_region)
+    return dynamodb  # Use the pre-configured optimized resource
 
 
 def get_goals_table():
@@ -157,6 +198,11 @@ class AuthContext(BaseModel):
 async def authenticate(request: Request) -> AuthContext:
     path = request.url.path if request.url else ""
     client_host = request.client.host if request.client else None
+    user_agent = request.headers.get('user-agent', '')
+    
+    # Initialize audit logger
+    audit_logger = get_audit_logger(logger)
+    
     log_event(
         logger,
         'auth.request_received',
@@ -171,6 +217,11 @@ async def authenticate(request: Request) -> AuthContext:
             'auth.header_missing',
             extra={'method': request.method, 'path': path, 'client': client_host},
         )
+        audit_logger.log_security_violation(
+            violation_type="missing_auth_header",
+            client_ip=client_host,
+            details={"method": request.method, "path": path}
+        )
         raise HTTPException(status_code=401, detail='Authorization header is required')
 
     parts = auth_header.split()
@@ -183,6 +234,11 @@ async def authenticate(request: Request) -> AuthContext:
                 'client': client_host,
                 'scheme': parts[0] if parts else None,
             },
+        )
+        audit_logger.log_security_violation(
+            violation_type="invalid_auth_header",
+            client_ip=client_host,
+            details={"method": request.method, "path": path, "scheme": parts[0] if parts else None}
         )
         raise HTTPException(status_code=401, detail='Authorization header must use Bearer token')
 
@@ -201,6 +257,11 @@ async def authenticate(request: Request) -> AuthContext:
             },
             exc_info=exc,
         )
+        audit_logger.log_security_violation(
+            violation_type="token_verification_failed",
+            client_ip=client_host,
+            details={"method": request.method, "path": path, "error_type": type(exc).__name__}
+        )
         raise HTTPException(status_code=401, detail='Unauthorized: token verification failed') from exc
 
     user_id = claims.get('sub')
@@ -209,7 +270,24 @@ async def authenticate(request: Request) -> AuthContext:
             'auth.subject_missing',
             extra={'method': request.method, 'path': path, 'provider': provider},
         )
+        audit_logger.log_security_violation(
+            violation_type="missing_subject_claim",
+            client_ip=client_host,
+            details={"method": request.method, "path": path, "provider": provider}
+        )
         raise HTTPException(status_code=401, detail='Unauthorized: subject claim missing')
+
+    # Validate user ID format
+    try:
+        user_id = validate_user_id(str(user_id))
+    except SecurityValidationError as exc:
+        audit_logger.log_security_violation(
+            violation_type="invalid_user_id_format",
+            user_id=str(user_id),
+            client_ip=client_host,
+            details={"method": request.method, "path": path, "error": str(exc)}
+        )
+        raise HTTPException(status_code=401, detail='Unauthorized: invalid user ID format') from exc
 
     log_event(
         logger,
@@ -217,10 +295,20 @@ async def authenticate(request: Request) -> AuthContext:
         method=request.method,
         path=path,
         provider=provider,
-        user_id=str(user_id),
+        user_id=user_id,
     )
 
-    return AuthContext(user_id=str(user_id), claims=claims, provider=provider)
+    # Log successful authentication
+    audit_logger.log_auth_event(
+        event_type=AuditEventType.AUTHENTICATION,
+        user_id=user_id,
+        success=True,
+        details={"provider": provider, "method": request.method, "path": path},
+        client_ip=client_host,
+        user_agent=user_agent
+    )
+
+    return AuthContext(user_id=user_id, claims=claims, provider=provider)
 
 
 
@@ -1219,6 +1307,7 @@ async def create_quest_endpoint(
     payload: QuestCreatePayload,
     auth: AuthContext = Depends(authenticate),
     table=Depends(get_goals_table),
+    request: Request = None,
 ):
     """
     Create a new quest (creates as draft).
@@ -1227,6 +1316,7 @@ async def create_quest_endpoint(
         payload: Quest creation payload
         auth: Authentication context
         table: DynamoDB table resource
+        request: HTTP request object for audit logging
         
     Returns:
         QuestResponse object
@@ -1234,24 +1324,82 @@ async def create_quest_endpoint(
     Raises:
         HTTPException: If quest creation fails
     """
+    audit_logger = get_audit_logger(logger)
+    client_ip = request.client.host if request and request.client else None
+    
     log_event(logger, 'quests.createQuest_start', user_id=auth.user_id)
     
     try:
+        # Validate and sanitize input data
+        validated_payload = QuestCreatePayload(
+            title=validate_quest_title(payload.title),
+            description=validate_quest_description(payload.description),
+            difficulty=validate_difficulty(payload.difficulty),
+            rewardXp=validate_reward_xp(payload.rewardXp),
+            category=validate_category(payload.category),
+            tags=validate_tags(payload.tags) if payload.tags else [],
+            privacy=validate_privacy(payload.privacy),
+            kind=validate_quest_kind(payload.kind),
+            targetCount=validate_target_count(payload.targetCount) if payload.targetCount else None,
+            countScope=validate_count_scope(payload.countScope) if payload.countScope else None,
+            periodDays=validate_period_days(payload.periodDays) if payload.periodDays else None,
+            estimatedDuration=validate_estimated_duration(payload.estimatedDuration) if payload.estimatedDuration else None,
+            instructions=validate_instructions(payload.instructions) if payload.instructions else None,
+            linkedGoalIds=validate_linked_goal_ids(payload.linkedGoalIds) if payload.linkedGoalIds else None,
+            linkedTaskIds=validate_linked_task_ids(payload.linkedTaskIds) if payload.linkedTaskIds else None,
+            dependsOnQuestIds=validate_depends_on_quest_ids(payload.dependsOnQuestIds) if payload.dependsOnQuestIds else None,
+            deadline=validate_deadline(payload.deadline) if payload.deadline else None,
+        )
+        
         # Create quest using database helper
-        quest = create_quest(auth.user_id, payload)
+        quest = create_quest(auth.user_id, validated_payload)
+        
+        # Log successful quest creation
+        audit_logger.log_data_modification(
+            user_id=auth.user_id,
+            resource_type="quest",
+            resource_id=quest.id,
+            action="create",
+            new_values={"title": quest.title, "difficulty": quest.difficulty, "privacy": quest.privacy},
+            success=True,
+            client_ip=client_ip
+        )
         
         log_event(logger, 'quests.createQuest_success', 
                  user_id=auth.user_id, quest_id=quest.id)
         
         return quest
         
+    except SecurityValidationError as e:
+        audit_logger.log_input_validation_failed(
+            user_id=auth.user_id,
+            endpoint="quests/createQuest",
+            validation_errors=[str(e)],
+            input_data=payload.dict() if hasattr(payload, 'dict') else str(payload),
+            client_ip=client_ip
+        )
+        raise HTTPException(status_code=400, detail=f"Input validation failed: {str(e)}")
     except QuestDBError as e:
+        audit_logger.log_system_error(
+            error_type="QuestDBError",
+            error_message=str(e),
+            user_id=auth.user_id,
+            endpoint="quests/createQuest",
+            client_ip=client_ip
+        )
         logger.error('quests.createQuest_failed', 
                     user_id=auth.user_id, 
                     error=str(e),
                     exc_info=e)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        audit_logger.log_system_error(
+            error_type="UnexpectedError",
+            error_message=str(e),
+            user_id=auth.user_id,
+            endpoint="quests/createQuest",
+            client_ip=client_ip
+        )
         logger.error('quests.createQuest_failed', 
                     user_id=auth.user_id, 
                     error=str(e),
@@ -1584,6 +1732,189 @@ async def check_quest_completion(
         raise HTTPException(status_code=500, detail="Failed to check quest completion")
 
 
+# ============================================================================
+# Quest Template Endpoints
+# ============================================================================
+
+@app.post("/quests/templates", response_model=QuestTemplateResponse, status_code=201)
+async def create_quest_template(
+    payload: QuestTemplateCreatePayload,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Create a new quest template"""
+    log_event(logger, 'quest_template.create_start', user_id=auth.user_id, title=payload.title)
+    
+    try:
+        template = create_template(auth.user_id, payload)
+        log_event(logger, 'quest_template.create_success', user_id=auth.user_id, template_id=template.id)
+        return template
+    except QuestTemplateValidationError as e:
+        log_event(logger, 'quest_template.create_validation_error', user_id=auth.user_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.create_db_error', user_id=auth.user_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create quest template")
+
+
+@app.get("/quests/templates/{template_id}", response_model=QuestTemplateResponse)
+async def get_quest_template(
+    template_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Get a quest template by ID"""
+    log_event(logger, 'quest_template.get_start', user_id=auth.user_id, template_id=template_id)
+    
+    try:
+        template = get_template(template_id, auth.user_id)
+        log_event(logger, 'quest_template.get_success', user_id=auth.user_id, template_id=template_id)
+        return template
+    except QuestTemplateNotFoundError as e:
+        log_event(logger, 'quest_template.get_not_found', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestTemplatePermissionError as e:
+        log_event(logger, 'quest_template.get_permission_error', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.get_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to get quest template")
+
+
+@app.put("/quests/templates/{template_id}", response_model=QuestTemplateResponse)
+async def update_quest_template(
+    template_id: str,
+    payload: QuestTemplateUpdatePayload,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Update a quest template"""
+    log_event(logger, 'quest_template.update_start', user_id=auth.user_id, template_id=template_id)
+    
+    try:
+        template = update_template(template_id, auth.user_id, payload)
+        log_event(logger, 'quest_template.update_success', user_id=auth.user_id, template_id=template_id)
+        return template
+    except QuestTemplateNotFoundError as e:
+        log_event(logger, 'quest_template.update_not_found', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestTemplatePermissionError as e:
+        log_event(logger, 'quest_template.update_permission_error', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestTemplateValidationError as e:
+        log_event(logger, 'quest_template.update_validation_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.update_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update quest template")
+
+
+@app.delete("/quests/templates/{template_id}")
+async def delete_quest_template(
+    template_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Delete a quest template"""
+    log_event(logger, 'quest_template.delete_start', user_id=auth.user_id, template_id=template_id)
+    
+    try:
+        delete_template(template_id, auth.user_id)
+        log_event(logger, 'quest_template.delete_success', user_id=auth.user_id, template_id=template_id)
+        return {"success": True, "message": "Quest template deleted successfully"}
+    except QuestTemplateNotFoundError as e:
+        log_event(logger, 'quest_template.delete_not_found', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestTemplatePermissionError as e:
+        log_event(logger, 'quest_template.delete_permission_error', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.delete_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete quest template")
+
+
+@app.get("/quests/templates", response_model=QuestTemplateListResponse)
+async def list_quest_templates(
+    auth: AuthContext = Depends(authenticate),
+    limit: int = 50,
+    next_token: str = None,
+    privacy: str = "user"  # "user", "public", "all"
+):
+    """List quest templates"""
+    log_event(logger, 'quest_template.list_start', user_id=auth.user_id, limit=limit, privacy=privacy)
+    
+    try:
+        if privacy == "public":
+            result = list_public_templates(limit, next_token)
+        else:
+            result = list_user_templates(auth.user_id, limit, next_token)
+        
+        log_event(logger, 'quest_template.list_success', 
+                 user_id=auth.user_id, 
+                 count=len(result['templates']), 
+                 total=result['total'])
+        
+        return QuestTemplateListResponse(**result)
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.list_db_error', user_id=auth.user_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list quest templates")
+
+
+@app.get("/quests/analytics", response_model=QuestAnalytics)
+async def get_quest_analytics(
+    auth: AuthContext = Depends(authenticate),
+    period: AnalyticsPeriod = "weekly",
+    force_refresh: bool = False
+):
+    """
+    Get quest analytics for the authenticated user.
+    
+    Args:
+        auth: Authentication context
+        period: Analytics period (daily, weekly, monthly, allTime)
+        force_refresh: Force refresh of cached analytics data
+    
+    Returns:
+        QuestAnalytics: Comprehensive analytics data
+    """
+    log_event(logger, 'quest_analytics.get_start', 
+             user_id=auth.user_id, period=period, force_refresh=force_refresh)
+    
+    try:
+        # Try to get cached analytics first (unless force refresh)
+        if not force_refresh:
+            try:
+                cached_analytics = get_cached_analytics(auth.user_id, period)
+                if cached_analytics:
+                    log_event(logger, 'quest_analytics.get_cached_success', 
+                             user_id=auth.user_id, period=period)
+                    return cached_analytics
+            except AnalyticsDBError:
+                # Cache miss or error, continue to calculate
+                pass
+        
+        # Get user's quests for the period
+        quests = list_user_quests(auth.user_id)  # Get all quests for analytics
+        
+        # Calculate analytics
+        analytics = calculate_quest_analytics(auth.user_id, period, quests)
+        
+        # Save to cache
+        try:
+            cache_analytics(analytics)
+        except AnalyticsDBError as e:
+            log_event(logger, 'quest_analytics.save_cache_error', 
+                     user_id=auth.user_id, error=str(e))
+            # Continue without caching if save fails
+        
+        log_event(logger, 'quest_analytics.get_success', 
+                 user_id=auth.user_id, period=period, 
+                 total_quests=analytics.totalQuests)
+        
+        return analytics
+        
+    except Exception as e:
+        log_event(logger, 'quest_analytics.get_error', 
+                 user_id=auth.user_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to get quest analytics")
+
+
 # Lambda handler for both GraphQL resolvers and API Gateway requests
 def lambda_handler(event, context):
     """
@@ -1593,9 +1924,19 @@ def lambda_handler(event, context):
         # Check if this is an API Gateway request
         if 'httpMethod' in event and 'path' in event:
             # This is an API Gateway request, use the FastAPI app
-            from mangum import Mangum
-            handler = Mangum(app)
-            return handler(event, context)
+            # Note: mangum import is done here to avoid import-time dependency issues
+            try:
+                from mangum import Mangum  # type: ignore
+                handler = Mangum(app)
+                return handler(event, context)
+            except ImportError:
+                # Fallback if mangum is not available
+                logger.error('mangum_import_failed', exc_info=True)
+                return {
+                    'statusCode': 500,
+                    'body': '{"error": "Mangum adapter not available"}',
+                    'headers': {'Content-Type': 'application/json'}
+                }
         
         # Otherwise, handle as GraphQL resolver
         operation = event.get('operation')

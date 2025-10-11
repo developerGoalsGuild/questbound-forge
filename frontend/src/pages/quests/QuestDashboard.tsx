@@ -1,24 +1,36 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useQuests } from '@/hooks/useQuest';
+import { useQuestTemplates } from '@/hooks/useQuestTemplate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { QuestStatisticsCard } from '@/components/quests/QuestStatisticsCard';
 import { QuestQuickActions } from '@/components/quests/QuestQuickActions';
 import { QuestTabs } from '@/components/quests/QuestTabs';
-import QuestList from '@/components/quests/QuestList';
+// Lazy load heavy components
+const QuestList = React.lazy(() => import('@/components/quests/QuestList'));
+const QuestTemplateList = React.lazy(() => import('@/components/quests/QuestTemplateList'));
 import { calculateQuestStatistics, formatQuestStatistics } from '@/lib/questStatistics';
 import { triggerManualQuestCompletionCheck } from '@/lib/apiTask';
-import { Plus, Loader2, Target, CheckCircle, TrendingUp, Calendar, Activity, Trophy, ArrowLeft, Check } from 'lucide-react';
+import { Plus, Loader2, Target, CheckCircle, TrendingUp, Calendar, Activity, Trophy, ArrowLeft, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/error/ErrorBoundary';
+
+// Lazy load analytics dashboard
+const QuestAnalyticsDashboard = React.lazy(() => import('@/components/quests/analytics/QuestAnalyticsDashboard'));
+
+// Lazy load notification tester (dev only)
+const NotificationTester = React.lazy(() => import('@/components/dev/NotificationTester').then(module => ({ default: module.default })));
 
 const QuestDashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'my' | 'following'>('my');
+  const [activeTab, setActiveTab] = useState<'my' | 'following' | 'templates'>('my');
   const [isCheckingCompletion, setIsCheckingCompletion] = useState(false);
   const [completionCheckResult, setCompletionCheckResult] = useState<{ completed_quests: string[], errors: string[] } | null>(null);
+  const [isAnalyticsExpanded, setIsAnalyticsExpanded] = useState(false);
   const { quests, loading, error, refresh } = useQuests();
+  const { templates: questTemplates, isLoading: templatesLoading, error: templatesError } = useQuestTemplates();
 
   // Calculate statistics from quests
   const statistics = useMemo(() => {
@@ -89,6 +101,37 @@ const QuestDashboard: React.FC = () => {
   const handleDelete = (id: string) => {
     // Quest delete logic will be handled by the QuestCard component
     console.log('Deleting quest:', id);
+  };
+
+  // Template action handlers
+  const handleEditTemplate = (template: any) => {
+    console.log('Editing template:', template.id);
+    // TODO: Navigate to template edit page
+  };
+
+  const handleDeleteTemplate = (template: any) => {
+    console.log('Deleting template:', template.id);
+    // TODO: Implement template deletion
+  };
+
+  const handleUseTemplate = (template: any) => {
+    console.log('Using template:', template.id);
+    // TODO: Navigate to quest creation with template
+    navigate('/quests/create', { state: { template } });
+  };
+
+  const handleViewTemplate = (template: any) => {
+    // Ensure logger is imported and available before use.
+    // For now, use console.debug as a fallback for logging.
+    // If logger is set up elsewhere, replace console.debug with logger.debug.
+    console.debug('Viewing template', { templateId: template.id });
+    navigate(`/quests/templates/${template.id}`);
+  };
+
+  const handleCreateTemplate = () => {
+    console.log('Creating new template');
+    // TODO: Navigate to template creation page
+    navigate('/quests/create-template');
   };
 
   if (loading) {
@@ -174,6 +217,13 @@ const QuestDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Notification Tester - Development Only */}
+        {process.env.NODE_ENV === 'development' && (
+          <Suspense fallback={<div>Loading notification tester...</div>}>
+            <NotificationTester />
+          </Suspense>
+        )}
+
         {/* Quick Actions */}
         <QuestQuickActions />
 
@@ -226,6 +276,56 @@ const QuestDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Analytics Dashboard - Collapsible */}
+        {statistics && (
+          <Card className="mb-6">
+            <CardHeader 
+              className="cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => setIsAnalyticsExpanded(!isAnalyticsExpanded)}
+            >
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  {questTranslations?.analytics?.title || 'Analytics'}
+                  {!isAnalyticsExpanded && (
+                    <span className="text-sm text-gray-500 font-normal ml-2">
+                      - {questTranslations?.analytics?.clickToView || 'Click to view detailed analytics'}
+                    </span>
+                  )}
+                </div>
+                {isAnalyticsExpanded ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </CardTitle>
+            </CardHeader>
+            {isAnalyticsExpanded && (
+              <CardContent>
+                <ErrorBoundary
+                  fallback={
+                    <div className="text-center py-8">
+                      <p className="text-red-600 mb-4">Failed to load analytics dashboard</p>
+                      <Button onClick={() => setIsAnalyticsExpanded(false)} variant="outline">
+                        Close Analytics
+                      </Button>
+                    </div>
+                  }
+                >
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Loading analytics...</span>
+                    </div>
+                  }>
+                    <QuestAnalyticsDashboard />
+                  </Suspense>
+                </ErrorBoundary>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
         {/* Manual Quest Completion Check Results */}
         {completionCheckResult && (
           <Card>
@@ -274,20 +374,57 @@ const QuestDashboard: React.FC = () => {
         {/* Quest Tabs */}
         <QuestTabs
           myQuestsContent={
-            <QuestList
-              onViewDetails={handleViewDetails}
-              onStart={handleStart}
-              onEdit={handleEdit}
-              onCancel={handleCancel}
-              onFail={handleFail}
-              onDelete={handleDelete}
-              onCreateQuest={handleCreateQuest}
-            />
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading quests...</span>
+              </div>
+            }>
+              <QuestList
+                onViewDetails={handleViewDetails}
+                onStart={handleStart}
+                onEdit={handleEdit}
+                onCancel={handleCancel}
+                onFail={handleFail}
+                onDelete={handleDelete}
+                onCreateQuest={handleCreateQuest}
+              />
+            </Suspense>
           }
           followingQuestsContent={
             <div className="text-center py-8 text-muted-foreground">
               <p>{questTranslations?.dashboard?.tabs?.followingQuestsPlaceholder || 'Following quests feature will be implemented in a future update.'}</p>
             </div>
+          }
+          templatesContent={
+            <ErrorBoundary
+              fallback={
+                <div className="text-center py-8">
+                  <p className="text-red-600 mb-4">Failed to load quest templates</p>
+                  <Button onClick={() => setActiveTab('my')} variant="outline">
+                    Back to My Quests
+                  </Button>
+                </div>
+              }
+            >
+              <Suspense fallback={
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="ml-2">Loading templates...</span>
+                </div>
+              }>
+                <QuestTemplateList
+                  templates={questTemplates}
+                  isLoading={templatesLoading}
+                  onEdit={handleEditTemplate}
+                  onDelete={handleDeleteTemplate}
+                  onUse={handleUseTemplate}
+                  onView={handleViewTemplate}
+                  onCreate={handleCreateTemplate}
+                  showActions={true}
+                />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
       </div>

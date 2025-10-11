@@ -6,25 +6,11 @@ This file contains the incomplete or missing tasks from Phase 1 Foundation that 
 - [ ] 1.3 – Add issue templates and PR templates
 - [ ] 1.2 – Configure GitHub Actions workflow skeleton (expand beyond infra tests)
 
-## Frontend Infrastructure
-- [x] 2.3 – Setup Redux Toolkit and base slice (COMPLETED - Using @tanstack/react-query instead)
-  - Project uses React Query for state management instead of Redux Toolkit
-  - No Redux setup needed as React Query provides sufficient state management capabilities
-  - All data fetching and caching handled through React Query hooks
-
 ## Backend Infrastructure
 - [ ] 3.3 – Setup poetry/requirements.txt and linting (switch to UV per rules)
 
 ## User Profiles
 - [ ] 8.3 – Unit test all profile endpoints (verify comprehensive coverage)
-
-## Goals & Tasks
-- [ ] 13.2 – Add validation + API integration for goal form (verify implementation)
-
-## Goal Progress & Milestones
-- [ x ] 17.1 – Compute goal progress % (backend)
-- [ ] 17.4 – Add user milestones (backend)
-- [ ] 18.2 – Add milestone list UI
 
 ## Collaboration & Chat
 - [ ] 19.1 – Define DynamoDB schema for collaborations
@@ -43,7 +29,7 @@ This file contains the incomplete or missing tasks from Phase 1 Foundation that 
 
 ---
 *Generated: 2025-10-09*
-*Total Pending Tasks: 12*
+*Total Pending Tasks: 17*
 
 ## Recently Completed (2025-01-30)
 - [x] 4.1 – QuestCard component ✅ FULLY COMPLETED

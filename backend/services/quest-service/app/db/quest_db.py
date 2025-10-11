@@ -620,12 +620,11 @@ def list_user_quests(user_id: str, goal_id: Optional[str] = None,
     table = _get_dynamodb_table()
     
     try:
-        # Query GSI1 for user's quests with strong consistency (SK starts with "QUEST#")
+        # Query for user's quests with eventual consistency for better performance
         response = table.query(
-            #IndexName="GSI1",
             KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") &
                                  Key("SK").begins_with("QUEST#"),
-            ConsistentRead=True
+            ConsistentRead=False  # Use eventual consistency for better performance
         )
         
         quests = []
@@ -1229,11 +1228,10 @@ async def _check_tasks_completion(task_ids: list[str], user_id: str) -> bool:
         table = _get_dynamodb_table()
         
         for task_id in task_ids:
-            # Query for the task with strong consistency
+            # Query for the task with eventual consistency for better performance
             response = table.query(
-                #IndexName="GSI1",
                 KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").eq(f"TASK#{task_id}"),
-                ConsistentRead=True
+                ConsistentRead=False  # Use eventual consistency for better performance
             )
             
             if not response.get('Items'):
@@ -1271,11 +1269,10 @@ async def _check_goals_completion(goal_ids: list[str], user_id: str) -> bool:
         table = _get_dynamodb_table()
         
         for goal_id in goal_ids:
-            # Query for the goal with strong consistency
+            # Query for the goal with eventual consistency for better performance
             response = table.query(
-                #IndexName="GSI1",
                 KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").eq(f"GOAL#{goal_id}"),
-                ConsistentRead=True
+                ConsistentRead=False  # Use eventual consistency for better performance
             )
             
             if not response.get('Items'):
@@ -1312,10 +1309,10 @@ async def _count_completed_tasks_after_quest_start(user_id: str, quest_start_tim
     try:
         table = _get_dynamodb_table()
 
-        # Query all tasks for the user with strong consistency to avoid eventual consistency issues
+        # Query all tasks for the user with eventual consistency for better performance
         response = table.query(
             KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & Key('SK').begins_with('TASK#'),            
-            ConsistentRead=True
+            ConsistentRead=False  # Use eventual consistency for better performance
         )
 
    
@@ -1354,16 +1351,14 @@ async def _count_completed_goals_after_quest_start(user_id: str, quest_start_tim
     try:
         table = _get_dynamodb_table()
 
-        # Query all goals for the user with strong consistency to avoid eventual consistency issues
+        # Query all goals for the user with eventual consistency for better performance
         response = table.query(
-            #IndexName="GSI1",
-            #KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("GOAL#"),         
             KeyConditionExpression="PK = :pk AND begins_with(SK, :sk_prefix)",            
             ExpressionAttributeValues={
                 ":pk": f"USER#{user_id}",
                 ":sk_prefix": "TASK#"
             },
-            ConsistentRead=True
+            ConsistentRead=False  # Use eventual consistency for better performance
         )
             
         

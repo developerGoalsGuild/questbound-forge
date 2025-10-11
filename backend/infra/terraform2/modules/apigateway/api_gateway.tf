@@ -1,6 +1,16 @@
 locals {
-  cors_allow_headers = "accept,content-type,authorization,x-api-key,origin,referer,x-amz-date,x-amz-security-token"
+  cors_allow_headers = "accept,content-type,authorization,x-api-key,origin,referer,x-amz-date,x-amz-security-token,x-requested-with"
   cors_allow_origin  = length(var.frontend_allowed_origins) > 0 ? var.frontend_allowed_origins[0] : "*"
+  
+  # Security headers
+  security_headers = {
+    "X-Content-Type-Options"     = "nosniff"
+    "X-Frame-Options"            = "DENY"
+    "X-XSS-Protection"           = "1; mode=block"
+    "Strict-Transport-Security"  = "max-age=31536000; includeSubDomains"
+    "Referrer-Policy"            = "strict-origin-when-cross-origin"
+    "Content-Security-Policy"    = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+  }
 }
 
 resource "aws_api_gateway_rest_api" "rest_api" {
@@ -19,6 +29,8 @@ resource "aws_api_gateway_rest_api" "rest_api" {
     ]
   })
 }
+
+# API Gateway caching is configured at the method level via aws_api_gateway_method_settings
 
 resource "aws_api_gateway_authorizer" "lambda_authorizer" {
   name                            = "goalsguild_lambda_authorizer_${var.environment}"
@@ -166,6 +178,26 @@ resource "aws_api_gateway_resource" "quests_check_completion" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.quests.id
   path_part   = "check-completion"
+}
+
+# Quest analytics endpoint
+resource "aws_api_gateway_resource" "quests_analytics" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quests.id
+  path_part   = "analytics"
+}
+
+# Quest templates endpoints
+resource "aws_api_gateway_resource" "quests_templates" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quests.id
+  path_part   = "templates"
+}
+
+resource "aws_api_gateway_resource" "quests_templates_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quests_templates.id
+  path_part   = "{template_id}"
 }
 
 # Progress endpoints
@@ -474,6 +506,8 @@ resource "aws_api_gateway_integration" "profile_get_integration" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+  cache_key_parameters    = ["method.request.header.Authorization"]
+  cache_namespace         = "user-profile"
 }
 
 resource "aws_api_gateway_integration" "profile_put_integration" {
@@ -550,6 +584,8 @@ resource "aws_api_gateway_integration" "quests_get_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+  cache_key_parameters    = ["method.request.header.Authorization"]
+  cache_namespace         = "quests-list"
 }
 resource "aws_api_gateway_integration" "quests_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
@@ -1434,6 +1470,300 @@ resource "aws_api_gateway_integration_response" "quests_check_completion_options
   }
 }
 
+# GET /quests/analytics (authenticated)
+resource "aws_api_gateway_method" "quests_analytics_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_analytics.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "quests_analytics_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_analytics.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "quests_analytics_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_analytics.id
+  http_method             = aws_api_gateway_method.quests_analytics_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+  cache_key_parameters    = ["method.request.header.Authorization", "method.request.querystring.period"]
+  cache_namespace         = "quests-analytics"
+}
+
+resource "aws_api_gateway_integration" "quests_analytics_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_analytics.id
+  http_method = aws_api_gateway_method.quests_analytics_options.http_method
+  type        = "MOCK"
+  passthrough_behavior = "WHEN_NO_MATCH"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "quests_analytics_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_analytics.id
+  http_method = aws_api_gateway_method.quests_analytics_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "quests_analytics_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_analytics.id
+  http_method = aws_api_gateway_method.quests_analytics_options.http_method
+  status_code = aws_api_gateway_method_response.quests_analytics_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain" = "{}"
+  }
+}
+
+# Quest Templates Methods
+
+# OPTIONS /quests/templates
+resource "aws_api_gateway_method" "quests_templates_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "quests_templates_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_templates.id
+  http_method = aws_api_gateway_method.quests_templates_options.http_method
+  type        = "MOCK"
+  passthrough_behavior = "WHEN_NO_MATCH"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "quests_templates_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_templates.id
+  http_method = aws_api_gateway_method.quests_templates_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "quests_templates_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_templates.id
+  http_method = aws_api_gateway_method.quests_templates_options.http_method
+  status_code = aws_api_gateway_method_response.quests_templates_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,POST'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain" = "{}"
+  }
+}
+
+# GET /quests/templates (authenticated)
+resource "aws_api_gateway_method" "quests_templates_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "quests_templates_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_templates.id
+  http_method             = aws_api_gateway_method.quests_templates_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+  cache_key_parameters    = ["method.request.header.Authorization", "method.request.querystring.privacy"]
+  cache_namespace         = "quests-templates"
+}
+
+# POST /quests/templates (authenticated)
+resource "aws_api_gateway_method" "quests_templates_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "quests_templates_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_templates.id
+  http_method             = aws_api_gateway_method.quests_templates_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+# OPTIONS /quests/templates/{template_id}
+resource "aws_api_gateway_method" "quests_templates_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "quests_templates_id_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_templates_id.id
+  http_method = aws_api_gateway_method.quests_templates_id_options.http_method
+  type        = "MOCK"
+  passthrough_behavior = "WHEN_NO_MATCH"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "quests_templates_id_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_templates_id.id
+  http_method = aws_api_gateway_method.quests_templates_id_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "quests_templates_id_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quests_templates_id.id
+  http_method = aws_api_gateway_method.quests_templates_id_options.http_method
+  status_code = aws_api_gateway_method_response.quests_templates_id_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{}"
+    "text/plain" = "{}"
+  }
+}
+
+# GET /quests/templates/{template_id} (authenticated)
+resource "aws_api_gateway_method" "quests_templates_id_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates_id.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "quests_templates_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_templates_id.id
+  http_method             = aws_api_gateway_method.quests_templates_id_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+# PUT /quests/templates/{template_id} (authenticated)
+resource "aws_api_gateway_method" "quests_templates_id_put" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates_id.id
+  http_method   = "PUT"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "quests_templates_id_put_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_templates_id.id
+  http_method             = aws_api_gateway_method.quests_templates_id_put.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+# DELETE /quests/templates/{template_id} (authenticated)
+resource "aws_api_gateway_method" "quests_templates_id_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quests_templates_id.id
+  http_method   = "DELETE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "quests_templates_id_delete_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quests_templates_id.id
+  http_method             = aws_api_gateway_method.quests_templates_id_delete.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
 # DELETE /quests/quests/{quest_id}
 resource "aws_api_gateway_method" "quests_quests_id_delete" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -1477,17 +1807,75 @@ resource "aws_api_gateway_api_key" "api_key" {
 }
 
 # Usage Plan
-resource "aws_api_gateway_usage_plan" "usage_plan" {
-  name        = "goalsguild_usage_plan_${var.environment}"
-  description = "Usage plan for GoalsGuild ${var.environment} environment"
+# Default usage plan for all users
+resource "aws_api_gateway_usage_plan" "default_usage_plan" {
+  name        = "goalsguild_default_usage_plan_${var.environment}"
+  description = "Default usage plan for GoalsGuild ${var.environment} environment"
 
   api_stages {
     api_id = aws_api_gateway_rest_api.rest_api.id
     stage  = aws_api_gateway_stage.stage.stage_name
   }
 
+  # More conservative limits for default users
   quota_settings {
-    limit  = 10000
+    limit  = 5000
+    period = "DAY"
+  }
+
+  throttle_settings {
+    burst_limit = 100
+    rate_limit  = 50
+  }
+
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+    Plan        = "default"
+  }
+}
+
+# Premium usage plan for authenticated users
+resource "aws_api_gateway_usage_plan" "premium_usage_plan" {
+  name        = "goalsguild_premium_usage_plan_${var.environment}"
+  description = "Premium usage plan for authenticated GoalsGuild users"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.rest_api.id
+    stage  = aws_api_gateway_stage.stage.stage_name
+  }
+
+  # Higher limits for premium users
+  quota_settings {
+    limit  = 20000
+    period = "DAY"
+  }
+
+  throttle_settings {
+    burst_limit = 500
+    rate_limit  = 200
+  }
+
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+    Plan        = "premium"
+  }
+}
+
+# Admin usage plan for administrative operations
+resource "aws_api_gateway_usage_plan" "admin_usage_plan" {
+  name        = "goalsguild_admin_usage_plan_${var.environment}"
+  description = "Admin usage plan for administrative operations"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.rest_api.id
+    stage  = aws_api_gateway_stage.stage.stage_name
+  }
+
+  # Very high limits for admin users
+  quota_settings {
+    limit  = 100000
     period = "DAY"
   }
 
@@ -1499,14 +1887,258 @@ resource "aws_api_gateway_usage_plan" "usage_plan" {
   tags = {
     Environment = var.environment
     Service     = "api-gateway"
+    Plan        = "admin"
   }
 }
 
-# Associate API Key with Usage Plan
-resource "aws_api_gateway_usage_plan_key" "usage_plan_key" {
+# Associate API Key with Default Usage Plan
+resource "aws_api_gateway_usage_plan_key" "default_usage_plan_key" {
   key_id        = aws_api_gateway_api_key.api_key.id
   key_type      = "API_KEY"
-  usage_plan_id = aws_api_gateway_usage_plan.usage_plan.id
+  usage_plan_id = aws_api_gateway_usage_plan.default_usage_plan.id
+}
+
+# Method-level throttling for sensitive endpoints
+resource "aws_api_gateway_method_settings" "quest_create_throttling" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests.POST"
+
+  settings {
+    throttling_rate_limit  = 10  # 10 requests per second
+    throttling_burst_limit = 20  # Burst up to 20 requests
+  }
+}
+
+resource "aws_api_gateway_method_settings" "quest_completion_throttling" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests/check-completion.POST"
+
+  settings {
+    throttling_rate_limit  = 5   # 5 requests per second
+    throttling_burst_limit = 10  # Burst up to 10 requests
+  }
+}
+
+resource "aws_api_gateway_method_settings" "analytics_throttling" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests/analytics.GET"
+
+  settings {
+    throttling_rate_limit  = 20  # 20 requests per second
+    throttling_burst_limit = 40  # Burst up to 40 requests
+  }
+}
+
+resource "aws_api_gateway_method_settings" "template_create_throttling" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests/templates.POST"
+
+  settings {
+    throttling_rate_limit  = 5   # 5 requests per second
+    throttling_burst_limit = 10  # Burst up to 10 requests
+  }
+}
+
+# Caching settings for quest endpoints
+resource "aws_api_gateway_method_settings" "quests_list_caching" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests.GET"
+
+  settings {
+    caching_enabled = true
+    cache_ttl_in_seconds = 300  # 5 minutes cache
+    cache_data_encrypted = true
+    require_authorization_for_cache_control = true
+  }
+}
+
+resource "aws_api_gateway_method_settings" "quests_analytics_caching" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests/analytics.GET"
+
+  settings {
+    caching_enabled = true
+    cache_ttl_in_seconds = 600  # 10 minutes cache for analytics
+    cache_data_encrypted = true
+    require_authorization_for_cache_control = true
+  }
+}
+
+resource "aws_api_gateway_method_settings" "quests_templates_caching" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "quests/templates.GET"
+
+  settings {
+    caching_enabled = true
+    cache_ttl_in_seconds = 900  # 15 minutes cache for templates
+    cache_data_encrypted = true
+    require_authorization_for_cache_control = true
+  }
+}
+
+# User service caching settings
+resource "aws_api_gateway_method_settings" "profile_get_caching" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "profile.GET"
+
+  settings {
+    caching_enabled = true
+    cache_ttl_in_seconds = 300  # 5 minutes cache for user profile
+    cache_data_encrypted = true
+    require_authorization_for_cache_control = true
+  }
+}
+
+# WAF Web ACL for API Gateway
+resource "aws_wafv2_web_acl" "api_gateway_waf" {
+  name  = "goalsguild-${var.environment}-api-gateway-waf"
+  scope = "REGIONAL"
+
+  default_action {
+    allow {}
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "goalsguild-${var.environment}-api-gateway-waf"
+    sampled_requests_enabled   = true
+  }
+
+  # Rate limiting rule
+  rule {
+    name     = "RateLimitRule"
+    priority = 1
+
+    action {
+      block {}
+    }
+
+    statement {
+      rate_based_statement {
+        limit              = 2000
+        aggregate_key_type = "IP"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "RateLimitRule"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # SQL injection protection
+  rule {
+    name     = "SQLInjectionRule"
+    priority = 2
+
+    action {
+      block {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesSQLiRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "SQLInjectionRule"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # XSS protection
+  rule {
+    name     = "XSSRule"
+    priority = 3
+
+    action {
+      block {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesCommonRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "XSSRule"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # IP reputation list
+  rule {
+    name     = "IPReputationRule"
+    priority = 4
+
+    action {
+      block {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAmazonIpReputationList"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "IPReputationRule"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Known bad inputs
+  rule {
+    name     = "KnownBadInputsRule"
+    priority = 5
+
+    action {
+      block {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesKnownBadInputsRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "KnownBadInputsRule"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Service     = "api-gateway"
+    Security    = "waf"
+  }
+}
+
+# WAF association - conditional based on variable
+resource "aws_wafv2_web_acl_association" "api_gateway_waf_association" {
+  count       = var.enable_api_gateway_waf ? 1 : 0
+  resource_arn = aws_api_gateway_stage.stage.arn
+  web_acl_arn  = aws_wafv2_web_acl.api_gateway_waf.arn
 }
 
 # IAM Role for API Gateway CloudWatch Logs
@@ -1600,6 +2232,17 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.quests_quests_id_fail_post,
       aws_api_gateway_method.quests_quests_id_fail_options,
       aws_api_gateway_method.quests_quests_id_delete,
+      # Analytics endpoint
+      aws_api_gateway_method.quests_analytics_get,
+      aws_api_gateway_method.quests_analytics_options,
+      # Template endpoints
+      aws_api_gateway_method.quests_templates_get,
+      aws_api_gateway_method.quests_templates_post,
+      aws_api_gateway_method.quests_templates_options,
+      aws_api_gateway_method.quests_templates_id_get,
+      aws_api_gateway_method.quests_templates_id_put,
+      aws_api_gateway_method.quests_templates_id_delete,
+      aws_api_gateway_method.quests_templates_id_options,
     ]))
   }
   lifecycle { create_before_destroy = true }
@@ -1629,13 +2272,14 @@ resource "aws_api_gateway_stage" "stage" {
   # Enable X-Ray tracing (disabled for dev environment)
   xray_tracing_enabled = var.environment != "dev"
   
+  # Enable caching for performance optimization
+  cache_cluster_enabled = true
+  cache_cluster_size    = "0.5"  # 0.5 GB cache cluster
+  
   # Stage variables (if needed)
   variables = {
     environment = var.environment
   }
-  
-  # Cache settings
-  cache_cluster_enabled = false
   
   depends_on = [aws_api_gateway_deployment.deployment]
 }

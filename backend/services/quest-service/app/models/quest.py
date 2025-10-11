@@ -43,6 +43,48 @@ MIN_REWARD_XP = 0
 DEFAULT_REWARD_XP = 50
 
 
+class Quest(BaseModel):
+    """Quest model for internal use (matches QuestResponse structure)"""
+    
+    # Core fields
+    id: str = Field(..., description="Quest ID")
+    userId: str = Field(..., description="User ID who owns the quest")
+    title: str = Field(..., description="Quest title")
+    description: Optional[str] = Field(None, description="Quest description")
+    difficulty: QuestDifficulty = Field(..., description="Quest difficulty")
+    rewardXp: int = Field(..., description="Reward XP")
+    status: QuestStatus = Field(..., description="Quest status")
+    category: str = Field(..., description="Quest category")
+    tags: List[str] = Field(default_factory=list, description="Quest tags")
+    privacy: QuestPrivacy = Field(..., description="Quest privacy setting")
+    deadline: Optional[int] = Field(None, description="Quest deadline (epoch ms)")
+    createdAt: int = Field(..., description="Creation timestamp (epoch ms)")
+    updatedAt: int = Field(..., description="Last update timestamp (epoch ms)")
+    startedAt: Optional[int] = Field(None, description="Quest start timestamp (epoch ms)")
+    completedAt: Optional[int] = Field(None, description="Quest completion timestamp (epoch ms)")
+    version: int = Field(..., description="Optimistic locking version")
+    
+    # Quest type and configuration
+    kind: QuestKind = Field(..., description="Quest type")
+    
+    # Linked Quest fields
+    linkedGoalIds: Optional[List[str]] = Field(None, description="Linked goal IDs")
+    linkedTaskIds: Optional[List[str]] = Field(None, description="Linked task IDs")
+    dependsOnQuestIds: Optional[List[str]] = Field(None, description="Dependent quest IDs")
+    
+    # Quantitative Quest fields
+    targetCount: Optional[int] = Field(None, description="Target count for quantitative quests")
+    countScope: Optional[QuestCountScope] = Field(None, description="Count scope for quantitative quests")
+    periodDays: Optional[int] = Field(None, description="Period duration for quantitative quests")
+    
+    # Audit trail
+    auditTrail: List[dict] = Field(default_factory=list, description="Audit trail events")
+    
+    # Additional fields for analytics
+    linkedTasks: List[dict] = Field(default_factory=list, description="Linked tasks for analytics")
+    quantitativeTasks: List[dict] = Field(default_factory=list, description="Quantitative tasks for analytics")
+
+
 class QuestCreatePayload(BaseModel):
     """Payload for creating a new quest (creates as draft)"""
     

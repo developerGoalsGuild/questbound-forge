@@ -64,3 +64,16 @@ variable "tags" {
   type = map(string) 
   default = {} 
 }
+
+# Performance optimization controls
+variable "enable_appsync_caching" {
+  type        = bool
+  default     = false
+  description = "Enable AppSync resolver caching"
+}
+
+variable "appsync_cache_ttl_seconds" {
+  type        = number
+  default     = 300
+  description = "AppSync cache TTL in seconds"
+}

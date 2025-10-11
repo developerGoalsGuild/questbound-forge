@@ -47,6 +47,23 @@ enum QuestCountScope {
 # Core Types
 # ----------------
 
+type NotificationPreferences {
+  questStarted: Boolean!
+  questCompleted: Boolean!
+  questFailed: Boolean!
+  progressMilestones: Boolean!
+  deadlineWarnings: Boolean!
+  streakAchievements: Boolean!
+  challengeUpdates: Boolean!
+  channels: NotificationChannels!
+}
+
+type NotificationChannels {
+  inApp: Boolean!
+  email: Boolean!
+  push: Boolean!
+}
+
 type User {
   id: ID!
   email: String
@@ -62,6 +79,7 @@ type User {
   bio: String
   tags: [String!]!
   tier: String!                 # "free" | "premium" etc.
+  notificationPreferences: NotificationPreferences
   createdAt: AWSTimestamp
   updatedAt: AWSTimestamp
   ageYears: Int
