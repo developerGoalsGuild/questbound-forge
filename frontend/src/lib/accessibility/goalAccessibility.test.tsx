@@ -70,8 +70,12 @@ vi.mock('@/components/dashboard/GoalsButton', () => ({
   default: () => (
     <section>
       <h2>Goals</h2>
-      <button aria-label="View all goals" type="button" tabIndex={0}>View all goals</button>
-      <button aria-label="Create Goal" type="button" tabIndex={0}>Create Goal</button>
+      <button aria-label="View all goals" aria-labelledby="view-all-goals-label" type="button" tabIndex={0}>
+        <span id="view-all-goals-label">View all goals</span>
+      </button>
+      <button aria-label="Create a new goal" aria-labelledby="create-goal-label" type="button" tabIndex={0}>
+        <span id="create-goal-label">Create Goal</span>
+      </button>
     </section>
   )
 }));
