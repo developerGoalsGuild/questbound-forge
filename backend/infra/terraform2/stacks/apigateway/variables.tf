@@ -24,6 +24,10 @@ variable "quest_service_lambda_arn_override" {
     type    = string
     default = ""
 }
+variable "collaboration_service_lambda_arn_override" {
+    type    = string
+    default = ""
+}
 
 # Accept extra variables from shared tfvars to avoid warnings (not used here)
 variable "frontend_base_url" {
@@ -86,4 +90,10 @@ variable "appsync_cache_ttl_seconds" {
     type        = number
     default     = 300
     description = "AppSync cache TTL in seconds"
+}
+
+variable "cache_enabled" {
+    type        = bool
+    default     = true
+    description = "Enable API Gateway caching"
 }

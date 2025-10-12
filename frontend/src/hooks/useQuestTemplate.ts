@@ -145,7 +145,7 @@ export const useQuestTemplates = (options: QuestTemplateOperationOptions = {}) =
   // Load templates on mount
   useEffect(() => {
     loadTemplatesData();
-  }, [loadTemplatesData]);
+  }, []); // Remove loadTemplatesData from dependencies to prevent infinite loop
 
   const handleZodError = (err: any, templateId?: string) => {
     const zodErrors: Record<string, string> = {};

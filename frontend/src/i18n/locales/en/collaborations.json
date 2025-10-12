@@ -1,0 +1,112 @@
+{
+  "collaborations": {
+    "invite": {
+      "title": "Invite Collaborator",
+      "subtitle": "Invite someone to collaborate on this {resourceType}",
+      "emailOrUsername": "Email or Username",
+      "message": "Message",
+      "placeholder": "Enter email or username",
+      "helpText": "Enter an email address or username",
+      "messagePlaceholder": "Optional message...",
+      "send": "Send Invitation",
+      "sending": "Sending...",
+      "success": {
+        "title": "Invitation Sent",
+        "description": "Invitation sent successfully"
+      },
+      "errors": {
+        "userNotFound": "User not found",
+        "generic": "Failed to send invitation"
+      },
+      "validation": {
+        "required": "This field is required",
+        "invalidFormat": "Invalid email or username format",
+        "messageTooLong": "Message is too long"
+      }
+    },
+    "collaborators": {
+      "title": "Collaborators",
+      "empty": "No collaborators yet",
+      "invite": "Invite",
+      "inviteFirst": "Invite your first collaborator",
+      "owner": "Owner",
+      "you": "You",
+      "joined": "Joined {date}",
+      "remove": {
+        "confirm": {
+          "title": "Remove Collaborator",
+          "description": "Are you sure you want to remove {username} from this collaboration?"
+        },
+        "success": {
+          "title": "Collaborator Removed",
+          "description": "{username} has been removed from the collaboration"
+        },
+        "errors": {
+          "noPermission": {
+            "title": "Permission Denied",
+            "description": "You don't have permission to remove collaborators"
+          },
+          "generic": {
+            "title": "Failed to Remove",
+            "description": "Failed to remove collaborator"
+          }
+        }
+      },
+      "errors": {
+        "noPermission": "You don't have permission to view collaborators",
+        "resourceNotFound": "Resource not found",
+        "generic": "Failed to load collaborators"
+      }
+    },
+    "comments": {
+      "title": "Comments",
+      "add": "Add Comment",
+      "reply": "Reply",
+      "edit": "Edit",
+      "delete": "Delete",
+      "placeholder": "Write a comment... Use @ to mention someone",
+      "empty": "No comments yet",
+      "beFirst": "Be the first to comment",
+      "loading": "Loading comments...",
+      "errors": {
+        "generic": "Failed to load comments",
+        "createFailed": "Failed to create comment",
+        "updateFailed": "Failed to update comment",
+        "deleteFailed": "Failed to delete comment"
+      }
+    },
+    "reactions": {
+      "add": "Add Reaction",
+      "remove": "Remove Reaction",
+      "emoji": {
+        "thumbsUp": "👍",
+        "thumbsDown": "👎",
+        "heart": "❤️",
+        "laugh": "😂",
+        "surprised": "😮",
+        "sad": "😢",
+        "party": "🎉",
+        "rocket": "🚀"
+      }
+    },
+    "invitations": {
+      "title": "Invitations",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "accept": "Accept",
+      "decline": "Decline",
+      "expiresIn": "Expires in {time}",
+      "expired": "Expired",
+      "empty": "No invitations",
+      "loading": "Loading invitations...",
+      "errors": {
+        "generic": "Failed to load invitations",
+        "acceptFailed": "Failed to accept invitation",
+        "declineFailed": "Failed to decline invitation"
+      }
+    }
+  }
+}
+

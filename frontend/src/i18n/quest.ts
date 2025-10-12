@@ -79,6 +79,7 @@ export interface QuestTranslations {
     clearFilters: string;
     active: string;
     activeFilters: string;
+    activeCount: string;
     showing: string;
   };
 
@@ -702,6 +703,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       start: 'Start',
       cancel: 'Cancel',
       fail: 'Mark as Failed',
+      creating: 'Creating...',
       delete: 'Delete',
       save: 'Save',
       saving: 'Saving...',
@@ -716,7 +718,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       next: 'Next',
       previous: 'Previous',
       createQuest: 'Create Quest',
-      creating: 'Creating...',
+     
       back: 'Back',
       finish: 'Finish',
       finishing: 'Finishing...'
@@ -839,6 +841,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       clearFilters: 'Clear all filters',
       active: 'active',
       activeFilters: 'active filters',
+      activeCount: '{{count}} active filters',
       showing: 'Showing',
     },
     notifications: {
@@ -1228,6 +1231,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       start: 'Iniciar',
       cancel: 'Cancelar',
       fail: 'Marcar como Fallida',
+      creating: 'Creando...',
       delete: 'Eliminar',
       save: 'Guardar',
       saving: 'Guardando...',
@@ -1242,7 +1246,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       next: 'Siguiente',
       previous: 'Anterior',
       createQuest: 'Crear Misión',
-      creating: 'Creando...',
+      
       back: 'Atrás',
       finish: 'Finalizar',
       finishing: 'Finalizando...'
@@ -1263,6 +1267,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       clearFilters: 'Limpiar todos los filtros',
       active: 'activos',
       activeFilters: 'filtros activos',
+      activeCount: '{{count}} filtros activos',
       showing: 'Mostrando',
     },
     messages: {
@@ -1754,6 +1759,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       start: 'Démarrer',
       cancel: 'Annuler',
       fail: 'Marquer comme Échoué',
+      creating: 'Création...',
       delete: 'Supprimer',
       save: 'Sauvegarder',
       saving: 'Sauvegarde...',
@@ -1768,7 +1774,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       next: 'Suivant',
       previous: 'Précédent',
       createQuest: 'Créer une Quête',
-      creating: 'Création...',
+      
       back: 'Retour',
       finish: 'Terminer',
       finishing: 'Finalisation...'
@@ -2130,6 +2136,7 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       clearFilters: 'Effacer tous les filtres',
       active: 'actifs',
       activeFilters: 'filtres actifs',
+      activeCount: '{{count}} filtres actifs',
       showing: 'Affichage',
     },
     dashboard: {

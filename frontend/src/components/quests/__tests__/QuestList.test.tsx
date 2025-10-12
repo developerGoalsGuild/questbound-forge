@@ -38,8 +38,10 @@ vi.mock('@/hooks/useTranslation', () => ({
 
 // Mock the useQuests hook
 const mockUseQuests = vi.fn();
+const mockUseQuestProgress = vi.fn();
 vi.mock('@/hooks/useQuest', () => ({
   useQuests: () => mockUseQuests(),
+  useQuestProgress: () => mockUseQuestProgress(),
 }));
 
 // Mock the useQuestFilters hook
@@ -136,6 +138,30 @@ describe('QuestList', () => {
       validationErrors: {},
       hasValidationErrors: false,
       isFormValid: true,
+    });
+
+    // Default mock for useQuestProgress
+    mockUseQuestProgress.mockReturnValue({
+      progress: 0,
+      progressPercentage: 0,
+      isCalculating: false,
+      isCompleted: false,
+      isInProgress: false,
+      isNotStarted: true,
+      progressData: {
+        percentage: 0,
+        status: 'not_started',
+        completedCount: 0,
+        totalCount: 0,
+        remainingCount: 0,
+        lastUpdated: new Date(),
+        isCalculating: false,
+      },
+      completedCount: 0,
+      totalCount: 0,
+      remainingCount: 0,
+      status: 'not_started',
+      error: null,
     });
   });
 

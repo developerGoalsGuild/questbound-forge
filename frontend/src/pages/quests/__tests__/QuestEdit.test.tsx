@@ -9,18 +9,20 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import QuestEditPage from '../QuestEdit';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Quest } from '@/models/quest';
 
 // Mock the translation hook
-vi.mock('@/hooks/useTranslation');
+vi.mock('@/hooks/useTranslation', () => ({
+  useTranslation: vi.fn(),
+}));
 
 // Mock the QuestEditForm component
 vi.mock('@/components/quests/QuestEditForm', () => ({
-  QuestEditForm: ({ questId, onSuccess, onCancel }: any) => (
+  default: ({ questId, onSuccess, onCancel }: any) => (
     <div data-testid="quest-edit-form">
       <div>Quest Edit Form for {questId}</div>
       <button onClick={() => onSuccess?.({ id: questId, title: 'Updated Quest' })}>
@@ -35,11 +37,17 @@ vi.mock('@/components/quests/QuestEditForm', () => ({
 
 const mockUseTranslation = vi.mocked(useTranslation);
 
+// Mock navigate function
+const mockNavigate = vi.fn();
+
 // Mock translations
 const mockTranslations = {
   quest: {
     title: 'Edit Quest',
     description: 'Edit your quest details and settings',
+    messages: {
+      loading: 'Loading quest...',
+    },
   },
   common: {
     back: 'Back',
@@ -61,32 +69,50 @@ const TestWrapper: React.FC<{
   return (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={initialEntries}>
-        {children}
+        <Routes>
+          <Route path="/quests/edit/:id" element={children as any} />
+          <Route path="/quests/edit" element={children as any} />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>
   );
 };
 
 describe('QuestEditPage', () => {
-  const mockNavigate = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     
     // Mock useTranslation
     mockUseTranslation.mockReturnValue({
-      t: mockTranslations,
+      t: (key: string) => {
+        const [namespace, ...rest] = key.split('.');
+        let current = mockTranslations as any;
+        if (namespace === 'quest') {
+          current = mockTranslations.quest;
+        } else if (namespace === 'common') {
+          current = mockTranslations.common;
+        }
+        
+        for (const part of rest) {
+          if (current && current[part] !== undefined) {
+            current = current[part];
+          } else {
+            return key; // Return key if not found
+          }
+        }
+        return current;
+      },
       language: 'en',
       setLanguage: vi.fn(),
     });
 
-    // Mock useNavigate
+    // Mock useNavigate only; let routes drive params
     vi.mock('react-router-dom', async () => {
       const actual = await vi.importActual('react-router-dom');
       return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useParams: () => ({ id: 'quest-1' }),
       };
     });
   });
@@ -130,18 +156,8 @@ describe('QuestEditPage', () => {
     });
 
     it('should not render QuestEditForm when quest ID is not provided', () => {
-      // Mock useParams to return undefined id
-      vi.doMock('react-router-dom', async () => {
-        const actual = await vi.importActual('react-router-dom');
-        return {
-          ...actual,
-          useNavigate: () => mockNavigate,
-          useParams: () => ({ id: undefined }),
-        };
-      });
-
       render(
-        <TestWrapper>
+        <TestWrapper initialEntries={["/quests/edit"]}>
           <QuestEditPage />
         </TestWrapper>
       );
@@ -249,18 +265,8 @@ describe('QuestEditPage', () => {
 
   describe('Error Handling', () => {
     it('should handle missing quest ID gracefully', () => {
-      // Mock useParams to return undefined id
-      vi.doMock('react-router-dom', async () => {
-        const actual = await vi.importActual('react-router-dom');
-        return {
-          ...actual,
-          useNavigate: () => mockNavigate,
-          useParams: () => ({ id: undefined }),
-        };
-      });
-
       render(
-        <TestWrapper>
+        <TestWrapper initialEntries={["/quests/edit"]}>
           <QuestEditPage />
         </TestWrapper>
       );
@@ -401,8 +407,8 @@ describe('QuestEditPage', () => {
         </TestWrapper>
       );
 
-      const spaceY6 = screen.getByRole('main').querySelector('.space-y-6');
-      expect(spaceY6).toBeInTheDocument();
+      const main = screen.getByRole('main');
+      expect(main).toHaveClass('space-y-6');
     });
   });
 });

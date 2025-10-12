@@ -187,7 +187,7 @@ describe('QuestTabs', () => {
       );
 
       const tabList = screen.getByRole('tablist');
-      expect(tabList).toHaveClass('grid', 'w-full', 'grid-cols-2');
+      expect(tabList).toHaveClass('grid', 'w-full', 'grid-cols-3');
     });
 
     it('has consistent spacing', () => {

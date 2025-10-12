@@ -223,6 +223,99 @@ resource "aws_api_gateway_resource" "health" {
   path_part   = "health"
 }
 
+# ---------- Collaboration Resources ----------
+
+# /collaborations
+resource "aws_api_gateway_resource" "collaborations" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "collaborations"
+}
+
+# /collaborations/invites
+resource "aws_api_gateway_resource" "collaborations_invites" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations.id
+  path_part   = "invites"
+}
+
+# /collaborations/invites/{invite_id}
+resource "aws_api_gateway_resource" "collaborations_invites_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_invites.id
+  path_part   = "{invite_id}"
+}
+
+# /collaborations/invites/{invite_id}/accept
+resource "aws_api_gateway_resource" "collaborations_invites_id_accept" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_invites_id.id
+  path_part   = "accept"
+}
+
+# /collaborations/invites/{invite_id}/decline
+resource "aws_api_gateway_resource" "collaborations_invites_id_decline" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_invites_id.id
+  path_part   = "decline"
+}
+
+# /collaborations/resources
+resource "aws_api_gateway_resource" "collaborations_resources" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations.id
+  path_part   = "resources"
+}
+
+# /collaborations/resources/{resource_type}
+resource "aws_api_gateway_resource" "collaborations_resources_type" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_resources.id
+  path_part   = "{resource_type}"
+}
+
+# /collaborations/resources/{resource_type}/{resource_id}
+resource "aws_api_gateway_resource" "collaborations_resources_type_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_resources_type.id
+  path_part   = "{resource_id}"
+}
+
+# /collaborations/resources/{resource_type}/{resource_id}/collaborators
+resource "aws_api_gateway_resource" "collaborations_resources_type_id_collaborators" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_resources_type_id.id
+  path_part   = "collaborators"
+}
+
+# /collaborations/resources/{resource_type}/{resource_id}/collaborators/{user_id}
+resource "aws_api_gateway_resource" "collaborations_resources_type_id_collaborators_user_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
+  path_part   = "{user_id}"
+}
+
+# /collaborations/comments
+resource "aws_api_gateway_resource" "collaborations_comments" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations.id
+  path_part   = "comments"
+}
+
+# /collaborations/comments/{comment_id}
+resource "aws_api_gateway_resource" "collaborations_comments_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_comments.id
+  path_part   = "{comment_id}"
+}
+
+# /collaborations/comments/{comment_id}/reactions
+resource "aws_api_gateway_resource" "collaborations_comments_id_reactions" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.collaborations_comments_id.id
+  path_part   = "reactions"
+}
+
 resource "aws_api_gateway_resource" "profile" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -506,8 +599,8 @@ resource "aws_api_gateway_integration" "profile_get_integration" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
-  cache_key_parameters    = ["method.request.header.Authorization"]
-  cache_namespace         = "user-profile"
+  cache_key_parameters    = var.cache_enabled ? ["method.request.header.Authorization"] : null
+  cache_namespace         = var.cache_enabled ? "user-profile" : null
 }
 
 resource "aws_api_gateway_integration" "profile_put_integration" {
@@ -584,8 +677,8 @@ resource "aws_api_gateway_integration" "quests_get_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
-  cache_key_parameters    = ["method.request.header.Authorization"]
-  cache_namespace         = "quests-list"
+  cache_key_parameters    = var.cache_enabled ? ["method.request.header.Authorization"] : null
+  cache_namespace         = var.cache_enabled ? "quests-list" : null
 }
 resource "aws_api_gateway_integration" "quests_options_integration" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
@@ -1499,8 +1592,8 @@ resource "aws_api_gateway_integration" "quests_analytics_get_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
-  cache_key_parameters    = ["method.request.header.Authorization", "method.request.querystring.period"]
-  cache_namespace         = "quests-analytics"
+  cache_key_parameters    = var.cache_enabled ? ["method.request.header.Authorization", "method.request.querystring.period"] : null
+  cache_namespace         = var.cache_enabled ? "quests-analytics" : null
 }
 
 resource "aws_api_gateway_integration" "quests_analytics_options_integration" {
@@ -1628,8 +1721,8 @@ resource "aws_api_gateway_integration" "quests_templates_get_integration" {
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
-  cache_key_parameters    = ["method.request.header.Authorization", "method.request.querystring.privacy"]
-  cache_namespace         = "quests-templates"
+  cache_key_parameters    = var.cache_enabled ? ["method.request.header.Authorization", "method.request.querystring.privacy"] : null
+  cache_namespace         = var.cache_enabled ? "quests-templates" : null
 }
 
 # POST /quests/templates (authenticated)
@@ -1945,6 +2038,7 @@ resource "aws_api_gateway_method_settings" "template_create_throttling" {
 
 # Caching settings for quest endpoints
 resource "aws_api_gateway_method_settings" "quests_list_caching" {
+  count       = var.cache_enabled ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   stage_name  = aws_api_gateway_stage.stage.stage_name
   method_path = "quests.GET"
@@ -1958,6 +2052,7 @@ resource "aws_api_gateway_method_settings" "quests_list_caching" {
 }
 
 resource "aws_api_gateway_method_settings" "quests_analytics_caching" {
+  count       = var.cache_enabled ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   stage_name  = aws_api_gateway_stage.stage.stage_name
   method_path = "quests/analytics.GET"
@@ -1971,6 +2066,7 @@ resource "aws_api_gateway_method_settings" "quests_analytics_caching" {
 }
 
 resource "aws_api_gateway_method_settings" "quests_templates_caching" {
+  count       = var.cache_enabled ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   stage_name  = aws_api_gateway_stage.stage.stage_name
   method_path = "quests/templates.GET"
@@ -1985,6 +2081,7 @@ resource "aws_api_gateway_method_settings" "quests_templates_caching" {
 
 # User service caching settings
 resource "aws_api_gateway_method_settings" "profile_get_caching" {
+  count       = var.cache_enabled ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   stage_name  = aws_api_gateway_stage.stage.stage_name
   method_path = "profile.GET"
@@ -2243,6 +2340,18 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.quests_templates_id_put,
       aws_api_gateway_method.quests_templates_id_delete,
       aws_api_gateway_method.quests_templates_id_options,
+      # Collaboration endpoints
+      aws_api_gateway_method.collaborations_invites_post,
+      aws_api_gateway_method.collaborations_invites_options,
+      aws_api_gateway_method.collaborations_invites_get,
+      aws_api_gateway_method.collaborations_invites_id_accept_post,
+      aws_api_gateway_method.collaborations_invites_id_accept_options,
+      aws_api_gateway_method.collaborations_invites_id_decline_post,
+      aws_api_gateway_method.collaborations_invites_id_decline_options,
+      aws_api_gateway_method.collaborations_resources_type_id_collaborators_get,
+      aws_api_gateway_method.collaborations_resources_type_id_collaborators_options,
+      aws_api_gateway_method.collaborations_resources_type_id_collaborators_user_id_delete,
+      aws_api_gateway_method.collaborations_resources_type_id_collaborators_user_id_options,
     ]))
   }
   lifecycle { create_before_destroy = true }
@@ -2273,8 +2382,8 @@ resource "aws_api_gateway_stage" "stage" {
   xray_tracing_enabled = var.environment != "dev"
   
   # Enable caching for performance optimization
-  cache_cluster_enabled = true
-  cache_cluster_size    = "0.5"  # 0.5 GB cache cluster
+  cache_cluster_enabled = var.cache_enabled
+  cache_cluster_size    = var.cache_enabled ? "0.5" : null  # 0.5 GB cache cluster
   
   # Stage variables (if needed)
   variables = {
@@ -2282,6 +2391,201 @@ resource "aws_api_gateway_stage" "stage" {
   }
   
   depends_on = [aws_api_gateway_deployment.deployment]
+}
+
+# ---------- Collaboration Methods ----------
+
+# POST /collaborations/invites
+resource "aws_api_gateway_method" "collaborations_invites_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "collaborations_invites_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_invites.id
+  http_method             = aws_api_gateway_method.collaborations_invites_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_invites.id
+  http_method = aws_api_gateway_method.collaborations_invites_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# GET /collaborations/invites
+resource "aws_api_gateway_method" "collaborations_invites_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_invites.id
+  http_method             = aws_api_gateway_method.collaborations_invites_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+# POST /collaborations/invites/{invite_id}/accept
+resource "aws_api_gateway_method" "collaborations_invites_id_accept_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites_id_accept.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "collaborations_invites_id_accept_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites_id_accept.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_id_accept_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_invites_id_accept.id
+  http_method             = aws_api_gateway_method.collaborations_invites_id_accept_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_id_accept_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_invites_id_accept.id
+  http_method = aws_api_gateway_method.collaborations_invites_id_accept_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# POST /collaborations/invites/{invite_id}/decline
+resource "aws_api_gateway_method" "collaborations_invites_id_decline_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites_id_decline.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "collaborations_invites_id_decline_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_invites_id_decline.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_id_decline_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_invites_id_decline.id
+  http_method             = aws_api_gateway_method.collaborations_invites_id_decline_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "collaborations_invites_id_decline_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_invites_id_decline.id
+  http_method = aws_api_gateway_method.collaborations_invites_id_decline_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# GET /collaborations/resources/{resource_type}/{resource_id}/collaborators
+resource "aws_api_gateway_method" "collaborations_resources_type_id_collaborators_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "collaborations_resources_type_id_collaborators_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "collaborations_resources_type_id_collaborators_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
+  http_method             = aws_api_gateway_method.collaborations_resources_type_id_collaborators_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "collaborations_resources_type_id_collaborators_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
+  http_method = aws_api_gateway_method.collaborations_resources_type_id_collaborators_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# DELETE /collaborations/resources/{resource_type}/{resource_id}/collaborators/{user_id}
+resource "aws_api_gateway_method" "collaborations_resources_type_id_collaborators_user_id_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id_collaborators_user_id.id
+  http_method   = "DELETE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "collaborations_resources_type_id_collaborators_user_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id_collaborators_user_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "collaborations_resources_type_id_collaborators_user_id_delete_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_resources_type_id_collaborators_user_id.id
+  http_method             = aws_api_gateway_method.collaborations_resources_type_id_collaborators_user_id_delete.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "collaborations_resources_type_id_collaborators_user_id_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_resources_type_id_collaborators_user_id.id
+  http_method = aws_api_gateway_method.collaborations_resources_type_id_collaborators_user_id_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
 }
 
 # Lambda permissions
@@ -2305,4 +2609,12 @@ resource "aws_lambda_permission" "allow_authorizer" {
   function_name = split(":", var.lambda_authorizer_arn)[6]
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/authorizers/${aws_api_gateway_authorizer.lambda_authorizer.id}"
+}
+
+resource "aws_lambda_permission" "allow_collaboration" {
+  statement_id  = "AllowAPIGatewayInvokeCollaboration"
+  action        = "lambda:InvokeFunction"
+  function_name = split(":", var.collaboration_service_lambda_arn)[6]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }

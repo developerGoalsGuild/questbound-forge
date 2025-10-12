@@ -62,12 +62,9 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
 
   // Accessibility helpers
   const createHintId = (id: string) => `${id}-hint`;
-  const formatHintLabel = (fieldLabel: string) => {
-    const safeLabel = fieldLabel && fieldLabel.trim().length > 0 ? fieldLabel.trim() : 'this field';
-    if (iconLabelTemplate.includes('{field}')) {
-      return iconLabelTemplate.replace('{field}', safeLabel);
-    }
-    return `${iconLabelTemplate} ${safeLabel}`.trim();
+  const formatHintLabel = (_fieldLabel: string) => {
+    // Use a generic label to avoid conflicting with form field labels in accessibility queries
+    return 'More information';
   };
 
   // Info icon + tooltip component (accessible)

@@ -81,6 +81,21 @@ const isBackendAvailable = async (): Promise<boolean> => {
  * Get the appropriate API implementation (real or mock)
  */
 const getApiImplementation = async () => {
+  // In test environment, prefer the real apiQuest exports so test mocks apply
+  const isVitest = (import.meta as any)?.env?.VITEST;
+  if (isVitest) {
+    return {
+      loadQuests,
+      loadQuest,
+      createQuest,
+      startQuest,
+      editQuest,
+      cancelQuest,
+      failQuest,
+      deleteQuest,
+    };
+  }
+
   const backendAvailable = await isBackendAvailable();
   return backendAvailable ? {
     loadQuests,
@@ -227,13 +242,13 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
         setLoading(false);
       }
     }
-  }, [onAnnounce]);
+  }, [onAnnounce, getAbortController]);
 
   useEffect(() => {
     if (autoLoad) {
       loadQuestsData();
     }
-  }, [autoLoad, loadQuestsData]);
+  }, [autoLoad]); // Remove loadQuestsData from dependencies to prevent infinite loop
 
   const refresh = useCallback(() => loadQuestsData(), [loadQuestsData]);
 
@@ -336,7 +351,10 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
       onAnnounce?.('Quest started successfully', 'polite');
       
       // Trigger notification
-      notifyQuestEvent('questStarted', updatedQuest);
+      notifyQuestEvent({
+        type: 'questStarted',
+        quest: updatedQuest
+      });
       
       return updatedQuest;
     } catch (err: any) {

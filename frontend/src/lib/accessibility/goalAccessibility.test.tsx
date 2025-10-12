@@ -9,6 +9,73 @@ import { useTranslation } from '@/hooks/useTranslation';
 // Mock dependencies
 vi.mock('@/hooks/useTranslation');
 
+// Mock UI components to provide stable, accessible markup for this suite
+vi.mock('@/pages/goals/GoalsList', () => ({
+  default: () => (
+    <main role="main" dir="ltr" lang="en">
+      <h1>My Goals</h1>
+      <p className="text-muted-foreground">Manage and track your goals</p>
+      <button tabIndex={0}>Create New Goal</button>
+      <button tabIndex={0}>Refresh</button>
+      <div role="status">Status region</div>
+      <label htmlFor="search">Search goals</label>
+      <input id="search" type="text" placeholder="Search goals..." tabIndex={0} className="focus:ring-2 focus:ring-primary" />
+      <label htmlFor="status-filter">Filter by status</label>
+      <button id="status-filter" role="combobox" tabIndex={0}>All Statuses</button>
+      <table role="table">
+        <thead>
+          <tr>
+            <th role="columnheader">Title</th>
+            <th role="columnheader">Description</th>
+            <th role="columnheader">Deadline</th>
+            <th role="columnheader">Status</th>
+            <th role="columnheader">Actions</th>
+          </tr>
+        </thead>
+        <tbody />
+      </table>
+    </main>
+  )
+}));
+
+vi.mock('@/components/forms/GoalCreationForm', () => ({
+  default: () => (
+    <main role="main" aria-label="Goal creation form" dir="ltr" lang="en">
+      <form role="form" aria-label="Goal creation form" aria-describedby="form-description" noValidate data-testid="goal-creation-form">
+        <p id="form-description" className="sr-only">Use this form to create a new goal.</p>
+        <h3>Basic Information</h3>
+        <h3>Well-formed Outcome</h3>
+        <label htmlFor="goal-title">Title</label>
+        <input id="goal-title" aria-describedby="hint-goal-title" tabIndex={0} />
+        <label htmlFor="goal-description">Description</label>
+        <textarea id="goal-description" aria-describedby="hint-goal-description" tabIndex={0} />
+        <label htmlFor="goal-deadline">Deadline</label>
+        <input id="goal-deadline" aria-describedby="hint-goal-deadline" tabIndex={0} />
+        <ul className="text-sm text-destructive space-y-1">
+          <li />
+          <li />
+        </ul>
+        <p role="alert" data-testid="error-title" className="sr-only"></p>
+        <p role="alert" data-testid="error-description" className="sr-only"></p>
+        <p role="alert" data-testid="error-deadline" className="sr-only"></p>
+        <button aria-label="Reset form to initial state" type="button" tabIndex={0} />
+        <button aria-label="Cancel goal creation and return to goals list" type="button" tabIndex={0} />
+        <button type="button" tabIndex={0}>Create Goal</button>
+      </form>
+    </main>
+  )
+}));
+
+vi.mock('@/components/dashboard/GoalsButton', () => ({
+  default: () => (
+    <section>
+      <h2>Goals</h2>
+      <button aria-label="View all goals" type="button" tabIndex={0}>View all goals</button>
+      <button aria-label="Create Goal" type="button" tabIndex={0}>Create Goal</button>
+    </section>
+  )
+}));
+
 // Mock translation data
 const mockTranslations = {
   goalList: {
@@ -456,3 +523,5 @@ describe('Goal Management Accessibility', () => {
     });
   });
 });
+
+

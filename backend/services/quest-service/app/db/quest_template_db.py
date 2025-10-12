@@ -25,8 +25,9 @@ def _add_common_to_path():
             sys.path.append(str(container_common.parent))
         return
     
-    # Try local development path
-    services_dir = Path(__file__).resolve().parents[3]
+    # Try local development path - go up to services directory
+    current_file = Path(__file__).resolve()
+    services_dir = current_file.parents[2]  # Go up from app/db/quest_template_db.py to services/
     if (services_dir / "common").exists():
         if str(services_dir) not in sys.path:
             sys.path.append(str(services_dir))
@@ -131,9 +132,32 @@ def _build_template_item(user_id: str, payload: QuestTemplateCreatePayload) -> D
 def _ddb_call(operation, op: str, **kwargs):
     """Wrapper for DynamoDB operations with error handling and logging."""
     try:
-        logger.debug(f"Executing DynamoDB operation: {op}", extra={"operation": op, "kwargs": kwargs})
+        # Enhanced logging for scan operations
+        if "scan" in op.lower():
+            logger.info(f"Executing DynamoDB scan operation: {op}", extra={
+                "operation": op, 
+                "filter_expression": str(kwargs.get("FilterExpression", "None")),
+                "projection_expression": kwargs.get("ProjectionExpression", "None"),
+                "limit": kwargs.get("Limit", "None"),
+                "expression_attribute_names": kwargs.get("ExpressionAttributeNames", "None")
+            })
+        else:
+            logger.debug(f"Executing DynamoDB operation: {op}", extra={"operation": op, "kwargs": kwargs})
+        
         result = operation(**kwargs)
-        logger.debug(f"DynamoDB operation successful: {op}", extra={"operation": op})
+        
+        # Enhanced logging for scan results
+        if "scan" in op.lower():
+            logger.info(f"DynamoDB scan operation successful: {op}", extra={
+                "operation": op,
+                "items_returned": len(result.get("Items", [])),
+                "count": result.get("Count", 0),
+                "scanned_count": result.get("ScannedCount", 0),
+                "has_last_evaluated_key": "LastEvaluatedKey" in result
+            })
+        else:
+            logger.debug(f"DynamoDB operation successful: {op}", extra={"operation": op})
+        
         return result
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -181,7 +205,7 @@ def create_template(user_id: str, payload: QuestTemplateCreatePayload) -> QuestT
                 table.query,
                 op="quest_template.check_duplicate_title",
                 IndexName="GSI1",
-                KeyConditionExpression=Key("GSI1PK").eq(f"USER#{user_id}") & Key("GSI1SK").begins_with("TEMPLATE#"),
+                KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("TEMPLATE#"),
                 FilterExpression=Attr("title").eq(payload.title),
                 Limit=1
             )
@@ -231,18 +255,45 @@ def get_template(template_id: str, user_id: str) -> QuestTemplateResponse:
     try:
         table = _get_dynamodb_table()
         
-        # First, find the template by scanning (since we don't know the user_id)
-        # In a production system, you might want to add a GSI for template_id
+        # Use the same query approach as the list operation, then filter by template ID
+        logger.info("Querying user templates to find specific template", extra={"template_id": template_id, "user_id": user_id})
+        
+        # Query user templates using the same pattern as list operation
         response = _ddb_call(
-            table.scan,
-            op="quest_template.scan_by_id",
-            FilterExpression=Attr("type").eq("QuestTemplate") & Attr("id").eq(template_id),
-            Limit=1
+            table.query,
+            op="quest_template.get_by_user_query",
+            IndexName="GSI1",
+            KeyConditionExpression=Key("GSI1PK").eq(f"USER#{user_id}") & Key("GSI1SK").begins_with("TEMPLATE#"),
+            ScanIndexForward=False,
+            Limit=50  # Get all user templates to find the specific one
         )
         
         items = response.get("Items", [])
-        if not items:
+        logger.info("User templates query results", extra={
+            "template_id": template_id,
+            "user_id": user_id,
+            "total_user_templates": len(items),
+            "available_template_ids": [item.get("id") for item in items],
+            "query_response": {
+                "count": response.get("Count", 0),
+                "scanned_count": response.get("ScannedCount", 0),
+                "last_evaluated_key": response.get("LastEvaluatedKey")
+            }
+        })
+        
+        # Filter by template ID
+        matching_items = [item for item in items if item.get("id") == template_id]
+        
+        if not matching_items:
+            logger.warning("Template not found in user templates", extra={
+                "template_id": template_id,
+                "user_id": user_id,
+                "total_user_templates": len(items),
+                "available_template_ids": [item.get("id") for item in items]
+            })
             raise QuestTemplateNotFoundError(f"Template {template_id} not found")
+        
+        items = matching_items
         
         item = items[0]
         
@@ -450,6 +501,28 @@ def list_user_templates(user_id: str, limit: int = 50, next_token: Optional[str]
         )
         
         items = response.get("Items", [])
+        logger.info("List operation query results", extra={
+            "user_id": user_id,
+            "items_found": len(items),
+            "query_response": {
+                "count": response.get("Count", 0),
+                "scanned_count": response.get("ScannedCount", 0),
+                "last_evaluated_key": response.get("LastEvaluatedKey"),
+                "items": [
+                    {
+                        "id": item.get("id"),
+                        "userId": item.get("userId"),
+                        "title": item.get("title"),
+                        "privacy": item.get("privacy"),
+                        "PK": item.get("PK"),
+                        "SK": item.get("SK"),
+                        "GSI1PK": item.get("GSI1PK"),
+                        "GSI1SK": item.get("GSI1SK")
+                    } for item in items
+                ]
+            }
+        })
+        
         templates = [QuestTemplateResponse(**item) for item in items]
         
         # Get total count (this is expensive, so we might want to cache it)
@@ -462,6 +535,15 @@ def list_user_templates(user_id: str, limit: int = 50, next_token: Optional[str]
         )
         
         total = count_response.get("Count", 0)
+        logger.info("List operation count query results", extra={
+            "user_id": user_id,
+            "count_total": total,
+            "count_response": {
+                "count": count_response.get("Count", 0),
+                "scanned_count": count_response.get("ScannedCount", 0),
+                "last_evaluated_key": count_response.get("LastEvaluatedKey")
+            }
+        })
         has_more = "LastEvaluatedKey" in response
         next_token = response.get("LastEvaluatedKey", {}).get("GSI1SK") if has_more else None
         

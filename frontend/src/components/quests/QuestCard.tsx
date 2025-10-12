@@ -376,9 +376,9 @@ const QuestCard: React.FC<QuestCardProps> = ({
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     {getProgressIcon()}
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {t.quest.progress.quantitativeProgress}
-                    </span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t.quest.progress.inProgress}
+                  </span>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground cursor-help" />
@@ -445,7 +445,7 @@ const QuestCard: React.FC<QuestCardProps> = ({
                   <div className="flex items-center gap-2">
                     {getProgressIcon()}
                     <span className="text-xs font-medium text-muted-foreground">
-                      {t.quest.progress.linkedProgress}
+                      {t.quest.progress.inProgress}
                     </span>
                     <Tooltip>
                       <TooltipTrigger asChild>

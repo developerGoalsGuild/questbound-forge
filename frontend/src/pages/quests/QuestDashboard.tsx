@@ -15,6 +15,7 @@ import { triggerManualQuestCompletionCheck } from '@/lib/apiTask';
 import { Plus, Loader2, Target, CheckCircle, TrendingUp, Calendar, Activity, Trophy, ArrowLeft, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/error/ErrorBoundary';
+import { logger } from '@/lib/logger';
 
 // Lazy load analytics dashboard
 const QuestAnalyticsDashboard = React.lazy(() => import('@/components/quests/analytics/QuestAnalyticsDashboard'));
@@ -25,7 +26,7 @@ const NotificationTester = React.lazy(() => import('@/components/dev/Notificatio
 const QuestDashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'my' | 'following' | 'templates'>('my');
+  // Removed unused activeTab state - tab state is managed by QuestTabs component
   const [isCheckingCompletion, setIsCheckingCompletion] = useState(false);
   const [completionCheckResult, setCompletionCheckResult] = useState<{ completed_quests: string[], errors: string[] } | null>(null);
   const [isAnalyticsExpanded, setIsAnalyticsExpanded] = useState(false);
@@ -81,7 +82,7 @@ const QuestDashboard: React.FC = () => {
 
   const handleStart = (id: string) => {
     // Quest start logic will be handled by the QuestCard component
-    console.log('Starting quest:', id);
+    logger.info('Quest start requested', { questId: id });
   };
 
   const handleEdit = (id: string) => {
@@ -90,46 +91,43 @@ const QuestDashboard: React.FC = () => {
 
   const handleCancel = (id: string) => {
     // Quest cancel logic will be handled by the QuestCard component
-    console.log('Cancelling quest:', id);
+    logger.info('Quest cancel requested', { questId: id });
   };
 
   const handleFail = (id: string) => {
     // Quest fail logic will be handled by the QuestCard component
-    console.log('Failing quest:', id);
+    logger.info('Quest fail requested', { questId: id });
   };
 
   const handleDelete = (id: string) => {
     // Quest delete logic will be handled by the QuestCard component
-    console.log('Deleting quest:', id);
+    logger.info('Quest delete requested', { questId: id });
   };
 
   // Template action handlers
   const handleEditTemplate = (template: any) => {
-    console.log('Editing template:', template.id);
+    logger.info('Template edit requested', { templateId: template.id });
     // TODO: Navigate to template edit page
   };
 
   const handleDeleteTemplate = (template: any) => {
-    console.log('Deleting template:', template.id);
+    logger.info('Template delete requested', { templateId: template.id });
     // TODO: Implement template deletion
   };
 
   const handleUseTemplate = (template: any) => {
-    console.log('Using template:', template.id);
+    logger.info('Template use requested', { templateId: template.id });
     // TODO: Navigate to quest creation with template
     navigate('/quests/create', { state: { template } });
   };
 
   const handleViewTemplate = (template: any) => {
-    // Ensure logger is imported and available before use.
-    // For now, use console.debug as a fallback for logging.
-    // If logger is set up elsewhere, replace console.debug with logger.debug.
-    console.debug('Viewing template', { templateId: template.id });
+    logger.debug('Template view requested', { templateId: template.id });
     navigate(`/quests/templates/${template.id}`);
   };
 
   const handleCreateTemplate = () => {
-    console.log('Creating new template');
+    logger.info('Template creation requested');
     // TODO: Navigate to template creation page
     navigate('/quests/create-template');
   };
@@ -401,7 +399,7 @@ const QuestDashboard: React.FC = () => {
               fallback={
                 <div className="text-center py-8">
                   <p className="text-red-600 mb-4">Failed to load quest templates</p>
-                  <Button onClick={() => setActiveTab('my')} variant="outline">
+                  <Button onClick={() => window.location.reload()} variant="outline">
                     Back to My Quests
                   </Button>
                 </div>

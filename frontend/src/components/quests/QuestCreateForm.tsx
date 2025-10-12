@@ -196,7 +196,7 @@ export const QuestCreateForm: React.FC<QuestCreateFormProps> = ({
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {questTranslations?.actions?.creating || 'Creating...'}
+                  {questTranslations?.progress?.creating || 'Creating...'}
                 </>
               ) : (
                 questTranslations?.actions?.createQuest || 'Create Quest'

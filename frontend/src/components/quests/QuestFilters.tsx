@@ -46,15 +46,16 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
   const questTranslations = (t as any)?.quest;
   const commonTranslations = (t as any)?.common;
 
-  // Check if filters are active
-  const hasFilters = hasActiveFilters(filters);
-  const activeFilterCount = getActiveFilterCount(filters);
+  // Check if filters are active (with default values)
+  const safeFilters = filters || { status: 'all', difficulty: 'all', category: 'all', search: '' };
+  const hasFilters = hasActiveFilters(safeFilters);
+  const activeFilterCount = getActiveFilterCount(safeFilters);
 
   // Extract unique categories from quests
   const categories = useMemo(() => getUniqueCategories(quests), [quests]);
 
   const handleFilterChange = (type: keyof QuestFilters, value: string) => {
-    const newFilters = { ...filters, [type]: value };
+    const newFilters = { ...safeFilters, [type]: value };
     onFiltersChange(newFilters);
   };
 
@@ -78,7 +79,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             placeholder={questTranslations?.filters?.searchPlaceholder || 'Search quests...'}
-            value={filters.search}
+            value={safeFilters.search}
             onChange={(e) => handleFilterChange('search', e.target.value)}
             className="pl-10"
             aria-label={questTranslations?.filters?.searchAriaLabel || 'Search quests'}
@@ -86,7 +87,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
         </div>
 
         {/* Quick Filters */}
-        <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+        <Select value={safeFilters.status} onValueChange={(value) => handleFilterChange('status', value)}>
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder={questTranslations?.filters?.status || 'Status'} />
           </SelectTrigger>
@@ -100,7 +101,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
           </SelectContent>
         </Select>
 
-        <Select value={filters.difficulty} onValueChange={(value) => handleFilterChange('difficulty', value)}>
+        <Select value={safeFilters.difficulty} onValueChange={(value) => handleFilterChange('difficulty', value)}>
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder={questTranslations?.filters?.difficulty || 'Difficulty'} />
           </SelectTrigger>
@@ -189,7 +190,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder={questTranslations?.filters?.searchPlaceholder || 'Search quests...'}
-                value={filters.search}
+                value={safeFilters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 className="pl-10"
                 aria-label={questTranslations?.filters?.searchAriaLabel || 'Search quests'}
@@ -201,7 +202,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
             <label className="text-sm font-medium">
               {questTranslations?.filters?.status || 'Status'}
             </label>
-            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+            <Select value={safeFilters.status} onValueChange={(value) => handleFilterChange('status', value)}>
               <SelectTrigger>
                 <SelectValue placeholder={questTranslations?.filters?.statusPlaceholder || 'All statuses'} />
               </SelectTrigger>
@@ -221,7 +222,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
             <label className="text-sm font-medium">
               {questTranslations?.filters?.difficulty || 'Difficulty'}
             </label>
-            <Select value={filters.difficulty} onValueChange={(value) => handleFilterChange('difficulty', value)}>
+            <Select value={safeFilters.difficulty} onValueChange={(value) => handleFilterChange('difficulty', value)}>
               <SelectTrigger>
                 <SelectValue placeholder={questTranslations?.filters?.difficultyPlaceholder || 'All difficulties'} />
               </SelectTrigger>
@@ -239,7 +240,7 @@ export const QuestFilters: React.FC<QuestFiltersProps> = ({
             <label className="text-sm font-medium">
               {questTranslations?.filters?.category || 'Category'}
             </label>
-            <Select value={filters.category} onValueChange={(value) => handleFilterChange('category', value)}>
+            <Select value={safeFilters.category} onValueChange={(value) => handleFilterChange('category', value)}>
               <SelectTrigger>
                 <SelectValue placeholder={questTranslations?.filters?.categoryPlaceholder || 'All categories'} />
               </SelectTrigger>

@@ -8,6 +8,7 @@ following the single-table design pattern and existing quest-service conventions
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
+from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -85,6 +86,18 @@ def _get_dynamodb_table():
     return dynamodb.Table(settings.core_table_name)
 
 
+def _convert_floats_to_decimal(obj):
+    """Recursively convert float values to Decimal for DynamoDB compatibility."""
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    elif isinstance(obj, dict):
+        return {key: _convert_floats_to_decimal(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_floats_to_decimal(item) for item in obj]
+    else:
+        return obj
+
+
 def _build_analytics_item(user_id: str, analytics: QuestAnalytics) -> Dict[str, Any]:
     """
     Build DynamoDB item for analytics caching.
@@ -99,7 +112,7 @@ def _build_analytics_item(user_id: str, analytics: QuestAnalytics) -> Dict[str, 
     now = int(time.time())
     date_str = datetime.now().strftime('%Y-%m-%d')
     
-    return {
+    item = {
         "PK": f"USER#{user_id}",
         "SK": f"ANALYTICS#{analytics.period}#{date_str}",
         "GSI1PK": f"USER#{user_id}",
@@ -127,6 +140,9 @@ def _build_analytics_item(user_id: str, analytics: QuestAnalytics) -> Dict[str, 
         "createdAt": now,
         "updatedAt": now
     }
+    
+    # Convert all float values to Decimal for DynamoDB compatibility
+    return _convert_floats_to_decimal(item)
 
 
 def _ddb_call(operation, op: str, **kwargs):

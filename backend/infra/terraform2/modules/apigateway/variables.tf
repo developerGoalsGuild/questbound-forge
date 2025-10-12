@@ -14,6 +14,10 @@ variable "user_service_lambda_arn" {
 variable "quest_service_lambda_arn" {
   type = string
 }
+
+variable "collaboration_service_lambda_arn" {
+  type = string
+}
 variable "lambda_authorizer_arn" {
   type = string
 }
@@ -38,4 +42,10 @@ variable "appsync_cache_ttl_seconds" {
   type        = number
   default     = 300
   description = "AppSync cache TTL in seconds"
+}
+
+variable "cache_enabled" {
+  type        = bool
+  default     = true
+  description = "Enable API Gateway caching"
 }

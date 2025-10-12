@@ -55,8 +55,8 @@ export default defineConfig({
     },
     
     // Test timeout and retry settings
-    testTimeout: 30000,
-    retry: 1,
+    testTimeout: 5000,
+    retry: 0,
     
     // Memory cleanup
     isolate: true,

@@ -43,3 +43,108 @@ resource "aws_iam_role_policy" "lambda_ssm_read" {
     }]
   })
 }
+
+resource "aws_iam_role_policy" "lambda_dynamodb_access" {
+  name = "goalsguild_lambda_dynamodb_access_${var.environment}"
+  role = var.existing_lambda_exec_role_name != "" ? data.aws_iam_role.existing_lambda_exec[0].id : aws_iam_role.lambda_exec_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem"
+      ],
+      Resource = [
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core",
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core/index/*"
+      ]
+    }]
+  })
+}
+
+# Collaboration Service IAM Role
+resource "aws_iam_role" "collaboration_service_role" {
+  name = "goalsguild_collaboration_service_role_${var.environment}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "lambda.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+  tags = merge(var.tags, {
+    Environment = var.environment
+    Component   = "collaboration-service"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "collaboration_service_basic_execution" {
+  role       = aws_iam_role.collaboration_service_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "collaboration_service_ssm_read" {
+  name = "goalsguild_collaboration_service_ssm_read_${var.environment}"
+  role = aws_iam_role.collaboration_service_role.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = ["ssm:GetParameter","ssm:GetParameters","ssm:GetParametersByPath"],
+      Resource = [
+        "arn:aws:ssm:${var.aws_region}:*:parameter/goalsguild/*"
+      ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "collaboration_service_dynamodb_access" {
+  name = "goalsguild_collaboration_service_dynamodb_access_${var.environment}"
+  role = aws_iam_role.collaboration_service_role.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem"
+      ],
+      Resource = [
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core",
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core/index/*"
+      ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "collaboration_service_cognito_read" {
+  name = "goalsguild_collaboration_service_cognito_read_${var.environment}"
+  role = aws_iam_role.collaboration_service_role.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "cognito-idp:ListUsers",
+        "cognito-idp:AdminGetUser"
+      ],
+      Resource = [
+        "arn:aws:cognito-idp:${var.aws_region}:*:userpool/*"
+      ]
+    }]
+  })
+}

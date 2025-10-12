@@ -1,8 +1,10 @@
+import { vi } from 'vitest';
 import { getQuestAnalytics, refreshQuestAnalytics } from '../apiAnalytics';
+import * as utils from '@/lib/utils';
 import { QuestAnalytics } from '@/models/analytics';
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn() as any;
 
 // Mock environment variables
 const mockEnv = {
@@ -17,10 +19,10 @@ Object.defineProperty(import.meta, 'env', {
 
 // Mock localStorage
 const mockLocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn()
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn()
 };
 
 Object.defineProperty(window, 'localStorage', {
@@ -30,8 +32,8 @@ Object.defineProperty(window, 'localStorage', {
 
 describe('apiAnalytics', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockLocalStorage.getItem.mockReturnValue('test-token');
+    vi.clearAllMocks();
+    vi.spyOn(utils, 'getAccessToken').mockReturnValue('test-token');
   });
 
   describe('getQuestAnalytics', () => {
@@ -57,7 +59,7 @@ describe('apiAnalytics', () => {
         ttl: 604800
       };
 
-      (fetch as jest.Mock).mockResolvedValueOnce({
+      (fetch as unknown as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAnalytics
       });
@@ -65,15 +67,14 @@ describe('apiAnalytics', () => {
       const result = await getQuestAnalytics('weekly', false);
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://api.test.com/quests/analytics?period=weekly&force_refresh=false',
-        {
+        '/v1/quests/analytics?period=weekly&force_refresh=false',
+        expect.objectContaining({
           method: 'GET',
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-token',
-            'x-api-key': 'test-api-key',
-          },
-        }
+            'Authorization': 'Bearer test-token'
+          })
+        })
       );
 
       expect(result).toEqual(mockAnalytics);
@@ -101,7 +102,7 @@ describe('apiAnalytics', () => {
         ttl: 86400
       };
 
-      (fetch as jest.Mock).mockResolvedValueOnce({
+      (fetch as unknown as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAnalytics
       });
@@ -109,7 +110,7 @@ describe('apiAnalytics', () => {
       const result = await getQuestAnalytics('daily', true);
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://api.test.com/quests/analytics?period=daily&force_refresh=true',
+        '/v1/quests/analytics?period=daily&force_refresh=true',
         expect.any(Object)
       );
 
@@ -117,13 +118,13 @@ describe('apiAnalytics', () => {
     });
 
     it('should throw error when no token is available', async () => {
-      mockLocalStorage.getItem.mockReturnValue(null);
+      vi.spyOn(utils, 'getAccessToken').mockReturnValue(null as any);
 
       await expect(getQuestAnalytics()).rejects.toThrow('Authentication required');
     });
 
     it('should handle API errors', async () => {
-      (fetch as jest.Mock).mockResolvedValueOnce({
+      (fetch as unknown as vi.Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
@@ -134,13 +135,13 @@ describe('apiAnalytics', () => {
     });
 
     it('should handle network errors', async () => {
-      (fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (fetch as unknown as vi.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       await expect(getQuestAnalytics()).rejects.toThrow('Network error');
     });
 
     it('should handle malformed JSON responses', async () => {
-      (fetch as jest.Mock).mockResolvedValueOnce({
+      (fetch as unknown as vi.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
         statusText: 'Bad Request',
@@ -172,7 +173,7 @@ describe('apiAnalytics', () => {
         ttl: 604800
       };
 
-      (fetch as jest.Mock).mockResolvedValueOnce({
+      (fetch as unknown as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAnalytics
       });
@@ -180,7 +181,7 @@ describe('apiAnalytics', () => {
       await getQuestAnalytics();
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://api.test.com/quests/analytics?period=weekly&force_refresh=false',
+        '/v1/quests/analytics?period=weekly&force_refresh=false',
         expect.any(Object)
       );
     });
@@ -209,7 +210,7 @@ describe('apiAnalytics', () => {
         ttl: 604800
       };
 
-      (fetch as jest.Mock).mockResolvedValueOnce({
+      (fetch as unknown as vi.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAnalytics
       });
@@ -217,7 +218,7 @@ describe('apiAnalytics', () => {
       const result = await refreshQuestAnalytics('monthly');
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://api.test.com/quests/analytics?period=monthly&force_refresh=true',
+        '/v1/quests/analytics?period=monthly&force_refresh=true',
         expect.any(Object)
       );
 

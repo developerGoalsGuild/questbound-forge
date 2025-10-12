@@ -36,96 +36,9 @@ const QuestEditPage: React.FC = () => {
     return quest.status === 'draft';
   };
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {commonTranslations?.back || 'Back'}
-            </Button>
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold tracking-tight">
-                {questTranslations?.title || 'Edit Quest'}
-              </h1>
-              <p className="text-muted-foreground">
-                {questTranslations?.messages?.loading || 'Loading quest...'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {commonTranslations?.back || 'Back'}
-            </Button>
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold tracking-tight">
-                {questTranslations?.title || 'Edit Quest'}
-              </h1>
-            </div>
-          </div>
-          
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {questTranslations?.errors?.loadFailed || 'Failed to load quest. Please try again.'}
-            </AlertDescription>
-          </Alert>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if quest can be edited
-  if (quest && !canEditQuest()) {
-    const statusDisplay = quest.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleBack} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {commonTranslations?.back || 'Back'}
-            </Button>
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold tracking-tight">
-                {questTranslations?.title || 'Edit Quest'}
-              </h1>
-            </div>
-          </div>
-          
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {questTranslations?.errors?.cannotEdit || `Cannot edit quest. This quest is currently ${statusDisplay}. Only draft quests can be edited.`}
-            </AlertDescription>
-          </Alert>
-          
-          <div className="text-center">
-            <Button onClick={handleBack} variant="outline">
-              {commonTranslations?.back || 'Back to Quests'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="space-y-6">
+      <div className="space-y-6" role="main">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={handleBack} className="flex items-center gap-2">
@@ -141,6 +54,33 @@ const QuestEditPage: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Inline states */}
+        {loading && (
+          <Alert>
+            <AlertDescription>
+              {questTranslations?.messages?.loading || 'Loading quest...'}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {questTranslations?.errors?.loadFailed || 'Failed to load quest. Please try again.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {quest && !canEditQuest() && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {questTranslations?.errors?.cannotEdit || `Cannot edit quest. This quest is currently ${quest.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}. Only draft quests can be edited.`}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Quest Edit Form */}
         {id && (

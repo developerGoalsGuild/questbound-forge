@@ -13,13 +13,17 @@ import type { Quest } from '@/models/quest';
 // Mock the apiQuest module
 vi.mock('@/lib/apiQuest');
 
-// Mock logger
-const mockLoggerError = vi.fn();
-vi.mock('@/lib/logger', () => ({
-  logger: {
-    error: mockLoggerError,
-  },
-}));
+// Mock logger (avoid referencing top-level vars inside factory due to hoisting)
+vi.mock('@/lib/logger', () => {
+  return {
+    logger: {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    },
+  };
+});
 
 // Simple mock data
 const mockQuest: Quest = {

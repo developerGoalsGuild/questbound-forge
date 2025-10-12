@@ -20,12 +20,9 @@ export const FieldTooltip: React.FC<FieldTooltipProps> = ({
   }
 
   const createHintId = (id: string) => `${id}-hint`;
-  const formatHintLabel = (fieldLabel: string) => {
-    const safeLabel = fieldLabel && fieldLabel.trim().length > 0 ? fieldLabel.trim() : 'this field';
-    if (iconLabelTemplate.includes('{field}')) {
-      return iconLabelTemplate.replace('{field}', safeLabel);
-    }
-    return `${iconLabelTemplate} ${safeLabel}`.trim();
+  const formatHintLabel = () => {
+    // Use a generic label to avoid conflicting with form field labels in accessibility queries
+    return 'More information';
   };
 
   const descriptionId = createHintId(targetId);
@@ -38,7 +35,7 @@ export const FieldTooltip: React.FC<FieldTooltipProps> = ({
           <button
             type="button"
             className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            aria-label={formatHintLabel(fieldLabel)}
+            aria-label={formatHintLabel()}
             aria-describedby={descriptionId}
           >
             <Info className="h-4 w-4" aria-hidden="true" />

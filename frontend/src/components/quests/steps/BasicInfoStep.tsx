@@ -5,7 +5,7 @@
  * including title, description, category, difficulty, and reward XP.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -13,14 +13,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import QuestCategorySelector from '@/components/forms/QuestCategorySelector';
 import { useTranslation } from '@/hooks/useTranslation';
-import { 
+import type { QuestCreateFormData } from '@/hooks/useQuestCreateForm';
+import {
   QUEST_DIFFICULTIES,
-  type QuestDifficulty,
-  type QuestCreateFormData
+  type QuestDifficulty
 } from '@/models/quest';
+
 
 type FieldValue = string | number | QuestDifficulty;
 import { Info } from 'lucide-react';
+
 
 interface BasicInfoStepProps {
   formData: QuestCreateFormData;
@@ -37,6 +39,18 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
 }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
+
+  // Keep local input state so typing reflects immediately in the UI
+  const [title, setTitle] = useState(formData.title || '');
+  const [description, setDescription] = useState(formData.description || '');
+
+  useEffect(() => {
+    setTitle(formData.title || '');
+  }, [formData.title]);
+
+  useEffect(() => {
+    setDescription(formData.description || '');
+  }, [formData.description]);
 
   return (
     <div className="space-y-6">
@@ -69,8 +83,11 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
           </div>
           <Input
             id="title"
-            value={formData.title || ''}
-            onChange={(e) => onFieldChange('title', e.target.value)}
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              onFieldChange('title', e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -110,8 +127,11 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
           </div>
           <Textarea
             id="description"
-            value={formData.description || ''}
-            onChange={(e) => onFieldChange('description', e.target.value)}
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              onFieldChange('description', e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

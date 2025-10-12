@@ -173,7 +173,7 @@ const BasicInfoStep: React.FC<StepProps> = ({
               </TooltipContent>
             </Tooltip>
           </div>
-          <Input
+            <Input
             id="title"
             value={formData.title}
             onChange={(e) => onFieldChange('title', e.target.value)}
@@ -189,7 +189,6 @@ const BasicInfoStep: React.FC<StepProps> = ({
             className={errors.title ? 'border-red-500' : ''}
             aria-invalid={!!errors.title}
             aria-describedby={errors.title ? 'error-title' : undefined}
-            autoFocus
           />
           {errors.title && (
             <p id="error-title" className="text-xs text-red-600" role="alert">

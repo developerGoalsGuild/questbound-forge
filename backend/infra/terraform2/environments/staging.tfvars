@@ -15,6 +15,7 @@ enable_waf_logging_stream = true
 enable_api_gateway_waf = true
 enable_appsync_caching = true
 appsync_cache_ttl_seconds = 300  # 5 minutes cache
+cache_enabled = true  # Enable caching for staging environment
 api_stage_name = "v1"
 
 # API Gateway overrides (optional; leave empty to use remote_state)
