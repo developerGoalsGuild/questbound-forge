@@ -15,6 +15,7 @@ export interface SignupTranslations {
     selectCountry: string;
     password: string;
     confirmPassword: string;
+    role: string;
     submit: string;
     successMessage: string;
     successConfirmMessage: string;
@@ -36,6 +37,11 @@ export interface SignupTranslations {
       common: {
         other: string;
         preferNot: string;
+      };
+      roles: {
+        user: string;
+        partner: string;
+        patron: string;
       };
     };
     validation: {
@@ -75,6 +81,7 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
       selectCountry: 'Select your country',
       password: 'Password',
       confirmPassword: 'Confirm Password',
+      role: 'Role',
       submit: 'Create Account',
       successMessage: 'Account created!',
       successConfirmMessage: 'Account created! Please check your email to confirm your address.',
@@ -96,6 +103,11 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
         common: {
           other: 'Other',
           preferNot: 'Prefer not to say',
+        },
+        roles: {
+          user: 'User',
+          partner: 'Partner',
+          patron: 'Patron',
         },
       },
       validation: {
@@ -133,6 +145,7 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
       selectCountry: 'Selecciona tu país',
       password: 'Contraseña',
       confirmPassword: 'Confirmar contraseña',
+      role: 'Rol',
       submit: 'Crear cuenta',
       successMessage: '¡Cuenta creada!',
       successConfirmMessage: '¡Cuenta creada! Revisa tu correo para confirmar tu dirección.',
@@ -154,6 +167,11 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
         common: {
           other: 'Otro',
           preferNot: 'Prefiero no decir',
+        },
+        roles: {
+          user: 'Usuario',
+          partner: 'Socio',
+          patron: 'Patrón',
         },
       },
       validation: {
@@ -191,6 +209,7 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
       selectCountry: 'Sélectionnez votre pays',
       password: 'Mot de passe',
       confirmPassword: 'Confirmer le mot de passe',
+      role: 'Rôle',
       submit: 'Créer un compte',
       successMessage: 'Compte créé !',
       successConfirmMessage: 'Compte créé ! Vérifiez votre e-mail pour confirmer.',
@@ -212,6 +231,11 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
         common: {
           other: 'Autre',
           preferNot: 'Préférer ne pas répondre',
+        },
+        roles: {
+          user: 'Utilisateur',
+          partner: 'Partenaire',
+          patron: 'Mécène',
         },
       },
       validation: {

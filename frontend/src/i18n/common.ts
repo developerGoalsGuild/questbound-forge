@@ -15,6 +15,13 @@ export interface CommonTranslations {
   close: string;
   ascending: string;
   descending: string;
+  optional: string;
+  characters: string;
+  resourceTypes: {
+    goal: string;
+    quest: string;
+    task: string;
+  };
   footer: {
     sections: {
       product: string;
@@ -62,6 +69,13 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     close: 'Close',
     ascending: 'Ascending',
     descending: 'Descending',
+    optional: '(optional)',
+    characters: 'characters',
+    resourceTypes: {
+      goal: 'goal',
+      quest: 'quest',
+      task: 'task',
+    },
     footer: {
       sections: {
         product: 'Product',
@@ -107,6 +121,13 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     close: 'Cerrar',
     ascending: 'Ascendente',
     descending: 'Descendente',
+    optional: '(opcional)',
+    characters: 'caracteres',
+    resourceTypes: {
+      goal: 'meta',
+      quest: 'misión',
+      task: 'tarea',
+    },
     footer: {
       sections: {
         product: 'Producto',
@@ -152,6 +173,13 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     close: 'Fermer',
     ascending: 'Croissant',
     descending: 'Décroissant',
+    optional: '(optionnel)',
+    characters: 'caractères',
+    resourceTypes: {
+      goal: 'objectif',
+      quest: 'quête',
+      task: 'tâche',
+    },
     footer: {
       sections: {
         product: 'Produit',

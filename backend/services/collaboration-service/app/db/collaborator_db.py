@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime, UTC
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 
 # Add common module to path - works both locally and in containers
 def _add_common_to_path():
@@ -77,15 +77,41 @@ def _get_dynamodb_table():
     return dynamodb.Table(settings.dynamodb_table_name)
 
 
+def _get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get user profile by user ID (for test compatibility).
+
+    Args:
+        user_id: User ID to look up
+
+    Returns:
+        User profile dict or None
+    """
+    table = _get_dynamodb_table()
+    try:
+        response = table.get_item(Key={"PK": f"USER#{user_id}", "SK": "PROFILE"})
+        if "Item" in response:
+            item = response["Item"]
+            return {
+                "userId": item["userId"],
+                "username": item.get("username"),
+                "email": item.get("email")
+            }
+        return None
+    except Exception:
+        return None
+
+
 def _collaborator_item_to_response(item: Dict[str, Any]) -> CollaboratorResponse:
     """Convert DynamoDB collaborator item to CollaboratorResponse."""
     return CollaboratorResponse(
-        userId=item["userId"],
+        user_id=item["userId"],
         username=item.get("username", "Unknown"),
         email=item.get("email"),
-        avatarUrl=item.get("avatarUrl"),
+        avatar_url=item.get("avatarUrl"),
         role=item.get("role", "collaborator"),
-        joinedAt=datetime.fromisoformat(item["joinedAt"])
+        joined_at=datetime.fromisoformat(item["joinedAt"]),
+        last_seen_at=datetime.fromisoformat(item["lastSeenAt"]) if item.get("lastSeenAt") else None
     )
 
 
@@ -116,6 +142,32 @@ def list_collaborators(resource_type: str, resource_id: str) -> CollaboratorList
 
         collaborators = [_collaborator_item_to_response(item) for item in response.get("Items", [])]
 
+        # Also include the owner if they exist
+        # Scan for the resource under USER# to find the owner
+        owner_response = table.scan(
+            FilterExpression=Attr("SK").eq(f"{resource_type.upper()}#{resource_id}") & Attr("PK").begins_with("USER#")
+        )
+
+        if owner_response.get("Items"):
+            owner_item = owner_response["Items"][0]
+            owner_id = owner_item["PK"].split("#")[1]  # Extract user ID from PK
+
+            # Get owner profile
+            owner_profile = table.get_item(Key={"PK": f"USER#{owner_id}", "SK": "PROFILE"})
+            if "Item" in owner_profile:
+                profile = owner_profile["Item"]
+                # Create owner collaborator entry
+                owner_collaborator = CollaboratorResponse(
+                    user_id=owner_id,
+                    username=profile.get("username", "Unknown"),
+                    email=profile.get("email"),
+                    avatar_url=profile.get("avatarUrl"),
+                    role="owner",
+                    joined_at=datetime.fromisoformat(owner_item.get("createdAt", datetime.now(UTC).isoformat())),  # Use resource creation time
+                    last_seen_at=datetime.fromisoformat(profile.get("lastSeenAt")) if profile.get("lastSeenAt") else None
+                )
+                collaborators.insert(0, owner_collaborator)  # Insert owner at the beginning
+
         logger.info('collaboration.list_collaborators_success',
                    resource_type=resource_type,
                    resource_id=resource_id,
@@ -123,6 +175,8 @@ def list_collaborators(resource_type: str, resource_id: str) -> CollaboratorList
 
         return CollaboratorListResponse(
             collaborators=collaborators,
+            resource_type=resource_type,
+            resource_id=resource_id,
             total_count=len(collaborators)
         )
 

@@ -58,7 +58,9 @@ const LocalSignUp: React.FC = () => {
         const available = await isNicknameAvailable(n);
         setNicknameAvailable(available);
         setErrors(prev => ({ ...prev, nickname: available ? undefined : (signup.validation?.nicknameTaken || 'Nickname already in use') }));
-      } catch {}
+      } catch (error) {
+        console.error('Nickname availability check failed:', error);
+      }
       finally { setNickChecking(false); }
     }, 500);
     return () => clearTimeout(h);
@@ -140,7 +142,7 @@ const LocalSignUp: React.FC = () => {
     const validation = signup.validation || {};
     if (!formData.email) {
       newErrors.email = validation.required;
-    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = validation.invalidEmail;
     } else if (emailAvailable === false) {
       newErrors.email = validation.emailTaken || 'Email already in use';
@@ -207,7 +209,7 @@ const LocalSignUp: React.FC = () => {
     const validation = signup.validation || {};
     const email = formData.email.trim();
     setEmailAvailable(null);
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailChecking(false);
       return;
     }

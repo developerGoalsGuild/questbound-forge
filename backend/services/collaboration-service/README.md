@@ -57,6 +57,23 @@ A FastAPI-based AWS Lambda service for managing collaboration features in GoalsG
 - Docker
 - AWS CLI configured
 
+### Environment Setup
+
+Before running the service, set up the required AWS SSM parameters:
+
+```bash
+# Navigate to scripts directory
+cd backend/services/collaboration-service/scripts
+
+# Setup environment variables (dry run first)
+.\setup-env-variables.ps1 -Environment dev -DryRun
+.\setup-env-variables.ps1 -Environment dev
+
+# Setup JWT secret (dry run first)
+.\setup-jwt-secret.ps1 -Environment dev -DryRun
+.\setup-jwt-secret.ps1 -Environment dev
+```
+
 ### Setup
 ```bash
 # Install dependencies
@@ -125,7 +142,6 @@ terraform apply -var-file=environments/dev.tfvars
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `COGNITO_USER_POOL_ID` | Cognito User Pool ID | - |
 | `COGNITO_USER_POOL_CLIENT_ID` | Cognito Client ID | - |
-| `API_GATEWAY_KEY` | API Gateway key | - |
 
 ## Database Schema
 

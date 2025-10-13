@@ -31,7 +31,7 @@ try {
   $env:TF_LOG_PATH = $TfLogPath
   Write-Host "[deploy] TF_LOG=DEBUG, TF_LOG_PATH=$TfLogPath" -ForegroundColor DarkGray
 } catch {}
-
+ $env:TF_LOG = 'DEBUG'
 function Write-Log {
   param([string]$Message, [string]$Level = "INFO")
   $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"

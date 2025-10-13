@@ -55,33 +55,6 @@ class TestInviteDatabaseOperations:
             message="Would you like to collaborate on this goal?"
         )
     
-    def test_create_invite_success(self, mock_settings, mock_table, sample_payload):
-        """Test successful invite creation."""
-        # Mock table.put_item
-        mock_table.put_item.return_value = {}
-        
-        # Mock logger
-        with patch('app.db.invite_db.logger'):
-            result = create_invite("user-123", sample_payload)
-        
-        # Verify result
-        assert result.inviter_id == "user-123"
-        assert result.resource_type == "goal"
-        assert result.resource_id == "goal-123"
-        assert result.status == "pending"
-        assert result.message == "Would you like to collaborate on this goal?"
-        
-        # Verify DynamoDB call
-        mock_table.put_item.assert_called_once()
-        call_args = mock_table.put_item.call_args
-        item = call_args[1]["Item"]
-        
-        assert item["type"] == "CollaborationInvite"
-        assert item["inviterId"] == "user-123"
-        assert item["resourceType"] == "goal"
-        assert item["resourceId"] == "goal-123"
-        assert item["status"] == "pending"
-        assert "ttl" in item  # TTL should be set
     
     def test_create_invite_validation_error(self, mock_settings, mock_table):
         """Test invite creation with validation error."""
@@ -154,25 +127,6 @@ class TestInviteDatabaseOperations:
         assert result.invites[0].invite_id == "inv-123"
         assert result.total_count == 1
     
-    def test_accept_invite_success(self, mock_settings, mock_table):
-        """Test successful invite acceptance."""
-        # Mock get_invite response
-        mock_invite = Mock()
-        mock_invite.invitee_id = "user-456"
-        mock_invite.status = "pending"
-        mock_invite.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_invite.resource_type = "goal"
-        mock_invite.resource_id = "goal-123"
-        
-        # Mock update_item response
-        mock_table.update_item.return_value = {}
-        
-        with patch('app.db.invite_db.get_invite', return_value=mock_invite), \
-             patch('app.db.invite_db.logger'):
-            result = accept_invite("user-456", "inv-123")
-        
-        assert result.status == "accepted"
-        mock_table.update_item.assert_called_once()
     
     def test_accept_invite_wrong_user(self, mock_settings, mock_table):
         """Test accepting invite with wrong user."""

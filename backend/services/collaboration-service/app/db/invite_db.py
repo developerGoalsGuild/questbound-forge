@@ -188,6 +188,70 @@ def _lookup_invitee(identifier: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """
+    Get user by email address (for test compatibility).
+
+    Args:
+        email: Email address to look up
+
+    Returns:
+        User info dict or None
+    """
+    return _lookup_invitee(email)
+
+
+def _get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+    """
+    Get user by username (for test compatibility).
+
+    Args:
+        username: Username to look up
+
+    Returns:
+        User info dict or None
+    """
+    return _lookup_invitee(username)
+
+
+def _get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get user by user ID (for test compatibility).
+
+    Args:
+        user_id: User ID to look up
+
+    Returns:
+        User info dict or None
+    """
+    table = _get_dynamodb_table()
+    try:
+        response = table.get_item(Key={"PK": f"USER#{user_id}", "SK": "PROFILE"})
+        if "Item" in response:
+            item = response["Item"]
+            return {
+                "userId": item["userId"],
+                "username": item.get("username"),
+                "email": item.get("email")
+            }
+        return None
+    except Exception:
+        return None
+
+
+def _get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get user profile by user ID (for test compatibility).
+
+    Args:
+        user_id: User ID to look up
+
+    Returns:
+        User profile dict or None
+    """
+    return _get_user_by_id(user_id)
+
+
 def _build_invite_item(inviter_id: str, invitee_id: str, invitee_email: str, 
                       payload: InviteCreatePayload) -> Dict[str, Any]:
     """Build DynamoDB item for collaboration invite."""

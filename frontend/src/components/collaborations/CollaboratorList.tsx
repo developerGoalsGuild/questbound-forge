@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/hooks/useTranslation';
 import { 
   Users, 
   UserPlus, 
@@ -84,14 +84,14 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       
       if (error instanceof CollaborationAPIError) {
         if (error.status === 403) {
-          setError(t('collaborations.collaborators.errors.noPermission'));
+          setError(t.collaborations.collaborators.errors.noPermission);
         } else if (error.status === 404) {
-          setError(t('collaborations.collaborators.errors.resourceNotFound'));
+          setError(t.collaborations.collaborators.errors.resourceNotFound);
         } else {
           setError(error.message);
         }
       } else {
-        setError(t('collaborations.collaborators.errors.generic'));
+        setError(t.collaborations.collaborators.errors.generic);
       }
     } finally {
       setIsLoading(false);
@@ -114,8 +114,8 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       setCollaborators(prev => prev.filter(c => c.userId !== userId));
       
       toast({
-        title: t('collaborations.collaborators.remove.success.title'),
-        description: t('collaborations.collaborators.remove.success.description', { username }),
+        title: t.collaborations.collaborators.remove.success.title,
+        description: t.collaborations.collaborators.remove.success.description.replace('{username}', username),
         variant: 'default'
       });
       
@@ -125,21 +125,21 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       if (error instanceof CollaborationAPIError) {
         if (error.status === 403) {
           toast({
-            title: t('collaborations.collaborators.remove.errors.noPermission.title'),
-            description: t('collaborations.collaborators.remove.errors.noPermission.description'),
+            title: t.collaborations.collaborators.remove.errors.noPermission.title,
+            description: t.collaborations.collaborators.remove.errors.noPermission.description,
             variant: 'destructive'
           });
         } else {
           toast({
-            title: t('collaborations.collaborators.remove.errors.generic.title'),
+            title: t.collaborations.collaborators.remove.errors.generic.title,
             description: error.message,
             variant: 'destructive'
           });
         }
       } else {
         toast({
-          title: t('collaborations.collaborators.remove.errors.generic.title'),
-          description: t('collaborations.collaborators.remove.errors.generic.description'),
+          title: t.collaborations.collaborators.remove.errors.generic.title,
+          description: t.collaborations.collaborators.remove.errors.generic.description,
           variant: 'destructive'
         });
       }
@@ -185,7 +185,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <Users className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-900">
-            {t('collaborations.collaborators.title')}
+            {t.collaborations.collaborators.title}
           </h3>
         </div>
         <div className="space-y-3">
@@ -210,7 +210,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <Users className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-900">
-            {t('collaborations.collaborators.title')}
+            {t.collaborations.collaborators.title}
           </h3>
         </div>
         <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -222,7 +222,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
           className="mt-3 text-sm text-blue-600 hover:text-blue-700 flex items-center"
         >
           <RefreshCw className="h-4 w-4 mr-1" />
-          {t('common.retry')}
+          {t.retry}
         </button>
       </div>
     );
@@ -235,7 +235,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="flex items-center space-x-2">
           <Users className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-900">
-            {t('collaborations.collaborators.title')}
+            {t.collaborations.collaborators.title}
           </h3>
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
             {collaborators.length}
@@ -248,7 +248,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
             className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
           >
             <UserPlus className="h-4 w-4 mr-1" />
-            {t('collaborations.collaborators.invite')}
+            {t.collaborations.collaborators.invite}
           </button>
         )}
       </div>
@@ -258,7 +258,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="text-center py-6">
           <User className="h-8 w-8 text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-500 mb-3">
-            {t('collaborations.collaborators.empty')}
+            {t.collaborations.collaborators.empty}
           </p>
           {isOwner && (
             <button
@@ -266,7 +266,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center mx-auto"
             >
               <UserPlus className="h-4 w-4 mr-1" />
-              {t('collaborations.collaborators.inviteFirst')}
+              {t.collaborations.collaborators.inviteFirst}
             </button>
           )}
         </div>
@@ -285,18 +285,16 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                       {collaborator.username}
                     </p>
                     {collaborator.role === 'owner' && (
-                      <Crown className="h-4 w-4 text-yellow-500" title={t('collaborations.collaborators.owner')} />
+                      <Crown className="h-4 w-4 text-yellow-500" title={t.collaborations.collaborators.owner} />
                     )}
                     {collaborator.isCurrentUser && (
                       <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                        {t('collaborations.collaborators.you')}
+                        {t.collaborations.collaborators.you}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
-                    {t('collaborations.collaborators.joined', {
-                      date: new Date(collaborator.joinedAt).toLocaleDateString()
-                    })}
+                    {t.collaborations.collaborators.joined.replace('{date}', new Date(collaborator.joinedAt).toLocaleDateString())}
                   </p>
                 </div>
               </div>
@@ -316,19 +314,17 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                     <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[200px]">
                       <div className="p-3">
                         <p className="text-sm text-gray-900 mb-2">
-                          {t('collaborations.collaborators.remove.confirm.title')}
+                          {t.collaborations.collaborators.remove.confirm.title}
                         </p>
                         <p className="text-xs text-gray-600 mb-3">
-                          {t('collaborations.collaborators.remove.confirm.description', {
-                            username: collaborator.username
-                          })}
+                          {t.collaborations.collaborators.remove.confirm.description.replace('{username}', collaborator.username)}
                         </p>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => setShowRemoveConfirm(null)}
                             className="flex-1 px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
                           >
-                            {t('common.cancel')}
+                            {t.cancel}
                           </button>
                           <button
                             onClick={() => handleRemoveCollaborator(collaborator.userId, collaborator.username)}
@@ -340,7 +336,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                             ) : (
                               <>
                                 <Trash2 className="h-3 w-3 mr-1" />
-                                {t('common.remove')}
+                                {t.remove}
                               </>
                             )}
                           </button>

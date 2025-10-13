@@ -38,5 +38,5 @@ tags = {
   Service     = "collaboration-service"
 }
 
-# Collaboration service override (use existing role for dev)
-collaboration_service_lambda_arn_override = "use-existing-role"
+# Collaboration service override (use actual ARN for API Gateway integration)
+collaboration_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_collaboration_service_dev"

@@ -1,9 +1,11 @@
 /**
  * API client for collaboration features.
- * 
+ *
  * This module provides functions for managing collaboration invites,
  * collaborators, comments, and reactions.
  */
+
+import { getAccessToken } from '@/lib/utils';
 
 export interface Collaborator {
   userId: string;
@@ -60,22 +62,37 @@ export class CollaborationAPIError extends Error {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.goalsguild.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/v1';
 
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem('auth_token');
-  
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const token = getAccessToken();
+
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['authorization'] = `Bearer ${token}`;
+  }
+
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  console.log('Collaboration API Request:', {
+    method: options.method || 'GET',
+    fullUrl,
+    apiBaseUrl: API_BASE_URL,
+    endpoint,
+    hasToken: !!token,
+    timestamp: new Date().toISOString()
+  });
+
+  const response = await fetch(fullUrl, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {

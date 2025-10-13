@@ -23,7 +23,6 @@ import type { DashboardTranslations } from './dashboard';
 import type { GoalsTranslations } from './goals';
 import type { SignupTranslations } from './signup';
 import type { ProfileTranslations } from './profile';
-import type { CommonTranslations } from './common';
 import type { GoalListTranslations } from './goalList';
 import type { GoalEditTranslations } from './goalEdit';
 import type { GoalCreationTranslations } from './goalCreation';
@@ -32,6 +31,8 @@ import type { GoalDashboardTranslations } from './goalDashboard';
 import type { GoalDetailsTranslations } from './goalDetails';
 import type { HeaderTranslations } from '@/models/header';
 import type { QuestTranslations } from './quest';
+import type { CollaborationsTranslations } from './collaborations';
+import type { CommonTranslations } from './common';
 
 import { navTranslations } from './nav';
 import { loginTranslations } from './login';
@@ -50,6 +51,7 @@ import { goalDashboardTranslations } from './goalDashboard';
 import { goalDetailsTranslations } from './goalDetails';
 import { headerTranslations } from './header';
 import { questTranslations } from './quest';
+import { collaborationsTranslations } from './collaborations';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -67,6 +69,7 @@ export type Translations = { [key: string]: any } & {
   goalDetails: GoalDetailsTranslations;
   header: HeaderTranslations;
   quest: QuestTranslations;
+  common: CommonTranslations;
 };
 
 /**
@@ -90,7 +93,8 @@ export const translations: Record<Language, Translations> = {
     goalDetails: goalDetailsTranslations.en,
     header: headerTranslations.en,
     quest: questTranslations.en,
-    ...commonTranslations.en,
+    ...collaborationsTranslations.en,
+    common: commonTranslations.en,
   },
   es: {
     ...navTranslations.es,
@@ -109,7 +113,8 @@ export const translations: Record<Language, Translations> = {
     goalDetails: goalDetailsTranslations.es,
     header: headerTranslations.es,
     quest: questTranslations.es,
-    ...commonTranslations.es,
+    ...collaborationsTranslations.es,
+    common: commonTranslations.es,
   },
   fr: {
     ...navTranslations.fr,
@@ -128,6 +133,7 @@ export const translations: Record<Language, Translations> = {
     goalDetails: goalDetailsTranslations.fr,
     header: headerTranslations.fr,
     quest: questTranslations.fr,
-    ...commonTranslations.fr,
+    ...collaborationsTranslations.fr,
+    common: commonTranslations.fr,
   },
 };

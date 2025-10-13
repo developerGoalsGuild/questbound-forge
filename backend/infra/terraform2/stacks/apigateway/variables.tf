@@ -97,3 +97,16 @@ variable "cache_enabled" {
     default     = true
     description = "Enable API Gateway caching"
 }
+
+# Additional variables from dev.tfvars to suppress warnings
+variable "tags" {
+    type    = map(string)
+    default = {}
+    description = "Tags for resources"
+}
+
+variable "dynamodb_table_name" {
+    type    = string
+    default = "gg_core"
+    description = "DynamoDB table name"
+}
