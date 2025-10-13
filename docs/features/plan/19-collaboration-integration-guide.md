@@ -148,3 +148,4 @@ In both GoalDetails and QuestDetails, add invite buttons to existing action bars
 4. Deploy to staging environment
 5. Conduct user acceptance testing
 6. Production deployment
+
