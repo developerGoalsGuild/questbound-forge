@@ -17,6 +17,7 @@ import TasksModal from '@/components/modals/TasksModal';
 import CreateTaskModal from '@/components/modals/CreateTaskModal';
 import { GoalQuestsSection } from '@/components/goals/GoalQuestsSection';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import { getUserIdFromToken } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +55,9 @@ import {
 } from 'lucide-react';
 import FieldTooltip from '@/components/ui/FieldTooltip';
 import { logger } from '@/lib/logger';
+import { CollaboratorList } from '@/components/collaborations/CollaboratorList';
+import { CommentSection } from '@/components/collaborations/CommentSection';
+import { InviteCollaboratorModal } from '@/components/collaborations/InviteCollaboratorModal';
 
 interface GoalDetailsData {
   id: string;
@@ -107,6 +111,7 @@ const GoalDetails: React.FC = () => {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   // Get translations with safety checks
   const goalDetailsTranslations = (t as any)?.goalDetails;
@@ -905,6 +910,40 @@ const GoalDetails: React.FC = () => {
         onCreate={handleTaskCreate}
         goalDeadline={goal?.deadline || null}
       />
+
+      {/* Collaboration Section */}
+      {goal && (
+        <div className="mt-8 space-y-6">
+          <CollaboratorList
+            resourceType="goal"
+            resourceId={goal.id}
+            resourceTitle={goal.title}
+            currentUserId={getUserIdFromToken() || ''}
+            isOwner={true} // TODO: Implement proper ownership check based on goal creator
+            onInviteClick={() => setShowInviteModal(true)}
+          />
+
+          <CommentSection
+            resourceType="goal"
+            resourceId={goal.id}
+          />
+        </div>
+      )}
+
+      {/* Invite Collaborator Modal */}
+      {goal && showInviteModal && (
+        <InviteCollaboratorModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          resourceType="goal"
+          resourceId={goal.id}
+          resourceTitle={goal.title}
+          onInviteSent={() => {
+            setShowInviteModal(false);
+            // Optionally refresh collaborator list or show success message
+          }}
+        />
+      )}
     </div>
   );
 };

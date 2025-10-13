@@ -9,8 +9,12 @@ import logging
 
 from .models.invite import InviteCreatePayload, InviteResponse, InviteListResponse
 from .models.collaborator import CollaboratorResponse, CollaboratorListResponse
+from .models.comment import CommentCreatePayload, CommentUpdatePayload, CommentResponse, CommentListResponse
+from .models.reaction import ReactionPayload, ReactionSummaryResponse
 from .db.invite_db import create_invite, get_invite, list_user_invites, accept_invite, decline_invite
 from .db.collaborator_db import list_collaborators, remove_collaborator
+from .db.comment_db import create_comment, get_comment, list_comments, update_comment, delete_comment
+from .db.reaction_db import toggle_reaction, get_comment_reactions
 from .auth import authenticate
 
 # Configure logging
@@ -149,6 +153,137 @@ async def remove_resource_collaborator(
     except Exception as e:
         logger.error(f"Error removing collaborator: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to remove collaborator")
+
+
+# Comment endpoints
+@app.post("/collaborations/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+async def create_resource_comment(
+    payload: CommentCreatePayload,
+    current_user: dict = Depends(authenticate)
+):
+    """Create a new comment on a resource."""
+    try:
+        comment = create_comment(current_user["sub"], payload)
+        logger.info(f"Comment created: {comment.comment_id} by {current_user['sub']}")
+        return comment
+    except ValueError as e:
+        logger.warning(f"Validation error creating comment: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating comment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create comment")
+
+
+@app.get("/collaborations/comments/{comment_id}", response_model=CommentResponse)
+async def get_resource_comment(
+    comment_id: str,
+    current_user: dict = Depends(authenticate)
+):
+    """Get a specific comment."""
+    try:
+        comment = get_comment(comment_id)
+        logger.info(f"Comment retrieved: {comment_id} for user {current_user['sub']}")
+        return comment
+    except ValueError as e:
+        logger.warning(f"Error getting comment: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting comment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get comment")
+
+
+@app.get("/collaborations/resources/{resource_type}/{resource_id}/comments", response_model=CommentListResponse)
+async def list_resource_comments(
+    resource_type: str,
+    resource_id: str,
+    parent_id: Optional[str] = None,
+    limit: int = 50,
+    next_token: Optional[str] = None,
+    current_user: dict = Depends(authenticate)
+):
+    """List comments for a resource."""
+    try:
+        comments = list_comments(resource_type, resource_id, parent_id, limit, next_token)
+        logger.info(f"Listed {len(comments.comments)} comments for {resource_type}/{resource_id}")
+        return comments
+    except ValueError as e:
+        logger.warning(f"Error listing comments: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error listing comments: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list comments")
+
+
+@app.put("/collaborations/comments/{comment_id}", response_model=CommentResponse)
+async def update_resource_comment(
+    comment_id: str,
+    payload: CommentUpdatePayload,
+    current_user: dict = Depends(authenticate)
+):
+    """Update a comment."""
+    try:
+        comment = update_comment(current_user["sub"], comment_id, payload)
+        logger.info(f"Comment updated: {comment_id} by {current_user['sub']}")
+        return comment
+    except ValueError as e:
+        logger.warning(f"Error updating comment: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating comment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update comment")
+
+
+@app.delete("/collaborations/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resource_comment(
+    comment_id: str,
+    current_user: dict = Depends(authenticate)
+):
+    """Delete a comment."""
+    try:
+        delete_comment(current_user["sub"], comment_id)
+        logger.info(f"Comment deleted: {comment_id} by {current_user['sub']}")
+        return None
+    except ValueError as e:
+        logger.warning(f"Error deleting comment: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting comment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete comment")
+
+
+# Reaction endpoints
+@app.post("/collaborations/comments/{comment_id}/reactions", response_model=ReactionSummaryResponse)
+async def toggle_comment_reaction(
+    comment_id: str,
+    payload: ReactionPayload,
+    current_user: dict = Depends(authenticate)
+):
+    """Toggle (add/remove) a reaction on a comment."""
+    try:
+        reaction_summary = toggle_reaction(current_user["sub"], comment_id, payload)
+        logger.info(f"Reaction toggled on comment {comment_id} by {current_user['sub']}: {payload.emoji}")
+        return reaction_summary
+    except ValueError as e:
+        logger.warning(f"Validation error toggling reaction: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error toggling reaction: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to toggle reaction")
+
+
+@app.get("/collaborations/comments/{comment_id}/reactions", response_model=ReactionSummaryResponse)
+async def get_comment_reactions_summary(
+    comment_id: str,
+    current_user: dict = Depends(authenticate)
+):
+    """Get reaction summary for a comment."""
+    try:
+        reaction_summary = get_comment_reactions(comment_id, current_user["sub"])
+        logger.info(f"Retrieved reactions for comment {comment_id}")
+        return reaction_summary
+    except Exception as e:
+        logger.error(f"Error getting comment reactions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get comment reactions")
 
 
 if __name__ == "__main__":

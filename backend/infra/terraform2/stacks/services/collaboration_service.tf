@@ -1,24 +1,37 @@
 # Collaboration Service Lambda Function
 module "collaboration_service_lambda" {
   source = "../../modules/docker_lambda_image"
-  
+
+  service_name         = "collaboration-service"
+  ecr_repository_name  = "goalsguild_collaboration_service"
+  aws_region          = var.aws_region
+  environment         = var.environment
+  dockerfile_path     = "Dockerfile"
+  context_path        = "${path.module}/../../../services/collaboration-service"
+  create_ecr          = true
+}
+
+# Lambda Function using the built image
+resource "aws_lambda_function" "collaboration_service" {
   function_name = "collaboration-service-${var.environment}"
-  image_uri     = "${var.ecr_repository_url}:collaboration-service-${var.environment}-latest"
+  role          = module.security.collaboration_service_role_arn
+  package_type  = "Image"
+  image_uri     = module.collaboration_service_lambda.image_uri
   timeout       = 30
   memory_size   = 512
-  
-  environment_variables = {
-    ENVIRONMENT          = var.environment
-    AWS_REGION          = var.aws_region
-    DYNAMODB_TABLE_NAME = var.dynamodb_table_name
-    LOG_LEVEL           = "INFO"
-    COGNITO_USER_POOL_ID = module.security.cognito_user_pool_id
-    COGNITO_USER_POOL_CLIENT_ID = module.security.cognito_user_pool_client_id
-    API_GATEWAY_KEY     = module.api_gateway.api_key_value
+
+  environment {
+    variables = {
+      ENVIRONMENT          = var.environment
+      AWS_REGION          = var.aws_region
+      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+      LOG_LEVEL           = "INFO"
+      COGNITO_USER_POOL_ID = module.security.cognito_user_pool_id
+      COGNITO_USER_POOL_CLIENT_ID = module.security.cognito_user_pool_client_id
+      API_GATEWAY_KEY     = module.api_gateway.api_key_value
+    }
   }
-  
-  iam_role_arn = module.security.collaboration_service_role_arn
-  
+
   tags = var.tags
 }
 
@@ -36,7 +49,7 @@ resource "aws_cloudwatch_metric_alarm" "collaboration_service_errors" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   
   dimensions = {
-    FunctionName = module.collaboration_service_lambda.function_name
+    FunctionName = aws_lambda_function.collaboration_service.function_name
   }
   
   tags = var.tags
@@ -55,7 +68,7 @@ resource "aws_cloudwatch_metric_alarm" "collaboration_service_duration" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   
   dimensions = {
-    FunctionName = module.collaboration_service_lambda.function_name
+    FunctionName = aws_lambda_function.collaboration_service.function_name
   }
   
   tags = var.tags
@@ -74,7 +87,7 @@ resource "aws_cloudwatch_metric_alarm" "collaboration_service_throttles" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   
   dimensions = {
-    FunctionName = module.collaboration_service_lambda.function_name
+    FunctionName = aws_lambda_function.collaboration_service.function_name
   }
   
   tags = var.tags
@@ -89,12 +102,17 @@ resource "aws_sns_topic" "alerts" {
 
 # Outputs
 output "collaboration_service_lambda_arn" {
-  value = module.collaboration_service_lambda.function_arn
+  value = aws_lambda_function.collaboration_service.arn
   description = "ARN of the collaboration service Lambda function"
 }
 
 output "collaboration_service_lambda_name" {
-  value = module.collaboration_service_lambda.function_name
+  value = aws_lambda_function.collaboration_service.function_name
   description = "Name of the collaboration service Lambda function"
+}
+
+output "collaboration_service_image_uri" {
+  value = module.collaboration_service_lambda.image_uri
+  description = "URI of the collaboration service Docker image"
 }
 

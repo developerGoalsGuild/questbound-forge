@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getUserIdFromToken } from '@/lib/utils';
 import {
   Quest,
   getQuestStatusKey,
@@ -24,6 +25,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useQuests, useQuestProgress } from '@/hooks/useQuest';
 import { loadGoals, type GoalResponse } from '@/lib/apiGoal';
 import { loadTasks, getMockTasks, type TaskResponse } from '@/lib/apiTask';
+import { CollaboratorList } from '@/components/collaborations/CollaboratorList';
+import { CommentSection } from '@/components/collaborations/CommentSection';
+import { InviteCollaboratorModal } from '@/components/collaborations/InviteCollaboratorModal';
 import {
   ShieldCheck,
   Star,
@@ -89,6 +93,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
   
   // ARIA Live Region for announcements
   const [liveMessage, setLiveMessage] = useState('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const liveRegionRef = useRef<HTMLDivElement>(null);
   
   // Focus management
@@ -922,6 +927,40 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
             </CardContent>
           </Card>
         </div>
+
+        {/* Collaboration Section */}
+        {quest && (
+          <div className="mt-8 space-y-6">
+            <CollaboratorList
+              resourceType="quest"
+              resourceId={quest.id}
+              resourceTitle={quest.title}
+              currentUserId={getUserIdFromToken() || ''}
+              isOwner={true} // TODO: Implement proper ownership check based on quest creator
+              onInviteClick={() => setShowInviteModal(true)}
+            />
+
+            <CommentSection
+              resourceType="quest"
+              resourceId={quest.id}
+            />
+          </div>
+        )}
+
+        {/* Invite Collaborator Modal */}
+        {quest && showInviteModal && (
+          <InviteCollaboratorModal
+            isOpen={showInviteModal}
+            onClose={() => setShowInviteModal(false)}
+            resourceType="quest"
+            resourceId={quest.id}
+            resourceTitle={quest.title}
+            onInviteSent={() => {
+              setShowInviteModal(false);
+              // Optionally refresh collaborator list or show success message
+            }}
+          />
+        )}
       </div>
     </div>
   );

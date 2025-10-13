@@ -6,7 +6,7 @@ This module tests the invite database operations with mocked DynamoDB.
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from uuid import uuid4
 
 from app.db.invite_db import (
@@ -104,9 +104,9 @@ class TestInviteDatabaseOperations:
             "resourceId": "goal-123",
             "status": "pending",
             "message": "Test message",
-            "expiresAt": (datetime.utcnow() + timedelta(days=30)).isoformat(),
-            "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat()
+            "expiresAt": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+            "createdAt": datetime.now(UTC).isoformat(),
+            "updatedAt": datetime.now(UTC).isoformat()
         }
         
         mock_table.scan.return_value = {"Items": [mock_item]}
@@ -139,9 +139,9 @@ class TestInviteDatabaseOperations:
                 "resourceType": "goal",
                 "resourceId": "goal-123",
                 "status": "pending",
-                "expiresAt": (datetime.utcnow() + timedelta(days=30)).isoformat(),
-                "createdAt": datetime.utcnow().isoformat(),
-                "updatedAt": datetime.utcnow().isoformat()
+                "expiresAt": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+                "createdAt": datetime.now(UTC).isoformat(),
+                "updatedAt": datetime.now(UTC).isoformat()
             }
         ]
         
@@ -160,7 +160,7 @@ class TestInviteDatabaseOperations:
         mock_invite = Mock()
         mock_invite.invitee_id = "user-456"
         mock_invite.status = "pending"
-        mock_invite.expires_at = datetime.utcnow() + timedelta(days=30)
+        mock_invite.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_invite.resource_type = "goal"
         mock_invite.resource_id = "goal-123"
         
@@ -180,7 +180,7 @@ class TestInviteDatabaseOperations:
         mock_invite = Mock()
         mock_invite.invitee_id = "user-456"
         mock_invite.status = "pending"
-        mock_invite.expires_at = datetime.utcnow() + timedelta(days=30)
+        mock_invite.expires_at = datetime.now(UTC) + timedelta(days=30)
         
         with patch('app.db.invite_db.get_invite', return_value=mock_invite):
             with pytest.raises(CollaborationInvitePermissionError):
@@ -192,7 +192,7 @@ class TestInviteDatabaseOperations:
         mock_invite = Mock()
         mock_invite.invitee_id = "user-456"
         mock_invite.status = "accepted"  # Already accepted
-        mock_invite.expires_at = datetime.utcnow() + timedelta(days=30)
+        mock_invite.expires_at = datetime.now(UTC) + timedelta(days=30)
         
         with patch('app.db.invite_db.get_invite', return_value=mock_invite):
             with pytest.raises(CollaborationInviteValidationError):
@@ -204,7 +204,7 @@ class TestInviteDatabaseOperations:
         mock_invite = Mock()
         mock_invite.invitee_id = "user-456"
         mock_invite.status = "pending"
-        mock_invite.expires_at = datetime.utcnow() - timedelta(days=1)  # Expired
+        mock_invite.expires_at = datetime.now(UTC) - timedelta(days=1)  # Expired
         
         with patch('app.db.invite_db.get_invite', return_value=mock_invite):
             with pytest.raises(CollaborationInviteValidationError):

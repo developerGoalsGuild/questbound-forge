@@ -32,22 +32,25 @@ export interface Invite {
 
 export interface Comment {
   commentId: string;
+  parentId?: string;
+  userId: string;
   resourceType: 'goal' | 'quest' | 'task';
   resourceId: string;
-  authorId: string;
-  authorUsername: string;
-  content: string;
+  text: string;
+  mentions: string[];
+  reactions: Record<string, number>;
+  replyCount: number;
+  isEdited: boolean;
+  username: string;
+  userAvatar?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface Reaction {
-  reactionId: string;
-  commentId: string;
-  userId: string;
-  username: string;
-  type: 'like' | 'love' | 'laugh' | 'wow' | 'sad' | 'angry';
-  createdAt: string;
+
+export interface ReactionSummaryResponse {
+  reactions: Record<string, number>; // emoji -> count
+  userReaction?: string; // current user's reaction emoji
 }
 
 export class CollaborationAPIError extends Error {
@@ -147,33 +150,61 @@ export async function removeCollaborator(
   });
 }
 
+
+
 // Comment Management
 export async function createComment(data: {
   resourceType: 'goal' | 'quest' | 'task';
   resourceId: string;
-  content: string;
+  parentId?: string;
+  text: string;
 }): Promise<Comment> {
   return apiRequest<Comment>('/collaborations/comments', {
     method: 'POST',
     body: JSON.stringify({
       resource_type: data.resourceType,
       resource_id: data.resourceId,
-      content: data.content,
+      parent_id: data.parentId,
+      text: data.text,
     }),
   });
 }
 
-export async function listComments(
-  resourceType: 'goal' | 'quest' | 'task',
-  resourceId: string
-): Promise<Comment[]> {
-  return apiRequest<Comment[]>(`/collaborations/comments?resource_type=${resourceType}&resource_id=${resourceId}`);
+export async function getComment(commentId: string): Promise<Comment> {
+  return apiRequest<Comment>(`/collaborations/comments/${commentId}`);
 }
 
-export async function updateComment(commentId: string, content: string): Promise<Comment> {
+export async function listResourceComments(
+  resourceType: 'goal' | 'quest' | 'task',
+  resourceId: string,
+  parentId?: string,
+  limit: number = 50,
+  nextToken?: string
+): Promise<{ comments: Comment[]; nextToken?: string; totalCount: number }> {
+  const params = new URLSearchParams({
+    ...(parentId && { parent_id: parentId }),
+    ...(nextToken && { next_token: nextToken }),
+    limit: limit.toString(),
+  });
+
+  return apiRequest<{ comments: Comment[]; nextToken?: string; totalCount: number }>(
+    `/collaborations/resources/${resourceType}/${resourceId}/comments?${params}`
+  );
+}
+
+export async function listComments(
+  resourceType: 'goal' | 'quest' | 'task',
+  resourceId: string,
+  limit: number = 50
+): Promise<Comment[]> {
+  const result = await listResourceComments(resourceType, resourceId, undefined, limit);
+  return result.comments;
+}
+
+export async function updateComment(commentId: string, data: { text: string }): Promise<Comment> {
   return apiRequest<Comment>(`/collaborations/comments/${commentId}`, {
     method: 'PUT',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(data),
   });
 }
 
@@ -183,23 +214,14 @@ export async function deleteComment(commentId: string): Promise<void> {
   });
 }
 
-// Reaction Management
-export async function addReaction(data: {
-  commentId: string;
-  type: 'like' | 'love' | 'laugh' | 'wow' | 'sad' | 'angry';
-}): Promise<Reaction> {
-  return apiRequest<Reaction>(`/collaborations/comments/${data.commentId}/reactions`, {
+// Reaction Management (enhanced)
+export async function toggleReaction(commentId: string, emoji: string): Promise<ReactionSummaryResponse> {
+  return apiRequest<ReactionSummaryResponse>(`/collaborations/comments/${commentId}/reactions`, {
     method: 'POST',
-    body: JSON.stringify({ type: data.type }),
+    body: JSON.stringify({ emoji }),
   });
 }
 
-export async function removeReaction(commentId: string, reactionId: string): Promise<void> {
-  return apiRequest<void>(`/collaborations/comments/${commentId}/reactions/${reactionId}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function listReactions(commentId: string): Promise<Reaction[]> {
-  return apiRequest<Reaction[]>(`/collaborations/comments/${commentId}/reactions`);
+export async function getCommentReactions(commentId: string): Promise<ReactionSummaryResponse> {
+  return apiRequest<ReactionSummaryResponse>(`/collaborations/comments/${commentId}/reactions`);
 }

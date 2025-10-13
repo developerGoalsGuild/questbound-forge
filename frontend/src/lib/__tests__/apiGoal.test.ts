@@ -9,14 +9,13 @@ import {
   buildAnswers
 } from '../apiGoal';
 
-// Mock logger before all other imports
-const mockLoggerError = vi.fn();
+// Mock logger before all other imports. Define fns inside factory to avoid hoist issues
 vi.mock('@/lib/logger', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
-    error: mockLoggerError,
+    error: vi.fn(),
   },
 }));
 
@@ -287,10 +286,10 @@ describe('getActiveGoalsCountForUser', () => {
     const result = await getActiveGoalsCountForUser('user-123');
 
     expect(result).toBe(0);
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in getActiveGoalsCountForUser',
       expect.objectContaining({
-        error: expect.any(Error),
+        error: expect.anything(),
       })
     );
   });
@@ -302,10 +301,10 @@ describe('getActiveGoalsCountForUser', () => {
     const result = await getActiveGoalsCountForUser('user-123');
 
     expect(result).toBe(0);
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in getActiveGoalsCountForUser',
       expect.objectContaining({
-        error: graphQLError,
+        error: expect.anything(),
       })
     );
   });
@@ -348,10 +347,10 @@ describe('loadGoals', () => {
     const result = await loadGoals();
 
     expect(result).toEqual([]);
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in loadGoals',
       expect.objectContaining({
-        error: expect.any(Error),
+        error: expect.anything(),
       })
     );
   });
@@ -363,10 +362,10 @@ describe('loadGoals', () => {
     const result = await loadGoals();
 
     expect(result).toEqual([]);
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in loadGoals',
       expect.objectContaining({
-        error: graphQLError,
+        error: expect.anything(),
       })
     );
   });

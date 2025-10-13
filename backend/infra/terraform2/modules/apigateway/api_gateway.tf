@@ -2352,6 +2352,18 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.collaborations_resources_type_id_collaborators_options,
       aws_api_gateway_method.collaborations_resources_type_id_collaborators_user_id_delete,
       aws_api_gateway_method.collaborations_resources_type_id_collaborators_user_id_options,
+      # Comment endpoints
+      aws_api_gateway_method.collaborations_comments_post,
+      aws_api_gateway_method.collaborations_comments_options,
+      aws_api_gateway_method.collaborations_comments_id_get,
+      aws_api_gateway_method.collaborations_comments_id_options,
+      aws_api_gateway_method.collaborations_resources_type_id_comments_get,
+      aws_api_gateway_method.collaborations_resources_type_id_comments_options,
+      aws_api_gateway_method.collaborations_comments_id_put,
+      aws_api_gateway_method.collaborations_comments_id_delete,
+      aws_api_gateway_method.collaborations_comments_id_reactions_post,
+      aws_api_gateway_method.collaborations_comments_id_reactions_options,
+      aws_api_gateway_method.collaborations_comments_id_reactions_get,
     ]))
   }
   lifecycle { create_before_destroy = true }
@@ -2586,6 +2598,347 @@ resource "aws_api_gateway_integration" "collaborations_resources_type_id_collabo
   request_templates = {
     "application/json" = "{\"statusCode\":200}"
   }
+}
+
+# Comment API methods
+# POST /collaborations/comments
+resource "aws_api_gateway_method" "collaborations_comments_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_method" "collaborations_comments_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "collaborations_comments_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_comments.id
+  http_method             = aws_api_gateway_method.collaborations_comments_post.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "collaborations_comments_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments.id
+  http_method = aws_api_gateway_method.collaborations_comments_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# GET /collaborations/comments/{comment_id}
+resource "aws_api_gateway_method" "collaborations_comments_id_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_method" "collaborations_comments_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method             = aws_api_gateway_method.collaborations_comments_id_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method = aws_api_gateway_method.collaborations_comments_id_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# GET /collaborations/resources/{resource_type}/{resource_id}/comments
+resource "aws_api_gateway_method" "collaborations_resources_type_id_comments_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_method" "collaborations_resources_type_id_comments_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "collaborations_resources_type_id_comments_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_resources_type_id.id
+  http_method             = aws_api_gateway_method.collaborations_resources_type_id_comments_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "collaborations_resources_type_id_comments_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_resources_type_id.id
+  http_method = aws_api_gateway_method.collaborations_resources_type_id_comments_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# PUT /collaborations/comments/{comment_id}
+resource "aws_api_gateway_method" "collaborations_comments_id_put" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method   = "PUT"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_put_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method             = aws_api_gateway_method.collaborations_comments_id_put.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+# DELETE /collaborations/comments/{comment_id}
+resource "aws_api_gateway_method" "collaborations_comments_id_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method   = "DELETE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_delete_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method             = aws_api_gateway_method.collaborations_comments_id_delete.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+# POST /collaborations/comments/{comment_id}/reactions
+resource "aws_api_gateway_method" "collaborations_comments_id_reactions_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_method" "collaborations_comments_id_reactions_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_reactions_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method             = aws_api_gateway_method.collaborations_comments_id_reactions_post.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_reactions_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method = aws_api_gateway_method.collaborations_comments_id_reactions_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+}
+
+# GET /collaborations/comments/{comment_id}/reactions
+resource "aws_api_gateway_method" "collaborations_comments_id_reactions_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+resource "aws_api_gateway_integration" "collaborations_comments_id_reactions_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method             = aws_api_gateway_method.collaborations_comments_id_reactions_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.collaboration_service_lambda_arn}/invocations"
+}
+
+# Comment and reaction method responses
+resource "aws_api_gateway_method_response" "collaborations_comments_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments.id
+  http_method = aws_api_gateway_method.collaborations_comments_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+resource "aws_api_gateway_integration_response" "collaborations_comments_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments.id
+  http_method = aws_api_gateway_method.collaborations_comments_options.http_method
+  status_code = aws_api_gateway_method_response.collaborations_comments_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,POST'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+  depends_on = [aws_api_gateway_integration.collaborations_comments_options_integration]
+}
+
+resource "aws_api_gateway_method_response" "collaborations_comments_id_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method = aws_api_gateway_method.collaborations_comments_id_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+resource "aws_api_gateway_integration_response" "collaborations_comments_id_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments_id.id
+  http_method = aws_api_gateway_method.collaborations_comments_id_options.http_method
+  status_code = aws_api_gateway_method_response.collaborations_comments_id_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+  depends_on = [aws_api_gateway_integration.collaborations_comments_id_options_integration]
+}
+
+resource "aws_api_gateway_method_response" "collaborations_resources_type_id_comments_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_resources_type_id.id
+  http_method = aws_api_gateway_method.collaborations_resources_type_id_comments_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+resource "aws_api_gateway_integration_response" "collaborations_resources_type_id_comments_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_resources_type_id.id
+  http_method = aws_api_gateway_method.collaborations_resources_type_id_comments_options.http_method
+  status_code = aws_api_gateway_method_response.collaborations_resources_type_id_comments_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+  depends_on = [aws_api_gateway_integration.collaborations_resources_type_id_comments_options_integration]
+}
+
+resource "aws_api_gateway_method_response" "collaborations_comments_id_reactions_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method = aws_api_gateway_method.collaborations_comments_id_reactions_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Credentials" = true
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin" = true
+    "method.response.header.Access-Control-Max-Age" = true
+    "method.response.header.Content-Type" = true
+    "method.response.header.Vary" = true
+  }
+  response_models = {
+    "application/json" = "Empty"
+    "text/plain" = "Empty"
+  }
+}
+resource "aws_api_gateway_integration_response" "collaborations_comments_id_reactions_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.collaborations_comments_id_reactions.id
+  http_method = aws_api_gateway_method.collaborations_comments_id_reactions_options.http_method
+  status_code = aws_api_gateway_method_response.collaborations_comments_id_reactions_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,POST'"
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = "{\"statusCode\":200}"
+  }
+  depends_on = [aws_api_gateway_integration.collaborations_comments_id_reactions_options_integration]
 }
 
 # Lambda permissions

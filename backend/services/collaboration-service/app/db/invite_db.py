@@ -6,7 +6,7 @@ creation, acceptance, decline, and listing operations.
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Dict, List, Optional, Any
 from uuid import uuid4
 from boto3.dynamodb.conditions import Key, Attr
@@ -91,11 +91,108 @@ def _get_dynamodb_table():
     return dynamodb.Table(settings.dynamodb_table_name)
 
 
+def _verify_resource_ownership(user_id: str, resource_type: str, resource_id: str) -> bool:
+    """
+    Verify that a user owns a specific resource.
+
+    Args:
+        user_id: ID of the user to check
+        resource_type: Type of resource (goal, quest, task)
+        resource_id: ID of the resource
+
+    Returns:
+        True if user owns the resource, False otherwise
+    """
+    table = _get_dynamodb_table()
+
+    try:
+        # Check if user is the owner of the resource
+        # First check if resource exists under USER#{user_id} (primary ownership)
+        pk = f"USER#{user_id}"
+        sk = f"{resource_type.upper()}#{resource_id}"
+
+        response = table.get_item(Key={"PK": pk, "SK": sk})
+        if "Item" in response:
+            return True
+
+        # For backwards compatibility/tests: check if resource exists as a separate entity
+        # Only allow if there's an explicit owner record for this user
+        resource_pk = f"RESOURCE#{resource_type.upper()}#{resource_id}"
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(resource_pk) & Key("SK").begins_with("OWNER#"),
+            Limit=1
+        )
+
+        # Only allow ownership if there's an explicit owner record for this user
+        return any(
+            item.get("userId") == user_id for item in response.get("Items", [])
+        )
+
+    except Exception as e:
+        logger.error('collaboration.verify_ownership_failed',
+                    user_id=user_id,
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    error=str(e),
+                    exc_info=e)
+        return False
+
+
+def _lookup_invitee(identifier: str) -> Optional[Dict[str, Any]]:
+    """
+    Look up a user by email or username.
+
+    Args:
+        identifier: Email address or username to look up
+
+    Returns:
+        User info dict with userId, username, email if found, None otherwise
+    """
+    table = _get_dynamodb_table()
+
+    try:
+        if "@" in identifier:
+            # Look up by email - try multiple approaches for compatibility
+            # First try the email lookup index
+            response = table.query(
+                IndexName="GSI1",
+                KeyConditionExpression=Key("GSI1PK").eq("EMAIL_LOOKUP") & Key("GSI1SK").eq(f"EMAIL#{identifier}")
+            )
+
+            if not response.get("Items"):
+                # Fallback: scan for email in profile records (for tests/backwards compatibility)
+                response = table.scan(
+                    FilterExpression=Attr("email").eq(identifier) & Attr("SK").eq("PROFILE")
+                )
+        else:
+            # Look up by username - scan for username (works for small user base)
+            response = table.scan(
+                FilterExpression=Attr("username").eq(identifier) & Attr("SK").eq("PROFILE")
+            )
+
+        if response.get("Items"):
+            user_item = response["Items"][0]
+            return {
+                "userId": user_item["userId"],
+                "username": user_item.get("username"),
+                "email": user_item.get("email")
+            }
+
+        return None
+
+    except Exception as e:
+        logger.error('collaboration.invitee_lookup_failed',
+                    identifier=identifier,
+                    error=str(e),
+                    exc_info=e)
+        return None
+
+
 def _build_invite_item(inviter_id: str, invitee_id: str, invitee_email: str, 
                       payload: InviteCreatePayload) -> Dict[str, Any]:
     """Build DynamoDB item for collaboration invite."""
     invite_id = str(uuid4())
-    created_at = datetime.utcnow()
+    created_at = datetime.now(UTC)
     expires_at = created_at + timedelta(days=30)
     
     # Primary key
@@ -200,14 +297,26 @@ def create_invite(inviter_id: str, payload: InviteCreatePayload) -> InviteRespon
     table = _get_dynamodb_table()
     
     try:
-        # TODO: Verify caller owns the resource
-        # TODO: Lookup invitee by email or username
-        # TODO: Check for duplicate invites
-        # TODO: Check if user is already a collaborator
-        
-        # For now, use placeholder values
-        invitee_id = "placeholder-user-id"
-        invitee_email = payload.invitee_identifier if "@" in payload.invitee_identifier else None
+        # Verify caller owns the resource
+        if not _verify_resource_ownership(inviter_id, payload.resource_type, payload.resource_id):
+            raise CollaborationInviteValidationError("User does not own this resource")
+
+        # Lookup invitee by email or username
+        invitee_info = _lookup_invitee(payload.invitee_identifier)
+        if not invitee_info:
+            raise CollaborationInviteValidationError("Invitee not found")
+
+        invitee_id = invitee_info["userId"]
+        invitee_email = invitee_info.get("email")
+
+        # Check for duplicate invites
+        if check_duplicate_invite(payload.resource_type, payload.resource_id, invitee_id):
+            raise CollaborationInviteValidationError("Invite already exists for this user")
+
+        # Check if user is already a collaborator
+        from .collaborator_db import check_collaborator_access
+        if check_collaborator_access(invitee_id, payload.resource_type, payload.resource_id):
+            raise CollaborationInviteValidationError("User is already a collaborator on this resource")
         
         # Build invite item
         invite_item = _build_invite_item(inviter_id, invitee_id, invitee_email, payload)
@@ -374,13 +483,13 @@ def accept_invite(user_id: str, invite_id: str) -> InviteResponse:
             raise CollaborationInviteValidationError(f"Cannot accept invite with status: {invite.status}")
         
         # Verify invite is not expired
-        if datetime.utcnow() > invite.expires_at:
+        if datetime.now(UTC) > invite.expires_at:
             raise CollaborationInviteValidationError("Cannot accept expired invitation")
         
         # Update invite status
         pk = f"RESOURCE#{invite.resource_type.upper()}#{invite.resource_id}"
         sk = f"INVITE#{invite_id}"
-        accepted_at = datetime.utcnow()
+        accepted_at = datetime.now(UTC)
         
         _ddb_call("update_item", "accept_invite",
                  Key={"PK": pk, "SK": sk},
@@ -395,7 +504,9 @@ def accept_invite(user_id: str, invite_id: str) -> InviteResponse:
                      ":gsi1sk": f"INVITE#accepted#{accepted_at.isoformat()}"
                  })
         
-        # TODO: Create collaborator item
+        # Create collaborator item
+        from .collaborator_db import add_collaborator
+        add_collaborator(invite.resource_type, invite.resource_id, user_id)
         
         logger.info('collaboration_invite.accept_success', 
                    user_id=user_id, 
@@ -447,7 +558,7 @@ def decline_invite(user_id: str, invite_id: str) -> InviteResponse:
         # Update invite status
         pk = f"RESOURCE#{invite.resource_type.upper()}#{invite.resource_id}"
         sk = f"INVITE#{invite_id}"
-        declined_at = datetime.utcnow()
+        declined_at = datetime.now(UTC)
         
         _ddb_call("update_item", "decline_invite",
                  Key={"PK": pk, "SK": sk},

@@ -29,3 +29,14 @@ existing_lambda_exec_role_name = "goalsguild_lambda_exec_role_dev"
 # Database stack values (to avoid remote_state dependency in dev)
 core_table_name = "gg_core"
 core_table_arn = "arn:aws:dynamodb:us-east-2:838284111015:table/gg_core"
+
+# Collaboration service variables
+dynamodb_table_name = "gg_core"
+tags = {
+  Environment = "dev"
+  Project     = "goalsguild"
+  Service     = "collaboration-service"
+}
+
+# Collaboration service override (use existing role for dev)
+collaboration_service_lambda_arn_override = "use-existing-role"

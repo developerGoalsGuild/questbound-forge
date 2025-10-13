@@ -17,14 +17,12 @@ vi.mock('../api', () => ({
   graphqlRaw: vi.fn()
 }));
 
-// Mock the utils
-const mockGetAccessToken = vi.fn(() => 'mock-jwt-token');
-const mockGetApiBase = vi.fn(() => 'https://api.example.com/v1');
-
+// Mock the utils (define inside factory to avoid hoist-time refs)
 vi.mock('@/lib/utils', () => ({
-  getAccessToken: mockGetAccessToken,
-  getApiBase: mockGetApiBase
+  getAccessToken: vi.fn(),
+  getApiBase: vi.fn(),
 }));
+import * as utils from '@/lib/utils';
 
 // Mock environment variables
 Object.defineProperty(import.meta, 'env', {
@@ -58,6 +56,7 @@ Object.defineProperty(console, 'warn', { value: mockConsole.warn });
 
 describe('Quest API Integration Tests', () => {
   const mockToken = 'mock-jwt-token';
+  // utils is the mocked module imported above
   
   // Get the mocked functions
   const mockAuthFetch = vi.mocked(authFetch);
@@ -90,8 +89,8 @@ describe('Quest API Integration Tests', () => {
     mockLocalStorage.getItem.mockReturnValue(JSON.stringify({ access_token: mockToken }));
     
     // Reset mock implementations
-    mockGetAccessToken.mockReturnValue(mockToken);
-    mockGetApiBase.mockReturnValue('https://api.example.com/v1');
+    utils.getAccessToken.mockReturnValue(mockToken);
+    utils.getApiBase.mockReturnValue('https://api.example.com/v1');
   });
 
   afterEach(() => {

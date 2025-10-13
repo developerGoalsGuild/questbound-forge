@@ -65,13 +65,13 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
   return data as TaskResponse;
 }
 
-export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
+export async function loadTasks(goalId: string): Promise<TaskResponse[] | null> {
   const operation = 'loadTasks';
   
   // Validate input
   if (!goalId || typeof goalId !== 'string') {
     logger.warn('Invalid goalId provided to loadTasks', { operation, goalId });
-    return [];
+    return null;
   }
 
   try {
@@ -92,6 +92,9 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
 
     // Pass goalId as required parameter
     const data = await graphqlRaw<{ myTasks: TaskResponse[] }>(QUERY, { goalId });
+    if (!data) {
+      return null;
+    }
     const allTasks = ((data as any)?.myTasks ?? (data as any)?.MyTasks) || [];
 
     // If backend doesn't filter, we may need to filter client-side
@@ -108,14 +111,13 @@ export async function loadTasks(goalId: string): Promise<TaskResponse[]> {
     return tasks;
 
   } catch (e: any) {
-    logger.warn('GraphQL error in loadTasks - returning empty array', {
-        operation,
-        goalId,
-        error: e?.errors || e?.message || e,
-        errorType: e?.name || 'Unknown'
+    logger.error('GraphQL error in loadTasks', {
+      operation,
+      goalId,
+      error: e?.errors || e?.message || e,
+      errorType: e?.name || 'Unknown'
     });
-    // Return empty array instead of null to prevent downstream errors
-    return [];
+    return null;
   }
 }
 

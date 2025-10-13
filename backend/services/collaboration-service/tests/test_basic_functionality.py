@@ -6,7 +6,7 @@ Tests the core functionality without complex integration scenarios.
 import pytest
 import boto3
 from moto import mock_aws
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 import json
 import uuid
 
@@ -209,7 +209,7 @@ class TestBasicFunctionality:
         ttl = invite_item['ttl']
         
         # Calculate expected TTL (30 days from now) using UTC
-        expected_ttl = int((datetime.utcnow() + timedelta(days=30)).timestamp())
+        expected_ttl = int((datetime.now(UTC) + timedelta(days=30)).timestamp())
         
         # Allow 5 minute tolerance for timezone differences
         assert abs(ttl - expected_ttl) < 300

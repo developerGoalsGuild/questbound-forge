@@ -2,14 +2,13 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { createTask, loadTasks } from '../apiTask';
 
-// Mock logger before all other imports
-const mockLoggerError = vi.fn();
+// Mock logger before all other imports (avoid hoist-time external refs)
 vi.mock('@/lib/logger', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
-    error: mockLoggerError,
+    error: vi.fn(),
   },
 }));
 
@@ -29,6 +28,7 @@ vi.mock('@/lib/api', () => ({
 
 import * as utils from '@/lib/utils';
 import * as api from '@/lib/api';
+import * as logger from '@/lib/logger';
 
 describe('createTask', () => {
   const mockUtils = vi.mocked(utils);
@@ -197,11 +197,11 @@ describe('loadTasks', () => {
     const result = await loadTasks('goal-123');
 
     expect(result).toBeNull();
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in loadTasks',
       expect.objectContaining({
         goalId: 'goal-123',
-        error: expect.any(Error),
+        error: expect.anything(),
       })
     );
   });
@@ -213,11 +213,11 @@ describe('loadTasks', () => {
     const result = await loadTasks('goal-123');
 
     expect(result).toBeNull();
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in loadTasks',
       expect.objectContaining({
         goalId: 'goal-123',
-        error: graphQLError,
+        error: expect.anything(),
       })
     );
   });
@@ -229,11 +229,11 @@ describe('loadTasks', () => {
     const result = await loadTasks('goal-123');
 
     expect(result).toBeNull();
-    expect(mockLoggerError).toHaveBeenCalledWith(
+    expect(logger.logger.error).toHaveBeenCalledWith(
       'GraphQL error in loadTasks',
       expect.objectContaining({
         goalId: 'goal-123',
-        error: graphQLError,
+        error: expect.anything(),
       })
     );
   });

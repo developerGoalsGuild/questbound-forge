@@ -6,7 +6,7 @@ access patterns work as expected.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 from uuid import uuid4
 
 
@@ -22,7 +22,7 @@ class TestCollaborationSchema:
         inviter_id = "user-123"
         invitee_id = "user-789"
         invitee_email = "collaborator@example.com"
-        created_at = datetime.utcnow()
+        created_at = datetime.now(UTC)
         expires_at = created_at + timedelta(days=30)
         
         # Primary key pattern
@@ -84,7 +84,7 @@ class TestCollaborationSchema:
         user_id = "user-789"
         resource_type = "goal"
         resource_id = "goal-123"
-        joined_at = datetime.utcnow()
+        joined_at = datetime.now(UTC)
         
         # Primary key pattern
         pk = f"RESOURCE#{resource_type.upper()}#{resource_id}"
@@ -132,7 +132,7 @@ class TestCollaborationSchema:
         user_id = "user-789"
         parent_id = None  # Top-level comment
         text = "Great progress on this goal! @user-123 what do you think?"
-        created_at = datetime.utcnow()
+        created_at = datetime.now(UTC)
         
         # Primary key pattern
         pk = f"RESOURCE#{resource_type.upper()}#{resource_id}"
@@ -184,7 +184,7 @@ class TestCollaborationSchema:
         comment_id = "cmt-456"
         user_id = "user-123"
         emoji = "👍"
-        created_at = datetime.utcnow()
+        created_at = datetime.now(UTC)
         
         # Primary key pattern
         pk = f"COMMENT#{comment_id}"
@@ -244,7 +244,7 @@ class TestCollaborationSchema:
     
     def test_ttl_calculation(self):
         """Test TTL calculation for invites."""
-        created_at = datetime.utcnow()
+        created_at = datetime.now(UTC)
         expires_at = created_at + timedelta(days=30)
         ttl = int(expires_at.timestamp())
         
@@ -253,7 +253,7 @@ class TestCollaborationSchema:
         assert ttl == expected_ttl
         
         # Verify TTL is reasonable (not too far in the past or future)
-        now = int(datetime.utcnow().timestamp())
+        now = int(datetime.now(UTC).timestamp())
         assert ttl > now  # Future
         assert ttl < now + (60 * 60 * 24 * 35)  # Less than 35 days
 
