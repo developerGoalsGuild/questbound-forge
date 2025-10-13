@@ -26,6 +26,23 @@ quest_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:funct
 # Security stack: reuse existing Lambda exec role in dev
 existing_lambda_exec_role_name = "goalsguild_lambda_exec_role_dev"
 
+# JWT secret for user authentication
+jwt_secret = "test-secret-key-for-development-only"
+
+# Email token secret for email verification
+email_token_secret = "email-verification-secret-key-dev"
+
+# Google OAuth credentials (placeholders for dev)
+google_client_id = "placeholder-google-client-id"
+google_client_secret = "placeholder-google-client-secret"
+
+
+# Database configuration
+ddb_table_name = "gg_core"
+
+# API Gateway configuration
+api_gateway_key = "placeholder-api-gateway-key"
+
 # Database stack values (to avoid remote_state dependency in dev)
 core_table_name = "gg_core"
 core_table_arn = "arn:aws:dynamodb:us-east-2:838284111015:table/gg_core"

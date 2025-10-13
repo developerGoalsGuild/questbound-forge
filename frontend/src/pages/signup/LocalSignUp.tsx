@@ -252,6 +252,46 @@ const LocalSignUp: React.FC = () => {
     }
   };
 
+  const handleBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'email' && value.trim()) {
+      const email = value.trim();
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        try {
+          setEmailChecking(true);
+          const available = await isEmailAvailable(email);
+          setEmailAvailable(available);
+          setErrors((prev) => ({
+            ...prev,
+            email: available ? undefined : (signup.validation?.emailTaken || 'Email already in use'),
+          }));
+        } catch (error) {
+          console.error('Email availability check failed on blur:', error);
+        } finally {
+          setEmailChecking(false);
+        }
+      }
+    }
+    
+    if (name === 'nickname' && value.trim()) {
+      const nickname = value.trim();
+      try {
+        setNickChecking(true);
+        const available = await isNicknameAvailable(nickname);
+        setNicknameAvailable(available);
+        setErrors(prev => ({ 
+          ...prev, 
+          nickname: available ? undefined : (signup.validation?.nicknameTaken || 'Nickname already in use') 
+        }));
+      } catch (error) {
+        console.error('Nickname availability check failed on blur:', error);
+      } finally {
+        setNickChecking(false);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage(null);
@@ -359,6 +399,7 @@ const LocalSignUp: React.FC = () => {
             type="email"
             value={formData.email}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={'w-full border rounded px-3 py-2 ' + (errors.email ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!errors.email}
             aria-describedby="email-error"
@@ -412,6 +453,7 @@ const LocalSignUp: React.FC = () => {
             type="text"
             value={formData.nickname}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={'w-full border rounded px-3 py-2 ' + (errors.nickname ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!errors.nickname}
             aria-describedby="nickname-error"

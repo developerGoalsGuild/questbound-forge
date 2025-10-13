@@ -7,6 +7,7 @@ export interface CollaborationsTranslations {
       subtitle: string;
       emailOrUsername: string;
       message: string;
+      messageOptional: string;
       placeholder: string;
       helpText: string;
       messagePlaceholder: string;
@@ -120,6 +121,7 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
         subtitle: "Invite someone to collaborate on this {resourceType}",
         emailOrUsername: "Email or Username",
         message: "Message",
+        messageOptional: "Message (optional)",
         placeholder: "Enter email or username",
         helpText: "Enter an email address or username",
         messagePlaceholder: "Optional message...",
@@ -231,6 +233,7 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
         subtitle: "Invita a alguien a colaborar en este {resourceType}",
         emailOrUsername: "Correo o Nombre de Usuario",
         message: "Mensaje",
+        messageOptional: "Mensaje (opcional)",
         placeholder: "Ingresa correo o nombre de usuario",
         helpText: "Ingresa una dirección de correo o nombre de usuario",
         messagePlaceholder: "Mensaje opcional...",
@@ -342,6 +345,7 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
         subtitle: "Invitez quelqu'un à collaborer sur ce {resourceType}",
         emailOrUsername: "Email ou Nom d'Utilisateur",
         message: "Message",
+        messageOptional: "Message (optionnel)",
         placeholder: "Entrez email ou nom d'utilisateur",
         helpText: "Entrez une adresse email ou un nom d'utilisateur",
         messagePlaceholder: "Message optionnel...",

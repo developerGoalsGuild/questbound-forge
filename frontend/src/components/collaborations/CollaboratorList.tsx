@@ -54,6 +54,51 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
   const { toast } = useToast();
   const { user } = useAuth();
   
+  // Debug: Log the translations structure
+  console.log('CollaboratorList translations debug:', {
+    hasT: !!t,
+    hasCollaborations: !!t?.collaborations,
+    hasCollaborators: !!t?.collaborations?.collaborators,
+    tKeys: t ? Object.keys(t) : [],
+    collaborationsKeys: t?.collaborations ? Object.keys(t.collaborations) : []
+  });
+
+  // Safe access to translations with fallbacks
+  const translations = t?.collaborations?.collaborators || {
+    title: 'Collaborators',
+    empty: 'No collaborators yet',
+    invite: 'Invite',
+    inviteFirst: 'Invite your first collaborator',
+    owner: 'Owner',
+    you: 'You',
+    joined: 'Joined {date}',
+    remove: {
+      confirm: {
+        title: 'Remove Collaborator',
+        description: 'Are you sure you want to remove {username} from this collaboration?'
+      },
+      success: {
+        title: 'Collaborator Removed',
+        description: '{username} has been removed from the collaboration'
+      },
+      errors: {
+        noPermission: {
+          title: 'Permission Denied',
+          description: "You don't have permission to remove collaborators"
+        },
+        generic: {
+          title: 'Failed to Remove',
+          description: 'Failed to remove collaborator'
+        }
+      }
+    },
+    errors: {
+      noPermission: "You don't have permission to view collaborators",
+      resourceNotFound: 'Resource not found',
+      generic: 'Failed to load collaborators'
+    }
+  };
+  
   const [collaborators, setCollaborators] = useState<CollaboratorWithActions[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,14 +129,14 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       
       if (error instanceof CollaborationAPIError) {
         if (error.status === 403) {
-          setError(t.collaborations.collaborators.errors.noPermission);
+          setError(translations.errors.noPermission);
         } else if (error.status === 404) {
-          setError(t.collaborations.collaborators.errors.resourceNotFound);
+          setError(translations.errors.resourceNotFound);
         } else {
           setError(error.message);
         }
       } else {
-        setError(t.collaborations.collaborators.errors.generic);
+        setError(translations.errors.generic);
       }
     } finally {
       setIsLoading(false);
@@ -114,8 +159,8 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       setCollaborators(prev => prev.filter(c => c.userId !== userId));
       
       toast({
-        title: t.collaborations.collaborators.remove.success.title,
-        description: t.collaborations.collaborators.remove.success.description.replace('{username}', username),
+        title: translations.remove.success.title,
+        description: translations.remove.success.description.replace('{username}', username),
         variant: 'default'
       });
       
@@ -125,21 +170,21 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       if (error instanceof CollaborationAPIError) {
         if (error.status === 403) {
           toast({
-            title: t.collaborations.collaborators.remove.errors.noPermission.title,
-            description: t.collaborations.collaborators.remove.errors.noPermission.description,
+            title: translations.remove.errors.noPermission.title,
+            description: translations.remove.errors.noPermission.description,
             variant: 'destructive'
           });
         } else {
           toast({
-            title: t.collaborations.collaborators.remove.errors.generic.title,
+            title: translations.remove.errors.generic.title,
             description: error.message,
             variant: 'destructive'
           });
         }
       } else {
         toast({
-          title: t.collaborations.collaborators.remove.errors.generic.title,
-          description: t.collaborations.collaborators.remove.errors.generic.description,
+          title: translations.remove.errors.generic.title,
+          description: translations.remove.errors.generic.description,
           variant: 'destructive'
         });
       }
@@ -178,6 +223,18 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
     );
   };
   
+  // Don't render if translations are not loaded
+  if (!t?.collaborations) {
+    return (
+      <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
+        <div className="flex items-center space-x-2 mb-4">
+          <Users className="h-5 w-5 text-gray-400" />
+          <h3 className="text-sm font-medium text-gray-900">Loading...</h3>
+        </div>
+      </div>
+    );
+  }
+
   // Loading state
   if (isLoading) {
     return (
@@ -185,7 +242,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <Users className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-900">
-            {t.collaborations.collaborators.title}
+            {translations.title}
           </h3>
         </div>
         <div className="space-y-3">
@@ -210,7 +267,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <Users className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-900">
-            {t.collaborations.collaborators.title}
+            {translations.title}
           </h3>
         </div>
         <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -235,7 +292,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="flex items-center space-x-2">
           <Users className="h-5 w-5 text-gray-400" />
           <h3 className="text-sm font-medium text-gray-900">
-            {t.collaborations.collaborators.title}
+            {translations.title}
           </h3>
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
             {collaborators.length}
@@ -248,7 +305,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
             className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
           >
             <UserPlus className="h-4 w-4 mr-1" />
-            {t.collaborations.collaborators.invite}
+            {translations.invite}
           </button>
         )}
       </div>
@@ -258,7 +315,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         <div className="text-center py-6">
           <User className="h-8 w-8 text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-500 mb-3">
-            {t.collaborations.collaborators.empty}
+            {translations.empty}
           </p>
           {isOwner && (
             <button
@@ -266,7 +323,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center mx-auto"
             >
               <UserPlus className="h-4 w-4 mr-1" />
-              {t.collaborations.collaborators.inviteFirst}
+              {translations.inviteFirst}
             </button>
           )}
         </div>
@@ -285,16 +342,16 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                       {collaborator.username}
                     </p>
                     {collaborator.role === 'owner' && (
-                      <Crown className="h-4 w-4 text-yellow-500" title={t.collaborations.collaborators.owner} />
+                      <Crown className="h-4 w-4 text-yellow-500" title={translations.owner} />
                     )}
                     {collaborator.isCurrentUser && (
                       <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                        {t.collaborations.collaborators.you}
+                        {translations.you}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
-                    {t.collaborations.collaborators.joined.replace('{date}', new Date(collaborator.joinedAt).toLocaleDateString())}
+                    {translations.joined.replace('{date}', new Date(collaborator.joinedAt).toLocaleDateString())}
                   </p>
                 </div>
               </div>
@@ -314,10 +371,10 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                     <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[200px]">
                       <div className="p-3">
                         <p className="text-sm text-gray-900 mb-2">
-                          {t.collaborations.collaborators.remove.confirm.title}
+                          {translations.remove.confirm.title}
                         </p>
                         <p className="text-xs text-gray-600 mb-3">
-                          {t.collaborations.collaborators.remove.confirm.description.replace('{username}', collaborator.username)}
+                          {translations.remove.confirm.description.replace('{username}', collaborator.username)}
                         </p>
                         <div className="flex space-x-2">
                           <button

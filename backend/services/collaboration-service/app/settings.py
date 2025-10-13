@@ -65,7 +65,7 @@ class Settings:
             self.cognito_user_pool_id = self.get_ssm_parameter("cognito/user_pool_id")
         
         if not self.cognito_user_pool_client_id:
-            self.cognito_user_pool_client_id = self.get_ssm_parameter("cognito/user_pool_client_id")
+            self.cognito_user_pool_client_id = self.get_ssm_parameter("cognito/client_id")
     
     def load_api_gateway_settings(self):
         """Load API Gateway settings from SSM if not in environment variables."""

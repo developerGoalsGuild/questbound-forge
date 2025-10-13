@@ -957,11 +957,13 @@ def login(body: LoginLocal, request: Request):
         _safe_event("login.not_found_or_not_local", cid=cid, email=_mask_email(email))
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # Enforce confirmed email
-    if not item.get("email_confirmed", False):
+    # Enforce confirmed email (skip in development)
+    if not settings.is_development() and not item.get("email_confirmed", False):
         record_attempt(email, success=False, ip=client_ip, ua=ua, reason="EMAIL_NOT_CONFIRMED")
         _safe_event("login.email_not_confirmed", cid=cid, email=_mask_email(email))
         raise HTTPException(status_code=403, detail="Email not confirmed.")
+    elif settings.is_development() and not item.get("email_confirmed", False):
+        _safe_event("login.dev_skip_email_confirmation", cid=cid, email=_mask_email(email))
 
     # Optional: block if too many recent failures
     try:

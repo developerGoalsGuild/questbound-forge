@@ -7,8 +7,11 @@ _ssm = boto3.client("ssm", region_name=os.getenv("AWS_REGION", os.getenv("AWS_DE
 
 @lru_cache(maxsize=128)
 def get_param(name: str, decrypt: bool = True) -> str:
-    resp = _ssm.get_parameter(Name=name, WithDecryption=decrypt)
-    return resp["Parameter"]["Value"]
+    try:
+        resp = _ssm.get_parameter(Name=name, WithDecryption=decrypt)
+        return resp["Parameter"]["Value"]
+    except Exception as e:
+        raise ValueError(f"Failed to retrieve SSM parameter '{name}': {str(e)}")
 
 class Settings:
     def __init__(self, prefix: str | None = None ):
@@ -50,7 +53,10 @@ class Settings:
 
     @property
     def jwt_secret(self) -> str:
-        return get_param(self._p("JWT_SECRET"), True)
+        secret = get_param(self._p("JWT_SECRET"), True)
+        if not secret or secret.strip() == "":
+            raise ValueError("JWT_SECRET is empty or None - cannot generate signed tokens")
+        return secret
 
     @property
     def jwt_issuer(self) -> str:
@@ -128,5 +134,17 @@ class Settings:
     def email_token_secret(self) -> str:
         """Secret used to sign short-lived email/challenge tokens (separate from jwt_secret)."""
         return get_param(self._p("email_token_secret"), True)
+    
+    def is_development(self) -> bool:
+        """Check if running in development environment."""
+        return self.ssmvariables.get("ENVIRONMENT", "").lower() == "dev"
+    
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.ssmvariables.get("ENVIRONMENT", "").lower() == "prod"
+    
+    def is_staging(self) -> bool:
+        """Check if running in staging environment."""
+        return self.ssmvariables.get("ENVIRONMENT", "").lower() == "staging"
 
 settings = Settings()

@@ -70,7 +70,7 @@ export type Translations = { [key: string]: any } & {
   header: HeaderTranslations;
   quest: QuestTranslations;
   common: CommonTranslations;
-};
+} & CollaborationsTranslations;
 
 /**
  * Combined translations from all page-specific files
@@ -83,7 +83,7 @@ export const translations: Record<Language, Translations> = {
     ...featuresTranslations.en,
     ...dashboardTranslations.en,
     ...goalsTranslations.en,
-    ...signupTranslations.en,
+    signup: signupTranslations.en,
     profile: profileTranslations.en,
     goalList: goalListTranslations.en,
     goalEdit: goalEditTranslations.en,
@@ -103,7 +103,7 @@ export const translations: Record<Language, Translations> = {
     ...featuresTranslations.es,
     ...dashboardTranslations.es,
     ...goalsTranslations.es,
-    ...signupTranslations.es,
+    signup: signupTranslations.es,
     profile: profileTranslations.es,
     goalList: goalListTranslations.es,
     goalEdit: goalEditTranslations.es,
@@ -123,7 +123,7 @@ export const translations: Record<Language, Translations> = {
     ...featuresTranslations.fr,
     ...dashboardTranslations.fr,
     ...goalsTranslations.fr,
-    ...signupTranslations.fr,
+    signup: signupTranslations.fr,
     profile: profileTranslations.fr,
     goalList: goalListTranslations.fr,
     goalEdit: goalEditTranslations.fr,

@@ -81,7 +81,18 @@ def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_s
     }
     if role:
         payload["role"] = role
-    token = jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    
+    # Ensure JWT secret is valid before encoding
+    jwt_secret = settings.jwt_secret
+    if not jwt_secret or jwt_secret.strip() == "":
+        raise ValueError("JWT secret is empty - cannot generate signed tokens")
+    
+    token = jwt.encode(payload, jwt_secret, algorithm="HS256")
+    
+    # Verify the token was properly signed (not using 'none' algorithm)
+    if token.endswith('.devsig') or token.count('.') != 2:
+        raise ValueError("JWT token was not properly signed - check JWT secret configuration")
+    
     return {"access_token": token, "expires_in": ttl_seconds}
 
 

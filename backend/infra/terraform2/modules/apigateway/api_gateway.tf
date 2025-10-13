@@ -536,11 +536,12 @@ resource "aws_api_gateway_integration_response" "health_options_integration_resp
 
 # /auth/renew (CUSTOM)
 resource "aws_api_gateway_method" "auth_renew_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.auth_renew.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.auth_renew.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "auth_renew_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -653,11 +654,12 @@ resource "aws_api_gateway_integration_response" "profile_options_integration_res
 
 # /quests (CUSTOM)
 resource "aws_api_gateway_method" "quests_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "quests_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -716,11 +718,12 @@ resource "aws_api_gateway_integration_response" "quests_options_integration_resp
 
 # /quests (POST) - Create goal
 resource "aws_api_gateway_method" "quests_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_integration" "quests_post_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
@@ -760,11 +763,12 @@ resource "aws_api_gateway_integration_response" "quests_post_options_integration
 
 # /quests/createTask (POST)
 resource "aws_api_gateway_method" "quests_create_task_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_create_task.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_create_task.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "quests_create_task_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -832,11 +836,12 @@ resource "aws_api_gateway_integration_response" "quests_create_task_options_inte
 
 # /quests/tasks/{task_id} (PUT)
 resource "aws_api_gateway_method" "quests_tasks_task_id_put" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_tasks_task_id.id
-  http_method   = "PUT"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_tasks_task_id.id
+  http_method      = "PUT"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "quests_tasks_task_id_put_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -904,11 +909,12 @@ resource "aws_api_gateway_integration_response" "quests_tasks_task_id_put_option
 
 # /quests/{goal_id} (PUT)
 resource "aws_api_gateway_method" "quests_goal_id_put" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_goal_id.id
-  http_method   = "PUT"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_goal_id.id
+  http_method      = "PUT"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "quests_goal_id_put_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -978,11 +984,12 @@ resource "aws_api_gateway_integration_response" "quests_goal_id_put_options_inte
 
 # /quests/{goal_id} (DELETE)
 resource "aws_api_gateway_method" "quests_goal_id_delete" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_goal_id.id
-  http_method   = "DELETE"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_goal_id.id
+  http_method      = "DELETE"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_integration" "quests_goal_id_delete_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
@@ -1021,20 +1028,22 @@ resource "aws_api_gateway_integration_response" "quests_goal_id_delete_options_i
 
 # /quests/tasks/{task_id} (DELETE)
 resource "aws_api_gateway_method" "quests_tasks_task_id_delete" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_tasks_task_id.id
-  http_method   = "DELETE"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_tasks_task_id.id
+  http_method      = "DELETE"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 # /quests/progress (GET) - Get all goals progress
 resource "aws_api_gateway_method" "quests_progress_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_progress.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_progress.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "quests_progress_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -1102,11 +1111,12 @@ resource "aws_api_gateway_integration_response" "quests_progress_options_integra
 
 # /quests/{goal_id}/progress (GET) - Get specific goal progress
 resource "aws_api_gateway_method" "quests_goal_id_progress_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_goal_id_progress.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_goal_id_progress.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 resource "aws_api_gateway_method" "quests_goal_id_progress_options" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -1206,11 +1216,12 @@ resource "aws_api_gateway_integration_response" "quests_tasks_task_id_delete_opt
 
 # POST /quests/createQuest
 resource "aws_api_gateway_method" "quests_create_quest_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_create_quest.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_create_quest.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "quests_create_quest_options" {
@@ -1265,11 +1276,12 @@ resource "aws_api_gateway_integration_response" "quests_create_quest_options_int
 
 # POST /quests/quests/{quest_id}/start
 resource "aws_api_gateway_method" "quests_quests_id_start_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_quests_id_start.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_quests_id_start.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "quests_quests_id_start_options" {
@@ -1324,11 +1336,12 @@ resource "aws_api_gateway_integration_response" "quests_quests_id_start_options_
 
 # PUT /quests/quests/{quest_id}
 resource "aws_api_gateway_method" "quests_quests_id_put" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_quests_id.id
-  http_method   = "PUT"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_quests_id.id
+  http_method      = "PUT"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "quests_quests_id_put_options" {
@@ -1383,11 +1396,12 @@ resource "aws_api_gateway_integration_response" "quests_quests_id_put_options_in
 
 # POST /quests/quests/{quest_id}/cancel
 resource "aws_api_gateway_method" "quests_quests_id_cancel_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_quests_id_cancel.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_quests_id_cancel.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "quests_quests_id_cancel_options" {
@@ -1442,11 +1456,12 @@ resource "aws_api_gateway_integration_response" "quests_quests_id_cancel_options
 
 # POST /quests/quests/{quest_id}/fail
 resource "aws_api_gateway_method" "quests_quests_id_fail_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_quests_id_fail.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_quests_id_fail.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "quests_quests_id_fail_options" {
@@ -1501,11 +1516,12 @@ resource "aws_api_gateway_integration_response" "quests_quests_id_fail_options_i
 
 # POST /quests/check-completion
 resource "aws_api_gateway_method" "quests_check_completion_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_check_completion.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_check_completion.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_check_completion_post_integration" {
@@ -1707,11 +1723,12 @@ resource "aws_api_gateway_integration_response" "quests_templates_options_integr
 
 # GET /quests/templates (authenticated)
 resource "aws_api_gateway_method" "quests_templates_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_templates.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_templates.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_templates_get_integration" {
@@ -1727,11 +1744,12 @@ resource "aws_api_gateway_integration" "quests_templates_get_integration" {
 
 # POST /quests/templates (authenticated)
 resource "aws_api_gateway_method" "quests_templates_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_templates.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_templates.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_templates_post_integration" {
@@ -1805,11 +1823,12 @@ resource "aws_api_gateway_integration_response" "quests_templates_id_options_int
 
 # GET /quests/templates/{template_id} (authenticated)
 resource "aws_api_gateway_method" "quests_templates_id_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_templates_id.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_templates_id.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_templates_id_get_integration" {
@@ -1823,11 +1842,12 @@ resource "aws_api_gateway_integration" "quests_templates_id_get_integration" {
 
 # PUT /quests/templates/{template_id} (authenticated)
 resource "aws_api_gateway_method" "quests_templates_id_put" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_templates_id.id
-  http_method   = "PUT"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_templates_id.id
+  http_method      = "PUT"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_templates_id_put_integration" {
@@ -1841,11 +1861,12 @@ resource "aws_api_gateway_integration" "quests_templates_id_put_integration" {
 
 # DELETE /quests/templates/{template_id} (authenticated)
 resource "aws_api_gateway_method" "quests_templates_id_delete" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_templates_id.id
-  http_method   = "DELETE"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_templates_id.id
+  http_method      = "DELETE"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_templates_id_delete_integration" {
@@ -1859,11 +1880,12 @@ resource "aws_api_gateway_integration" "quests_templates_id_delete_integration" 
 
 # DELETE /quests/quests/{quest_id}
 resource "aws_api_gateway_method" "quests_quests_id_delete" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.quests_quests_id.id
-  http_method   = "DELETE"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quests_quests_id.id
+  http_method      = "DELETE"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "quests_quests_id_delete_integration" {
@@ -2482,11 +2504,12 @@ resource "aws_api_gateway_stage" "stage" {
 
 # POST /collaborations/invites
 resource "aws_api_gateway_method" "collaborations_invites_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.collaborations_invites.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.collaborations_invites.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "collaborations_invites_options" {
@@ -2555,11 +2578,12 @@ resource "aws_api_gateway_integration_response" "collaborations_invites_options_
 
 # GET /collaborations/invites
 resource "aws_api_gateway_method" "collaborations_invites_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.collaborations_invites.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.collaborations_invites.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_integration" "collaborations_invites_get_integration" {
@@ -2573,11 +2597,12 @@ resource "aws_api_gateway_integration" "collaborations_invites_get_integration" 
 
 # POST /collaborations/invites/{invite_id}/accept
 resource "aws_api_gateway_method" "collaborations_invites_id_accept_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.collaborations_invites_id_accept.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.collaborations_invites_id_accept.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "collaborations_invites_id_accept_options" {
@@ -2646,11 +2671,12 @@ resource "aws_api_gateway_integration_response" "collaborations_invites_id_accep
 
 # POST /collaborations/invites/{invite_id}/decline
 resource "aws_api_gateway_method" "collaborations_invites_id_decline_post" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.collaborations_invites_id_decline.id
-  http_method   = "POST"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.collaborations_invites_id_decline.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "collaborations_invites_id_decline_options" {
@@ -2719,11 +2745,12 @@ resource "aws_api_gateway_integration_response" "collaborations_invites_id_decli
 
 # GET /collaborations/resources/{resource_type}/{resource_id}/collaborators
 resource "aws_api_gateway_method" "collaborations_resources_type_id_collaborators_get" {
-  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
-  http_method   = "GET"
-  authorization = "CUSTOM"
-  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.collaborations_resources_type_id_collaborators.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
 }
 
 resource "aws_api_gateway_method" "collaborations_resources_type_id_collaborators_options" {
