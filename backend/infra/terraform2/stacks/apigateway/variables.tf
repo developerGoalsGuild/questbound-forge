@@ -110,3 +110,40 @@ variable "dynamodb_table_name" {
     default = "gg_core"
     description = "DynamoDB table name"
 }
+
+# Additional variables from dev.tfvars to suppress warnings
+variable "google_client_id" {
+    type    = string
+    default = ""
+    description = "Google OAuth client ID"
+}
+
+variable "google_client_secret" {
+    type    = string
+    default = ""
+    description = "Google OAuth client secret"
+}
+
+variable "email_token_secret" {
+    type    = string
+    default = ""
+    description = "Email verification token secret"
+}
+
+variable "jwt_secret" {
+    type    = string
+    default = ""
+    description = "JWT secret for authentication"
+}
+
+variable "ddb_table_name" {
+    type    = string
+    default = ""
+    description = "DynamoDB table name (alternative naming)"
+}
+
+variable "api_gateway_key" {
+    type    = string
+    default = ""
+    description = "API Gateway key"
+}

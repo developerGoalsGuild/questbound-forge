@@ -14,22 +14,25 @@ export interface Collaborator {
   avatarUrl?: string;
   role: 'owner' | 'collaborator';
   joinedAt: string;
+  // Backend sends snake_case, so we need to handle both
+  joined_at?: string;
+  user_id?: string; // Backend sends user_id instead of userId
 }
 
 export interface Invite {
-  inviteId: string;
-  inviterId: string;
-  inviterUsername: string;
-  inviteeId: string;
-  inviteeEmail: string;
-  resourceType: 'goal' | 'quest' | 'task';
-  resourceId: string;
-  resourceTitle: string;
+  invite_id: string;
+  inviter_id: string;
+  inviter_username: string;
+  invitee_id?: string;
+  invitee_email?: string;
+  resource_type: 'goal' | 'quest' | 'task';
+  resource_id: string;
+  resource_title: string;
   status: 'pending' | 'accepted' | 'declined' | 'expired';
   message?: string;
-  expiresAt: string;
-  createdAt: string;
-  updatedAt: string;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Comment {
@@ -108,7 +111,19 @@ async function apiRequest<T>(
     throw new CollaborationAPIError(message, response.status);
   }
 
-  return response.json();
+  // Handle empty responses (like 204 No Content for DELETE operations)
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    return undefined as T;
+  }
+
+  // Check if response has content
+  const text = await response.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text);
 }
 
 // Invite Management
@@ -146,7 +161,8 @@ export async function declineInvite(inviteId: string): Promise<Invite> {
 }
 
 export async function listInvitesForUser(): Promise<Invite[]> {
-  return apiRequest<Invite[]>('/collaborations/invites');
+  const response = await apiRequest<{invites: Invite[], next_token?: string, total_count: number}>('/collaborations/invites');
+  return response.invites;
 }
 
 // Collaborator Management
@@ -165,6 +181,30 @@ export async function removeCollaborator(
   return apiRequest<void>(`/collaborations/resources/${resourceType}/${resourceId}/collaborators/${userId}`, {
     method: 'DELETE',
   });
+}
+
+export async function cleanupOrphanedInvites(
+  resourceType: 'goal' | 'quest' | 'task',
+  resourceId: string
+): Promise<{ message: string; cleaned_count: number }> {
+  return apiRequest<{ message: string; cleaned_count: number }>(`/collaborations/resources/${resourceType}/${resourceId}/cleanup-orphaned-invites`, {
+    method: 'POST',
+  });
+}
+
+export interface UserCollaboration {
+  resourceType: 'goal' | 'quest' | 'task';
+  resourceId: string;
+  resourceTitle: string;
+  joinedAt: string;
+  role: 'owner' | 'collaborator';
+}
+
+export async function getMyCollaborations(
+  resourceType?: 'goal' | 'quest' | 'task'
+): Promise<{ collaborations: UserCollaboration[]; total_count: number }> {
+  const params = resourceType ? `?resource_type=${resourceType}` : '';
+  return apiRequest<{ collaborations: UserCollaboration[]; total_count: number }>(`/collaborations/my-collaborations${params}`);
 }
 
 

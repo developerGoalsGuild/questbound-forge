@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from uuid import uuid4
 
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import BotoCoreError, ClientError
 from botocore.config import Config
 from fastapi import Body, Depends, FastAPI, HTTPException, Request
@@ -182,6 +182,67 @@ def _dynamodb_resource():
 
 def get_goals_table():
     return _dynamodb_resource().Table(settings.core_table_name)
+
+
+def check_goal_access(user_id: str, goal_id: str, table) -> tuple[bool, str, Optional[str]]:
+    """
+    Check if a user has access to a goal (either as owner or collaborator).
+    
+    Args:
+        user_id: ID of the user requesting access
+        goal_id: ID of the goal
+        table: DynamoDB table instance
+        
+    Returns:
+        Tuple of (has_access, access_type, owner_user_id)
+        - has_access: True if user has access
+        - access_type: "owner" or "collaborator"
+        - owner_user_id: ID of the actual owner (None if user is owner)
+    """
+    try:
+        # First check if user is the owner
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+        
+        if "Item" in response:
+            return True, "owner", None
+        
+        # If not owner, check if user is a collaborator
+        # We need to find the actual owner first
+        owner_scan = table.scan(
+            FilterExpression=Attr("type").eq("Goal") & Attr("id").eq(goal_id),
+            ProjectionExpression="PK",
+            Limit=1
+        )
+        
+        if not owner_scan.get("Items"):
+            return False, "none", None
+        
+        # Extract owner user_id from PK (USER#{user_id})
+        owner_pk = owner_scan["Items"][0]["PK"]
+        owner_user_id = owner_pk.replace("USER#", "")
+        
+        # Check if requesting user is a collaborator
+        collaborator_pk = f"RESOURCE#GOAL#{goal_id}"
+        collaborator_sk = f"COLLABORATOR#{user_id}"
+        
+        collaborator_response = table.get_item(
+            Key={"PK": collaborator_pk, "SK": collaborator_sk}
+        )
+        
+        if "Item" not in collaborator_response:
+            return False, "none", owner_user_id
+        
+        return True, "collaborator", owner_user_id
+        
+    except Exception as e:
+        logger.error('goal.access_check_failed',
+                    user_id=user_id,
+                    goal_id=goal_id,
+                    error=str(e),
+                    exc_info=e)
+        return False, "none", None
 
 
 @lru_cache(maxsize=1)
@@ -983,6 +1044,65 @@ async def delete_task(
 __all__ = ["app"]
 
 
+# ---------- Goal Access Endpoints ----------
+
+@app.get("/quests/{goal_id}", response_model=GoalResponse)
+async def get_goal(
+    goal_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Get a specific goal by ID with collaboration access support.
+    """
+    logger.info('goal.get_requested', goal_id=goal_id, user_id=auth.user_id)
+    
+    try:
+        # Check if user has access to the goal
+        has_access, access_type, owner_user_id = check_goal_access(auth.user_id, goal_id, table)
+        
+        if not has_access:
+            logger.warning('goal.access_denied', goal_id=goal_id, user_id=auth.user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Use the actual owner's user_id to get the goal
+        goal_user_id = owner_user_id if owner_user_id else auth.user_id
+        
+        logger.info('goal.access_granted', 
+                   goal_id=goal_id, 
+                   user_id=auth.user_id, 
+                   access_type=access_type,
+                   goal_user_id=goal_user_id)
+        
+        # Get the goal from the owner
+        response = table.get_item(
+            Key={"PK": f"USER#{goal_user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+        
+        if "Item" not in response:
+            logger.warning('goal.not_found', 
+                         goal_id=goal_id, 
+                         user_id=auth.user_id,
+                         goal_user_id=goal_user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        goal_item = response["Item"]
+        goal_data = _goal_item_to_response(goal_item)
+        
+        logger.info('goal.get_success', 
+                   goal_id=goal_id, 
+                   user_id=auth.user_id,
+                   access_type=access_type)
+        
+        return goal_data
+        
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error('goal.get_failed', goal_id=goal_id, user_id=auth.user_id, exc_info=exc)
+        raise HTTPException(status_code=500, detail="Failed to get goal")
+
+
 # ---------- Progress Calculation Endpoints ----------
 
 @app.get("/quests/{goal_id}/progress", response_model=GoalProgressResponse)
@@ -1005,7 +1125,23 @@ async def get_goal_progress(
     logger.info('progress.get_requested', goal_id=goal_id, user_id=auth.user_id)
     
     try:
-        progress_data = compute_goal_progress(goal_id, auth.user_id, table)
+        # Check if user has access to the goal
+        has_access, access_type, owner_user_id = check_goal_access(auth.user_id, goal_id, table)
+        
+        if not has_access:
+            logger.warning('progress.access_denied', goal_id=goal_id, user_id=auth.user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Use the actual owner's user_id for progress calculation
+        progress_user_id = owner_user_id if owner_user_id else auth.user_id
+        
+        logger.info('progress.access_granted', 
+                   goal_id=goal_id, 
+                   user_id=auth.user_id, 
+                   access_type=access_type,
+                   progress_user_id=progress_user_id)
+        
+        progress_data = compute_goal_progress(goal_id, progress_user_id, table)
         logger.info('progress.calculated', goal_id=goal_id, progress=progress_data.progressPercentage)
         return progress_data
     except HTTPException:
@@ -1405,6 +1541,38 @@ async def create_quest_endpoint(
                     error=str(e),
                     exc_info=e)
         raise HTTPException(status_code=500, detail="Failed to create quest")
+
+
+@app.get("/quests/quests/{quest_id}", response_model=QuestResponse)
+async def get_quest_endpoint(
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Get a specific quest by ID with collaboration access support.
+    """
+    logger.info('quest.get_requested', quest_id=quest_id, user_id=auth.user_id)
+    
+    try:
+        # Use the existing get_quest function which already has collaboration access
+        quest_data = get_quest(auth.user_id, quest_id, table)
+        
+        logger.info('quest.get_success', 
+                   quest_id=quest_id, 
+                   user_id=auth.user_id)
+        
+        return quest_data
+        
+    except QuestNotFoundError as e:
+        logger.warning('quest.not_found', quest_id=quest_id, user_id=auth.user_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestPermissionError as e:
+        logger.warning('quest.access_denied', quest_id=quest_id, user_id=auth.user_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except Exception as exc:
+        logger.error('quest.get_failed', quest_id=quest_id, user_id=auth.user_id, exc_info=exc)
+        raise HTTPException(status_code=500, detail="Failed to get quest")
 
 
 @app.post("/quests/quests/{quest_id}/start", response_model=QuestResponse)
@@ -1984,6 +2152,168 @@ def lambda_handler(event, context):
                         continue
             
             return progress_list
+            
+        elif operation == 'getMyGoalsWithCollaboration':
+            user_id = event.get('userId')
+            
+            if not user_id:
+                raise Exception('Missing required parameters: userId')
+            
+            # Get DynamoDB table
+            table = get_goals_table()
+            
+            # Get owned goals
+            owned_goals = []
+            try:
+                response = table.query(
+                    KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("GOAL#")
+                )
+                owned_goals = response.get("Items", [])
+            except Exception as e:
+                logger.error(f"Failed to get owned goals for user {user_id}: {str(e)}")
+            
+            # Get collaborated goals
+            collaborated_goals = []
+            try:
+                # Query GSI1 for user's collaborations
+                gsi1pk = f"USER#{user_id}"
+                collaborator_response = table.query(
+                    IndexName="GSI1",
+                    KeyConditionExpression=Key("GSI1PK").eq(gsi1pk) & Key("GSI1SK").begins_with("COLLAB#GOAL#"),
+                    ScanIndexForward=False
+                )
+                
+                # For each collaboration, get the actual goal from the owner
+                for collab_item in collaborator_response.get("Items", []):
+                    try:
+                        # Extract goal ID from GSI1SK (COLLAB#GOAL#{goal_id})
+                        gsi1sk = collab_item.get("GSI1SK", "")
+                        if gsi1sk.startswith("COLLAB#GOAL#"):
+                            goal_id = gsi1sk.replace("COLLAB#GOAL#", "")
+                            
+                            # Find the owner by scanning for the goal
+                            owner_scan = table.scan(
+                                FilterExpression=Attr("type").eq("Goal") & Attr("id").eq(goal_id),
+                                ProjectionExpression="PK",
+                                Limit=1
+                            )
+                            
+                            if owner_scan.get("Items"):
+                                owner_pk = owner_scan["Items"][0]["PK"]
+                                owner_user_id = owner_pk.replace("USER#", "")
+                                
+                                # Get the goal from the owner
+                                goal_response = table.get_item(
+                                    Key={"PK": f"USER#{owner_user_id}", "SK": f"GOAL#{goal_id}"}
+                                )
+                                
+                                if "Item" in goal_response:
+                                    collaborated_goals.append(goal_response["Item"])
+                    except Exception as e:
+                        logger.warning(f"Failed to get collaborated goal: {str(e)}")
+                        continue
+                        
+            except Exception as e:
+                logger.error(f"Failed to get collaborated goals for user {user_id}: {str(e)}")
+            
+            # Combine and transform goals
+            all_goals = owned_goals + collaborated_goals
+            
+            # Transform to GraphQL format
+            goals_data = []
+            for goal in all_goals:
+                try:
+                    goal_data = {
+                        "id": goal.get("id"),
+                        "userId": goal.get("userId"),
+                        "title": goal.get("title"),
+                        "description": goal.get("description", ""),
+                        "category": goal.get("category"),
+                        "tags": goal.get("tags", []),
+                        "deadline": goal.get("deadline"),
+                        "status": goal.get("status", "active"),
+                        "createdAt": goal.get("createdAt", 0),
+                        "updatedAt": goal.get("updatedAt", 0),
+                        "answers": goal.get("answers", [])
+                    }
+                    goals_data.append(goal_data)
+                except Exception as e:
+                    logger.warning(f"Failed to transform goal {goal.get('id', 'unknown')}: {str(e)}")
+                    continue
+            
+            return {"goals": goals_data}
+            
+        elif operation == 'getGoalWithAccess':
+            user_id = event.get('userId')
+            goal_id = event.get('goalId')
+            
+            if not user_id or not goal_id:
+                raise Exception('Missing required parameters: userId and goalId')
+            
+            # Get DynamoDB table
+            table = get_goals_table()
+            
+            # Check if user has access to the goal
+            has_access, access_type, owner_user_id = check_goal_access(user_id, goal_id, table)
+            
+            if not has_access:
+                logger.warning('goal.access_denied_graphql', 
+                             user_id=user_id, 
+                             goal_id=goal_id)
+                return {"error": "Goal not found"}
+            
+            # Use the actual owner's user_id to get the goal
+            goal_user_id = owner_user_id if owner_user_id else user_id
+            
+            try:
+                # Get the goal from the owner
+                response = table.get_item(
+                    Key={"PK": f"USER#{goal_user_id}", "SK": f"GOAL#{goal_id}"}
+                )
+                
+                if "Item" not in response:
+                    logger.warning('goal.not_found_graphql', 
+                                 user_id=user_id, 
+                                 goal_id=goal_id,
+                                 goal_user_id=goal_user_id)
+                    return {"error": "Goal not found"}
+                
+                goal_item = response["Item"]
+                
+                logger.info('goal.access_granted_graphql', 
+                           user_id=user_id, 
+                           goal_id=goal_id,
+                           access_type=access_type,
+                           goal_user_id=goal_user_id)
+                
+                # Transform to GraphQL format
+                goal_data = {
+                    "id": goal_item.get("id"),
+                    "userId": goal_item.get("userId"),
+                    "title": goal_item.get("title"),
+                    "description": goal_item.get("description", ""),
+                    "category": goal_item.get("category"),
+                    "tags": goal_item.get("tags", []),
+                    "deadline": goal_item.get("deadline"),
+                    "status": goal_item.get("status", "active"),
+                    "createdAt": goal_item.get("createdAt", 0),
+                    "updatedAt": goal_item.get("updatedAt", 0),
+                    "answers": goal_item.get("answers", []),
+                    "progress": goal_item.get("progress"),
+                    "milestones": goal_item.get("milestones", []),
+                    "completedTasks": goal_item.get("completedTasks"),
+                    "totalTasks": goal_item.get("totalTasks")
+                }
+                
+                return {"goal": goal_data}
+                
+            except Exception as e:
+                logger.error('goal.get_failed_graphql', 
+                           user_id=user_id, 
+                           goal_id=goal_id,
+                           error=str(e),
+                           exc_info=e)
+                return {"error": "Failed to get goal"}
         
         else:
             raise Exception(f'Unknown operation: {operation}')

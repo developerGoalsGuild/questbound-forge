@@ -425,49 +425,35 @@ export async function deleteGoal(goalId: string): Promise<void> {
 export async function getGoal(goalId: string): Promise<GoalResponse> {
   const operation = 'getGoal';
   try {
-    const QUERY = /* GraphQL */ `
-      query GetGoal($goalId: ID!) {
-        goal(goalId: $goalId) {
-          id
-          userId
-          title
-          description
-          category
-          tags
-          deadline
-          status
-          createdAt
-          updatedAt
-          answers {
-            key
-            answer
-          }
-          # Progress fields
-          progress
-          milestones {
-            id
-            name
-            percentage
-            achieved
-            achievedAt
-            description
-          }
-          completedTasks
-          totalTasks
-        }
-      }
-    `;
-
-    const data = await graphqlRaw<{ goal: GoalResponse }>(QUERY, { goalId });
-    if (!data?.goal) {
-      throw new Error('Goal not found');
+    const token = getAccessToken();
+    const apiBase = getApiBase();
+    
+    if (!token) {
+      throw new Error('No access token available');
     }
-    return data.goal;
+
+    const response = await fetch(`${apiBase}/quests/${goalId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to load goal';
+      throw new Error(message);
+    }
+
+    const goal = await response.json();
+    return goal;
   } catch (e: any) {
-    logger.error('GraphQL error in getGoal', { 
+    logger.error('REST API error in getGoal', { 
         operation,
         goalId,
-        error: e?.errors || e?.message || e 
+        error: e?.message || e 
     });
     throw new Error(e?.message || 'Failed to load goal');
   }

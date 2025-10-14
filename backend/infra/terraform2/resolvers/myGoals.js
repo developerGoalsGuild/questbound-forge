@@ -9,6 +9,7 @@ export function request(ctx) {
 
   if (!sub) util.unauthorized();
 
+  // Query for owned goals
   return {
     operation: 'Query',
     query: {

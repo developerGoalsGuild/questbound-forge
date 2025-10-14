@@ -81,19 +81,22 @@ class CommentUpdatePayload(BaseModel):
 class CommentResponse(BaseModel):
     """Response model for a single comment."""
     
-    comment_id: str = Field(..., description="Unique comment ID")
-    parent_id: Optional[str] = Field(None, description="ID of parent comment")
-    user_id: str = Field(..., description="ID of the user who wrote the comment")
+    commentId: str = Field(..., alias="comment_id", description="Unique comment ID")
+    parentId: Optional[str] = Field(None, alias="parent_id", description="ID of parent comment")
+    userId: str = Field(..., alias="user_id", description="ID of the user who wrote the comment")
     username: str = Field(..., description="Username of the commenter")
-    user_avatar: Optional[str] = Field(None, description="Avatar URL of the commenter")
+    userAvatar: Optional[str] = Field(None, alias="user_avatar", description="Avatar URL of the commenter")
     text: str = Field(..., description="Comment text")
     mentions: List[str] = Field(default_factory=list, description="List of mentioned user IDs")
     reactions: Dict[str, int] = Field(default_factory=dict, description="Reactions summary {emoji: count}")
-    user_reaction: Optional[str] = Field(None, description="Current user's reaction emoji")
-    reply_count: int = Field(0, description="Number of replies to this comment")
-    is_edited: bool = Field(False, description="Whether the comment has been edited")
-    created_at: datetime = Field(..., description="When the comment was created")
-    updated_at: Optional[datetime] = Field(None, description="When the comment was last updated")
+    userReaction: Optional[str] = Field(None, alias="user_reaction", description="Current user's reaction emoji")
+    replyCount: int = Field(0, alias="reply_count", description="Number of replies to this comment")
+    isEdited: bool = Field(False, alias="is_edited", description="Whether the comment has been edited")
+    createdAt: datetime = Field(..., alias="created_at", description="When the comment was created")
+    updatedAt: Optional[datetime] = Field(None, alias="updated_at", description="When the comment was last updated")
+    
+    class Config:
+        populate_by_name = True
 
 
 class CommentListResponse(BaseModel):

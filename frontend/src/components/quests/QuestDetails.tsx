@@ -719,6 +719,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
               </CardContent>
             </Card>
           )}
+
         </div>
 
         {/* Right Column - Metadata */}
@@ -928,24 +929,6 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
           </Card>
         </div>
 
-        {/* Collaboration Section */}
-        {quest && (
-          <div className="mt-8 space-y-6">
-            <CollaboratorList
-              resourceType="quest"
-              resourceId={quest.id}
-              resourceTitle={quest.title}
-              currentUserId={getUserIdFromToken() || ''}
-              isOwner={true} // TODO: Implement proper ownership check based on quest creator
-              onInviteClick={() => setShowInviteModal(true)}
-            />
-
-            <CommentSection
-              resourceType="quest"
-              resourceId={quest.id}
-            />
-          </div>
-        )}
 
         {/* Invite Collaborator Modal */}
         {quest && showInviteModal && (
@@ -961,7 +944,27 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
             }}
           />
         )}
+
       </div>
+
+      {/* Collaboration Section - Hide for completed, cancelled, or failed quests */}
+      {quest && !['completed', 'cancelled', 'failed'].includes(quest.status) && (
+        <div className="mt-8 space-y-6">
+          <CollaboratorList
+            resourceType="quest"
+            resourceId={quest.id}
+            resourceTitle={quest.title}
+            currentUserId={getUserIdFromToken() || ''}
+            isOwner={true} // TODO: Implement proper ownership check based on quest creator
+            onInviteClick={() => setShowInviteModal(true)}
+          />
+
+          <CommentSection
+            resourceType="quest"
+            resourceId={quest.id}
+          />
+        </div>
+      )}
     </div>
   );
 };

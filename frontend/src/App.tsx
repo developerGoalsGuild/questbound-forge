@@ -26,6 +26,8 @@ import QuestEditPage from './pages/quests/QuestEdit';
 import QuestDashboard from './pages/quests/QuestDashboard';
 import QuestTemplateCreate from './pages/quests/QuestTemplateCreate';
 import QuestTemplateDetails from './pages/quests/QuestTemplateDetails';
+import Invites from './pages/collaborations/Invites';
+import MyCollaborations from './pages/collaborations/MyCollaborations';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 
@@ -65,6 +67,8 @@ const App = () => (
             <Route path="/quests/templates/:templateId" element={<ProtectedRoute><AuthenticatedLayout><ErrorBoundary><QuestTemplateDetails /></ErrorBoundary></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/details/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestDetailsPage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/edit/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestEditPage /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/invites" element={<ProtectedRoute><AuthenticatedLayout><Invites /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/my-collaborations" element={<ProtectedRoute><AuthenticatedLayout><MyCollaborations /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />

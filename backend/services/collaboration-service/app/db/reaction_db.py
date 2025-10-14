@@ -124,7 +124,7 @@ def toggle_reaction(user_id: str, comment_id: str, payload: ReactionPayload) -> 
 
         return ReactionSummaryResponse(
             reactions=reaction_summary["reactions"],
-            user_reaction=reaction_summary["user_reaction"] if user_id in reaction_summary.get("user_reactions", {}) else None
+            user_reaction=reaction_summary["user_reactions"].get(user_id) if user_id in reaction_summary.get("user_reactions", {}) else None
         )
 
     except Exception as e:

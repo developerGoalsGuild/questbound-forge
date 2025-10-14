@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
   UserPlus, 
@@ -20,6 +21,7 @@ import {
 import { 
   listCollaborators, 
   removeCollaborator, 
+  cleanupOrphanedInvites,
   Collaborator,
   CollaborationAPIError 
 } from '../../lib/api/collaborations';
@@ -54,17 +56,8 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Debug: Log the translations structure
-  console.log('CollaboratorList translations debug:', {
-    hasT: !!t,
-    hasCollaborations: !!t?.collaborations,
-    hasCollaborators: !!t?.collaborations?.collaborators,
-    tKeys: t ? Object.keys(t) : [],
-    collaborationsKeys: t?.collaborations ? Object.keys(t.collaborations) : []
-  });
-
   // Safe access to translations with fallbacks
-  const translations = t?.collaborations?.collaborators || {
+  const translations = (t as any)?.collaborators || {
     title: 'Collaborators',
     empty: 'No collaborators yet',
     invite: 'Invite',
@@ -104,6 +97,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   
   // Load collaborators
   const loadCollaborators = async () => {
@@ -114,13 +108,17 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       const response = await listCollaborators(resourceType, resourceId);
       
       // Handle both array response and object with collaborators property
-      const collaborators = Array.isArray(response) ? response : response.collaborators || [];
+      const collaborators = Array.isArray(response) ? response : (response as any).collaborators || [];
       
-      const collaboratorsWithActions = collaborators.map(collaborator => ({
-        ...collaborator,
-        isCurrentUser: collaborator.userId === currentUserId,
-        canRemove: isOwner && collaborator.role !== 'owner' && !collaborator.isCurrentUser
-      }));
+      const collaboratorsWithActions = collaborators.map(collaborator => {
+        const userId = collaborator.userId || (collaborator as any).user_id;
+        return {
+          ...collaborator,
+          userId, // Ensure userId is always available
+          isCurrentUser: userId === currentUserId,
+          canRemove: isOwner && collaborator.role !== 'owner' && userId !== currentUserId
+        };
+      });
       
       setCollaborators(collaboratorsWithActions);
       
@@ -196,7 +194,50 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       setShowRemoveConfirm(null);
     }
   };
+
+  // Cleanup orphaned invites
+  const handleCleanupOrphanedInvites = async () => {
+    try {
+      setIsCleaningUp(true);
+      
+      const result = await cleanupOrphanedInvites(resourceType, resourceId);
+      
+      toast({
+        title: 'Cleanup Complete',
+        description: result.message,
+        variant: 'default'
+      });
+      
+      // Reload collaborators to ensure consistency
+      loadCollaborators();
+    } catch (error) {
+      console.error('Failed to cleanup orphaned invites:', error);
+      toast({
+        title: 'Cleanup Failed',
+        description: 'Failed to cleanup orphaned invites. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
   
+  // Format joined date safely
+  const formatJoinedDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Unknown date';
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('Error formatting joined date:', error);
+      return 'Invalid date';
+    }
+  };
+
   // Get user avatar or initials
   const getUserDisplay = (collaborator: CollaboratorWithActions) => {
     if (collaborator.avatarUrl) {
@@ -224,91 +265,112 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
   };
   
   // Don't render if translations are not loaded
-  if (!t?.collaborations) {
+  if (!t?.collaborators) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
-        <div className="flex items-center space-x-2 mb-4">
-          <Users className="h-5 w-5 text-gray-400" />
-          <h3 className="text-sm font-medium text-gray-900">Loading...</h3>
-        </div>
-      </div>
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Loading...
+          </CardTitle>
+        </CardHeader>
+      </Card>
     );
   }
 
   // Loading state
   if (isLoading) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
-        <div className="flex items-center space-x-2 mb-4">
-          <Users className="h-5 w-5 text-gray-400" />
-          <h3 className="text-sm font-medium text-gray-900">
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
             {translations.title}
-          </h3>
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-center space-x-3 animate-pulse">
-              <div className="w-8 h-8 bg-gray-200 rounded-full" />
-              <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center space-x-3 animate-pulse">
+                <div className="w-8 h-8 bg-gray-200 rounded-full" />
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-1" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
   
   // Error state
   if (error) {
     return (
-      <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
-        <div className="flex items-center space-x-2 mb-4">
-          <Users className="h-5 w-5 text-gray-400" />
-          <h3 className="text-sm font-medium text-gray-900">
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
             {translations.title}
-          </h3>
-        </div>
-        <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
-          <AlertTriangle className="h-4 w-4 text-red-500" />
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
-        <button
-          onClick={loadCollaborators}
-          className="mt-3 text-sm text-blue-600 hover:text-blue-700 flex items-center"
-        >
-          <RefreshCw className="h-4 w-4 mr-1" />
-          {t.retry}
-        </button>
-      </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+          <button
+            onClick={loadCollaborators}
+            className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            {t?.retry || 'Retry'}
+          </button>
+        </CardContent>
+      </Card>
     );
   }
   
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <Users className="h-5 w-5 text-gray-400" />
-          <h3 className="text-sm font-medium text-gray-900">
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
             {translations.title}
-          </h3>
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-            {collaborators.length}
-          </span>
-        </div>
-        
-        {isOwner && (
-          <button
-            onClick={onInviteClick}
-            className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
-          >
-            <UserPlus className="h-4 w-4 mr-1" />
-            {translations.invite}
-          </button>
-        )}
-      </div>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+              {collaborators.length}
+            </span>
+          </div>
+          
+          {isOwner && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onInviteClick}
+                className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                {translations.invite}
+              </button>
+              <button
+                onClick={handleCleanupOrphanedInvites}
+                disabled={isCleaningUp}
+                className="text-sm text-orange-600 hover:text-orange-700 flex items-center disabled:opacity-50"
+                title="Clean up orphaned invite records for removed collaborators"
+              >
+                {isCleaningUp ? (
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-orange-600 mr-1" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                )}
+                Cleanup
+              </button>
+            </div>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
       
       {/* Collaborators List */}
       {collaborators.length === 0 ? (
@@ -329,9 +391,11 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {collaborators.map((collaborator) => (
+          {collaborators.map((collaborator) => {
+            const userId = collaborator.userId || (collaborator as any).user_id;
+            return (
             <div
-              key={collaborator.userId}
+              key={userId}
               className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
             >
               <div className="flex items-center space-x-3">
@@ -342,7 +406,9 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                       {collaborator.username}
                     </p>
                     {collaborator.role === 'owner' && (
-                      <Crown className="h-4 w-4 text-yellow-500" title={translations.owner} />
+                      <div title={translations.owner}>
+                        <Crown className="h-4 w-4 text-yellow-500" />
+                      </div>
                     )}
                     {collaborator.isCurrentUser && (
                       <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
@@ -351,7 +417,7 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
-                    {translations.joined.replace('{date}', new Date(collaborator.joinedAt).toLocaleDateString())}
+                    {translations.joined.replace('{date}', formatJoinedDate(collaborator.joinedAt || (collaborator as any).joined_at))}
                   </p>
                 </div>
               </div>
@@ -359,15 +425,15 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
               {/* Actions */}
               {collaborator.canRemove && (
                 <div className="relative">
-                  <button
-                    onClick={() => setShowRemoveConfirm(collaborator.userId)}
-                    className="text-gray-400 hover:text-gray-600 p-1"
-                    disabled={removingUserId === collaborator.userId}
-                  >
+                          <button
+                            onClick={() => setShowRemoveConfirm(userId)}
+                            className="text-gray-400 hover:text-gray-600 p-1"
+                            disabled={removingUserId === userId}
+                          >
                     <MoreVertical className="h-4 w-4" />
                   </button>
                   
-                  {showRemoveConfirm === collaborator.userId && (
+                  {showRemoveConfirm === userId && (
                     <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[200px]">
                       <div className="p-3">
                         <p className="text-sm text-gray-900 mb-2">
@@ -381,19 +447,19 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                             onClick={() => setShowRemoveConfirm(null)}
                             className="flex-1 px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
                           >
-                            {t.cancel}
+                            {t?.cancel || 'Cancel'}
                           </button>
                           <button
-                            onClick={() => handleRemoveCollaborator(collaborator.userId, collaborator.username)}
-                            disabled={removingUserId === collaborator.userId}
+                            onClick={() => handleRemoveCollaborator(userId, collaborator.username)}
+                            disabled={removingUserId === userId}
                             className="flex-1 px-3 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50 flex items-center justify-center"
                           >
-                            {removingUserId === collaborator.userId ? (
+                            {removingUserId === userId ? (
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
                             ) : (
                               <>
                                 <Trash2 className="h-3 w-3 mr-1" />
-                                {t.remove}
+                                {t?.remove || 'Remove'}
                               </>
                             )}
                           </button>
@@ -404,9 +470,11 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };

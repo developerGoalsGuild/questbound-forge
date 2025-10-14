@@ -128,21 +128,17 @@ def create_comment(user_id: str, payload: CommentCreatePayload) -> CommentRespon
         mentions = extract_mentions(payload.text)
 
         # Get user profile for enrichment
-        user_profile = table.get_item(Key={"PK": f"USER#{user_id}", "SK": "PROFILE"})
+        user_profile = table.get_item(Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"})
+        logger.info(f"collaboration.comment.user_profile_lookup - user_id={user_id}, found={user_profile.get('Item') is not None}")
 
         # Build comment item
         pk = f"RESOURCE#{payload.resource_type.upper()}#{payload.resource_id}"
         sk = f"COMMENT#{created_at_str}#{comment_id}"
 
-        # GSI1 for threading (if it's a reply)
-        gsi1pk = f"COMMENT#{payload.parent_id}" if payload.parent_id else None
-        gsi1sk = created_at_str if payload.parent_id else None
-
+        # Build base comment item
         comment_item = {
             "PK": pk,
             "SK": sk,
-            "GSI1PK": gsi1pk,
-            "GSI1SK": gsi1sk,
             "type": "Comment",
             "commentId": comment_id,
             "parentId": payload.parent_id,
@@ -158,13 +154,24 @@ def create_comment(user_id: str, payload: CommentCreatePayload) -> CommentRespon
             "updatedAt": created_at_str
         }
 
+        # GSI1 for threading (only if it's a reply)
+        if payload.parent_id:
+            comment_item.update({
+                "GSI1PK": f"COMMENT#{payload.parent_id}",
+                "GSI1SK": created_at_str
+            })
+
         # Add user profile data if available
         if "Item" in user_profile:
             profile = user_profile["Item"]
+            username = profile.get("nickname", profile.get("username", "Unknown"))
+            logger.info(f"collaboration.comment.user_profile_data - user_id={user_id}, nickname={profile.get('nickname')}, username={profile.get('username')}, final_username={username}")
             comment_item.update({
-                "username": profile.get("username", profile.get("nickname", "Unknown")),
+                "username": username,
                 "userAvatar": profile.get("avatarUrl")
             })
+        else:
+            logger.warning(f"collaboration.comment.user_profile_not_found - user_id={user_id}")
 
         # Store in DynamoDB
         table.put_item(Item=comment_item)

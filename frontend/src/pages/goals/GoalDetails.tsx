@@ -911,8 +911,8 @@ const GoalDetails: React.FC = () => {
         goalDeadline={goal?.deadline || null}
       />
 
-      {/* Collaboration Section */}
-      {goal && (
+      {/* Collaboration Section - Hide for completed or archived goals */}
+      {goal && !['completed', 'archived'].includes(goal.status) && (
         <div className="mt-8 space-y-6">
           <CollaboratorList
             resourceType="goal"

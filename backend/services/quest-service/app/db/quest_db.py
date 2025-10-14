@@ -334,7 +334,7 @@ def get_quest(user_id: str, quest_id: str) -> QuestResponse:
     Get a specific quest by ID.
     
     Args:
-        user_id: User ID who owns the quest
+        user_id: User ID requesting the quest
         quest_id: Quest ID
         
     Returns:
@@ -347,6 +347,7 @@ def get_quest(user_id: str, quest_id: str) -> QuestResponse:
     table = _get_dynamodb_table()
     
     try:
+        # First try to get as owner
         response = table.get_item(
             Key={
                 "PK": f"USER#{user_id}",
@@ -354,17 +355,68 @@ def get_quest(user_id: str, quest_id: str) -> QuestResponse:
             }
         )
         
-        if "Item" not in response:
+        if "Item" in response:
+            logger.info('quest.get_success_owner', 
+                       user_id=user_id, 
+                       quest_id=quest_id,
+                       access_type="owner")
+            return _quest_item_to_response(response["Item"])
+        
+        # If not found as owner, check if user is a collaborator
+        # We need to find the actual owner first
+        owner_scan = table.scan(
+            FilterExpression=Attr("type").eq("Quest") & Attr("id").eq(quest_id),
+            ProjectionExpression="PK",
+            Limit=1
+        )
+        
+        if not owner_scan.get("Items"):
             logger.warning('quest.not_found', 
                           user_id=user_id, 
                           quest_id=quest_id)
             raise QuestNotFoundError(f"Quest {quest_id} not found")
         
-        logger.info('quest.get_success', 
-                   user_id=user_id, 
-                   quest_id=quest_id)
+        # Extract owner user_id from PK (USER#{user_id})
+        owner_pk = owner_scan["Items"][0]["PK"]
+        owner_user_id = owner_pk.replace("USER#", "")
         
-        return _quest_item_to_response(response["Item"])
+        # Check if requesting user is a collaborator
+        collaborator_pk = f"RESOURCE#QUEST#{quest_id}"
+        collaborator_sk = f"COLLABORATOR#{user_id}"
+        
+        collaborator_response = table.get_item(
+            Key={"PK": collaborator_pk, "SK": collaborator_sk}
+        )
+        
+        if "Item" not in collaborator_response:
+            logger.warning('quest.access_denied', 
+                          user_id=user_id, 
+                          quest_id=quest_id,
+                          owner_user_id=owner_user_id)
+            raise QuestNotFoundError(f"Quest {quest_id} not found")
+        
+        # User is a collaborator, get the quest from the owner
+        quest_response = table.get_item(
+            Key={
+                "PK": f"USER#{owner_user_id}",
+                "SK": f"QUEST#{quest_id}"
+            }
+        )
+        
+        if "Item" not in quest_response:
+            logger.warning('quest.owner_quest_not_found', 
+                          user_id=user_id, 
+                          quest_id=quest_id,
+                          owner_user_id=owner_user_id)
+            raise QuestNotFoundError(f"Quest {quest_id} not found")
+        
+        logger.info('quest.get_success_collaborator', 
+                   user_id=user_id, 
+                   quest_id=quest_id,
+                   owner_user_id=owner_user_id,
+                   access_type="collaborator")
+        
+        return _quest_item_to_response(quest_response["Item"])
         
     except QuestNotFoundError:
         raise

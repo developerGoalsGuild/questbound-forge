@@ -110,6 +110,7 @@ class InviteResponse(BaseModel):
     expires_at: datetime = Field(..., description="When the invitation expires")
     created_at: datetime = Field(..., description="When the invitation was created")
     updated_at: datetime = Field(..., description="When the invitation was last updated")
+    owner_id: Optional[str] = Field(None, description="ID of the resource owner")
 
 
 class InviteListResponse(BaseModel):

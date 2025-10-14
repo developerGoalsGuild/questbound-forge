@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   MessageCircle,
   Send,
@@ -31,7 +32,6 @@ import {
   Comment,
   createComment,
   listResourceComments,
-  updateComment,
   deleteComment,
   toggleReaction,
   getCommentReactions
@@ -56,26 +56,26 @@ const REACTION_EMOJIS = {
 
 const CommentItem: React.FC<{
   comment: Comment;
-  onReply: (parentId: string) => void;
-  onEdit: (comment: Comment) => void;
-  onDelete: (commentId: string) => void;
+  onReply: () => void;
+  onDelete: () => void;
   level: number;
   resourceType: string;
   resourceId: string;
-}> = ({ comment, onReply, onEdit, onDelete, level, resourceType, resourceId }) => {
+}> = ({ comment, onReply, onDelete, level, resourceType, resourceId }) => {
   const { user } = useAuth();
   const [showReactions, setShowReactions] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
   const reactionRef = useRef<HTMLDivElement>(null);
 
+  const commentId = comment.commentId || comment.comment_id;
   const { data: reactionData, refetch: refetchReactions } = useQuery({
-    queryKey: ['comment-reactions', comment.commentId],
-    queryFn: () => getCommentReactions(comment.commentId),
-    enabled: !!comment.commentId,
+    queryKey: ['comment-reactions', commentId],
+    queryFn: () => getCommentReactions(commentId),
+    enabled: !!commentId,
   });
 
   const reactionMutation = useMutation({
-    mutationFn: (emoji: string) => toggleReaction(comment.commentId, emoji),
+    mutationFn: (emoji: string) => toggleReaction(commentId, emoji),
     onSuccess: () => {
       refetchReactions();
       setIsReacting(false);
@@ -93,7 +93,6 @@ const CommentItem: React.FC<{
     reactionMutation.mutate(emoji);
   }, [user, reactionMutation]);
 
-  const canEdit = user?.userId === comment.userId;
   const canDelete = user?.userId === comment.userId;
 
   return (
@@ -114,23 +113,30 @@ const CommentItem: React.FC<{
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                {(() => {
+                  try {
+                    // Handle both createdAt and created_at field names
+                    const dateValue = comment.createdAt || comment.created_at;
+                    if (!dateValue) return 'Unknown time';
+                    
+                    const date = new Date(dateValue);
+                    if (isNaN(date.getTime())) {
+                      console.warn('Invalid date value:', dateValue);
+                      return 'Unknown time';
+                    }
+                    
+                    return formatDistanceToNow(date, { addSuffix: true });
+                  } catch (error) {
+                    console.error('Error formatting date:', error, comment);
+                    return 'Unknown time';
+                  }
+                })()}
               </span>
-              {canEdit && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEdit(comment)}
-                  className="h-6 w-6 p-0"
-                >
-                  <Edit3 className="h-3 w-3" />
-                </Button>
-              )}
               {canDelete && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onDelete(comment.commentId)}
+                  onClick={onDelete}
                   className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                 >
                   <Trash2 className="h-3 w-3" />
@@ -168,7 +174,7 @@ const CommentItem: React.FC<{
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onReply(comment.commentId)}
+            onClick={onReply}
             className="h-6 px-2 text-xs"
           >
             <Reply className="h-3 w-3 mr-1" />
@@ -281,7 +287,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [showCommentForm, setShowCommentForm] = useState(false);
 
   // Query for comments
@@ -315,18 +320,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ commentId, text }: { commentId: string; text: string }) =>
-      updateComment(commentId, text),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resource-comments', resourceType, resourceId] });
-      toast.success('Comment updated');
-      setEditingComment(null);
-    },
-    onError: () => {
-      toast.error('Failed to update comment');
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteComment,
@@ -345,15 +338,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
   const handleReply = useCallback((parentId: string) => {
     setReplyingTo(parentId);
-    setEditingComment(null);
     setShowCommentForm(false);
   }, []);
 
-  const handleEdit = useCallback((comment: Comment) => {
-    setEditingComment(comment);
-    setReplyingTo(null);
-    setShowCommentForm(false);
-  }, []);
 
   const handleDelete = useCallback((commentId: string) => {
     if (confirm('Are you sure you want to delete this comment?')) {
@@ -363,40 +350,31 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
   const handleCancel = useCallback(() => {
     setReplyingTo(null);
-    setEditingComment(null);
   }, []);
 
   const renderComments = useCallback((comments: Comment[], level = 0): React.ReactNode => {
+    // Debug: Log comment structure to see what fields are available
+    if (comments.length > 0) {
+      console.log('Comment structure:', comments[0]);
+    }
+    
     return comments.map((comment) => (
-      <div key={comment.commentId} className="space-y-3">
+      <div key={comment.commentId || comment.comment_id} className="space-y-3">
         <CommentItem
           comment={comment}
-          onReply={handleReply}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          onReply={() => handleReply(comment.commentId || comment.comment_id)}
+          onDelete={() => handleDelete(comment.commentId || comment.comment_id)}
           level={level}
           resourceType={resourceType}
           resourceId={resourceId}
         />
 
-        {/* Edit form */}
-        {editingComment?.commentId === comment.commentId && (
-          <div className="ml-11">
-            <CommentForm
-              onSubmit={(text) => updateMutation.mutate({ commentId: comment.commentId, text })}
-              onCancel={handleCancel}
-              initialValue={comment.text}
-              isSubmitting={updateMutation.isPending}
-              placeholder="Edit your comment..."
-            />
-          </div>
-        )}
 
         {/* Reply form */}
-        {replyingTo === comment.commentId && (
+        {replyingTo === (comment.commentId || comment.comment_id) && (
           <div className="ml-11">
             <CommentForm
-              onSubmit={(text) => handleCreateComment(text, comment.commentId)}
+              onSubmit={(text) => handleCreateComment(text, comment.commentId || comment.comment_id)}
               onCancel={handleCancel}
               isSubmitting={createMutation.isPending}
               placeholder={`Reply to ${comment.username}...`}
@@ -407,20 +385,23 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         {/* Note: Replies would be loaded separately with parent_id filtering */}
       </div>
     ));
-  }, [editingComment, replyingTo, handleReply, handleEdit, handleDelete, handleCancel, updateMutation, createMutation, resourceType, resourceId]);
+  }, [replyingTo, handleReply, handleDelete, handleCancel, createMutation, resourceType, resourceId]);
 
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="flex items-center gap-2">
-        <MessageCircle className="h-5 w-5" />
-        <h3 className="font-semibold">Comments</h3>
-        {commentsData && (
-          <Badge variant="secondary">{commentsData.totalCount}</Badge>
-        )}
-      </div>
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5" />
+          Comments
+          {commentsData && (
+            <Badge variant="secondary">{commentsData.totalCount}</Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
 
       {/* Main comment form */}
-      {user && !showCommentForm && !replyingTo && !editingComment && (
+      {user && !showCommentForm && !replyingTo && (
         <Button
           variant="outline"
           onClick={() => setShowCommentForm(true)}
@@ -453,6 +434,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           </div>
         )}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

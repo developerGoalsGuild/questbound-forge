@@ -17,7 +17,9 @@ import {
   Loader2,
   Home,
   Target,
-  BarChart3
+  BarChart3,
+  Mail,
+  Users
 } from 'lucide-react';
 import { UserMenuProps, MenuItem } from '@/models/header';
 import { getUserInitials, getUserDisplayName } from '@/lib/apiHeader';
@@ -68,6 +70,18 @@ const UserMenu: React.FC<UserMenuProps> = ({
       label: headerTranslations?.userMenu?.questDashboard || 'Quest Dashboard',
       icon: BarChart3,
       path: '/quests/dashboard',
+    },
+    {
+      id: 'invites',
+      label: headerTranslations?.userMenu?.invites || 'Invites',
+      icon: Mail,
+      path: '/invites',
+    },
+    {
+      id: 'myCollaborations',
+      label: headerTranslations?.userMenu?.myCollaborations || 'My Collaborations',
+      icon: Users,
+      path: '/my-collaborations',
     },
     {
       id: 'profile',

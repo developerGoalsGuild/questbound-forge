@@ -6,20 +6,34 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import logging
+import sys
 
 from .models.invite import InviteCreatePayload, InviteResponse, InviteListResponse
 from .models.collaborator import CollaboratorResponse, CollaboratorListResponse
 from .models.comment import CommentCreatePayload, CommentUpdatePayload, CommentResponse, CommentListResponse
 from .models.reaction import ReactionPayload, ReactionSummaryResponse
-from .db.invite_db import create_invite, get_invite, list_user_invites, accept_invite, decline_invite
-from .db.collaborator_db import list_collaborators, remove_collaborator
+from .db.invite_db import create_invite, get_invite, list_user_invites, accept_invite, decline_invite, CollaborationInviteValidationError, CollaborationInviteNotFoundError, CollaborationInviteDBError
+from .db.collaborator_db import list_collaborators, remove_collaborator, cleanup_orphaned_invites, list_user_collaborations
 from .db.comment_db import create_comment, get_comment, list_comments, update_comment, delete_comment
 from .db.reaction_db import toggle_reaction, get_comment_reactions
 from .auth import authenticate
+from .settings import get_settings
+
+# Initialize settings
+settings = get_settings()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper()),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
+
+# Log startup information
+logger.info(f"collaboration.service.startup - environment={settings.environment}, aws_region={settings.aws_region}, dynamodb_table={settings.dynamodb_table_name}, log_level={settings.log_level}")
 
 app = FastAPI(
     title="Collaboration Service",
@@ -30,7 +44,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure based on environment
+    allow_origins=["*"],  # TODO: Configure based on environment using settings
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,13 +66,19 @@ async def create_collaboration_invite(
     """Create a new collaboration invite."""
     try:
         invite = create_invite(current_user["sub"], payload)
-        logger.info(f"Invite created: {invite['inviteId']} by {current_user['sub']}")
+        logger.info(f"Invite created: {invite.invite_id} by {current_user['sub']}")
         return invite
-    except ValueError as e:
+    except CollaborationInviteValidationError as e:
         logger.warning(f"Validation error creating invite: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+    except CollaborationInviteNotFoundError as e:
+        logger.warning(f"Not found error creating invite: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except CollaborationInviteDBError as e:
+        logger.error(f"Database error creating invite: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating invite: {str(e)}")
+        logger.error(f"Unexpected error creating invite: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create invite")
 
 
@@ -72,7 +92,7 @@ async def list_collaboration_invites(
     """List collaboration invites for the current user."""
     try:
         invites = list_user_invites(current_user["sub"], status, limit, next_token)
-        logger.info(f"Listed {len(invites.get('items', []))} invites for user {current_user['sub']}")
+        logger.info(f"Listed {len(invites.invites)} invites for user {current_user['sub']}")
         return invites
     except Exception as e:
         logger.error(f"Error listing invites: {str(e)}")
@@ -125,7 +145,7 @@ async def list_resource_collaborators(
     """List collaborators for a resource."""
     try:
         collaborators = list_collaborators(resource_type, resource_id)
-        logger.info(f"Listed {len(collaborators.get('collaborators', []))} collaborators for {resource_type}/{resource_id}")
+        logger.info(f"Listed {len(collaborators.collaborators)} collaborators for {resource_type}/{resource_id}")
         return collaborators
     except ValueError as e:
         logger.warning(f"Error listing collaborators: {str(e)}")
@@ -155,6 +175,65 @@ async def remove_resource_collaborator(
         raise HTTPException(status_code=500, detail="Failed to remove collaborator")
 
 
+@app.post("/collaborations/resources/{resource_type}/{resource_id}/cleanup-orphaned-invites")
+async def cleanup_resource_orphaned_invites(
+    resource_type: str,
+    resource_id: str,
+    current_user: dict = Depends(authenticate)
+):
+    """Clean up orphaned invite records for users who are no longer collaborators.
+    This fixes the issue where removed collaborators cannot be re-invited."""
+    try:
+        cleaned_count = cleanup_orphaned_invites(resource_type, resource_id)
+        logger.info(f"Cleaned up {cleaned_count} orphaned invites for {resource_type}/{resource_id} by {current_user['sub']}")
+        return {"message": f"Cleaned up {cleaned_count} orphaned invite records", "cleaned_count": cleaned_count}
+    except ValueError as e:
+        logger.warning(f"Error cleaning up orphaned invites: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error cleaning up orphaned invites: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup orphaned invites")
+
+
+@app.get("/collaborations/my-collaborations")
+async def get_my_collaborations(
+    resource_type: Optional[str] = None,
+    current_user: dict = Depends(authenticate)
+):
+    """Get all resources the current user is collaborating on."""
+    try:
+        collaborations = list_user_collaborations(current_user["sub"], resource_type)
+        logger.info(f"Listed {len(collaborations)} collaborations for user {current_user['sub']}")
+        return {"collaborations": collaborations, "total_count": len(collaborations)}
+    except Exception as e:
+        logger.error(f"Error listing user collaborations: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list collaborations")
+
+
+@app.get("/collaborations/access/{resource_type}/{resource_id}")
+async def check_resource_access(
+    resource_type: str,
+    resource_id: str,
+    current_user: dict = Depends(authenticate)
+):
+    """Check if the current user has access to a resource (as owner or collaborator)."""
+    try:
+        from .db.collaborator_db import check_resource_access
+        
+        has_access = check_resource_access(current_user["sub"], resource_type, resource_id)
+        logger.info(f"Access check for user {current_user['sub']} on {resource_type}/{resource_id}: {has_access}")
+        
+        return {
+            "has_access": has_access,
+            "user_id": current_user["sub"],
+            "resource_type": resource_type,
+            "resource_id": resource_id
+        }
+    except Exception as e:
+        logger.error(f"Error checking resource access: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to check resource access")
+
+
 # Comment endpoints
 @app.post("/collaborations/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
 async def create_resource_comment(
@@ -164,7 +243,7 @@ async def create_resource_comment(
     """Create a new comment on a resource."""
     try:
         comment = create_comment(current_user["sub"], payload)
-        logger.info(f"Comment created: {comment.comment_id} by {current_user['sub']}")
+        logger.info(f"Comment created: {comment.commentId} by {current_user['sub']}")
         return comment
     except ValueError as e:
         logger.warning(f"Validation error creating comment: {str(e)}")

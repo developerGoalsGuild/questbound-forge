@@ -102,16 +102,65 @@ def _get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _enrich_collaborator_with_user_data(collaborator: CollaboratorResponse, table) -> CollaboratorResponse:
+    """Enrich collaborator data with actual user profile information."""
+    try:
+        # Get user profile using correct SK pattern
+        user_profile = table.get_item(Key={"PK": f"USER#{collaborator.user_id}", "SK": f"PROFILE#{collaborator.user_id}"})
+        if "Item" in user_profile:
+            profile = user_profile["Item"]
+            # Update with actual user data, prioritizing nickname
+            collaborator.username = profile.get("nickname") or profile.get("username", "Unknown")
+            collaborator.avatar_url = profile.get("avatarUrl")
+            
+            # Handle lastSeenAt field safely
+            last_seen_value = profile.get("lastSeenAt")
+            if last_seen_value:
+                if isinstance(last_seen_value, str):
+                    collaborator.last_seen_at = datetime.fromisoformat(last_seen_value)
+                elif isinstance(last_seen_value, datetime):
+                    collaborator.last_seen_at = last_seen_value
+    except Exception as e:
+        logger.warning(f"collaboration.enrich_collaborator_failed - user_id={collaborator.user_id}, error={str(e)}")
+    
+    return collaborator
+
+
 def _collaborator_item_to_response(item: Dict[str, Any]) -> CollaboratorResponse:
     """Convert DynamoDB collaborator item to CollaboratorResponse."""
+    
+    # Handle joinedAt field safely
+    joined_at_value = item.get("joinedAt")
+    if isinstance(joined_at_value, str):
+        try:
+            joined_at = datetime.fromisoformat(joined_at_value)
+        except (ValueError, TypeError):
+            joined_at = datetime.now(UTC)
+    elif isinstance(joined_at_value, datetime):
+        joined_at = joined_at_value
+    else:
+        joined_at = datetime.now(UTC)
+    
+    # Handle lastSeenAt field safely
+    last_seen_value = item.get("lastSeenAt")
+    last_seen_at = None
+    if last_seen_value:
+        if isinstance(last_seen_value, str):
+            try:
+                last_seen_at = datetime.fromisoformat(last_seen_value)
+            except (ValueError, TypeError):
+                last_seen_at = None
+        elif isinstance(last_seen_value, datetime):
+            last_seen_at = last_seen_value
+    
     return CollaboratorResponse(
         user_id=item["userId"],
         username=item.get("username", "Unknown"),
-        email=item.get("email"),
         avatar_url=item.get("avatarUrl"),
+        email=None,  # Don't show email for collaborators
         role=item.get("role", "collaborator"),
-        joined_at=datetime.fromisoformat(item["joinedAt"]),
-        last_seen_at=datetime.fromisoformat(item["lastSeenAt"]) if item.get("lastSeenAt") else None
+        joined_at=joined_at,
+        last_seen_at=last_seen_at
     )
 
 
@@ -140,7 +189,13 @@ def list_collaborators(resource_type: str, resource_id: str) -> CollaboratorList
             ScanIndexForward=True  # Sort by joined date (oldest first)
         )
 
-        collaborators = [_collaborator_item_to_response(item) for item in response.get("Items", [])]
+        # Enrich collaborator data with actual user profiles
+        collaborators = []
+        for item in response.get("Items", []):
+            collaborator = _collaborator_item_to_response(item)
+            # Enrich with actual user data
+            enriched_collaborator = _enrich_collaborator_with_user_data(collaborator, table)
+            collaborators.append(enriched_collaborator)
 
         # Also include the owner if they exist
         # Scan for the resource under USER# to find the owner
@@ -152,19 +207,37 @@ def list_collaborators(resource_type: str, resource_id: str) -> CollaboratorList
             owner_item = owner_response["Items"][0]
             owner_id = owner_item["PK"].split("#")[1]  # Extract user ID from PK
 
-            # Get owner profile
-            owner_profile = table.get_item(Key={"PK": f"USER#{owner_id}", "SK": "PROFILE"})
+            # Get owner profile using correct SK pattern
+            owner_profile = table.get_item(Key={"PK": f"USER#{owner_id}", "SK": f"PROFILE#{owner_id}"})
             if "Item" in owner_profile:
                 profile = owner_profile["Item"]
                 # Create owner collaborator entry
+                # Handle createdAt field - it might be a datetime object or string
+                created_at_value = owner_item.get("createdAt")
+                if isinstance(created_at_value, str):
+                    joined_at = datetime.fromisoformat(created_at_value)
+                elif isinstance(created_at_value, datetime):
+                    joined_at = created_at_value
+                else:
+                    joined_at = datetime.now(UTC)
+                
+                # Handle lastSeenAt field
+                last_seen_value = profile.get("lastSeenAt")
+                last_seen_at = None
+                if last_seen_value:
+                    if isinstance(last_seen_value, str):
+                        last_seen_at = datetime.fromisoformat(last_seen_value)
+                    elif isinstance(last_seen_value, datetime):
+                        last_seen_at = last_seen_value
+                
                 owner_collaborator = CollaboratorResponse(
                     user_id=owner_id,
-                    username=profile.get("username", "Unknown"),
-                    email=profile.get("email"),
+                    username=profile.get("nickname") or profile.get("username", "Unknown"),
                     avatar_url=profile.get("avatarUrl"),
+                    email=None,  # Don't show email for collaborators
                     role="owner",
-                    joined_at=datetime.fromisoformat(owner_item.get("createdAt", datetime.now(UTC).isoformat())),  # Use resource creation time
-                    last_seen_at=datetime.fromisoformat(profile.get("lastSeenAt")) if profile.get("lastSeenAt") else None
+                    joined_at=joined_at,
+                    last_seen_at=last_seen_at
                 )
                 collaborators.insert(0, owner_collaborator)  # Insert owner at the beginning
 
@@ -231,6 +304,35 @@ def remove_collaborator(current_user_id: str, resource_type: str, resource_id: s
             ConditionExpression="attribute_exists(PK)"  # Ensure item exists
         )
 
+        # Also clean up any related invite records for this user and resource
+        # This prevents the "already invited" error when trying to re-invite
+        try:
+            invite_filter = Attr("inviteeId").eq(user_id) & Attr("status").is_in(["pending", "accepted"])
+            invite_response = table.query(
+                KeyConditionExpression=Key("PK").eq(resource_pk) & Key("SK").begins_with("INVITE#"),
+                FilterExpression=invite_filter
+            )
+            
+            # Delete any existing invite records for this user
+            for invite_item in invite_response.get("Items", []):
+                invite_sk = invite_item["SK"]
+                table.delete_item(
+                    Key={"PK": resource_pk, "SK": invite_sk}
+                )
+                logger.info('collaboration.cleanup_invite_on_removal',
+                           resource_type=resource_type,
+                           resource_id=resource_id,
+                           removed_user_id=user_id,
+                           invite_id=invite_item.get("inviteId"))
+                           
+        except Exception as cleanup_error:
+            # Log cleanup error but don't fail the main operation
+            logger.warning('collaboration.invite_cleanup_failed',
+                          resource_type=resource_type,
+                          resource_id=resource_id,
+                          removed_user_id=user_id,
+                          error=str(cleanup_error))
+
         logger.info('collaboration.remove_collaborator_success',
                    current_user_id=current_user_id,
                    resource_type=resource_type,
@@ -250,6 +352,94 @@ def remove_collaborator(current_user_id: str, resource_type: str, resource_id: s
                     error=str(e),
                     exc_info=e)
         raise CollaborationDBError(f"Failed to remove collaborator: {str(e)}")
+
+
+def cleanup_orphaned_invites(resource_type: str, resource_id: str) -> int:
+    """
+    Clean up orphaned invite records for users who are no longer collaborators.
+    This fixes the issue where removed collaborators cannot be re-invited.
+    
+    Args:
+        resource_type: Type of resource (goal, quest, task)
+        resource_id: ID of the resource
+        
+    Returns:
+        Number of orphaned invites cleaned up
+        
+    Raises:
+        CollaborationDBError: If database operation fails
+    """
+    table = _get_dynamodb_table()
+    
+    try:
+        resource_pk = f"RESOURCE#{resource_type.upper()}#{resource_id}"
+        
+        # Get all current collaborators
+        collaborator_response = table.query(
+            KeyConditionExpression=Key("PK").eq(resource_pk) & Key("SK").begins_with("COLLABORATOR#"),
+            ProjectionExpression="SK"  # Only need the SK to extract user IDs
+        )
+        
+        # Extract current collaborator user IDs
+        current_collaborator_ids = set()
+        for item in collaborator_response.get("Items", []):
+            # SK format: COLLABORATOR#{user_id}
+            user_id = item["SK"].replace("COLLABORATOR#", "")
+            current_collaborator_ids.add(user_id)
+        
+        # Get all invite records for this resource
+        invite_response = table.query(
+            KeyConditionExpression=Key("PK").eq(resource_pk) & Key("SK").begins_with("INVITE#"),
+            FilterExpression=Attr("status").is_in(["pending", "accepted"])
+        )
+        
+        # Find orphaned invites (invites for users who are no longer collaborators)
+        orphaned_invites = []
+        for invite_item in invite_response.get("Items", []):
+            invitee_id = invite_item.get("inviteeId")
+            if invitee_id and invitee_id not in current_collaborator_ids:
+                orphaned_invites.append(invite_item)
+        
+        # Delete orphaned invites
+        cleaned_count = 0
+        for invite_item in orphaned_invites:
+            invite_sk = invite_item["SK"]
+            invitee_id = invite_item.get("inviteeId")
+            invite_id = invite_item.get("inviteId")
+            
+            try:
+                table.delete_item(Key={"PK": resource_pk, "SK": invite_sk})
+                cleaned_count += 1
+                logger.info('collaboration.cleanup_orphaned_invite',
+                           resource_type=resource_type,
+                           resource_id=resource_id,
+                           invitee_id=invitee_id,
+                           invite_id=invite_id)
+            except Exception as delete_error:
+                logger.warning('collaboration.orphaned_invite_delete_failed',
+                              resource_type=resource_type,
+                              resource_id=resource_id,
+                              invitee_id=invitee_id,
+                              invite_id=invite_id,
+                              error=str(delete_error))
+        
+        logger.info('collaboration.cleanup_orphaned_invites_complete',
+                   resource_type=resource_type,
+                   resource_id=resource_id,
+                   current_collaborators=len(current_collaborator_ids),
+                   total_invites=len(invite_response.get("Items", [])),
+                   orphaned_invites=len(orphaned_invites),
+                   cleaned_count=cleaned_count)
+        
+        return cleaned_count
+        
+    except Exception as e:
+        logger.error('collaboration.cleanup_orphaned_invites_failed',
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    error=str(e),
+                    exc_info=e)
+        raise CollaborationDBError(f"Failed to cleanup orphaned invites: {str(e)}")
 
 
 def check_collaborator_access(user_id: str, resource_type: str, resource_id: str) -> bool:
@@ -295,6 +485,68 @@ def check_collaborator_access(user_id: str, resource_type: str, resource_id: str
         raise CollaborationDBError(f"Failed to check collaborator access: {str(e)}")
 
 
+def check_resource_access(user_id: str, resource_type: str, resource_id: str) -> bool:
+    """
+    Check if a user has access to a resource (either as owner or collaborator).
+    This is the main function that should be used by other services.
+
+    Args:
+        user_id: ID of the user to check
+        resource_type: Type of resource (goal, quest, task)
+        resource_id: ID of the resource
+
+    Returns:
+        True if user has access (as owner or collaborator), False otherwise
+
+    Raises:
+        CollaborationDBError: If database operation fails
+    """
+    table = _get_dynamodb_table()
+
+    try:
+        # First check if user is the owner
+        owner_pk = f"USER#{user_id}"
+        owner_sk = f"{resource_type.upper()}#{resource_id}"
+        
+        owner_response = table.get_item(Key={"PK": owner_pk, "SK": owner_sk})
+        if "Item" in owner_response:
+            logger.info('collaboration.check_resource_access_owner',
+                       user_id=user_id,
+                       resource_type=resource_type,
+                       resource_id=resource_id,
+                       access_type="owner")
+            return True
+
+        # If not owner, check if user is a collaborator
+        collaborator_pk = f"RESOURCE#{resource_type.upper()}#{resource_id}"
+        collaborator_sk = f"COLLABORATOR#{user_id}"
+        
+        collaborator_response = table.get_item(Key={"PK": collaborator_pk, "SK": collaborator_sk})
+        if "Item" in collaborator_response:
+            logger.info('collaboration.check_resource_access_collaborator',
+                       user_id=user_id,
+                       resource_type=resource_type,
+                       resource_id=resource_id,
+                       access_type="collaborator")
+            return True
+
+        # No access found
+        logger.info('collaboration.check_resource_access_denied',
+                   user_id=user_id,
+                   resource_type=resource_type,
+                   resource_id=resource_id)
+        return False
+
+    except Exception as e:
+        logger.error('collaboration.check_resource_access_failed',
+                    user_id=user_id,
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    error=str(e),
+                    exc_info=e)
+        raise CollaborationDBError(f"Failed to check resource access: {str(e)}")
+
+
 def list_user_collaborations(user_id: str, resource_type: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List all resources a user collaborates on.
@@ -315,17 +567,34 @@ def list_user_collaborations(user_id: str, resource_type: Optional[str] = None) 
         # Query GSI1 for user's collaborations
         gsi1pk = f"USER#{user_id}"
 
-        # Build filter for resource type if specified
-        filter_expr = None
+        # Build key condition expression based on resource type
         if resource_type:
-            filter_expr = Key("GSI1SK").begins_with(f"COLLAB#{resource_type}#")
+            # If filtering by resource type, include it in the key condition
+            gsi1sk_prefix = f"COLLAB#{resource_type}#"
+            key_condition = Key("GSI1PK").eq(gsi1pk) & Key("GSI1SK").begins_with(gsi1sk_prefix)
+        else:
+            # If no resource type filter, get all collaborations
+            key_condition = Key("GSI1PK").eq(gsi1pk) & Key("GSI1SK").begins_with("COLLAB#")
 
-        response = table.query(
-            IndexName="GSI1",
-            KeyConditionExpression=Key("GSI1PK").eq(gsi1pk) & Key("GSI1SK").begins_with("COLLAB#"),
-            FilterExpression=filter_expr,
-            ScanIndexForward=False  # Most recent first
-        )
+        query_params = {
+            "IndexName": "GSI1",
+            "KeyConditionExpression": key_condition,
+            "ScanIndexForward": False  # Most recent first
+        }
+
+        logger.info('collaboration.list_user_collaborations_query',
+                   user_id=user_id,
+                   resource_type=resource_type,
+                   gsi1pk=gsi1pk,
+                   query_params=query_params)
+
+        response = table.query(**query_params)
+
+        logger.info('collaboration.list_user_collaborations_query_result',
+                   user_id=user_id,
+                   resource_type=resource_type,
+                   items_count=len(response.get("Items", [])),
+                   raw_items=response.get("Items", [])[:3])  # Log first 3 items for debugging
 
         collaborations = []
         for item in response.get("Items", []):

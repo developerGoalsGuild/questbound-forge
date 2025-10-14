@@ -112,44 +112,9 @@ resource "aws_appsync_resolver" "query_myDashboardGoals" {
   }
 }
 
-resource "aws_appsync_resolver" "query_goal" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "goal"
-  kind   = "UNIT"
-  data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/getGoal.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
-  }
-}
+# Removed query_goal resolver - now using REST API endpoint
 
-# Quest resolvers
-resource "aws_appsync_resolver" "query_myQuests" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "myQuests"
-  kind   = "UNIT"
-  data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/myQuests.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
-  }
-  
-  # Enable caching for better performance - conditional
-  dynamic "caching_config" {
-    for_each = var.enable_appsync_caching ? [1] : []
-    content {
-      caching_keys = [
-        "$context.identity.sub",
-        "$context.arguments.goalId"
-      ]
-      ttl = var.appsync_cache_ttl_seconds
-    }
-  }
-}
+# Quest resolvers - removed query_myQuests, now using REST API endpoints
 
 resource "aws_appsync_resolver" "query_activeGoalsCount" {
   api_id = module.appsync.api_id

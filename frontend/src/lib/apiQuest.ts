@@ -1,4 +1,4 @@
-import { authFetch, graphqlRaw } from './api';
+import { authFetch } from './api';
 import { getAccessToken, getApiBase } from '@/lib/utils';
 import type { 
   Quest, 
@@ -27,36 +27,7 @@ import { reportError } from './error-reporter';
 // GraphQL Operations (Reads)
 // ============================================================================
 
-/**
- * GraphQL query for fetching user's quests
- */
-const MY_QUESTS = /* GraphQL */ `
-  query MyQuests {
-    myQuests {
-      id
-      userId
-      title
-      description
-      difficulty
-      rewardXp
-      status
-      category
-      tags
-      privacy
-      deadline
-      createdAt
-      updatedAt
-      startedAt
-      kind
-      linkedGoalIds
-      linkedTaskIds
-      dependsOnQuestIds
-      targetCount
-      countScope
-      periodDays
-    }
-  }
-`;
+// GraphQL query removed - now using REST API endpoints
 
 /**
  * Load user's quests with optional goalId filtering
@@ -78,10 +49,37 @@ export async function loadQuests(goalId?: string): Promise<Quest[]> {
   logger.info('Loading quests', { operation, goalId });
   const startTime = Date.now();
   try {
-    // Note: Backend doesn't support goalId filtering, so we always load all quests
-    // Client-side filtering is handled by useGoalQuests hook
-    const data = await graphqlRaw<{ myQuests: Quest[] }>(MY_QUESTS, {});
-    const quests = data?.myQuests ?? [];
+    const token = getAccessToken();
+    const apiBase = getApiBase();
+    
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (goalId) {
+      params.append('goalId', goalId);
+    }
+
+    const url = `${apiBase}/quests/quests${params.toString() ? `?${params.toString()}` : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to load quests';
+      throw new Error(message);
+    }
+
+    const quests = await response.json();
 
     const duration = Date.now() - startTime;
     logger.info(`Loaded ${quests.length} quests successfully`, {
@@ -119,13 +117,29 @@ export async function loadQuest(questId: string): Promise<Quest> {
   logger.info('Loading quest', { operation, questId });
   const startTime = Date.now();
   try {
-    const data = await graphqlRaw<{ myQuests: Quest[] }>(MY_QUESTS, {});
-    const quests = data?.myQuests ?? [];
-    const quest = quests.find(q => q.id === questId);
+    const token = getAccessToken();
+    const apiBase = getApiBase();
     
-    if (!quest) {
-      throw new Error(`Quest with ID ${questId} not found`);
+    if (!token) {
+      throw new Error('No access token available');
     }
+
+    const response = await fetch(`${apiBase}/quests/quests/${questId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to load quest';
+      throw new Error(message);
+    }
+
+    const quest = await response.json();
     
     const duration = Date.now() - startTime;
     logger.info('Quest loaded successfully', { operation, questId, duration });
