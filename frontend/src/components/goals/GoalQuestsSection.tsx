@@ -24,15 +24,18 @@ interface GoalQuestsSectionProps {
   goalId: string;
   goalTitle?: string;
   className?: string;
+  canCreate?: boolean;
+  canViewAll?: boolean;
 }
 
 interface QuestCardProps {
   quest: Quest;
   onViewDetails: (questId: string) => void;
   isLoading?: boolean;
+  disabled?: boolean;
 }
 
-const QuestCard: React.FC<QuestCardProps> = ({ quest, onViewDetails, isLoading }) => {
+const QuestCard: React.FC<QuestCardProps> = ({ quest, onViewDetails, isLoading, disabled = false }) => {
   const { t } = useTranslation();
 
   // Get translations with safety checks
@@ -100,7 +103,10 @@ const QuestCard: React.FC<QuestCardProps> = ({ quest, onViewDetails, isLoading }
   }
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md cursor-pointer" onClick={() => onViewDetails(quest.id)}>
+    <Card 
+      className={`transition-all duration-200 ${disabled ? 'cursor-default opacity-75' : 'hover:shadow-md cursor-pointer'}`} 
+      onClick={disabled ? undefined : () => onViewDetails(quest.id)}
+    >
       <CardContent className="p-4">
         <div className="space-y-3">
           <div className="flex items-start justify-between">
@@ -144,6 +150,8 @@ export const GoalQuestsSection: React.FC<GoalQuestsSectionProps> = ({
   goalId,
   goalTitle,
   className = '',
+  canCreate = true,
+  canViewAll = true,
 }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -269,15 +277,21 @@ export const GoalQuestsSection: React.FC<GoalQuestsSectionProps> = ({
               </Badge>
             )}
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleViewAllQuests}>
-              {questTranslations?.goalIntegration?.viewAll || 'View All'}
-            </Button>
-            <Button size="sm" onClick={handleCreateQuest}>
-              <Plus className="w-4 h-4 mr-2" />
-              {questTranslations?.goalIntegration?.createQuest || 'Create Quest'}
-            </Button>
-          </div>
+          {canViewAll || canCreate ? (
+            <div className="flex items-center gap-2">
+              {canViewAll && (
+                <Button variant="outline" size="sm" onClick={handleViewAllQuests}>
+                  {questTranslations?.goalIntegration?.viewAll || 'View All'}
+                </Button>
+              )}
+              {canCreate && (
+                <Button size="sm" onClick={handleCreateQuest}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {questTranslations?.goalIntegration?.createQuest || 'Create Quest'}
+                </Button>
+              )}
+            </div>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>
@@ -330,6 +344,7 @@ export const GoalQuestsSection: React.FC<GoalQuestsSectionProps> = ({
                     key={quest.id}
                     quest={quest}
                     onViewDetails={handleViewQuestDetails}
+                    disabled={!canViewAll}
                   />
                 ))}
                 {questCount > 6 && (

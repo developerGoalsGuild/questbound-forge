@@ -996,7 +996,7 @@ def login(body: LoginLocal, request: Request):
         or item.get("user_type")
         or "user"
     )
-    token = issue_local_jwt(item["id"], email, ttl_seconds=1200, role=user_role)
+    token = issue_local_jwt(item["id"], email, ttl_seconds=3600, role=user_role)
     record_attempt(email, success=True, ip=client_ip, ua=ua, reason="OK")
     _safe_event("login.success", cid=cid, email=_mask_email(email), ip=client_ip, ua=ua)
     return TokenResponse(**token).model_dump()
@@ -1036,7 +1036,7 @@ def renew_token(request: Request, authorization: Optional[str] = Header(None)):
         logger.error("renew.ddb_error", exc_info=True)
         raise HTTPException(status_code=500, detail="Unable to renew token")
 
-    new_tok = issue_local_jwt(user_id, email, ttl_seconds=1200, role=role)
+    new_tok = issue_local_jwt(user_id, email, ttl_seconds=3600, role=role)
     _safe_event("renew.success", cid=cid, email=_mask_email(email))
     return TokenResponse(**new_tok).model_dump()
 

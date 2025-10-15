@@ -20,7 +20,8 @@ from .goal import (
     GoalUpdatePayload,
     Milestone,
     GoalProgressResponse,
-    GoalResponse
+    GoalResponse,
+    GoalWithAccessResponse
 )
 
 
@@ -50,6 +51,7 @@ __all__ = [
     "Milestone",
     "GoalProgressResponse",
     "GoalResponse",
+    "GoalWithAccessResponse",
     # New Quest models
     "QuestCreatePayload",
     "QuestUpdatePayload", 

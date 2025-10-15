@@ -365,8 +365,9 @@ def get_quest(user_id: str, quest_id: str) -> QuestResponse:
         # If not found as owner, check if user is a collaborator
         # We need to find the actual owner first
         owner_scan = table.scan(
-            FilterExpression=Attr("type").eq("Quest") & Attr("id").eq(quest_id),
+            FilterExpression=Attr("#type").eq("Quest") & Attr("id").eq(quest_id),
             ProjectionExpression="PK",
+            ExpressionAttributeNames={"#type": "type"},
             Limit=1
         )
         

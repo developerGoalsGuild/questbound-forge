@@ -49,12 +49,27 @@ interface TasksModalProps {
   onDeleteTask: (taskId: string) => Promise<void>;
   onTasksChange?: () => void; // Callback to refresh tasks after changes
   onCreateTask?: () => void; // Callback to create new task
+  // Access control props
+  canEdit?: boolean; // Whether user can edit tasks
+  canDelete?: boolean; // Whether user can delete tasks
+  canCreate?: boolean; // Whether user can create tasks
 }
 
 const STATUS_OPTIONS = ['active', 'paused', 'completed', 'archived'];
 const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
-const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdateTask, onDeleteTask, onTasksChange, onCreateTask }) => {
+const TasksModal: React.FC<TasksModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  tasks, 
+  onUpdateTask, 
+  onDeleteTask, 
+  onTasksChange, 
+  onCreateTask,
+  canEdit = true,
+  canDelete = true,
+  canCreate = true
+}) => {
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -614,7 +629,7 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>{goalsTranslations?.modals?.viewTask?.title || 'My Tasks'}</DialogTitle>
-            {onCreateTask && (
+            {onCreateTask && canCreate && (
               <Button onClick={onCreateTask} size="sm" disabled={isLoading}>
                 <Plus className="w-4 h-4 mr-2" />
                 {goalsTranslations?.modals?.viewTask?.createTask || 'Create Task'}
@@ -670,14 +685,16 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                   {renderSortIcon('tags')}
                 </button>
               </TableHead>
-              <TableHead className="text-right">{goalsTranslations?.list?.columns?.actions || 'Actions'}</TableHead>
+              {(canEdit || canDelete) && (
+                <TableHead className="text-right">{goalsTranslations?.list?.columns?.actions || 'Actions'}</TableHead>
+              )}
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {paginatedTasks.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
+                <TableCell colSpan={(canEdit || canDelete) ? 5 : 4} className="text-center text-muted-foreground py-4">
                   {goalsTranslations?.list?.noTasks || 'No tasks available.'}
                 </TableCell>
               </TableRow>
@@ -817,77 +834,83 @@ const TasksModal: React.FC<TasksModalProps> = ({ isOpen, onClose, tasks, onUpdat
                       )}
                     </TableCell>
 
-                    <TableCell className="text-right space-x-2">
-                      {isEditing ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={cancelEditing}
-                            disabled={loadingStates[`update-${task.id}`] || isLoading}
-                            aria-label={commonTranslations?.cancel || 'Cancel editing'}
-                            title={commonTranslations?.cancel || 'Cancel editing'}
-                            className="min-w-[80px]"
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={onSave}
-                            disabled={loadingStates[`update-${task.id}`] || isLoading || hasValidationErrors}
-                            aria-label={commonTranslations?.save || 'Save changes'}
-                            title={commonTranslations?.save || 'Save changes'}
-                            className="min-w-[80px]"
-                            aria-describedby={hasValidationErrors ? "form-validation-errors" : undefined}
-                          >
-                            {loadingStates[`update-${task.id}`] ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                                {goalsTranslations?.actions?.savingTask || commonTranslations?.saving || 'Saving...'}
-                              </>
-                            ) : (
-                              <>
-                                <Check className="h-4 w-4 mr-1" />
-                                {goalsTranslations?.actions?.saveTask || commonTranslations?.save || 'Save'}
-                              </>
+                    {(canEdit || canDelete) && (
+                      <TableCell className="text-right space-x-2">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={cancelEditing}
+                              disabled={loadingStates[`update-${task.id}`] || isLoading}
+                              aria-label={commonTranslations?.cancel || 'Cancel editing'}
+                              title={commonTranslations?.cancel || 'Cancel editing'}
+                              className="min-w-[80px]"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={onSave}
+                              disabled={loadingStates[`update-${task.id}`] || isLoading || hasValidationErrors}
+                              aria-label={commonTranslations?.save || 'Save changes'}
+                              title={commonTranslations?.save || 'Save changes'}
+                              className="min-w-[80px]"
+                              aria-describedby={hasValidationErrors ? "form-validation-errors" : undefined}
+                            >
+                              {loadingStates[`update-${task.id}`] ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                  {goalsTranslations?.actions?.savingTask || commonTranslations?.saving || 'Saving...'}
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="h-4 w-4 mr-1" />
+                                  {goalsTranslations?.actions?.saveTask || commonTranslations?.save || 'Save'}
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {canEdit && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => startEditing(task)}
+                                disabled={loadingStates[`delete-${task.id}`] || isLoading}
+                                aria-label={commonTranslations?.edit || 'Edit task'}
+                                title={commonTranslations?.edit || 'Edit task'}
+                                className="min-w-[60px]"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                             )}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => startEditing(task)}
-                            disabled={loadingStates[`delete-${task.id}`] || isLoading}
-                            aria-label={commonTranslations?.edit || 'Edit task'}
-                            title={commonTranslations?.edit || 'Edit task'}
-                            className="min-w-[60px]"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => onDelete(task.id)}
-                            disabled={loadingStates[`delete-${task.id}`] || isLoading}
-                            aria-label={commonTranslations?.delete || 'Delete task'}
-                            title={commonTranslations?.delete || 'Delete task'}
-                            className="min-w-[60px]"
-                          >
-                            {loadingStates[`delete-${task.id}`] ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                                {goalsTranslations?.actions?.deletingTask || commonTranslations?.deleting || 'Deleting...'}
-                              </>
-                            ) : (
-                              <Trash className="h-4 w-4" />
+                            {canDelete && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => onDelete(task.id)}
+                                disabled={loadingStates[`delete-${task.id}`] || isLoading}
+                                aria-label={commonTranslations?.delete || 'Delete task'}
+                                title={commonTranslations?.delete || 'Delete task'}
+                                className="min-w-[60px]"
+                              >
+                                {loadingStates[`delete-${task.id}`] ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                    {goalsTranslations?.actions?.deletingTask || commonTranslations?.deleting || 'Deleting...'}
+                                  </>
+                                ) : (
+                                  <Trash className="h-4 w-4" />
+                                )}
+                              </Button>
                             )}
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
+                          </>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })

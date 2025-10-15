@@ -86,9 +86,9 @@ const MyCollaborations: React.FC = () => {
   const getResourceLink = (collaboration: UserCollaboration) => {
     switch (collaboration.resourceType) {
       case 'goal':
-        return `/goals/${collaboration.resourceId}`;
+        return `/goals/details/${collaboration.resourceId}`;
       case 'quest':
-        return `/quests/${collaboration.resourceId}`;
+        return `/quests/details/${collaboration.resourceId}`;
       case 'task':
         return `/tasks/${collaboration.resourceId}`;
       default:

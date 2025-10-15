@@ -84,3 +84,29 @@ class GoalResponse(BaseModel):
     milestones: Optional[List[Milestone]] = None
     completedTasks: Optional[int] = None
     totalTasks: Optional[int] = None
+
+
+class GoalWithAccessResponse(BaseModel):
+    """Response model for Goal data with access control information."""
+    id: str
+    userId: str
+    title: str
+    description: str
+    category: Optional[str]
+    tags: List[str]
+    answers: List[AnswerOutput]
+    deadline: Optional[str]
+    status: str
+    createdAt: int
+    updatedAt: int
+    # Progress fields
+    progress: Optional[float] = None
+    milestones: Optional[List[Milestone]] = None
+    completedTasks: Optional[int] = None
+    totalTasks: Optional[int] = None
+    # Access control fields
+    accessType: str  # "owner" or "collaborator"
+    canEdit: bool
+    canDelete: bool
+    canAddTasks: bool
+    canComment: bool

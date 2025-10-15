@@ -14,8 +14,8 @@
  * - All standard quest hook features (loading states, error handling, etc.)
  */
 
-import { useMemo } from 'react';
-import { useQuests } from './useQuest';
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { loadQuests } from '@/lib/apiQuest';
 import type { Quest, QuestCreateInput, QuestUpdateInput } from '@/models/quest';
 import type { QuestHookOptions } from './useQuest';
 
@@ -73,55 +73,138 @@ export const useGoalQuests = (
 ): UseGoalQuestsReturn => {
   const {
     autoLoad = true,
+    onAnnounce,
     ...questOptions
   } = options;
 
-  // Use the main quests hook WITHOUT goalId filtering (backend doesn't support it)
-  const questHook = useQuests({
-    autoLoad,
-    ...questOptions,
-  });
+  // State management
+  const [goalQuests, setGoalQuests] = useState<Quest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, any>>({});
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
 
-  // Filter quests client-side to ensure only those for this goal
-  const goalQuests = useMemo(() => {
-    return questHook.quests.filter(quest => quest.linkedGoalIds?.includes(goalId));
-  }, [questHook.quests, goalId]);
+  // Load quests for this specific goal
+  const loadGoalQuests = useCallback(async () => {
+    if (!goalId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Call the new endpoint with goalId
+      const questsData = await loadQuests(goalId);
+      setGoalQuests(questsData);
+      onAnnounce?.('Goal quests loaded successfully', 'polite');
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to load goal quests';
+      setError(errorMessage);
+      onAnnounce?.(errorMessage, 'assertive');
+    } finally {
+      setLoading(false);
+    }
+  }, [goalId, onAnnounce]);
+
+  // Auto-load quests when component mounts or goalId changes
+  useEffect(() => {
+    if (autoLoad && goalId) {
+      loadGoalQuests();
+    }
+  }, [autoLoad, goalId, loadGoalQuests]);
 
   const questCount = goalQuests.length;
 
+  // Placeholder functions for quest operations (these would need to be implemented)
+  const createQuest = useCallback(async (input: QuestCreateInput): Promise<Quest> => {
+    // TODO: Implement quest creation
+    throw new Error('Quest creation not implemented yet');
+  }, []);
+
+  const startQuest = useCallback(async (questId: string): Promise<void> => {
+    // TODO: Implement quest start
+    throw new Error('Quest start not implemented yet');
+  }, []);
+
+  const editQuest = useCallback(async (questId: string, updates: QuestUpdateInput): Promise<void> => {
+    // TODO: Implement quest edit
+    throw new Error('Quest edit not implemented yet');
+  }, []);
+
+  const cancelQuest = useCallback(async (questId: string, reason?: string): Promise<void> => {
+    // TODO: Implement quest cancel
+    throw new Error('Quest cancel not implemented yet');
+  }, []);
+
+  const failQuest = useCallback(async (questId: string, reason?: string): Promise<void> => {
+    // TODO: Implement quest fail
+    throw new Error('Quest fail not implemented yet');
+  }, []);
+
+  const deleteQuest = useCallback(async (questId: string): Promise<void> => {
+    // TODO: Implement quest delete
+    throw new Error('Quest delete not implemented yet');
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const setLoadingState = useCallback((key: string, loading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [key]: loading }));
+  }, []);
+
+  const selectQuest = useCallback((quest: Quest | null) => {
+    setSelectedQuest(quest);
+  }, []);
+
+  const validateField = useCallback(async (field: string, value: any): Promise<void> => {
+    // TODO: Implement field validation
+  }, []);
+
+  const clearFieldValidation = useCallback((field: string) => {
+    setValidationErrors(prev => {
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const isFormValid = !hasValidationErrors;
+
   return {
     // Data
-    quests: questHook.quests,
+    quests: goalQuests, // For compatibility
     goalQuests,
     questCount,
 
     // States
-    loading: questHook.loading,
-    error: questHook.error,
-    loadingStates: questHook.loadingStates,
-    validationErrors: questHook.validationErrors,
-    hasValidationErrors: questHook.hasValidationErrors,
-    selectedQuest: questHook.selectedQuest,
+    loading,
+    error,
+    loadingStates,
+    validationErrors,
+    hasValidationErrors,
+    selectedQuest,
 
     // Actions
-    refresh: questHook.refresh,
-    clearError: questHook.clearError,
-    setLoadingState: questHook.setLoadingState,
+    refresh: loadGoalQuests,
+    clearError,
+    setLoadingState,
 
     // Quest Operations
-    createQuest: questHook.createQuest,
-    startQuest: questHook.startQuest,
-    editQuest: questHook.editQuest,
-    cancelQuest: questHook.cancelQuest,
-    failQuest: questHook.failQuest,
-    deleteQuest: questHook.deleteQuest,
+    createQuest,
+    startQuest,
+    editQuest,
+    cancelQuest,
+    failQuest,
+    deleteQuest,
 
     // Selection
-    selectQuest: questHook.selectQuest,
+    selectQuest,
 
     // Validation
-    validateField: questHook.validateField,
-    clearFieldValidation: questHook.clearFieldValidation,
-    isFormValid: questHook.isFormValid,
+    validateField,
+    clearFieldValidation,
+    isFormValid,
   };
 };

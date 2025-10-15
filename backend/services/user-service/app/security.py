@@ -65,7 +65,7 @@ def generate_secure_password(length: int = 16) -> str:
 # Local JWT
 
 
-def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_seconds: int = 1200, *, role: str | None = None) -> dict:
+def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_seconds: int = 3600, *, role: str | None = None) -> dict:
     now = int(time.time())
     payload = {
     "iss": settings.jwt_issuer,

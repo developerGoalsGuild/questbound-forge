@@ -19,7 +19,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, GoalProgressResponse, Milestone, QuestCreatePayload, QuestUpdatePayload, QuestCancelPayload, QuestResponse
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalWithAccessResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, GoalProgressResponse, Milestone, QuestCreatePayload, QuestUpdatePayload, QuestCancelPayload, QuestResponse
 from .models.quest_template import QuestTemplateCreatePayload, QuestTemplateUpdatePayload, QuestTemplateResponse, QuestTemplateListResponse
 from .models.analytics import QuestAnalytics, AnalyticsPeriod
 from .db.quest_db import (
@@ -39,7 +39,7 @@ from .security.input_validation import (
     validate_user_id, validate_quest_title, validate_quest_description,
     validate_difficulty, validate_reward_xp, validate_category, validate_privacy,
     validate_quest_kind, validate_tags, validate_target_count, validate_count_scope,
-    validate_period_days, validate_estimated_duration, validate_instructions,
+    validate_period_days,
     validate_linked_goal_ids, validate_linked_task_ids, validate_depends_on_quest_ids,
     validate_deadline, SecurityValidationError
 )
@@ -105,6 +105,13 @@ from .settings import Settings
 
 # ---------- Logging ----------
 logger = get_structured_logger("quest-service", env_flag="QUEST_LOG_ENABLED", default_enabled=True)
+
+# Log Lambda image version for debugging
+lambda_image_version = os.getenv("AWS_LAMBDA_FUNCTION_VERSION", "unknown")
+logger.info('quest.service.startup', 
+           environment=os.getenv("ENVIRONMENT", "unknown"),
+           lambda_image_version=lambda_image_version,
+           aws_region=os.getenv("AWS_REGION", "unknown"))
 
 
 
@@ -200,41 +207,86 @@ def check_goal_access(user_id: str, goal_id: str, table) -> tuple[bool, str, Opt
         - owner_user_id: ID of the actual owner (None if user is owner)
     """
     try:
+        logger.info('goal.access_check_start', 
+                   user_id=user_id, 
+                   goal_id=goal_id,
+                   lambda_image_version=os.getenv("AWS_LAMBDA_FUNCTION_VERSION", "unknown"))
+        
         # First check if user is the owner
         response = table.get_item(
             Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{goal_id}"}
         )
         
         if "Item" in response:
+            logger.info('goal.access_check_owner_found', user_id=user_id, goal_id=goal_id)
             return True, "owner", None
         
-        # If not owner, check if user is a collaborator
-        # We need to find the actual owner first
-        owner_scan = table.scan(
-            FilterExpression=Attr("type").eq("Goal") & Attr("id").eq(goal_id),
-            ProjectionExpression="PK",
+        logger.info('goal.access_check_not_owner', user_id=user_id, goal_id=goal_id)
+        
+        # Check if user is a collaborator using GSI1
+        # GSI1PK = GOAL#{goal_id}, GSI1SK = USER#{user_id}
+        from boto3.dynamodb.conditions import Key, Attr
+        
+        collaborator_query = table.query(
+            
+            KeyConditionExpression=Key("PK").eq(f"RESOURCE#GOAL#{goal_id}") & Key("SK").eq(f"COLLABORATOR#{user_id}")          ,            
+            ProjectionExpression="resourceId",
             Limit=1
         )
         
-        if not owner_scan.get("Items"):
+        logger.info('goal.access_check_collaborator_query', 
+                   user_id=user_id, 
+                   goal_id=goal_id, 
+                   query_count=len(collaborator_query.get("Items", [])))
+        
+        if collaborator_query.get("Items"):
+            # User is a collaborator, extract owner from the collaborator record
+            collaborator_item = collaborator_query["Items"][0]
+            # The PK format is RESOURCE#GOAL#{goal_id}, we need to find the actual owner
+            # We'll need to scan for the goal to find the owner
+            logger.info('goal.access_check_scanning_for_goal', 
+                       user_id=user_id, 
+                       goal_id=goal_id,
+                       message="Scanning for goal to find owner")
+            
+            owner_scan = table.query(
+                 IndexName="GSI1",
+                    KeyConditionExpression=Key("GSI1PK").eq(f"GOAL#{goal_id}") & Key("GSI1SK").begins_with("USER#"),                    
+                    ProjectionExpression="GSI1SK",
+                    Limit=1
+            )
+            
+            logger.info('goal.access_check_scan_result', 
+                       user_id=user_id, 
+                       goal_id=goal_id,
+                       scan_count=len(owner_scan.get("Items", [])),
+                       scan_items=owner_scan.get("Items", []))
+            
+            if owner_scan.get("Items"):
+                owner_gsi1sk = owner_scan["Items"][0]["GSI1SK"]
+                owner_user_id = owner_gsi1sk.replace("USER#", "")
+                
+                logger.info('goal.access_check_collaboration_found', 
+                           user_id=user_id, 
+                           goal_id=goal_id, 
+                           owner_user_id=owner_user_id)
+                
+                return True, "collaborator", owner_user_id
+            else:
+                # User is a collaborator but goal doesn't exist - this is a data consistency issue
+                # We should still grant access since the collaboration record exists
+                logger.warning('goal.access_check_collaborator_but_no_goal', 
+                              user_id=user_id, 
+                              goal_id=goal_id,
+                              message="Collaboration exists but goal not found - granting access anyway")
+                
+                # Return True with a special access type to indicate the goal is missing
+                return True, "collaborator_missing_goal", None
+        else:
+            logger.warning('goal.access_check_no_collaboration', 
+                          user_id=user_id, 
+                          goal_id=goal_id)
             return False, "none", None
-        
-        # Extract owner user_id from PK (USER#{user_id})
-        owner_pk = owner_scan["Items"][0]["PK"]
-        owner_user_id = owner_pk.replace("USER#", "")
-        
-        # Check if requesting user is a collaborator
-        collaborator_pk = f"RESOURCE#GOAL#{goal_id}"
-        collaborator_sk = f"COLLABORATOR#{user_id}"
-        
-        collaborator_response = table.get_item(
-            Key={"PK": collaborator_pk, "SK": collaborator_sk}
-        )
-        
-        if "Item" not in collaborator_response:
-            return False, "none", owner_user_id
-        
-        return True, "collaborator", owner_user_id
         
     except Exception as e:
         logger.error('goal.access_check_failed',
@@ -411,8 +463,8 @@ def _build_goal_item(user_id: str, payload: GoalCreatePayload) -> Dict:
         "status": "active",
         "createdAt": now_ms,
         "updatedAt": now_ms,
-        "GSI1PK": f"USER#{user_id}",
-        "GSI1SK": f"ENTITY#Goal#{now_ms}",
+        "GSI1PK": f"GOAL#{goal_id}",
+        "GSI1SK": f"USER#{user_id}",
     }
     return item
 
@@ -430,6 +482,105 @@ def _to_response(item: Dict) -> GoalResponse:
         status=str(item.get("status", "active")),
         createdAt=int(item.get("createdAt", 0)),
         updatedAt=int(item.get("updatedAt", 0)),
+    )
+
+
+def get_quests_for_goal(user_id: str, goal_id: str, table) -> List[QuestResponse]:
+    """
+    Get all quests for a specific goal.
+    
+    Args:
+        user_id: User ID to get quests for
+        goal_id: Goal ID to filter quests by
+        table: DynamoDB table
+        
+    Returns:
+        List of QuestResponse objects
+    """
+    try:
+        # Query for quests with the specific goal_id
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("QUEST#"),
+            FilterExpression=Attr("linkedGoalIds").contains(goal_id),
+            ProjectionExpression="PK, SK, id, title, description, linkedGoalIds, #status, difficulty, kind, privacy, createdAt, updatedAt, startedAt, completedAt, failedAt, cancelledAt, #type, userid, rewardXp, category, version, deadline, linkedTaskIds, dependsOnQuestIds",
+            ExpressionAttributeNames={"#type": "type", "#status": "status"}
+        )
+        
+        quests = []
+        for item in response.get("Items", []):
+            quest_data = QuestResponse(
+                id=str(item.get("id", "")),
+                userId=str(item.get("userid", user_id)),  # Use userid from item or fallback to user_id
+                title=str(item.get("title", "")),
+                description=str(item.get("description", "")),
+                difficulty=str(item.get("difficulty", "easy")),
+                rewardXp=int(item.get("rewardXp", 0)),
+                status=str(item.get("status", "draft")),
+                category=str(item.get("category", "General")),
+                tags=[],  # Default empty list
+                privacy=str(item.get("privacy", "private")),
+                deadline=int(item.get("deadline", 0)) if item.get("deadline") else None,
+                createdAt=int(item.get("createdAt", 0)),
+                updatedAt=int(item.get("updatedAt", 0)),
+                startedAt=int(item.get("startedAt", 0)) if item.get("startedAt") else None,
+                completedAt=int(item.get("completedAt", 0)) if item.get("completedAt") else None,
+                failedAt=int(item.get("failedAt", 0)) if item.get("failedAt") else None,
+                cancelledAt=int(item.get("cancelledAt", 0)) if item.get("cancelledAt") else None,
+                version=int(item.get("version", 1)),
+                kind=str(item.get("kind", "daily")),
+                linkedGoalIds=item.get("linkedGoalIds", []),
+                linkedTaskIds=item.get("linkedTaskIds", []),
+                dependsOnQuestIds=item.get("dependsOnQuestIds", []),
+            )
+            quests.append(quest_data)
+        
+        logger.info('quest.get_quests_for_goal_success', 
+                   user_id=user_id, 
+                   goal_id=goal_id,
+                   count=len(quests))
+        
+        return quests
+        
+    except Exception as e:
+        logger.error('quest.get_quests_for_goal_failed', 
+                    user_id=user_id, 
+                    goal_id=goal_id,
+                    exc_info=e)
+        raise
+
+
+def _to_response_with_access(item: Dict, access_type: str, current_user_id: str) -> GoalWithAccessResponse:
+    """
+    Convert DynamoDB item to GoalWithAccessResponse with access control information.
+    
+    Args:
+        item: DynamoDB goal item
+        access_type: "owner" or "collaborator"
+        current_user_id: ID of the current user making the request
+        
+    Returns:
+        GoalWithAccessResponse with access control fields
+    """
+    is_owner = access_type == "owner"
+    
+    return GoalWithAccessResponse(
+        id=str(item.get("id")),
+        userId=str(item.get("userId")),
+        title=str(item.get("title", "")),
+        description=_sanitize_string(item.get("description")),
+        category=_sanitize_string(item.get("category")) if item.get("category") else None,
+        tags=[str(tag) for tag in item.get("tags", []) if isinstance(tag, str)],
+        answers=[AnswerOutput(**a) for a in _serialize_answers(item.get("answers"))],
+        deadline=_normalize_deadline_output(item.get("deadline")),
+        status=str(item.get("status", "active")),
+        createdAt=int(item.get("createdAt", 0)),
+        updatedAt=int(item.get("updatedAt", 0)),
+        # Access control fields
+        accessType=access_type,
+        canEdit=is_owner,
+        canDelete=is_owner,
+        canAddTasks=is_owner,
+        canComment=True,  # Both owners and collaborators can comment
     )
 
 
@@ -1044,9 +1195,115 @@ async def delete_task(
 __all__ = ["app"]
 
 
+# ---------- Quest Template Endpoints ----------
+
+@app.get("/quests/templates/{template_id}", response_model=QuestTemplateResponse)
+async def get_quest_template(
+    template_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Get a quest template by ID"""
+    log_event(logger, 'quest_template.get_start', user_id=auth.user_id, template_id=template_id)
+    
+    try:
+        template = get_template(template_id, auth.user_id)
+        log_event(logger, 'quest_template.get_success', user_id=auth.user_id, template_id=template_id)
+        return template
+    except QuestTemplateNotFoundError as e:
+        log_event(logger, 'quest_template.get_not_found', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestTemplatePermissionError as e:
+        log_event(logger, 'quest_template.get_permission_error', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.get_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to get quest template")
+
+
+@app.put("/quests/templates/{template_id}", response_model=QuestTemplateResponse)
+async def update_quest_template(
+    template_id: str,
+    payload: QuestTemplateUpdatePayload,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Update a quest template"""
+    log_event(logger, 'quest_template.update_start', user_id=auth.user_id, template_id=template_id)
+    
+    try:
+        template = update_template(template_id, auth.user_id, payload)
+        log_event(logger, 'quest_template.update_success', user_id=auth.user_id, template_id=template_id)
+        return template
+    except QuestTemplateNotFoundError as e:
+        log_event(logger, 'quest_template.update_not_found', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestTemplatePermissionError as e:
+        log_event(logger, 'quest_template.update_permission_error', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestTemplateValidationError as e:
+        log_event(logger, 'quest_template.update_validation_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.update_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update quest template")
+
+
+@app.delete("/quests/templates/{template_id}")
+async def delete_quest_template(
+    template_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Delete a quest template"""
+    log_event(logger, 'quest_template.delete_start', user_id=auth.user_id, template_id=template_id)
+    
+    try:
+        delete_template(template_id, auth.user_id)
+        log_event(logger, 'quest_template.delete_success', user_id=auth.user_id, template_id=template_id)
+        return {"success": True, "message": "Quest template deleted successfully"}
+    except QuestTemplateNotFoundError as e:
+        log_event(logger, 'quest_template.delete_not_found', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestTemplatePermissionError as e:
+        log_event(logger, 'quest_template.delete_permission_error', user_id=auth.user_id, template_id=template_id)
+        raise HTTPException(status_code=403, detail=str(e))
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.delete_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete quest template")
+
+
+@app.get("/quests/templates", response_model=QuestTemplateListResponse)
+async def list_quest_templates(
+    auth: AuthContext = Depends(authenticate),
+    limit: int = 50,
+    next_token: str = None,
+    privacy: str = "user"  # "user", "public", "all"
+):
+    """List quest templates"""
+    log_event(logger, 'quest_template.list_start', user_id=auth.user_id, limit=limit, privacy=privacy)
+    
+    try:
+        if privacy == "public":
+            result = list_public_templates(limit, next_token)
+        else:
+            result = list_user_templates(auth.user_id, limit, next_token)
+        
+        log_event(logger, 'quest_template.list_success', 
+                 user_id=auth.user_id, 
+                 count=len(result['templates']), 
+                 total=result['total'])
+        
+        return QuestTemplateListResponse(**result)
+    except QuestTemplateDBError as e:
+        log_event(logger, 'quest_template.list_db_error', user_id=auth.user_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list quest templates")
+    except Exception as e:
+        log_event(logger, 'quest_template.list_unexpected_error', user_id=auth.user_id, error=str(e), error_type=type(e).__name__)
+        # Return empty list instead of error if user has no templates
+        return QuestTemplateListResponse(templates=[], total=0, hasMore=False, nextToken=None)
+
+
 # ---------- Goal Access Endpoints ----------
 
-@app.get("/quests/{goal_id}", response_model=GoalResponse)
+@app.get("/quests/{goal_id}", response_model=GoalWithAccessResponse)
 async def get_goal(
     goal_id: str,
     auth: AuthContext = Depends(authenticate),
@@ -1054,6 +1311,7 @@ async def get_goal(
 ):
     """
     Get a specific goal by ID with collaboration access support.
+    Returns access control information for the frontend.
     """
     logger.info('goal.get_requested', goal_id=goal_id, user_id=auth.user_id)
     
@@ -1063,6 +1321,14 @@ async def get_goal(
         
         if not has_access:
             logger.warning('goal.access_denied', goal_id=goal_id, user_id=auth.user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Handle special case where user is collaborator but goal doesn't exist
+        if access_type == "collaborator_missing_goal":
+            logger.warning('goal.collaborator_access_but_goal_missing', 
+                         goal_id=goal_id, 
+                         user_id=auth.user_id,
+                         message="User has collaboration access but goal doesn't exist")
             raise HTTPException(status_code=404, detail="Goal not found")
         
         # Use the actual owner's user_id to get the goal
@@ -1087,12 +1353,14 @@ async def get_goal(
             raise HTTPException(status_code=404, detail="Goal not found")
         
         goal_item = response["Item"]
-        goal_data = _goal_item_to_response(goal_item)
+        goal_data = _to_response_with_access(goal_item, access_type, auth.user_id)
         
         logger.info('goal.get_success', 
                    goal_id=goal_id, 
                    user_id=auth.user_id,
-                   access_type=access_type)
+                   access_type=access_type,
+                   can_edit=goal_data.canEdit,
+                   can_comment=goal_data.canComment)
         
         return goal_data
         
@@ -1479,13 +1747,29 @@ async def create_quest_endpoint(
             targetCount=validate_target_count(payload.targetCount) if payload.targetCount else None,
             countScope=validate_count_scope(payload.countScope) if payload.countScope else None,
             periodDays=validate_period_days(payload.periodDays) if payload.periodDays else None,
-            estimatedDuration=validate_estimated_duration(payload.estimatedDuration) if payload.estimatedDuration else None,
-            instructions=validate_instructions(payload.instructions) if payload.instructions else None,
             linkedGoalIds=validate_linked_goal_ids(payload.linkedGoalIds) if payload.linkedGoalIds else None,
             linkedTaskIds=validate_linked_task_ids(payload.linkedTaskIds) if payload.linkedTaskIds else None,
             dependsOnQuestIds=validate_depends_on_quest_ids(payload.dependsOnQuestIds) if payload.dependsOnQuestIds else None,
             deadline=validate_deadline(payload.deadline) if payload.deadline else None,
         )
+        
+        # Check access to linked goals if any
+        if validated_payload.linkedGoalIds:
+            for goal_id in validated_payload.linkedGoalIds:
+                has_access, access_type, owner_user_id = check_goal_access(auth.user_id, goal_id, table)
+                if not has_access:
+                    logger.warning('quest.create_quest_linked_goal_access_denied', 
+                                 user_id=auth.user_id, 
+                                 goal_id=goal_id,
+                                 quest_title=validated_payload.title)
+                    raise HTTPException(status_code=403, detail=f"Access denied to goal {goal_id}")
+                
+                # Log access check for audit
+                logger.info('quest.create_quest_linked_goal_access_granted', 
+                           user_id=auth.user_id, 
+                           goal_id=goal_id,
+                           access_type=access_type,
+                           quest_title=validated_payload.title)
         
         # Create quest using database helper
         quest = create_quest(auth.user_id, validated_payload)
@@ -1543,6 +1827,124 @@ async def create_quest_endpoint(
         raise HTTPException(status_code=500, detail="Failed to create quest")
 
 
+@app.get("/quests", response_model=List[QuestResponse])
+async def list_user_quests_endpoint(
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    List all quests for the authenticated user.
+    """
+    logger.info('quest.list_user_quests_requested', user_id=auth.user_id)
+    
+    try:
+        # Query for all quests for this user
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"USER#{auth.user_id}") & Key("SK").begins_with("QUEST#"),
+            ProjectionExpression="PK, SK, id, title, description, linkedGoalIds, #status, difficulty, kind, privacy, createdAt, updatedAt, startedAt, completedAt, failedAt, cancelledAt, #type, userid, rewardXp, category, version, deadline, linkedTaskIds, dependsOnQuestIds, targetCount, countScope, periodDays",
+            ExpressionAttributeNames={"#type": "type", "#status": "status"}
+        )
+        
+        quests = []
+        for item in response.get("Items", []):
+            quest_data = QuestResponse(
+                id=str(item.get("id", "")),
+                userId=str(item.get("userid", auth.user_id)),
+                title=str(item.get("title", "")),
+                description=str(item.get("description", "")),
+                difficulty=str(item.get("difficulty", "easy")),
+                rewardXp=int(item.get("rewardXp", 0)),
+                status=str(item.get("status", "draft")),
+                category=str(item.get("category", "General")),
+                tags=[],  # Default empty list
+                privacy=str(item.get("privacy", "private")),
+                deadline=int(item.get("deadline", 0)) if item.get("deadline") else None,
+                createdAt=int(item.get("createdAt", 0)),
+                updatedAt=int(item.get("updatedAt", 0)),
+                startedAt=int(item.get("startedAt", 0)) if item.get("startedAt") else None,
+                completedAt=int(item.get("completedAt", 0)) if item.get("completedAt") else None,
+                failedAt=int(item.get("failedAt", 0)) if item.get("failedAt") else None,
+                cancelledAt=int(item.get("cancelledAt", 0)) if item.get("cancelledAt") else None,
+                version=int(item.get("version", 1)),
+                kind=str(item.get("kind", "daily")),
+                linkedGoalIds=item.get("linkedGoalIds", []),
+                linkedTaskIds=item.get("linkedTaskIds", []),
+                dependsOnQuestIds=item.get("dependsOnQuestIds", []),
+                targetCount=item.get("targetCount"),
+                countScope=item.get("countScope"),
+                periodDays=item.get("periodDays"),
+            )
+            quests.append(quest_data)
+        
+        logger.info('quest.list_user_quests_success', 
+                   user_id=auth.user_id,
+                   count=len(quests))
+        
+        return quests
+        
+    except Exception as e:
+        logger.error('quest.list_user_quests_failed', 
+                     user_id=auth.user_id,
+                     exc_info=e)
+        raise HTTPException(status_code=500, detail="Failed to list user quests")
+
+@app.get("/quests/{goal_id}/quests", response_model=List[QuestResponse])
+async def list_goal_quests_endpoint(
+    goal_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    List all quests for a specific goal with collaboration access support.
+    """
+    logger.info('quest.list_goal_quests_requested', user_id=auth.user_id, goal_id=goal_id)
+    
+    try:
+        # First check if user has access to the goal
+        has_access, access_type, owner_user_id = check_goal_access(auth.user_id, goal_id, table)
+        
+        if not has_access:
+            logger.warning('quest.list_goal_quests_access_denied', goal_id=goal_id, user_id=auth.user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Handle special case where user is collaborator but goal doesn't exist
+        if access_type == "collaborator_missing_goal":
+            logger.warning('quest.list_goal_quests_collaborator_access_but_goal_missing', 
+                         goal_id=goal_id, 
+                         user_id=auth.user_id,
+                         message="User has collaboration access but goal doesn't exist")
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Use the actual owner's user_id to get the quests
+        quest_user_id = owner_user_id if owner_user_id else auth.user_id
+        
+        logger.info('quest.list_goal_quests_access_granted', 
+                   goal_id=goal_id, 
+                   user_id=auth.user_id, 
+                   access_type=access_type,
+                   quest_user_id=quest_user_id)
+        
+        # Get quests for the specific goal
+        quests = get_quests_for_goal(quest_user_id, goal_id, table)
+        
+        logger.info('quest.list_goal_quests_success', 
+                   user_id=auth.user_id, 
+                   goal_id=goal_id,
+                   count=len(quests),
+                   access_type=access_type)
+        
+        return quests
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error('quest.list_goal_quests_failed', 
+                    user_id=auth.user_id, 
+                    goal_id=goal_id,
+                    exc_info=e)
+        raise HTTPException(status_code=500, detail="Failed to list goal quests")
+
+
 @app.get("/quests/quests/{quest_id}", response_model=QuestResponse)
 async def get_quest_endpoint(
     quest_id: str,
@@ -1556,7 +1958,7 @@ async def get_quest_endpoint(
     
     try:
         # Use the existing get_quest function which already has collaboration access
-        quest_data = get_quest(auth.user_id, quest_id, table)
+        quest_data = get_quest(auth.user_id, quest_id)
         
         logger.info('quest.get_success', 
                    quest_id=quest_id, 
@@ -1924,7 +2326,7 @@ async def create_quest_template(
         raise HTTPException(status_code=500, detail="Failed to create quest template")
 
 
-@app.get("/quests/templates/{template_id}", response_model=QuestTemplateResponse)
+@app.get("/quests/analytics", response_model=QuestAnalytics)
 async def get_quest_template(
     template_id: str,
     auth: AuthContext = Depends(authenticate)
@@ -2022,6 +2424,10 @@ async def list_quest_templates(
     except QuestTemplateDBError as e:
         log_event(logger, 'quest_template.list_db_error', user_id=auth.user_id, error=str(e))
         raise HTTPException(status_code=500, detail="Failed to list quest templates")
+    except Exception as e:
+        log_event(logger, 'quest_template.list_unexpected_error', user_id=auth.user_id, error=str(e), error_type=type(e).__name__)
+        # Return empty list instead of error if user has no templates
+        return QuestTemplateListResponse(templates=[], total=0, hasMore=False, nextToken=None)
 
 
 @app.get("/quests/analytics", response_model=QuestAnalytics)

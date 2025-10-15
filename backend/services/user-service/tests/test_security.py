@@ -76,7 +76,7 @@ def test_issue_local_jwt():
 
     assert "access_token" in token_data
     assert "expires_in" in token_data
-    assert token_data["expires_in"] == 1200  # default TTL
+    assert token_data["expires_in"] == 3600  # default TTL
 
     # Verify the token
     payload = verify_local_jwt(token_data["access_token"])

@@ -84,6 +84,12 @@ interface GoalDetailsData {
     achievedAt?: number;
     description?: string;
   }>;
+  // Access control fields
+  accessType?: string;  // "owner" or "collaborator"
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canAddTasks?: boolean;
+  canComment?: boolean;
 }
 
 interface Task {
@@ -132,131 +138,63 @@ const GoalDetails: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Load goals with tasks for progress calculation
-      const goalsWithTasks = await getGoalsWithTasks();
-      const goalWithTasks = goalsWithTasks.find(g => g.id === id);
+      // Load goal details with access control information
+      const goalData = await getGoal(id);
       
-      if (goalWithTasks) {
-        // Calculate progress using frontend calculation
-        const progressData = calculateGoalProgress(goalWithTasks);
-        
-        // Create goal data for details display
-        const goalData: GoalDetailsData = {
-          id: goalWithTasks.id,
-          title: goalWithTasks.title,
-          description: '', // Not available in GoalWithTasks
-          status: goalWithTasks.status as GoalStatus,
-          deadline: goalWithTasks.deadline,
-          tags: [], // Not available in GoalWithTasks
-          createdAt: goalWithTasks.createdAt,
-          updatedAt: goalWithTasks.createdAt, // Use createdAt as fallback
-          answers: [], // Not available in GoalWithTasks
-          category: '', // Not available in GoalWithTasks
-          progress: progressData.progressPercentage,
-          taskProgress: progressData.taskProgress,
-          timeProgress: progressData.timeProgress,
-          completedTasks: progressData.completedTasks,
-          totalTasks: progressData.totalTasks,
-          milestones: progressData.milestones
-        };
-        
-        // Create progress data for DualProgressBar
-        const progressGoalData: GoalProgressData = {
-          id: goalWithTasks.id,
-          title: goalWithTasks.title,
-          deadline: goalWithTasks.deadline,
-          status: goalWithTasks.status,
-          createdAt: goalWithTasks.createdAt,
-          updatedAt: goalWithTasks.createdAt,
-          tags: [],
-          progress: progressData.progressPercentage,
-          taskProgress: progressData.taskProgress,
-          timeProgress: progressData.timeProgress,
-          completedTasks: progressData.completedTasks,
-          totalTasks: progressData.totalTasks,
-          milestones: progressData.milestones
-        };
-        
-        setGoal(goalData);
-        setGoalWithProgress(progressGoalData);
-        return;
-      }
+      // Create goal data for details display
+      const goalDetailsData: GoalDetailsData = {
+        id: goalData.id,
+        title: goalData.title,
+        description: goalData.description,
+        status: goalData.status as GoalStatus,
+        deadline: goalData.deadline,
+        tags: goalData.tags,
+        createdAt: goalData.createdAt,
+        updatedAt: goalData.updatedAt,
+        answers: goalData.answers,
+        category: goalData.category,
+        progress: goalData.progress,
+        taskProgress: goalData.taskProgress,
+        timeProgress: goalData.timeProgress,
+        completedTasks: goalData.completedTasks,
+        totalTasks: goalData.totalTasks,
+        milestones: goalData.milestones,
+        // Access control fields
+        accessType: goalData.accessType,
+        canEdit: goalData.canEdit,
+        canDelete: goalData.canDelete,
+        canAddTasks: goalData.canAddTasks,
+        canComment: goalData.canComment
+      };
       
-      // Fallback: Try the direct getGoal method
-      try {
-        const goalData = await getGoal(id);
-        setGoal(goalData);
-        
-        // Create basic progress data without tasks
-        const basicProgressData: GoalProgressData = {
-          id: goalData.id,
-          title: goalData.title,
-          deadline: goalData.deadline || undefined,
-          status: goalData.status,
-          createdAt: goalData.createdAt,
-          updatedAt: goalData.updatedAt,
-          tags: goalData.tags || [],
-          progress: goalData.progress || 0,
-          taskProgress: goalData.taskProgress || 0,
-          timeProgress: goalData.timeProgress || 0,
-          completedTasks: goalData.completedTasks || 0,
-          totalTasks: goalData.totalTasks || 0,
-          milestones: goalData.milestones || []
-        };
-        setGoalWithProgress(basicProgressData);
-        return;
-      } catch (getGoalError) {
-        logger.warn('getGoal failed, trying loadGoals workaround', { goalId: id, error: getGoalError });
-        
-        // Final fallback: Load all goals and filter by ID
-        const allGoals = await loadGoals();
-        const foundGoal = allGoals.find(goal => goal.id === id);
-        
-        if (foundGoal) {
-          // Transform the goal data to match the expected format
-          const goalData: GoalDetailsData = {
-            id: foundGoal.id,
-            title: foundGoal.title,
-            description: foundGoal.description || '',
-            status: foundGoal.status as GoalStatus,
-            deadline: foundGoal.deadline,
-            tags: foundGoal.tags || [],
-            createdAt: foundGoal.createdAt,
-            updatedAt: foundGoal.updatedAt,
-            answers: foundGoal.answers || [],
-            category: foundGoal.category,
-            progress: foundGoal.progress
-          };
-          setGoal(goalData);
-          
-          // Create basic progress data
-          const basicProgressData: GoalProgressData = {
-            id: foundGoal.id,
-            title: foundGoal.title,
-            deadline: foundGoal.deadline || undefined,
-            status: foundGoal.status,
-            createdAt: foundGoal.createdAt,
-            updatedAt: foundGoal.updatedAt,
-            tags: foundGoal.tags || [],
-            progress: foundGoal.progress || 0
-          };
-          setGoalWithProgress(basicProgressData);
-        } else {
-          throw new Error('Goal not found');
-        }
-      }
-    } catch (e: any) {
-      const errorMessage = e?.message || 'Failed to load goal details';
-      setError(errorMessage);
-      toast({
-        title: goalDetailsTranslations?.messages?.error || 'Error',
-        description: errorMessage,
-        variant: 'destructive'
-      });
+      setGoal(goalDetailsData);
+      
+      // Create progress data for DualProgressBar
+      const progressGoalData: GoalProgressData = {
+        id: goalData.id,
+        title: goalData.title,
+        deadline: goalData.deadline || undefined,
+        status: goalData.status,
+        createdAt: goalData.createdAt,
+        updatedAt: goalData.updatedAt,
+        tags: goalData.tags || [],
+        progress: goalData.progress || 0,
+        taskProgress: goalData.taskProgress || 0,
+        timeProgress: goalData.timeProgress || 0,
+        completedTasks: goalData.completedTasks || 0,
+        totalTasks: goalData.totalTasks || 0,
+        milestones: goalData.milestones || []
+      };
+      
+      setGoalWithProgress(progressGoalData);
+      
+    } catch (error: any) {
+      logger.error('Error loading goal details', { goalId: id, error: error?.message || error });
+      setError(error?.message || 'Failed to load goal details');
     } finally {
       setLoading(false);
     }
-  }, [id, toast, goalDetailsTranslations]);
+  }, [id]);
 
   useEffect(() => {
     loadGoalDetails();
@@ -589,43 +527,55 @@ const GoalDetails: React.FC = () => {
             <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.viewTasks || 'View Tasks'}</span>
             <span className="sm:hidden">Tasks</span>
           </Button>
-          <Button variant="outline" onClick={handleCreateTask}>
-            <Plus className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.createTask || 'Create Task'}</span>
-            <span className="sm:hidden">Create</span>
-          </Button>
-          <Button onClick={handleEditGoal}>
-            <Edit className="w-4 h-4 mr-2" />
-            {goalDetailsTranslations?.actions?.edit || 'Edit'}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={deleting}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.delete || 'Delete'}</span>
-                <span className="sm:hidden">Delete</span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Goal</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {goalDetailsTranslations?.messages?.deleteConfirm || 
-                   'Are you sure you want to delete this goal? This action cannot be undone.'}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteGoal}
-                  disabled={deleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {deleting ? 'Deleting...' : 'Delete'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          
+          {/* Only show Create Task button if user can add tasks */}
+          {goal?.canAddTasks && (
+            <Button variant="outline" onClick={handleCreateTask}>
+              <Plus className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.createTask || 'Create Task'}</span>
+              <span className="sm:hidden">Create</span>
+            </Button>
+          )}
+          
+          {/* Only show Edit button if user can edit */}
+          {goal?.canEdit && (
+            <Button onClick={handleEditGoal}>
+              <Edit className="w-4 h-4 mr-2" />
+              {goalDetailsTranslations?.actions?.edit || 'Edit'}
+            </Button>
+          )}
+          
+          {/* Only show Delete button if user can delete */}
+          {goal?.canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={deleting}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.delete || 'Delete'}</span>
+                  <span className="sm:hidden">Delete</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {goalDetailsTranslations?.messages?.deleteConfirm || 
+                     'Are you sure you want to delete this goal? This action cannot be undone.'}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteGoal}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? 'Deleting...' : 'Delete'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 
@@ -761,6 +711,8 @@ const GoalDetails: React.FC = () => {
             <GoalQuestsSection
               goalId={goal.id}
               goalTitle={goal.title}
+              canCreate={goal?.canAddTasks || false}
+              canViewAll={goal?.canEdit || false}
             />
           </ErrorBoundary>
         </div>
@@ -901,6 +853,9 @@ const GoalDetails: React.FC = () => {
         onDeleteTask={handleTaskDelete}
         onTasksChange={loadGoalTasks}
         onCreateTask={handleCreateTask}
+        canEdit={goal?.canEdit || false}
+        canDelete={goal?.canDelete || false}
+        canCreate={goal?.canAddTasks || false}
       />
 
       {/* Create Task Modal */}
@@ -919,14 +874,17 @@ const GoalDetails: React.FC = () => {
             resourceId={goal.id}
             resourceTitle={goal.title}
             currentUserId={getUserIdFromToken() || ''}
-            isOwner={true} // TODO: Implement proper ownership check based on goal creator
+            isOwner={goal.canEdit || false} // Use access control information
             onInviteClick={() => setShowInviteModal(true)}
           />
 
-          <CommentSection
-            resourceType="goal"
-            resourceId={goal.id}
-          />
+          {/* Only show comment section if user can comment */}
+          {goal.canComment && (
+            <CommentSection
+              resourceType="goal"
+              resourceId={goal.id}
+            />
+          )}
         </div>
       )}
 

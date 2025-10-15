@@ -56,13 +56,15 @@ export async function loadQuests(goalId?: string): Promise<Quest[]> {
       throw new Error('No access token available');
     }
 
-    // Build query parameters
-    const params = new URLSearchParams();
+    // Build URL based on whether goalId is provided
+    let url;
     if (goalId) {
-      params.append('goalId', goalId);
+      // Call the specific goal quests endpoint
+      url = `${apiBase}/quests/${goalId}/quests`;
+    } else {
+      // Call the general quests endpoint
+      url = `${apiBase}/quests`;
     }
-
-    const url = `${apiBase}/quests/quests${params.toString() ? `?${params.toString()}` : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',

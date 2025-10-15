@@ -98,21 +98,3 @@ class GoalProgressResponse(BaseModel):
     isUrgent: bool
 
 
-class GoalResponse(BaseModel):
-    id: str
-    userId: str
-    title: str
-    description: str
-    category: Optional[str]
-    tags: List[str]
-    answers: List[AnswerOutput]
-    deadline: Optional[str]
-    status: str
-    createdAt: int
-    updatedAt: int
-    # Progress fields
-    progress: Optional[float] = None
-    milestones: Optional[List[Milestone]] = None
-    completedTasks: Optional[int] = None
-    totalTasks: Optional[int] = None
-

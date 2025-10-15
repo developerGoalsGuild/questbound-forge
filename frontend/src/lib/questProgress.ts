@@ -52,6 +52,8 @@ export interface QuantitativeQuestProgress extends QuestProgress {
   countScope: QuestCountScope;
   periodDays: number;
   progressRate: number; // items per day
+  isValid?: boolean; // true if quest has all required fields
+  error?: string; // error message if quest is invalid
 }
 
 export type DetailedQuestProgress = LinkedQuestProgress | QuantitativeQuestProgress;
@@ -255,16 +257,53 @@ export const calculateQuantitativeQuestProgress = async (quest: Quest): Promise<
     throw new Error('Quest must be of type "quantitative" to calculate quantitative quest progress');
   }
 
+  // Check if quest has required quantitative fields
   if (!quest.targetCount || quest.targetCount <= 0) {
-    throw new Error('Quantitative quest must have a valid target count');
+    logger.warn('Quantitative quest missing target count', { questId: quest.id, targetCount: quest.targetCount });
+    return {
+      progress: 0,
+      targetCount: 0,
+      currentCount: 0,
+      percentage: 0,
+      isCompleted: false,
+      isValid: false,
+      error: 'Quest configuration incomplete: missing target count',
+      countScope: 'completed_tasks', // default value
+      periodDays: 1, // default value
+      progressRate: 0
+    };
   }
 
   if (!quest.countScope) {
-    throw new Error('Quantitative quest must have a count scope');
+    logger.warn('Quantitative quest missing count scope', { questId: quest.id, countScope: quest.countScope });
+    return {
+      progress: 0,
+      targetCount: quest.targetCount,
+      currentCount: 0,
+      percentage: 0,
+      isCompleted: false,
+      isValid: false,
+      error: 'Quest configuration incomplete: missing count scope',
+      countScope: 'completed_tasks', // default value
+      periodDays: 1, // default value
+      progressRate: 0
+    };
   }
 
   if (!quest.periodDays || quest.periodDays <= 0) {
-    throw new Error('Quantitative quest must have a valid period');
+    logger.warn('Quantitative quest missing period days', { questId: quest.id, periodDays: quest.periodDays });
+    return {
+      progress: 0,
+      targetCount: quest.targetCount,
+      currentCount: 0,
+      percentage: 0,
+      isCompleted: false,
+      isValid: false,
+      error: 'Quest configuration incomplete: missing period duration',
+      countScope: quest.countScope || 'completed_tasks', // use existing or default
+      periodDays: 1, // default value
+      progressRate: 0
+    };
   }
 
   try {
@@ -415,7 +454,8 @@ export const calculateQuantitativeQuestProgress = async (quest: Quest): Promise<
       currentCount: completedCount,
       countScope: quest.countScope,
       periodDays: quest.periodDays,
-      progressRate
+      progressRate,
+      isValid: true
     };
 
   } catch (error) {
@@ -436,7 +476,8 @@ export const calculateQuantitativeQuestProgress = async (quest: Quest): Promise<
       currentCount: 0,
       countScope: quest.countScope || 'completed_tasks',
       periodDays: quest.periodDays || 1,
-      progressRate: 0
+      progressRate: 0,
+      isValid: false
     };
   }
 };

@@ -26,6 +26,7 @@ export interface GoalResponse {
   userId: string;
   title: string;
   description: string;
+  category?: string;
   tags: string[];
   answers: GoalAnswer[];
   deadline: string | null;
@@ -34,9 +35,17 @@ export interface GoalResponse {
   updatedAt: number;
   // Backend progress fields
   progress?: number;
+  taskProgress?: number;
+  timeProgress?: number;
   milestones?: Milestone[];
   completedTasks?: number;
   totalTasks?: number;
+  // Access control fields (from GoalWithAccessResponse)
+  accessType?: string;  // "owner" or "collaborator"
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canAddTasks?: boolean;
+  canComment?: boolean;
 }
 
 export interface Milestone {
@@ -119,6 +128,7 @@ export async function createGoal(input: GoalInput): Promise<GoalResponse> {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
     },
     body: JSON.stringify(payload),
   });
@@ -368,6 +378,7 @@ export async function updateGoal(goalId: string, updates: GoalUpdateInput): Prom
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
     },
     body: JSON.stringify(payload),
   });
@@ -404,6 +415,7 @@ export async function deleteGoal(goalId: string): Promise<void> {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
     },
   });
 
