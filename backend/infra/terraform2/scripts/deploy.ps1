@@ -46,6 +46,8 @@ $StacksOrder = @(
   "authorizer",
   "services/user-service",
   "services/quest-service",
+  "services/guild-service",
+  "s3",
   "appsync",
   "apigateway"
 )

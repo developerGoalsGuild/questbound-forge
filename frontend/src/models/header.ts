@@ -80,6 +80,11 @@ export interface HeaderTranslations {
   userMenu: {
     dashboard: string;
     quests: string;
+    questDashboard: string;
+    invites: string;
+    myCollaborations: string;
+    guilds: string;
+    rankings: string;
     profile: string;
     changePassword: string;
     logout: string;

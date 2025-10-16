@@ -4,7 +4,8 @@
   [switch]$SkipInit,
   [string]$AuthorizerArn = "",
   [string]$UserLambdaArn = "",
-  [string]$QuestLambdaArn = ""
+  [string]$QuestLambdaArn = "",
+  [string]$GuildLambdaArn = ""
 )
 $ErrorActionPreference = "Stop"
 
@@ -99,6 +100,10 @@ if ($UserLambdaArn -ne "") {
 if ($QuestLambdaArn -ne "") { 
   $varArgs += @('-var', "quest_service_lambda_arn_override=$QuestLambdaArn")
   Write-Log "Using override QuestLambdaArn: $QuestLambdaArn" "INFO"
+}
+if ($GuildLambdaArn -ne "") { 
+  $varArgs += @('-var', "guild_service_lambda_arn_override=$GuildLambdaArn")
+  Write-Log "Using override GuildLambdaArn: $GuildLambdaArn" "INFO"
 }
 try {
   if (-not $SkipInit) { 
@@ -243,7 +248,40 @@ try {
         "DELETE /collaborations/comments/{comment_id}",
         "POST /collaborations/comments/{comment_id}/reactions",
         "DELETE /collaborations/comments/{comment_id}/reactions/{reaction_id}",
-        "GET /collaborations/access/{resource_type}/{resource_id}"
+        "GET /collaborations/access/{resource_type}/{resource_id}",
+        # Guild endpoints
+        "GET /guilds",
+        "POST /guilds",
+        "GET /guilds/{guild_id}",
+        "PUT /guilds/{guild_id}",
+        "DELETE /guilds/{guild_id}",
+        "POST /guilds/{guild_id}/join",
+        "POST /guilds/{guild_id}/leave",
+        "DELETE /guilds/{guild_id}/members/{user_id}",
+        "GET /guilds/rankings",
+        "GET /users/{user_id}/guilds",
+        "POST /guilds/{guild_id}/avatar/upload-url",
+        "POST /guilds/{guild_id}/avatar/confirm",
+        "GET /guilds/{guild_id}/avatar",
+        "DELETE /guilds/{guild_id}/avatar",
+        "GET /guilds/{guild_id}/comments",
+        "POST /guilds/{guild_id}/comments",
+        "PUT /guilds/{guild_id}/comments/{comment_id}",
+        "DELETE /guilds/{guild_id}/comments/{comment_id}",
+        "POST /guilds/{guild_id}/comments/{comment_id}/like",
+        "GET /guilds/{guild_id}/analytics",
+        "GET /guilds/{guild_id}/analytics/leaderboard",
+        "POST /guilds/{guild_id}/join-requests",
+        "GET /guilds/{guild_id}/join-requests",
+        "PUT /guilds/{guild_id}/join-requests/{user_id}/approve",
+        "PUT /guilds/{guild_id}/join-requests/{user_id}/reject",
+        "POST /guilds/{guild_id}/ownership/transfer",
+        "POST /guilds/{guild_id}/moderators/assign",
+        "DELETE /guilds/{guild_id}/moderators/{user_id}",
+        "POST /guilds/{guild_id}/moderation/action",
+        "POST /guilds/{guild_id}/block-user",
+        "POST /guilds/{guild_id}/unblock-user",
+        "POST /guilds/{guild_id}/comment-permission"
       )
       
       Write-Log "Expected endpoints:" "INFO"
@@ -310,6 +348,40 @@ try {
         "Add Reaction" = @{ Path = "/collaborations/comments/{comment_id}/reactions"; Method = "POST" }
         "Remove Reaction" = @{ Path = "/collaborations/comments/{comment_id}/reactions/{reaction_id}"; Method = "DELETE" }
         "Check Access" = @{ Path = "/collaborations/access/{resource_type}/{resource_id}"; Method = "GET" }
+        
+        # Guild endpoints
+        "Get Guilds" = @{ Path = "/guilds"; Method = "GET" }
+        "Create Guild" = @{ Path = "/guilds"; Method = "POST" }
+        "Get Guild" = @{ Path = "/guilds/{guild_id}"; Method = "GET" }
+        "Update Guild" = @{ Path = "/guilds/{guild_id}"; Method = "PUT" }
+        "Delete Guild" = @{ Path = "/guilds/{guild_id}"; Method = "DELETE" }
+        "Join Guild" = @{ Path = "/guilds/{guild_id}/join"; Method = "POST" }
+        "Leave Guild" = @{ Path = "/guilds/{guild_id}/leave"; Method = "POST" }
+        "Remove Guild Member" = @{ Path = "/guilds/{guild_id}/members/{user_id}"; Method = "DELETE" }
+        "Get Guild Rankings" = @{ Path = "/guilds/rankings"; Method = "GET" }
+        "Get User Guilds" = @{ Path = "/users/{user_id}/guilds"; Method = "GET" }
+        "Get Avatar Upload URL" = @{ Path = "/guilds/{guild_id}/avatar/upload-url"; Method = "POST" }
+        "Confirm Avatar Upload" = @{ Path = "/guilds/{guild_id}/avatar/confirm"; Method = "POST" }
+        "Get Guild Avatar" = @{ Path = "/guilds/{guild_id}/avatar"; Method = "GET" }
+        "Delete Guild Avatar" = @{ Path = "/guilds/{guild_id}/avatar"; Method = "DELETE" }
+        "Get Guild Comments" = @{ Path = "/guilds/{guild_id}/comments"; Method = "GET" }
+        "Create Guild Comment" = @{ Path = "/guilds/{guild_id}/comments"; Method = "POST" }
+        "Update Guild Comment" = @{ Path = "/guilds/{guild_id}/comments/{comment_id}"; Method = "PUT" }
+        "Delete Guild Comment" = @{ Path = "/guilds/{guild_id}/comments/{comment_id}"; Method = "DELETE" }
+        "Like Guild Comment" = @{ Path = "/guilds/{guild_id}/comments/{comment_id}/like"; Method = "POST" }
+        "Get Guild Analytics" = @{ Path = "/guilds/{guild_id}/analytics"; Method = "GET" }
+        "Get Guild Leaderboard" = @{ Path = "/guilds/{guild_id}/analytics/leaderboard"; Method = "GET" }
+        "Create Join Request" = @{ Path = "/guilds/{guild_id}/join-requests"; Method = "POST" }
+        "Get Join Requests" = @{ Path = "/guilds/{guild_id}/join-requests"; Method = "GET" }
+        "Approve Join Request" = @{ Path = "/guilds/{guild_id}/join-requests/{user_id}/approve"; Method = "PUT" }
+        "Reject Join Request" = @{ Path = "/guilds/{guild_id}/join-requests/{user_id}/reject"; Method = "PUT" }
+        "Transfer Guild Ownership" = @{ Path = "/guilds/{guild_id}/ownership/transfer"; Method = "POST" }
+        "Assign Guild Moderator" = @{ Path = "/guilds/{guild_id}/moderators/assign"; Method = "POST" }
+        "Remove Guild Moderator" = @{ Path = "/guilds/{guild_id}/moderators/{user_id}"; Method = "DELETE" }
+        "Guild Moderation Action" = @{ Path = "/guilds/{guild_id}/moderation/action"; Method = "POST" }
+        "Block Guild User" = @{ Path = "/guilds/{guild_id}/block-user"; Method = "POST" }
+        "Unblock Guild User" = @{ Path = "/guilds/{guild_id}/unblock-user"; Method = "POST" }
+        "Toggle Comment Permission" = @{ Path = "/guilds/{guild_id}/comment-permission"; Method = "POST" }
       }
       
       $deployedEndpoints = 0
@@ -416,6 +488,11 @@ try {
         "Quest Management" = @("Create Quest Management", "Get Quest", "Update Quest", "Start Quest", "Cancel Quest", "Fail Quest", "Delete Quest", "Check Completion", "Quest Analytics")
         "Quest Templates" = @("Get Templates", "Create Template", "Get Template", "Update Template", "Delete Template")
         "Collaboration" = @("My Collaborations", "Create Invite", "Get Invites", "Accept Invite", "Decline Invite", "Get Collaborators", "Remove Collaborator", "Get Comments", "Create Comment", "Get Comment", "Update Comment", "Delete Comment", "Add Reaction", "Remove Reaction", "Check Access")
+        "Guild" = @("Get Guilds", "Create Guild", "Get Guild", "Update Guild", "Delete Guild", "Join Guild", "Leave Guild", "Remove Guild Member", "Get Guild Rankings", "Get User Guilds")
+        "Guild Avatar" = @("Get Avatar Upload URL", "Confirm Avatar Upload", "Get Guild Avatar", "Delete Guild Avatar")
+        "Guild Comments" = @("Get Guild Comments", "Create Guild Comment", "Update Guild Comment", "Delete Guild Comment", "Like Guild Comment")
+        "Guild Analytics" = @("Get Guild Analytics", "Get Guild Leaderboard")
+        "Guild Moderation" = @("Create Join Request", "Get Join Requests", "Approve Join Request", "Reject Join Request", "Transfer Guild Ownership", "Assign Guild Moderator", "Remove Guild Moderator", "Guild Moderation Action", "Block Guild User", "Unblock Guild User", "Toggle Comment Permission")
       }
       
       Write-Host "`n=== CATEGORY BREAKDOWN ===" -ForegroundColor Cyan

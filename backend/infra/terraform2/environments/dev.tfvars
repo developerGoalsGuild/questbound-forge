@@ -57,3 +57,19 @@ tags = {
 
 # Collaboration service override (use actual ARN for API Gateway integration)
 collaboration_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_collaboration_service_dev"
+
+# S3 Guild Avatar Bucket Configuration
+guild_avatar_bucket_name = ""  # Leave empty to auto-generate
+guild_avatar_bucket_versioning = true
+guild_avatar_bucket_encryption = true
+guild_avatar_bucket_public_access_block = true
+guild_avatar_bucket_lifecycle_days = 0  # 0 to disable lifecycle
+
+# CORS Configuration
+guild_avatar_bucket_cors_origins = ["*"]
+guild_avatar_bucket_cors_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+guild_avatar_bucket_cors_headers = ["*"]
+guild_avatar_bucket_cors_max_age = 3600
+
+# Guild Service Configuration
+guild_ranking_calculation_frequency = "rate(1 day)"  # On-demand for dev (daily)

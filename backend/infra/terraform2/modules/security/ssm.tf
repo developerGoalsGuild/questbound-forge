@@ -220,3 +220,43 @@ resource "aws_ssm_parameter" "collaboration_service_env_vars" {
     Component   = "collaboration-service"
   }
 }
+
+# Guild Service Configuration
+resource "aws_ssm_parameter" "guild_service_config" {
+  name        = "/goalsguild/guild-service/config"
+  description = "Guild service configuration for GoalsGuild ${var.environment} environment"
+  type        = "String"
+  value = jsonencode({
+    # Environment
+    ENVIRONMENT = var.environment
+    
+    # Database configuration
+    GUILD_TABLE_NAME = var.guild_table_name
+    
+    # S3 configuration
+    AVATAR_S3_BUCKET = var.avatar_s3_bucket
+    
+    # Authentication configuration
+    JWT_ISSUER              = "https://auth.local"
+    JWT_AUDIENCE            = "api://default"
+    JWT_SECRET_PARAM        = aws_ssm_parameter.jwt_secret.name
+    
+    # Frontend configuration
+    FRONTEND_BASE_URL       = var.frontend_base_url
+    ALLOWED_ORIGINS         = var.frontend_allowed_origins
+    
+    # Service-specific configuration
+    LOG_LEVEL               = "INFO"
+    RATE_LIMIT_REQUESTS_PER_HOUR = "1000"
+    AVATAR_MAX_SIZE_MB      = "5"
+    AVATAR_ALLOWED_TYPES    = "image/jpeg,image/png,image/webp"
+    RANKING_CALCULATION_FREQUENCY = "rate(1 hour)"
+  })
+  overwrite   = true
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "guild-service"
+  }
+}

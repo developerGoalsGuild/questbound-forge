@@ -22,3 +22,19 @@ api_stage_name = "v1"
 lambda_authorizer_arn_override    = ""
 user_service_lambda_arn_override  = ""
 quest_service_lambda_arn_override = ""
+
+# S3 Guild Avatar Bucket Configuration
+guild_avatar_bucket_name = ""  # Leave empty to auto-generate
+guild_avatar_bucket_versioning = true
+guild_avatar_bucket_encryption = true
+guild_avatar_bucket_public_access_block = true
+guild_avatar_bucket_lifecycle_days = 365  # 1 year lifecycle
+
+# CORS Configuration
+guild_avatar_bucket_cors_origins = ["https://goalsguild.com", "https://www.goalsguild.com"]
+guild_avatar_bucket_cors_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+guild_avatar_bucket_cors_headers = ["*"]
+guild_avatar_bucket_cors_max_age = 3600
+
+# Guild Service Configuration
+guild_ranking_calculation_frequency = "rate(1 hour)"  # Hourly for production

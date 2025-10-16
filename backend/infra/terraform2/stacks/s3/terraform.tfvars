@@ -1,0 +1,20 @@
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Environment Configuration
+environment = "dev"
+project_name = "goalsguild"
+
+# Guild Avatar Bucket Configuration
+guild_avatar_bucket_name = ""  # Leave empty to auto-generate
+guild_avatar_bucket_versioning = true
+guild_avatar_bucket_encryption = true
+guild_avatar_bucket_public_access_block = true
+guild_avatar_bucket_lifecycle_days = 0  # 0 to disable lifecycle
+
+# CORS Configuration
+guild_avatar_bucket_cors_origins = ["*"]
+guild_avatar_bucket_cors_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+guild_avatar_bucket_cors_headers = ["*"]
+guild_avatar_bucket_cors_max_age = 3600
+

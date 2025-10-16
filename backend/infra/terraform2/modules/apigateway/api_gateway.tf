@@ -371,6 +371,193 @@ resource "aws_api_gateway_resource" "collaborations_access_type_id" {
   path_part   = "{resource_id}"
 }
 
+# Guild Resources
+resource "aws_api_gateway_resource" "guilds" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "guilds"
+}
+
+resource "aws_api_gateway_resource" "guilds_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds.id
+  path_part   = "{guild_id}"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_join" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "join"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_leave" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "leave"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_members" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "members"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_members_user_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_members.id
+  path_part   = "{user_id}"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_avatar" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "avatar"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_avatar_upload_url" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_avatar.id
+  path_part   = "upload-url"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_avatar_confirm" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_avatar.id
+  path_part   = "confirm"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_comments" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "comments"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_comments_comment_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_comments.id
+  path_part   = "{comment_id}"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_comments_comment_id_like" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_comments_comment_id.id
+  path_part   = "like"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_analytics" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "analytics"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_analytics_leaderboard" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_analytics.id
+  path_part   = "leaderboard"
+}
+
+resource "aws_api_gateway_resource" "guilds_rankings" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds.id
+  path_part   = "rankings"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_join_requests" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "join-requests"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_join_requests_user_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_join_requests.id
+  path_part   = "{user_id}"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_join_requests_user_id_approve" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_join_requests_user_id.id
+  path_part   = "approve"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_join_requests_user_id_reject" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_join_requests_user_id.id
+  path_part   = "reject"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_ownership_transfer" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "ownership"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_ownership_transfer_transfer" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_ownership_transfer.id
+  path_part   = "transfer"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_moderators" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "moderators"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_moderators_assign" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_moderators.id
+  path_part   = "assign"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_moderators_user_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_moderators.id
+  path_part   = "{user_id}"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_moderation" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "moderation"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_moderation_action" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_moderation.id
+  path_part   = "action"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_block_user" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "block-user"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_unblock_user" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "unblock-user"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_comment_permission" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id.id
+  path_part   = "comment-permission"
+}
+
+resource "aws_api_gateway_resource" "users_user_id_guilds" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.users.id
+  path_part   = "{user_id}"
+}
+
+resource "aws_api_gateway_resource" "users_user_id_guilds_guilds" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.users_user_id_guilds.id
+  path_part   = "guilds"
+}
+
 resource "aws_api_gateway_resource" "profile" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -2123,6 +2310,187 @@ resource "aws_api_gateway_usage_plan_key" "default_usage_plan_key" {
   key_id        = aws_api_gateway_api_key.api_key.id
   key_type      = "API_KEY"
   usage_plan_id = aws_api_gateway_usage_plan.default_usage_plan.id
+}
+
+# Guild Service Methods
+# GET /guilds
+resource "aws_api_gateway_method" "guilds_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds.id
+  http_method             = aws_api_gateway_method.guilds_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# POST /guilds
+resource "aws_api_gateway_method" "guilds_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds.id
+  http_method             = aws_api_gateway_method.guilds_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# GET /guilds/{guild_id}
+resource "aws_api_gateway_method" "guilds_id_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id.id
+  http_method             = aws_api_gateway_method.guilds_id_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# PUT /guilds/{guild_id}
+resource "aws_api_gateway_method" "guilds_id_put" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id.id
+  http_method   = "PUT"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_id_put_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id.id
+  http_method             = aws_api_gateway_method.guilds_id_put.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# DELETE /guilds/{guild_id}
+resource "aws_api_gateway_method" "guilds_id_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id.id
+  http_method   = "DELETE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_id_delete_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id.id
+  http_method             = aws_api_gateway_method.guilds_id_delete.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# POST /guilds/{guild_id}/join
+resource "aws_api_gateway_method" "guilds_id_join_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id_join.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_id_join_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id_join.id
+  http_method             = aws_api_gateway_method.guilds_id_join_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# POST /guilds/{guild_id}/leave
+resource "aws_api_gateway_method" "guilds_id_leave_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id_leave.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_id_leave_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id_leave.id
+  http_method             = aws_api_gateway_method.guilds_id_leave_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# DELETE /guilds/{guild_id}/members/{user_id}
+resource "aws_api_gateway_method" "guilds_id_members_user_id_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id_members_user_id.id
+  http_method   = "DELETE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_id_members_user_id_delete_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id_members_user_id.id
+  http_method             = aws_api_gateway_method.guilds_id_members_user_id_delete.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# GET /guilds/rankings
+resource "aws_api_gateway_method" "guilds_rankings_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_rankings.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "guilds_rankings_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_rankings.id
+  http_method             = aws_api_gateway_method.guilds_rankings_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
+# GET /users/{user_id}/guilds
+resource "aws_api_gateway_method" "users_user_id_guilds_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.users_user_id_guilds_guilds.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "users_user_id_guilds_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.users_user_id_guilds_guilds.id
+  http_method             = aws_api_gateway_method.users_user_id_guilds_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
 # Method-level throttling for sensitive endpoints

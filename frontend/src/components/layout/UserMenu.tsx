@@ -19,7 +19,9 @@ import {
   Target,
   BarChart3,
   Mail,
-  Users
+  Users,
+  Shield,
+  Trophy
 } from 'lucide-react';
 import { UserMenuProps, MenuItem } from '@/models/header';
 import { getUserInitials, getUserDisplayName } from '@/lib/apiHeader';
@@ -82,6 +84,18 @@ const UserMenu: React.FC<UserMenuProps> = ({
       label: headerTranslations?.userMenu?.myCollaborations || 'My Collaborations',
       icon: Users,
       path: '/my-collaborations',
+    },
+    {
+      id: 'guilds',
+      label: headerTranslations?.userMenu?.guilds || 'Guilds',
+      icon: Shield,
+      path: '/guilds',
+    },
+    {
+      id: 'rankings',
+      label: headerTranslations?.userMenu?.rankings || 'Rankings',
+      icon: Trophy,
+      path: '/guilds/rankings',
     },
     {
       id: 'profile',

@@ -20,7 +20,11 @@
         "test:ci": "vitest run",
         "test:watch": "vitest",
         "test:selenium": "mocha src/__tests__/selenium/quest-analytics-selenium.test.js --timeout 120000",
-        "test:selenium:verbose": "mocha src/__tests__/selenium/quest-analytics-selenium.test.js --timeout 120000 --reporter spec"
+        "test:selenium:verbose": "mocha src/__tests__/selenium/quest-analytics-selenium.test.js --timeout 120000 --reporter spec",
+        "test:accessibility": "node src/scripts/accessibility-test.js",
+        "test:accessibility:watch": "node src/scripts/accessibility-test.js --watch",
+        "test:accessibility:ci": "node src/scripts/accessibility-test.js --ci",
+        "test:accessibility:report": "node src/scripts/accessibility-test.js --report-only"
     },
     "dependencies": {
         "@apollo/client": "^4.0.4",

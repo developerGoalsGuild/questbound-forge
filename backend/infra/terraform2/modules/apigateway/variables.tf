@@ -18,6 +18,9 @@ variable "quest_service_lambda_arn" {
 variable "collaboration_service_lambda_arn" {
   type = string
 }
+variable "guild_service_lambda_arn" {
+  type = string
+}
 variable "lambda_authorizer_arn" {
   type = string
 }

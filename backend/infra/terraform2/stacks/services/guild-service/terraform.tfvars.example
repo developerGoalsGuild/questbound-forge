@@ -1,0 +1,47 @@
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Environment Configuration
+environment = "dev"
+project_name = "goalsguild"
+
+# Lambda Configuration
+lambda_package_path = "../../../guild-service/deployment-package.zip"
+
+# Database Configuration
+guild_table_name = "gg_guild"
+guild_table_arn = "arn:aws:dynamodb:us-east-1:123456789012:table/gg_guild"
+
+# S3 Configuration
+avatar_s3_bucket = "goalsguild-guild-avatars-dev"
+avatar_s3_bucket_arn = "arn:aws:s3:::goalsguild-guild-avatars-dev"
+
+# CORS Configuration
+allowed_origins = ["*"]
+
+# Rate Limiting
+rate_limit_requests_per_hour = 1000
+
+# Avatar Configuration
+avatar_max_size_mb = 5
+avatar_allowed_types = ["image/jpeg", "image/png", "image/webp"]
+
+# Ranking Configuration
+ranking_calculation_frequency = "rate(1 hour)"
+
+# VPC Configuration
+vpc_id = "vpc-12345678"
+private_subnet_ids = ["subnet-12345678", "subnet-87654321"]
+
+# API Gateway Configuration
+api_gateway_execution_arn = "arn:aws:execute-api:us-east-1:123456789012:abcdef123456"
+
+# EventBridge Configuration
+eventbridge_bus_arn = "arn:aws:events:us-east-1:123456789012:event-bus/default"
+
+# SSM Configuration
+ssm_parameter_prefix = "/goalsguild/guild-service"
+
+# Logging Configuration
+log_retention_days = 14
+

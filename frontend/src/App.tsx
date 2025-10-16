@@ -28,6 +28,7 @@ import QuestTemplateCreate from './pages/quests/QuestTemplateCreate';
 import QuestTemplateDetails from './pages/quests/QuestTemplateDetails';
 import Invites from './pages/collaborations/Invites';
 import MyCollaborations from './pages/collaborations/MyCollaborations';
+import { MyGuilds, CreateGuild, GuildDetails, GuildAnalytics, GuildRankings } from './pages/guilds';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 
@@ -69,6 +70,11 @@ const App = () => (
             <Route path="/quests/edit/:id" element={<ProtectedRoute><AuthenticatedLayout><QuestEditPage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/invites" element={<ProtectedRoute><AuthenticatedLayout><Invites /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/my-collaborations" element={<ProtectedRoute><AuthenticatedLayout><MyCollaborations /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/guilds" element={<ProtectedRoute><AuthenticatedLayout><MyGuilds /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/guilds/create" element={<ProtectedRoute><AuthenticatedLayout><CreateGuild /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/guilds/:id" element={<ProtectedRoute><AuthenticatedLayout><GuildDetails /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/guilds/analytics" element={<ProtectedRoute><AuthenticatedLayout><GuildAnalytics /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/guilds/rankings" element={<ProtectedRoute><AuthenticatedLayout><GuildRankings /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />

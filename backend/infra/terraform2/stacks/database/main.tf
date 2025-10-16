@@ -10,3 +10,5 @@ module "gg_core" {
     Component   = "database"
   }
 }
+
+# Guild table is defined in guild_table.tf

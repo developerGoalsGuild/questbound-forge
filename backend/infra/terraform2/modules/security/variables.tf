@@ -73,3 +73,15 @@ variable "api_gateway_key" {
     sensitive   = true
     default     = "placeholder-api-gateway-key"
 }
+
+variable "guild_table_name" {
+    description = "Guild DynamoDB table name"
+    type        = string
+    default     = "gg_guild"
+}
+
+variable "avatar_s3_bucket" {
+    description = "S3 bucket name for guild avatars"
+    type        = string
+    default     = ""
+}
