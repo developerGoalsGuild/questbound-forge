@@ -5,40 +5,43 @@
  * membership management, and content association.
  */
 
-import { getAccessToken } from '@/lib/utils';
+import { getAccessToken, getApiBase } from '@/lib/utils';
 
 export interface Guild {
-  guildId: string;
+  guild_id: string;
   name: string;
   description?: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt?: string;
-  memberCount: number;
-  goalCount: number;
-  questCount: number;
-  guildType: 'public' | 'private' | 'approval';
+  created_by: string;
+  created_at: string;
+  updated_at?: string;
+  member_count: number;
+  goal_count: number;
+  quest_count: number;
+  guild_type: 'public' | 'private' | 'approval';
   tags: string[];
   members?: GuildMember[];
   goals?: Goal[];
   quests?: Quest[];
+  // Owner information
+  owner_username?: string;
+  owner_nickname?: string;
   // Ranking data
   position?: number;
-  previousPosition?: number;
-  totalScore?: number;
-  activityScore?: number;
-  growthRate?: number;
+  previous_position?: number;
+  total_score?: number;
+  activity_score?: number;
+  growth_rate?: number;
   badges?: string[];
   // Avatar data
-  avatarUrl?: string;
-  avatarKey?: string;
+  avatar_url?: string;
+  avatar_key?: string;
   // Moderation data
-  moderators?: string[]; // userIds of moderators
-  pendingRequests?: number;
+  moderators?: string[]; // user_ids of moderators
+  pending_requests?: number;
   settings?: {
-    allowJoinRequests: boolean;
-    requireApproval: boolean;
-    allowComments: boolean;
+    allow_join_requests: boolean;
+    require_approval: boolean;
+    allow_comments: boolean;
   };
 }
 
@@ -46,11 +49,11 @@ export interface GuildCreateInput {
   name: string;
   description?: string;
   tags: string[];
-  guildType: 'public' | 'private' | 'approval';
+  guild_type: 'public' | 'private' | 'approval';
   settings?: {
-    allowJoinRequests?: boolean;
-    requireApproval?: boolean;
-    allowComments?: boolean;
+    allow_join_requests?: boolean;
+    require_approval?: boolean;
+    allow_comments?: boolean;
   };
 }
 
@@ -58,44 +61,40 @@ export interface GuildUpdateInput {
   name?: string;
   description?: string;
   tags?: string[];
-  guildType?: 'public' | 'private' | 'approval';
+  guild_type?: 'public' | 'private' | 'approval';
   settings?: {
-    allowJoinRequests?: boolean;
-    requireApproval?: boolean;
-    allowComments?: boolean;
+    allow_join_requests?: boolean;
+    require_approval?: boolean;
+    allow_comments?: boolean;
   };
 }
 
 export interface AvatarUploadResponse {
-  avatarUrl: string;
-  thumbnails: {
-    '64x64': string;
-    '128x128': string;
-    '256x256': string;
-  };
-  uploadedAt: string;
+  avatar_url: string;
+  avatar_key: string;
+  message: string;
 }
 
 export interface AvatarGetResponse {
-  avatarUrl: string;
+  avatar_url: string;
   size: string;
   expiresAt: string;
 }
 
 export interface GuildMember {
-  userId: string;
+  user_id: string;
   username: string;
   email?: string;
-  avatarUrl?: string;
+  avatar_url?: string;
   role: 'owner' | 'moderator' | 'member';
-  joinedAt: string;
-  lastSeenAt?: string;
-  invitedBy?: string;
+  joined_at: string;
+  last_seen_at?: string;
+  invited_by?: string;
   // Moderation fields
-  isBlocked?: boolean;
-  blockedAt?: string;
-  blockedBy?: string;
-  canComment?: boolean;
+  is_blocked?: boolean;
+  blocked_at?: string;
+  blocked_by?: string;
+  can_comment?: boolean;
 }
 
 export interface Goal {
@@ -129,16 +128,16 @@ export interface GuildMemberListResponse {
 }
 
 export interface GuildJoinRequest {
-  guildId: string;
-  userId: string;
+  guild_id: string;
+  user_id: string;
   username: string;
   email?: string;
-  avatarUrl?: string;
-  requestedAt: string;
+  avatar_url?: string;
+  requested_at: string;
   status: 'pending' | 'approved' | 'rejected';
-  reviewedBy?: string;
-  reviewedAt?: string;
-  reviewReason?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_reason?: string;
 }
 
 export interface GuildJoinRequestListResponse {
@@ -166,7 +165,7 @@ export class GuildAPIError extends Error {
   }
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/v1';
+const API_BASE_URL = getApiBase();
 
 async function apiRequest<T>(
   endpoint: string,
@@ -235,26 +234,53 @@ export async function createGuild(data: GuildCreateInput): Promise<Guild> {
       name: data.name,
       description: data.description,
       tags: data.tags,
-      guild_type: data.guildType,
+      guild_type: data.guild_type,
     }),
   });
 }
 
-export async function getMyGuilds(limit: number = 20, nextToken?: string): Promise<GuildListResponse> {
-  const params = new URLSearchParams({
-    limit: limit.toString(),
-    ...(nextToken && { next_token: nextToken }),
-  });
+// Check if guild name is available
+export async function checkGuildNameAvailability(name: string): Promise<boolean> {
+  try {
+    const response = await apiRequest<{ available: boolean }>('/guilds/check-name', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    return response.available;
+  } catch (error) {
+    console.error('Error checking guild name availability:', error);
+    return false; // Assume not available if check fails
+  }
+}
 
-  return apiRequest<GuildListResponse>(`/guilds?${params}`);
+export async function getMyGuilds(limit: number = 50, nextToken?: string): Promise<GuildListResponse> {
+  const params = new URLSearchParams();
+  
+  // Only add limit if it's different from the default
+  if (limit !== 50) {
+    params.append('limit', limit.toString());
+  }
+  
+  // Add nextToken if provided
+  if (nextToken) {
+    params.append('next_token', nextToken);
+  }
+
+  const queryString = params.toString();
+  return apiRequest<GuildListResponse>(`/guilds${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function getGuild(
-  guildId: string,
+  guild_id: string,
   includeMembers: boolean = false,
   includeGoals: boolean = false,
   includeQuests: boolean = false
 ): Promise<Guild> {
+  // Validate guild_id parameter
+  if (!guild_id || guild_id === 'undefined' || guild_id.trim() === '') {
+    throw new GuildAPIError('Invalid guild ID provided', 400);
+  }
+
   const params = new URLSearchParams({
     ...(includeMembers && { include_members: 'true' }),
     ...(includeGoals && { include_goals: 'true' }),
@@ -262,84 +288,97 @@ export async function getGuild(
   });
 
   const queryString = params.toString();
-  const endpoint = `/guilds/${guildId}${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/guilds/${guild_id}${queryString ? `?${queryString}` : ''}`;
   
   return apiRequest<Guild>(endpoint);
 }
 
-export async function updateGuild(guildId: string, data: GuildUpdateInput): Promise<Guild> {
-  return apiRequest<Guild>(`/guilds/${guildId}`, {
+export async function updateGuild(guild_id: string, data: GuildUpdateInput): Promise<Guild> {
+  return apiRequest<Guild>(`/guilds/${guild_id}`, {
     method: 'PUT',
     body: JSON.stringify({
       name: data.name,
       description: data.description,
       tags: data.tags,
-      guild_type: data.guildType,
+      guildType: data.guild_type,
+      settings: data.settings,
     }),
   });
 }
 
-export async function deleteGuild(guildId: string): Promise<void> {
-  return apiRequest<void>(`/guilds/${guildId}`, {
+export async function deleteGuild(guild_id: string): Promise<void> {
+  return apiRequest<void>(`/guilds/${guild_id}`, {
     method: 'DELETE',
   });
 }
 
 // Membership Management
-export async function joinGuild(guildId: string): Promise<Guild> {
-  return apiRequest<Guild>(`/guilds/${guildId}/join`, {
+export async function joinGuild(guild_id: string): Promise<Guild> {
+  return apiRequest<Guild>(`/guilds/${guild_id}/join`, {
     method: 'POST',
   });
 }
 
-export async function leaveGuild(guildId: string): Promise<void> {
-  return apiRequest<void>(`/guilds/${guildId}/leave`, {
+export async function leaveGuild(guild_id: string): Promise<void> {
+  return apiRequest<void>(`/guilds/${guild_id}/leave`, {
     method: 'POST',
   });
 }
 
 export async function getGuildMembers(
-  guildId: string,
+  guild_id: string,
   limit: number = 50,
   nextToken?: string,
   role?: 'owner' | 'member' | 'all'
 ): Promise<GuildMemberListResponse> {
-  const params = new URLSearchParams({
-    limit: limit.toString(),
-    ...(nextToken && { next_token: nextToken }),
-    ...(role && role !== 'all' && { role }),
-  });
+  const params = new URLSearchParams();
+  
+  // Only add limit if it's different from the default
+  if (limit !== 50) {
+    params.append('limit', limit.toString());
+  }
+  
+  // Add nextToken if provided
+  if (nextToken) {
+    params.append('next_token', nextToken);
+  }
+  
+  // Add role if provided and not 'all'
+  if (role && role !== 'all') {
+    params.append('role', role);
+  }
 
-  return apiRequest<GuildMemberListResponse>(`/guilds/${guildId}/members?${params}`);
+  const queryString = params.toString();
+  return apiRequest<GuildMemberListResponse>(`/guilds/${guild_id}/members${queryString ? `?${queryString}` : ''}`);
 }
 
-export async function removeGuildMember(guildId: string, userId: string): Promise<void> {
-  return apiRequest<void>(`/guilds/${guildId}/members/${userId}`, {
+export async function removeGuildMember(guild_id: string, user_id: string): Promise<void> {
+  return apiRequest<void>(`/guilds/${guild_id}/members/${user_id}`, {
     method: 'DELETE',
   });
 }
 
 // Content Association
-export async function addGoalToGuild(guildId: string, goalId: string): Promise<Guild> {
-  return apiRequest<Guild>(`/guilds/${guildId}/goals/${goalId}`, {
+export async function addGoalToGuild(guild_id: string, goalId: string): Promise<Guild> {
+  return apiRequest<Guild>(`/guilds/${guild_id}/goals/${goalId}`, {
     method: 'POST',
   });
 }
 
-export async function removeGoalFromGuild(guildId: string, goalId: string): Promise<Guild> {
-  return apiRequest<Guild>(`/guilds/${guildId}/goals/${goalId}`, {
+export async function removeGoalFromGuild(guild_id: string, goalId: string): Promise<Guild> {
+  return apiRequest<Guild>(`/guilds/${guild_id}/goals/${goalId}`, {
     method: 'DELETE',
   });
 }
 
-export async function addQuestToGuild(guildId: string, questId: string): Promise<Guild> {
-  return apiRequest<Guild>(`/guilds/${guildId}/quests/${questId}`, {
+export async function addQuestToGuild(guild_id: string, questId: string): Promise<Guild> {
+  return apiRequest<Guild>(`/guilds/${guild_id}/quests/${questId}`, {
     method: 'POST',
   });
 }
 
-export async function removeQuestFromGuild(guildId: string, questId: string): Promise<Guild> {
-  return apiRequest<Guild>(`/guilds/${guildId}/quests/${questId}`, {
+export async function removeQuestFromGuild(guild_id: string, questId: string): Promise<Guild> {
+  return apiRequest<Guild>(`/guilds/${guild_id}/quests/${questId}`, {
     method: 'DELETE',
   });
 }
@@ -348,57 +387,110 @@ export async function removeQuestFromGuild(guildId: string, questId: string): Pr
 export async function discoverGuilds(
   search?: string,
   tags?: string[],
-  limit: number = 20,
+  limit: number = 50,
   nextToken?: string
 ): Promise<GuildListResponse> {
-  const params = new URLSearchParams({
-    limit: limit.toString(),
-    ...(search && { search }),
-    ...(nextToken && { next_token: nextToken }),
-  });
+  const params = new URLSearchParams();
+  
+  // Only add limit if it's different from the default
+  if (limit !== 50) {
+    params.append('limit', limit.toString());
+  }
+  
+  // Add search if provided
+  if (search) {
+    params.append('search', search);
+  }
+  
+  // Add nextToken if provided
+  if (nextToken) {
+    params.append('next_token', nextToken);
+  }
 
+  // Add tags if provided
   if (tags && tags.length > 0) {
     tags.forEach(tag => params.append('tags', tag));
   }
 
-  return apiRequest<GuildListResponse>(`/guilds/discover?${params}`);
+  const queryString = params.toString();
+  return apiRequest<GuildListResponse>(`/guilds/discover${queryString ? `?${queryString}` : ''}`);
 }
 
 // Avatar upload functions
-export const uploadGuildAvatar = async (guildId: string, file: File): Promise<AvatarUploadResponse> => {
+export const uploadGuildAvatar = async (guild_id: string, file: File): Promise<AvatarUploadResponse> => {
   const token = getAccessToken();
   if (!token) {
     throw new Error('No access token available');
   }
 
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/avatar`, {
+  // Step 1: Get presigned URL
+  const presignedResponse = await fetch(`${getApiBase()}/guilds/${guild_id}/avatar/upload-url`, {
     method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
       'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
     },
-    body: formData,
+    body: JSON.stringify({
+      file_type: file.type,
+      file_size: file.size
+    }),
   });
 
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    const message = errorBody.detail || response.statusText || 'Failed to upload avatar';
+  if (!presignedResponse.ok) {
+    const errorBody = await presignedResponse.json().catch(() => ({}));
+    const message = errorBody.detail || presignedResponse.statusText || 'Failed to get upload URL';
     throw new Error(message);
   }
 
-  return response.json();
+  const { uploadUrl, avatarUrl, avatarKey } = await presignedResponse.json();
+
+  // Step 2: Upload directly to S3
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': file.type,
+    },
+    body: file,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error('Failed to upload file to S3');
+  }
+
+  // Step 3: Confirm upload
+  const confirmResponse = await fetch(`${getApiBase()}/guilds/${guild_id}/avatar/confirm`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+    },
+    body: JSON.stringify({
+      avatar_key: avatarKey
+    }),
+  });
+
+  if (!confirmResponse.ok) {
+    const errorBody = await confirmResponse.json().catch(() => ({}));
+    const message = errorBody.detail || confirmResponse.statusText || 'Failed to confirm upload';
+    throw new Error(message);
+  }
+
+  return {
+    avatar_url: avatarUrl,
+    avatar_key: avatarKey,
+    message: 'Avatar uploaded successfully'
+  };
 };
 
-export const getGuildAvatar = async (guildId: string, size: string = 'original'): Promise<AvatarGetResponse> => {
+export const getGuildAvatar = async (guild_id: string, size: string = 'original'): Promise<AvatarGetResponse> => {
   const token = getAccessToken();
   if (!token) {
     throw new Error('No access token available');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/avatar?size=${size}`, {
+  const response = await fetch(`${getApiBase()}/guilds/${guild_id}/avatar?size=${size}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -416,13 +508,13 @@ export const getGuildAvatar = async (guildId: string, size: string = 'original')
   return response.json();
 };
 
-export const deleteGuildAvatar = async (guildId: string): Promise<void> => {
+export const deleteGuildAvatar = async (guild_id: string): Promise<void> => {
   const token = getAccessToken();
   if (!token) {
     throw new Error('No access token available');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/avatar`, {
+  const response = await fetch(`${getApiBase()}/guilds/${guild_id}/avatar`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
@@ -445,15 +537,15 @@ export const mockGuildAPI = {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const mockGuild: Guild = {
-      guildId: `guild_${Date.now()}`,
+      guild_id: `guild_${Date.now()}`,
       name: data.name,
       description: data.description,
-      createdBy: 'current_user_id',
-      createdAt: new Date().toISOString(),
-      memberCount: 1,
-      goalCount: 0,
-      questCount: 0,
-      guildType: data.guildType,
+      created_by: 'current_user_id',
+      created_at: new Date().toISOString(),
+      member_count: 1,
+      goal_count: 0,
+      quest_count: 0,
+      guild_type: data.guild_type,
       tags: data.tags,
     };
     
@@ -461,63 +553,63 @@ export const mockGuildAPI = {
     return mockGuild;
   },
 
-  getMyGuilds: async (limit: number = 20, nextToken?: string): Promise<GuildListResponse> => {
+  getMyGuilds: async (limit: number = 50, nextToken?: string): Promise<GuildListResponse> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const mockGuilds: Guild[] = [
       {
-        guildId: 'guild_1',
+        guild_id: 'guild_1',
         name: 'Fitness Enthusiasts',
         description: 'A community focused on health and fitness goals',
-        createdBy: 'current_user_id',
-        createdAt: '2024-01-15T10:00:00Z',
-        memberCount: 15,
-        goalCount: 8,
-        questCount: 3,
-        guildType: 'public',
+        created_by: 'current_user_id',
+        created_at: '2024-01-15T10:00:00Z',
+        member_count: 15,
+        goal_count: 8,
+        quest_count: 3,
+        guild_type: 'public',
         tags: ['fitness', 'health', 'wellness'],
       },
       {
-        guildId: 'guild_2',
+        guild_id: 'guild_2',
         name: 'Study Group Alpha',
         description: 'Collaborative learning and academic achievement',
-        createdBy: 'user_2',
-        createdAt: '2024-01-10T14:30:00Z',
-        memberCount: 12,
-        goalCount: 5,
-        questCount: 7,
-        guildType: 'public',
+        created_by: 'user_2',
+        created_at: '2024-01-10T14:30:00Z',
+        member_count: 12,
+        goal_count: 5,
+        quest_count: 7,
+        guild_type: 'public',
         tags: ['education', 'learning', 'academic'],
       },
       {
-        guildId: 'guild_3',
+        guild_id: 'guild_3',
         name: 'Creative Writers',
         description: 'Private guild for aspiring writers',
-        createdBy: 'current_user_id',
-        createdAt: '2024-01-05T09:15:00Z',
-        memberCount: 8,
-        goalCount: 12,
-        questCount: 4,
-        guildType: 'private',
+        created_by: 'current_user_id',
+        created_at: '2024-01-05T09:15:00Z',
+        member_count: 8,
+        goal_count: 12,
+        quest_count: 4,
+        guild_type: 'private',
         tags: ['writing', 'creative', 'literature'],
       },
       {
-        guildId: 'guild_4',
+        guild_id: 'guild_4',
         name: 'Elite Developers',
         description: 'An exclusive guild for experienced developers. Requires approval to join.',
-        createdBy: 'user_6',
-        createdAt: '2024-01-12T11:30:00Z',
-        memberCount: 5,
-        goalCount: 20,
-        questCount: 15,
-        guildType: 'approval',
+        created_by: 'user_6',
+        created_at: '2024-01-12T11:30:00Z',
+        member_count: 5,
+        goal_count: 20,
+        quest_count: 15,
+        guild_type: 'approval',
         tags: ['programming', 'elite', 'senior'],
         moderators: ['user_7', 'user_8'],
-        pendingRequests: 3,
+        pending_requests: 3,
         settings: {
-          allowJoinRequests: true,
-          requireApproval: true,
-          allowComments: true,
+          allow_join_requests: true,
+          require_approval: true,
+          allow_comments: true,
         },
       },
     ];
@@ -528,32 +620,32 @@ export const mockGuildAPI = {
     };
   },
 
-  getGuild: async (guildId: string): Promise<Guild> => {
+  getGuild: async (guild_id: string): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 300));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id: guild_id,
       name: 'Fitness Enthusiasts',
       description: 'A community focused on health and fitness goals',
-      createdBy: 'current_user_id',
-      createdAt: '2024-01-15T10:00:00Z',
-      memberCount: 15,
-      goalCount: 8,
-      questCount: 3,
-      guildType: 'public',
+      created_by: 'current_user_id',
+      created_at: '2024-01-15T10:00:00Z',
+      member_count: 15,
+      goal_count: 8,
+      quest_count: 3,
+      guild_type: 'public',
       tags: ['fitness', 'health', 'wellness'],
       members: [
         {
-          userId: 'current_user_id',
+          user_id: 'current_user_id',
           username: 'current_user',
           role: 'owner',
-          joinedAt: '2024-01-15T10:00:00Z',
+          joined_at: '2024-01-15T10:00:00Z',
         },
         {
-          userId: 'user_2',
+          user_id: 'user_2',
           username: 'fitness_fan',
           role: 'moderator',
-          joinedAt: '2024-01-16T11:00:00Z',
+          joined_at: '2024-01-16T11:00:00Z',
         },
       ],
     };
@@ -561,76 +653,76 @@ export const mockGuildAPI = {
     return mockGuild;
   },
 
-  joinGuild: async (guildId: string): Promise<Guild> => {
+  joinGuild: async (guild_id: string): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id,
       name: 'Fitness Enthusiasts',
       description: 'A community focused on health and fitness goals',
-      createdBy: 'user_2',
-      createdAt: '2024-01-15T10:00:00Z',
-      memberCount: 16, // Incremented
-      goalCount: 8,
-      questCount: 3,
-      guildType: 'public',
+      created_by: 'user_2',
+      created_at: '2024-01-15T10:00:00Z',
+      member_count: 16, // Incremented
+      goal_count: 8,
+      quest_count: 3,
+      guild_type: 'public',
       tags: ['fitness', 'health', 'wellness'],
     };
     
     return mockGuild;
   },
 
-  leaveGuild: async (guildId: string): Promise<void> => {
+  leaveGuild: async (guild_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 600));
-    console.log('Mock leaveGuild:', guildId);
+    console.log('Mock leaveGuild:', guild_id);
   },
 
-  updateGuild: async (guildId: string, data: GuildUpdateInput): Promise<Guild> => {
+  updateGuild: async (guild_id: string, data: GuildUpdateInput): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id,
       name: data.name || 'Updated Guild Name',
       description: data.description,
-      createdBy: 'current_user_id',
-      createdAt: '2024-01-15T10:00:00Z',
-      updatedAt: new Date().toISOString(),
-      memberCount: 15,
-      goalCount: 8,
-      questCount: 3,
-      guildType: data.guildType ?? 'public',
+      created_by: 'current_user_id',
+      created_at: '2024-01-15T10:00:00Z',
+      updated_at: new Date().toISOString(),
+      member_count: 15,
+      goal_count: 8,
+      quest_count: 3,
+      guild_type: data.guild_type ?? 'public',
       tags: data.tags || ['fitness', 'health'],
     };
     
     return mockGuild;
   },
 
-  deleteGuild: async (guildId: string): Promise<void> => {
+  deleteGuild: async (guild_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    console.log('Mock deleteGuild:', guildId);
+    console.log('Mock deleteGuild:', guild_id);
   },
 
-  getGuildMembers: async (guildId: string): Promise<GuildMemberListResponse> => {
+  getGuildMembers: async (guild_id: string): Promise<GuildMemberListResponse> => {
     await new Promise(resolve => setTimeout(resolve, 400));
     
     const mockMembers: GuildMember[] = [
       {
-        userId: 'current_user_id',
+        user_id: 'current_user_id',
         username: 'current_user',
         role: 'owner',
-        joinedAt: '2024-01-15T10:00:00Z',
+        joined_at: '2024-01-15T10:00:00Z',
       },
       {
-        userId: 'user_2',
+        user_id: 'user_2',
         username: 'fitness_fan',
         role: 'member',
-        joinedAt: '2024-01-16T11:00:00Z',
+        joined_at: '2024-01-16T11:00:00Z',
       },
       {
-        userId: 'user_3',
+        user_id: 'user_3',
         username: 'health_guru',
         role: 'member',
-        joinedAt: '2024-01-17T09:30:00Z',
+        joined_at: '2024-01-17T09:30:00Z',
       },
     ];
     
@@ -640,81 +732,81 @@ export const mockGuildAPI = {
     };
   },
 
-  removeGuildMember: async (guildId: string, userId: string): Promise<void> => {
+  removeGuildMember: async (guild_id: string, user_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    console.log('Mock removeGuildMember:', { guildId, userId });
+    console.log('Mock removeGuildMember:', { guild_id, user_id });
   },
 
-  addGoalToGuild: async (guildId: string, goalId: string): Promise<Guild> => {
+  addGoalToGuild: async (guild_id: string, goalId: string): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 600));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id,
       name: 'Fitness Enthusiasts',
       description: 'A community focused on health and fitness goals',
-      createdBy: 'current_user_id',
-      createdAt: '2024-01-15T10:00:00Z',
-      memberCount: 15,
-      goalCount: 9, // Incremented
-      questCount: 3,
-      guildType: 'public',
+      created_by: 'current_user_id',
+      created_at: '2024-01-15T10:00:00Z',
+      member_count: 15,
+      goal_count: 9, // Incremented
+      quest_count: 3,
+      guild_type: 'public',
       tags: ['fitness', 'health', 'wellness'],
     };
     
     return mockGuild;
   },
 
-  removeGoalFromGuild: async (guildId: string, goalId: string): Promise<Guild> => {
+  removeGoalFromGuild: async (guild_id: string, goalId: string): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id,
       name: 'Fitness Enthusiasts',
       description: 'A community focused on health and fitness goals',
-      createdBy: 'current_user_id',
-      createdAt: '2024-01-15T10:00:00Z',
-      memberCount: 15,
-      goalCount: 7, // Decremented
-      questCount: 3,
-      guildType: 'public',
+      created_by: 'current_user_id',
+      created_at: '2024-01-15T10:00:00Z',
+      member_count: 15,
+      goal_count: 7, // Decremented
+      quest_count: 3,
+      guild_type: 'public',
       tags: ['fitness', 'health', 'wellness'],
     };
     
     return mockGuild;
   },
 
-  addQuestToGuild: async (guildId: string, questId: string): Promise<Guild> => {
+  addQuestToGuild: async (guild_id: string, questId: string): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 600));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id,
       name: 'Fitness Enthusiasts',
       description: 'A community focused on health and fitness goals',
-      createdBy: 'current_user_id',
-      createdAt: '2024-01-15T10:00:00Z',
-      memberCount: 15,
-      goalCount: 8,
-      questCount: 4, // Incremented
-      guildType: 'public',
+      created_by: 'current_user_id',
+      created_at: '2024-01-15T10:00:00Z',
+      member_count: 15,
+      goal_count: 8,
+      quest_count: 4, // Incremented
+      guild_type: 'public',
       tags: ['fitness', 'health', 'wellness'],
     };
     
     return mockGuild;
   },
 
-  removeQuestFromGuild: async (guildId: string, questId: string): Promise<Guild> => {
+  removeQuestFromGuild: async (guild_id: string, questId: string): Promise<Guild> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const mockGuild: Guild = {
-      guildId,
+      guild_id,
       name: 'Fitness Enthusiasts',
       description: 'A community focused on health and fitness goals',
-      createdBy: 'current_user_id',
-      createdAt: '2024-01-15T10:00:00Z',
-      memberCount: 15,
-      goalCount: 8,
-      questCount: 2, // Decremented
-      guildType: 'public',
+      created_by: 'current_user_id',
+      created_at: '2024-01-15T10:00:00Z',
+      member_count: 15,
+      goal_count: 8,
+      quest_count: 2, // Decremented
+      guild_type: 'public',
       tags: ['fitness', 'health', 'wellness'],
     };
     
@@ -726,27 +818,27 @@ export const mockGuildAPI = {
     
     const mockGuilds: Guild[] = [
       {
-        guildId: 'guild_4',
+        guild_id: 'guild_4',
         name: 'Tech Innovators',
         description: 'Building the future with technology',
-        createdBy: 'user_4',
-        createdAt: '2024-01-20T16:00:00Z',
-        memberCount: 25,
-        goalCount: 15,
-        questCount: 8,
-        guildType: 'public',
+        created_by: 'user_4',
+        created_at: '2024-01-20T16:00:00Z',
+        member_count: 25,
+        goal_count: 15,
+        quest_count: 8,
+        guild_type: 'public',
         tags: ['technology', 'innovation', 'coding'],
       },
       {
-        guildId: 'guild_5',
+        guild_id: 'guild_5',
         name: 'Art & Design',
         description: 'Creative minds coming together',
-        createdBy: 'user_5',
-        createdAt: '2024-01-18T12:00:00Z',
-        memberCount: 18,
-        goalCount: 10,
-        questCount: 6,
-        guildType: 'public',
+        created_by: 'user_5',
+        created_at: '2024-01-18T12:00:00Z',
+        member_count: 18,
+        goal_count: 10,
+        quest_count: 6,
+        guild_type: 'public',
         tags: ['art', 'design', 'creative'],
       },
     ];
@@ -757,48 +849,48 @@ export const mockGuildAPI = {
     };
   },
 
-  getGuildRankings: async (limit?: number) => {
+  getGuildRankings: async (limit: number = 50) => {
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
 
-    const mockRankings: Guild[] = Array.from({ length: limit || 20 }, (_, index) => {
+    const mockRankings: Guild[] = Array.from({ length: limit }, (_, index) => {
       const position = index + 1;
-      const memberCount = Math.floor(Math.random() * 200) + 10;
-      const goalCount = Math.floor(Math.random() * 50) + 5;
-      const questCount = Math.floor(Math.random() * 30) + 3;
-      const activityScore = Math.floor(Math.random() * 40) + 60;
-      const totalScore = Math.floor(
-        (memberCount * 10) + 
-        (goalCount * 50) + 
-        (questCount * 100) + 
-        (activityScore * 20) + 
+      const member_count = Math.floor(Math.random() * 200) + 10;
+      const goal_count = Math.floor(Math.random() * 50) + 5;
+      const quest_count = Math.floor(Math.random() * 30) + 3;
+      const activity_score = Math.floor(Math.random() * 40) + 60;
+      const total_score = Math.floor(
+        (member_count * 10) + 
+        (goal_count * 50) + 
+        (quest_count * 100) + 
+        (activity_score * 20) + 
         Math.random() * 1000
       );
 
       return {
-        guildId: `guild-${index + 1}`,
+        guild_id: `guild-${index + 1}`,
         name: `Guild ${index + 1}`,
         description: `A great guild with amazing members`,
-        createdBy: `user-${index + 1}`,
-        createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-        memberCount,
-        goalCount,
-        questCount,
-        guildType: Math.random() > 0.2 ? 'public' : Math.random() > 0.5 ? 'private' : 'approval',
+        created_by: `user-${index + 1}`,
+        created_at: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+        member_count,
+        goal_count,
+        quest_count,
+        guild_type: Math.random() > 0.2 ? 'public' : Math.random() > 0.5 ? 'private' : 'approval',
         tags: ['active', 'friendly', 'supportive'],
         position,
-        previousPosition: Math.random() > 0.3 ? position + Math.floor(Math.random() * 5) - 2 : undefined,
-        totalScore,
-        activityScore,
+        previous_position: Math.random() > 0.3 ? position + Math.floor(Math.random() * 5) - 2 : undefined,
+        total_score,
+        activity_score,
         growthRate: Math.floor(Math.random() * 40) - 10,
         badges: ['Active', 'Growing', 'Community'],
       };
     });
 
-    return mockRankings.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+    return mockRankings.sort((a, b) => (b.total_score || 0) - (a.total_score || 0));
   },
 
   // Avatar upload functions
-  uploadGuildAvatar: async (guildId: string, file: File): Promise<AvatarUploadResponse> => {
+  uploadGuildAvatar: async (guild_id: string, file: File): Promise<AvatarUploadResponse> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -815,68 +907,64 @@ export const mockGuildAPI = {
 
     // Generate mock avatar URLs
     const timestamp = Date.now();
-    const baseUrl = `https://via.placeholder.com/256x256/6366f1/ffffff?text=Guild+${guildId}+${timestamp}`;
+    const baseUrl = `https://via.placeholder.com/256x256/6366f1/ffffff?text=Guild+${guild_id}+${timestamp}`;
     
     return {
-      avatarUrl: baseUrl,
-      thumbnails: {
-        '64x64': `https://via.placeholder.com/64x64/6366f1/ffffff?text=64`,
-        '128x128': `https://via.placeholder.com/128x128/6366f1/ffffff?text=128`,
-        '256x256': `https://via.placeholder.com/256x256/6366f1/ffffff?text=256`,
-      },
-      uploadedAt: new Date().toISOString(),
+      avatar_url: baseUrl,
+      avatar_key: `guilds/${guild_id}/avatar/${timestamp}.png`,
+      message: 'Avatar uploaded successfully',
     };
   },
 
-  getGuildAvatar: async (guildId: string, size: string = 'original'): Promise<AvatarGetResponse> => {
+  getGuildAvatar: async (guild_id: string, size: string = 'original'): Promise<AvatarGetResponse> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // Generate mock signed URL
     const timestamp = Date.now();
-    const avatarUrl = `https://via.placeholder.com/256x256/6366f1/ffffff?text=Guild+${guildId}+${timestamp}`;
+    const avatarUrl = `https://via.placeholder.com/256x256/6366f1/ffffff?text=Guild+${guild_id}+${timestamp}`;
     
     return {
-      avatarUrl,
+      avatar_url: avatarUrl,
       size,
       expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
     };
   },
 
-  deleteGuildAvatar: async (guildId: string): Promise<void> => {
+  deleteGuildAvatar: async (guild_id: string): Promise<void> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Mock successful deletion
-    console.log(`Avatar deleted for guild ${guildId}`);
+    console.log(`Avatar deleted for guild ${guild_id}`);
   },
 
   // Join request functions
-  requestToJoinGuild: async (guildId: string, message?: string): Promise<void> => {
+  requestToJoinGuild: async (guild_id: string, message?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Join request sent for guild ${guildId} with message: ${message || 'No message'}`);
+    console.log(`Join request sent for guild ${guild_id} with message: ${message || 'No message'}`);
   },
 
-  getGuildJoinRequests: async (guildId: string): Promise<GuildJoinRequestListResponse> => {
+  getGuildJoinRequests: async (guild_id: string): Promise<GuildJoinRequestListResponse> => {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     const mockRequests: GuildJoinRequest[] = [
       {
-        guildId,
-        userId: 'user1',
+        guild_id,
+        user_id: 'user1',
         username: 'JohnDoe',
         email: 'john@example.com',
-        avatarUrl: 'https://via.placeholder.com/40x40/6366f1/ffffff?text=JD',
-        requestedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+        avatar_url: 'https://via.placeholder.com/40x40/6366f1/ffffff?text=JD',
+        requested_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
         status: 'pending',
       },
       {
-        guildId,
-        userId: 'user2',
+        guild_id,
+        user_id: 'user2',
         username: 'JaneSmith',
         email: 'jane@example.com',
-        avatarUrl: 'https://via.placeholder.com/40x40/10b981/ffffff?text=JS',
-        requestedAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+        avatar_url: 'https://via.placeholder.com/40x40/10b981/ffffff?text=JS',
+        requested_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
         status: 'pending',
       },
     ];
@@ -887,70 +975,68 @@ export const mockGuildAPI = {
     };
   },
 
-  approveJoinRequest: async (guildId: string, userId: string, reason?: string): Promise<void> => {
+  approveJoinRequest: async (guild_id: string, user_id: string, reason?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Join request approved for user ${userId} in guild ${guildId}. Reason: ${reason || 'No reason provided'}`);
+    console.log(`Join request approved for user ${user_id} in guild ${guild_id}. Reason: ${reason || 'No reason provided'}`);
   },
 
-  rejectJoinRequest: async (guildId: string, userId: string, reason?: string): Promise<void> => {
+  rejectJoinRequest: async (guild_id: string, user_id: string, reason?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Join request rejected for user ${userId} in guild ${guildId}. Reason: ${reason || 'No reason provided'}`);
+    console.log(`Join request rejected for user ${user_id} in guild ${guild_id}. Reason: ${reason || 'No reason provided'}`);
   },
 
   // Ownership transfer functions
-  transferGuildOwnership: async (guildId: string, newOwnerId: string, reason?: string): Promise<void> => {
+  transferGuildOwnership: async (guild_id: string, newOwnerId: string, reason?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log(`Guild ownership transferred from current owner to ${newOwnerId} in guild ${guildId}. Reason: ${reason || 'No reason provided'}`);
+    console.log(`Guild ownership transferred from current owner to ${newOwnerId} in guild ${guild_id}. Reason: ${reason || 'No reason provided'}`);
   },
 
   // Moderator management functions
-  assignModerator: async (guildId: string, userId: string): Promise<void> => {
+  assignModerator: async (guild_id: string, user_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`User ${userId} assigned as moderator for guild ${guildId}`);
+    console.log(`User ${user_id} assigned as moderator for guild ${guild_id}`);
   },
 
-  removeModerator: async (guildId: string, userId: string): Promise<void> => {
+  removeModerator: async (guild_id: string, user_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`User ${userId} removed as moderator for guild ${guildId}`);
+    console.log(`User ${user_id} removed as moderator for guild ${guild_id}`);
   },
 
   // Moderation actions
-  performModerationAction: async (guildId: string, action: ModerationAction): Promise<void> => {
+  performModerationAction: async (guild_id: string, action: ModerationAction): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Moderation action performed in guild ${guildId}:`, action);
+    console.log(`Moderation action performed in guild ${guild_id}:`, action);
   },
 
-  blockUser: async (guildId: string, userId: string, reason?: string): Promise<void> => {
+  blockUser: async (guild_id: string, user_id: string, reason?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`User ${userId} blocked from guild ${guildId}. Reason: ${reason || 'No reason provided'}`);
+    console.log(`User ${user_id} blocked from guild ${guild_id}. Reason: ${reason || 'No reason provided'}`);
   },
 
-  unblockUser: async (guildId: string, userId: string): Promise<void> => {
+  unblockUser: async (guild_id: string, user_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`User ${userId} unblocked from guild ${guildId}`);
+    console.log(`User ${user_id} unblocked from guild ${guild_id}`);
   },
 
-  removeComment: async (guildId: string, commentId: string, reason?: string): Promise<void> => {
+  removeComment: async (guild_id: string, commentId: string, reason?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Comment ${commentId} removed from guild ${guildId}. Reason: ${reason || 'No reason provided'}`);
+    console.log(`Comment ${commentId} removed from guild ${guild_id}. Reason: ${reason || 'No reason provided'}`);
   },
 
-  toggleUserCommentPermission: async (guildId: string, userId: string, canComment: boolean): Promise<void> => {
+  toggleUserCommentPermission: async (guild_id: string, user_id: string, canComment: boolean): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`User ${userId} comment permission in guild ${guildId} set to: ${canComment}`);
+    console.log(`User ${user_id} comment permission in guild ${guild_id} set to: ${canComment}`);
   },
 
   // Remove user from guild
-  removeUserFromGuild: async (guildId: string, userId: string): Promise<void> => {
+  removeUserFromGuild: async (guild_id: string, user_id: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`User ${userId} removed from guild ${guildId}`);
+    console.log(`User ${user_id} removed from guild ${guild_id}`);
   },
 };
 
-// Use mock API in development
-const isDevelopment = import.meta.env.DEV;
-
-export const guildAPI = isDevelopment ? mockGuildAPI : {
+// Export the real API functions directly - all endpoints are authorized with tokens
+export const guildAPI = {
   createGuild,
   getMyGuilds,
   getGuild,
@@ -965,14 +1051,23 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
   addQuestToGuild,
   removeQuestFromGuild,
   discoverGuilds,
-  getGuildRankings: async (limit?: number) => {
+  getGuildRankings: async (limit: number = 50) => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const url = `${import.meta.env.VITE_API_BASE_URL}/guilds/rankings${limit ? `?limit=${limit}` : ''}`;
-    
+    // Only add limit if it's different from the default
+    const queryString = limit !== 50 ? `?limit=${limit}` : '';
+    const url = `${getApiBase()}/guilds/rankings${queryString}`;
+
+    console.log('Guild rankings API call:', {
+      url,
+      method: 'GET',
+      hasToken: !!token,
+      limit
+    });
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -982,25 +1077,59 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
       },
     });
 
+    console.log('Guild rankings API response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       const message = errorBody.detail || response.statusText || 'Failed to fetch guild rankings';
+      console.error('Guild rankings API error:', errorBody);
       throw new Error(message);
     }
 
-    return response.json();
+
+
+    const data = await response.json();
+    
+    // Transform snake_case to camelCase for rankings data
+    if (data.rankings && Array.isArray(data.rankings)) {
+      data.rankings = data.rankings.map((ranking: any) => ({
+        guildId: ranking.guild_id,
+        name: ranking.name,
+        description: ranking.description,
+        avatarUrl: ranking.avatar_url,
+        position: ranking.position,
+        previousPosition: ranking.previous_position,
+        totalScore: ranking.total_score,
+        memberCount: ranking.member_count,
+        goalCount: ranking.goal_count || 0,
+        questCount: ranking.quest_count || 0,
+        activityScore: ranking.activity_score,
+        growthRate: ranking.growth_rate,
+        badges: ranking.badges || [],
+        isPublic: ranking.is_public !== false,
+        createdAt: ranking.created_at || new Date().toISOString(),
+        lastActivityAt: ranking.last_activity_at || new Date().toISOString(),
+        trend: ranking.trend || 'stable'
+      }));
+    }
+    
+    return data;
   },
   uploadGuildAvatar,
   getGuildAvatar,
   deleteGuildAvatar,
   // Join request functions
-  requestToJoinGuild: async (guildId: string, message?: string): Promise<void> => {
+  requestToJoinGuild: async (guild_id: string, message?: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/join-request`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/join-request`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1017,13 +1146,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  getGuildJoinRequests: async (guildId: string): Promise<GuildJoinRequestListResponse> => {
+  getGuildJoinRequests: async (guild_id: string): Promise<GuildJoinRequestListResponse> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/join-requests`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/join-requests`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -1041,13 +1170,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     return response.json();
   },
 
-  approveJoinRequest: async (guildId: string, userId: string, reason?: string): Promise<void> => {
+  approveJoinRequest: async (guild_id: string, user_id: string, reason?: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/join-requests/${userId}/approve`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/join-requests/${user_id}/approve`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1064,13 +1193,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  rejectJoinRequest: async (guildId: string, userId: string, reason?: string): Promise<void> => {
+  rejectJoinRequest: async (guild_id: string, user_id: string, reason?: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/join-requests/${userId}/reject`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/join-requests/${user_id}/reject`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1088,13 +1217,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
   },
 
   // Ownership transfer functions
-  transferGuildOwnership: async (guildId: string, newOwnerId: string, reason?: string): Promise<void> => {
+  transferGuildOwnership: async (guild_id: string, newOwnerId: string, reason?: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/transfer-ownership`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/transfer-ownership`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1112,20 +1241,20 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
   },
 
   // Moderator management functions
-  assignModerator: async (guildId: string, userId: string): Promise<void> => {
+  assignModerator: async (guild_id: string, user_id: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/moderators`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/moderators`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
         'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
       },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ user_id }),
     });
 
     if (!response.ok) {
@@ -1135,13 +1264,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  removeModerator: async (guildId: string, userId: string): Promise<void> => {
+  removeModerator: async (guild_id: string, user_id: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/moderators/${userId}`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/moderators/${user_id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -1158,13 +1287,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
   },
 
   // Moderation actions
-  performModerationAction: async (guildId: string, action: ModerationAction): Promise<void> => {
+  performModerationAction: async (guild_id: string, action: ModerationAction): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/moderation`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/moderation/action`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1181,20 +1310,20 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  blockUser: async (guildId: string, userId: string, reason?: string): Promise<void> => {
+  blockUser: async (guild_id: string, user_id: string, reason?: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/block-user`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/block-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
         'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
       },
-      body: JSON.stringify({ userId, reason }),
+      body: JSON.stringify({ user_id, reason }),
     });
 
     if (!response.ok) {
@@ -1204,20 +1333,20 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  unblockUser: async (guildId: string, userId: string): Promise<void> => {
+  unblockUser: async (guild_id: string, user_id: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/unblock-user`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/unblock-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
         'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
       },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ user_id }),
     });
 
     if (!response.ok) {
@@ -1227,13 +1356,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  removeComment: async (guildId: string, commentId: string, reason?: string): Promise<void> => {
+  removeComment: async (guild_id: string, commentId: string, reason?: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/comments/${commentId}`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comments/${commentId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -1250,20 +1379,20 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
     }
   },
 
-  toggleUserCommentPermission: async (guildId: string, userId: string, canComment: boolean): Promise<void> => {
+  toggleUserCommentPermission: async (guild_id: string, user_id: string, canComment: boolean): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/comment-permission`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comment-permission`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
         'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
       },
-      body: JSON.stringify({ userId, canComment }),
+      body: JSON.stringify({ user_id, canComment }),
     });
 
     if (!response.ok) {
@@ -1274,13 +1403,13 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
   },
 
   // Remove user from guild
-  removeUserFromGuild: async (guildId: string, userId: string): Promise<void> => {
+  removeUserFromGuild: async (guild_id: string, user_id: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/guilds/${guildId}/members/${userId}`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/members/${user_id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -1294,5 +1423,365 @@ export const guildAPI = isDevelopment ? mockGuildAPI : {
       const message = errorBody.detail || response.statusText || 'Failed to remove user from guild';
       throw new Error(message);
     }
+  },
+
+  // Get guilds for a specific user
+  getUserGuilds: async (user_id: string): Promise<GuildListResponse> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/users/${user_id}/guilds`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to fetch user guilds';
+      throw new Error(message);
+    }
+
+    return response.json();
+  },
+
+  // Guild Analytics
+  getGuildAnalytics: async (guild_id: string): Promise<any> => {
+    // Validate guild_id parameter
+    if (!guild_id || guild_id === 'undefined' || guild_id.trim() === '') {
+      throw new GuildAPIError('Invalid guild ID provided', 400);
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/analytics`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to fetch guild analytics';
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    console.log('Raw analytics API response:', data);
+    
+    // Transform snake_case to camelCase for frontend compatibility
+    const transformedData = {
+      // Basic metrics
+      totalMembers: data.total_members || 0,
+      activeMembers: data.active_members || 0,
+      totalGoals: data.total_goals || 0,
+      completedGoals: data.completed_goals || 0,
+      totalQuests: data.total_quests || 0,
+      completedQuests: data.completed_quests || 0,
+      
+      // Activity metrics
+      weeklyActivity: data.activity_score || 0,
+      monthlyActivity: data.activity_score || 0,
+      averageGoalCompletion: data.goal_completion_rate || 0,
+      averageQuestCompletion: data.quest_completion_rate || 0,
+      
+      // Growth metrics
+      memberGrowthRate: data.member_growth_rate || 0,
+      goalGrowthRate: data.goal_completion_rate || 0,
+      questGrowthRate: data.quest_completion_rate || 0,
+      
+      // Performance metrics
+      topPerformers: data.memberLeaderboard?.length || 0,
+      newMembersThisWeek: 0, // Not available in current backend
+      goalsCreatedThisWeek: 0, // Not available in current backend
+      questsCompletedThisWeek: 0, // Not available in current backend
+      
+      // Time-based data
+      createdAt: data.created_at || data.last_updated || new Date().toISOString(),
+      lastActivityAt: data.last_activity_at || data.last_updated || new Date().toISOString(),
+      
+      // Member leaderboard data (transform if available)
+      memberLeaderboard: data.memberLeaderboard?.map((member: any) => ({
+        userId: member.user_id || member.userId,
+        username: member.username || 'Unknown',
+        avatarUrl: member.avatar_url || member.avatarUrl,
+        role: member.role || 'member',
+        goalsCompleted: member.goals_completed || member.goalsCompleted || 0,
+        questsCompleted: member.quests_completed || member.questsCompleted || 0,
+        activityScore: member.score || member.activityScore || 0,
+        totalXp: member.score || member.totalXp || 0,
+        joinedAt: member.last_activity || member.joinedAt || new Date().toISOString(),
+        lastSeenAt: member.last_activity || member.lastSeenAt,
+      })) || [],
+    };
+    
+    console.log('Transformed analytics data:', transformedData);
+    return transformedData;
+  },
+
+  getGuildLeaderboard: async (guild_id: string): Promise<any> => {
+    // Validate guild_id parameter
+    if (!guild_id || guild_id === 'undefined' || guild_id.trim() === '') {
+      throw new GuildAPIError('Invalid guild ID provided', 400);
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/analytics/leaderboard`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to fetch guild leaderboard';
+      throw new Error(message);
+    }
+
+    return response.json();
+  },
+
+  // Guild Comments
+  getGuildComments: async (guild_id: string): Promise<any> => {
+    // Validate guild_id parameter
+    if (!guild_id || guild_id === 'undefined' || guild_id.trim() === '') {
+      throw new GuildAPIError('Invalid guild ID provided', 400);
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comments`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to fetch guild comments';
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    
+    // Transform snake_case to camelCase for comments
+    if (Array.isArray(data)) {
+      // Direct array response
+      return data.map((comment: any) => ({
+        commentId: comment.comment_id,
+        guildId: comment.guild_id,
+        userId: comment.user_id,
+        username: comment.username,
+        avatarUrl: comment.avatar_url,
+        content: comment.content,
+        createdAt: comment.created_at,
+        updatedAt: comment.updated_at,
+        parentCommentId: comment.parent_comment_id,
+        replies: comment.replies ? comment.replies.map((reply: any) => ({
+          commentId: reply.comment_id,
+          guildId: reply.guild_id,
+          userId: reply.user_id,
+          username: reply.username,
+          avatarUrl: reply.avatar_url,
+          content: reply.content,
+          createdAt: reply.created_at,
+          updatedAt: reply.updated_at,
+          parentCommentId: reply.parent_comment_id,
+          likes: reply.likes,
+          isLiked: reply.is_liked,
+          isEdited: reply.is_edited,
+          userRole: reply.user_role,
+        })) : [],
+        likes: comment.likes,
+        isLiked: comment.is_liked,
+        isEdited: comment.is_edited,
+        userRole: comment.user_role,
+      }));
+    } else if (data.comments && data.comments.comments) {
+      // Wrapped response (fallback)
+      data.comments.comments = data.comments.comments.map((comment: any) => ({
+        commentId: comment.comment_id,
+        guildId: comment.guild_id,
+        userId: comment.user_id,
+        username: comment.username,
+        avatarUrl: comment.avatar_url,
+        content: comment.content,
+        createdAt: comment.created_at,
+        updatedAt: comment.updated_at,
+        parentCommentId: comment.parent_comment_id,
+        replies: comment.replies ? comment.replies.map((reply: any) => ({
+          commentId: reply.comment_id,
+          guildId: reply.guild_id,
+          userId: reply.user_id,
+          username: reply.username,
+          avatarUrl: reply.avatar_url,
+          content: reply.content,
+          createdAt: reply.created_at,
+          updatedAt: reply.updated_at,
+          parentCommentId: reply.parent_comment_id,
+          likes: reply.likes,
+          isLiked: reply.is_liked,
+          isEdited: reply.is_edited,
+          userRole: reply.user_role,
+        })) : [],
+        likes: comment.likes,
+        isLiked: comment.is_liked,
+        isEdited: comment.is_edited,
+        userRole: comment.user_role,
+      }));
+    }
+    
+    return data;
+  },
+
+  createGuildComment: async (guild_id: string, content: string, parentCommentId?: string): Promise<any> => {
+    // Validate guild_id parameter
+    if (!guild_id || guild_id === 'undefined' || guild_id.trim() === '') {
+      throw new GuildAPIError('Invalid guild ID provided', 400);
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const requestBody = { content, parent_comment_id: parentCommentId };
+    console.log('Sending comment creation request with body:', requestBody);
+    
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to create guild comment';
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    
+    // Transform snake_case to camelCase for the created comment
+    if (data) {
+      return {
+        commentId: data.comment_id,
+        guildId: data.guild_id,
+        userId: data.user_id,
+        username: data.username,
+        avatarUrl: data.avatar_url,
+        content: data.content,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        parentCommentId: data.parent_comment_id,
+        replies: data.replies || [],
+        likes: data.likes,
+        isLiked: data.is_liked,
+        isEdited: data.is_edited,
+        userRole: data.user_role,
+      };
+    }
+    
+    return data;
+  },
+
+  updateGuildComment: async (guild_id: string, commentId: string, content: string): Promise<any> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comments/${commentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+      body: JSON.stringify({ content }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to update guild comment';
+      throw new Error(message);
+    }
+
+    return response.json();
+  },
+
+  deleteGuildComment: async (guild_id: string, commentId: string, reason?: string): Promise<void> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+      body: JSON.stringify({ reason }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to delete guild comment';
+      throw new Error(message);
+    }
+  },
+
+  likeGuildComment: async (guild_id: string, commentId: string): Promise<any> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/comments/${commentId}/like`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to like guild comment';
+      throw new Error(message);
+    }
+
+    return response.json();
   },
 };

@@ -35,6 +35,7 @@ class GuildUpdatePayload(BaseModel):
 class GuildMemberResponse(BaseModel):
     user_id: str = Field(..., description="User ID")
     username: str = Field(..., description="Username")
+    nickname: Optional[str] = Field(None, description="Display nickname")
     email: Optional[str] = Field(None, description="User email")
     avatar_url: Optional[str] = Field(None, description="User avatar URL")
     role: GuildMemberRole = Field(..., description="Member role")
@@ -59,6 +60,8 @@ class GuildResponse(BaseModel):
     guild_type: GuildType = Field(..., description="Guild type")
     tags: List[str] = Field(default_factory=list, description="Guild tags")
     members: Optional[List[GuildMemberResponse]] = Field(None, description="Guild members")
+    owner_username: Optional[str] = Field(None, description="Owner username")
+    owner_nickname: Optional[str] = Field(None, description="Owner nickname")
     goals: Optional[List[Dict[str, Any]]] = Field(None, description="Associated goals")
     quests: Optional[List[Dict[str, Any]]] = Field(None, description="Associated quests")
     
@@ -85,4 +88,11 @@ class GuildListResponse(BaseModel):
     limit: int = Field(..., description="Limit applied")
     offset: int = Field(..., description="Offset applied")
     has_more: bool = Field(..., description="Whether there are more results")
+
+class GuildNameCheckRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100, description="Guild name to check")
+
+class GuildNameCheckResponse(BaseModel):
+    available: bool = Field(..., description="Whether the guild name is available")
+    message: Optional[str] = Field(None, description="Optional message about name availability")
 

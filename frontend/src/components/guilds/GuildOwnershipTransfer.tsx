@@ -53,8 +53,8 @@ export const GuildOwnershipTransfer: React.FC<GuildOwnershipTransferProps> = ({
   onOwnershipTransferred,
   className,
 }) => {
-  const { t } = useTranslation();
-  const translations = getGuildTranslations(t('lang'));
+  const { t, language } = useTranslation();
+  const translations = getGuildTranslations(language);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState('');
@@ -163,7 +163,7 @@ export const GuildOwnershipTransfer: React.FC<GuildOwnershipTransferProps> = ({
                   <SelectValue placeholder="Select a member" />
                 </SelectTrigger>
                 <SelectContent>
-                  {eligibleMembers.map((member) => (
+                  {eligibleMembers.filter(member => member && member.userId).map((member) => (
                     <SelectItem key={member.userId} value={member.userId}>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">

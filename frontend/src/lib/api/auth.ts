@@ -2,23 +2,36 @@
  * Authentication utilities for API calls.
  */
 
-// Mock implementation for now - in a real app this would integrate with your auth system
+import { getStoredAuth } from '@/lib/utils';
 export const getAuthHeaders = () => {
-  // In a real implementation, this would get the token from your auth store
-  const token = localStorage.getItem('auth_token') || 'mock-token';
+  const auth = getStoredAuth();
+  const token = auth?.id_token || auth?.access_token;
   
   return {
-    'Authorization': `Bearer ${token}`,
-    'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || 'mock-api-key'
+    'Authorization': token ? `Bearer ${token}` : '',
+    'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || ''
   };
 };
 
 export const getCurrentUser = () => {
-  // Mock user for now
-  return {
-    id: 'user-123',
-    username: 'testuser',
-    email: 'test@example.com'
-  };
+  // Get user from stored auth token
+  const auth = getStoredAuth();
+  if (!auth) return null;
+  
+  // Decode token to get user info
+  const token = auth.id_token || auth.access_token;
+  if (!token) return null;
+  
+  try {
+    const [, payload] = token.split('.');
+    const claims = JSON.parse(atob(payload));
+    return {
+      id: claims.sub || claims.user_id || 'unknown',
+      username: claims.username || claims.email || 'user',
+      email: claims.email || 'unknown@example.com'
+    };
+  } catch {
+    return null;
+  }
 };
 

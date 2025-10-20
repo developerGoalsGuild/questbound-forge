@@ -19,7 +19,7 @@ export const CreateGuild: React.FC = () => {
 
   const handleSuccess = (guild: any) => {
     toast.success(guildTranslations?.messages?.createSuccess || 'Guild created successfully!');
-    navigate(`/guilds/${guild.guildId}`);
+    navigate(`/guilds/${guild.guild_id}`);
   };
 
   const handleCancel = () => {

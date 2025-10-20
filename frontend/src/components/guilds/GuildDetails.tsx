@@ -49,11 +49,11 @@ import { guildAPI, Guild, GuildMember } from '@/lib/api/guild';
 import { getGuildTranslations } from '@/i18n/guild';
 import { GuildAnalyticsCard } from './GuildAnalyticsCard';
 import { GuildComments } from './GuildComments';
-import { AvatarUpload } from './AvatarUpload';
 import { GuildJoinRequests } from './GuildJoinRequests';
 import { GuildJoinRequestForm } from './GuildJoinRequestForm';
 import { GuildModeration } from './GuildModeration';
 import { GuildOwnershipTransfer } from './GuildOwnershipTransfer';
+import { GuildAvatar } from './GuildAvatar';
 import { useGuildAnalytics } from '@/hooks/useGuildAnalytics';
 import { toast } from 'sonner';
 
@@ -105,8 +105,20 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
     refetch,
   } = useQuery({
     queryKey: ['guild', guildId],
-    queryFn: () => guildAPI.getGuild(guildId, true, true, true),
-    enabled: !!guildId,
+    queryFn: () => {
+      if (!guildId || guildId === 'undefined') {
+        throw new Error('Invalid guild ID provided');
+      }
+      return guildAPI.getGuild(guildId, true, true, true);
+    },
+    enabled: !!guildId && guildId !== 'undefined',
+    retry: (failureCount, error) => {
+      // Don't retry if it's an invalid guild ID error
+      if (error?.message?.includes('Invalid guild ID')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   // Join guild mutation
@@ -203,12 +215,12 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
   });
 
   // Determine user's role and permissions
-  const userRole = guild?.members?.find(member => member.userId === currentUserId)?.role;
+  const userRole = guild?.members?.find(member => member.user_id === currentUserId)?.role;
   const isOwner = userRole === 'owner';
   const isModerator = userRole === 'moderator';
   const isMember = userRole === 'member' || isModerator || isOwner;
-  const canJoin = !isMember && guild?.guildType === 'public';
-  const canRequestJoin = !isMember && guild?.guildType === 'approval';
+  const canJoin = !isMember && guild?.guild_type === 'public';
+  const canRequestJoin = !isMember && guild?.guild_type === 'approval';
   const canModerate = isOwner || isModerator;
 
   const handleJoin = useCallback(async () => {
@@ -335,24 +347,25 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
               </Button>
             )}
             
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={guild.avatarUrl || ''} alt={guild.name} />
-              <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-lg">
-                {getGuildInitials(guild.name)}
-              </AvatarFallback>
-            </Avatar>
+            <GuildAvatar 
+              guildId={guild.guild_id}
+              guildName={guild.name}
+              avatarUrl={guild.avatar_url}
+              size="lg"
+              className="h-16 w-16"
+            />
 
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h1 className="text-2xl font-bold text-gray-900">{guild.name}</h1>
                 {isOwner && <Crown className="h-5 w-5 text-yellow-500" />}
-                {guild.guildType === 'public' && (
+                {guild.guild_type === 'public' && (
                   <Globe className="h-5 w-5 text-green-500" />
                 )}
-                {guild.guildType === 'private' && (
+                {guild.guild_type === 'private' && (
                   <Lock className="h-5 w-5 text-gray-500" />
                 )}
-                {guild.guildType === 'approval' && (
+                {guild.guild_type === 'approval' && (
                   <Shield className="h-5 w-5 text-blue-500" />
                 )}
               </div>
@@ -362,8 +375,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
               )}
               
               <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span>Created {formatDate(guild.createdAt)}</span>
-                <span>by {guild.createdBy}</span>
+                <span>Created {formatDate(guild.created_at)}</span>
+                <span>by {guild.owner_nickname || guild.owner_username || guild.created_by}</span>
               </div>
             </div>
           </div>
@@ -442,7 +455,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <Users className="h-5 w-5 text-blue-500" />
-              <span className="text-2xl font-bold text-gray-900">{guild.memberCount}</span>
+              <span className="text-2xl font-bold text-gray-900">{guild.member_count}</span>
             </div>
             <p className="text-sm text-gray-600">{translations.details.stats.members}</p>
           </div>
@@ -450,7 +463,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <Target className="h-5 w-5 text-green-500" />
-              <span className="text-2xl font-bold text-gray-900">{guild.goalCount}</span>
+              <span className="text-2xl font-bold text-gray-900">{guild.goal_count}</span>
             </div>
             <p className="text-sm text-gray-600">{translations.details.stats.goals}</p>
           </div>
@@ -458,7 +471,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <Trophy className="h-5 w-5 text-yellow-500" />
-              <span className="text-2xl font-bold text-gray-900">{guild.questCount}</span>
+              <span className="text-2xl font-bold text-gray-900">{guild.quest_count}</span>
             </div>
             <p className="text-sm text-gray-600">{translations.details.stats.quests}</p>
           </div>
@@ -480,34 +493,28 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
 
   const renderOverviewTab = () => (
     <div className="space-y-6">
-      {/* Avatar Management (Owner Only) */}
-      {isOwner && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Guild Avatar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center">
-              <AvatarUpload
-                guildId={guildId}
-                currentAvatarUrl={guild.avatarUrl}
-                onUploadSuccess={(url) => {
-                  // Update the guild data in the query cache
-                  queryClient.setQueryData(['guild', guildId], (oldData: any) => ({
-                    ...oldData,
-                    avatarUrl: url,
-                  }));
-                  toast.success('Avatar updated successfully!');
-                }}
-                onUploadError={(error) => {
-                  toast.error(`Avatar update failed: ${error}`);
-                }}
-                size="lg"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Guild Avatar Display (Read-only) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Guild Avatar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center">
+            <GuildAvatar 
+              guildId={guild.guild_id}
+              guildName={guild.name}
+              avatarUrl={guild.avatar_url}
+              size="xl"
+              className="h-32 w-32"
+            />
+          </div>
+          {isOwner && (
+            <p className="text-sm text-gray-500 text-center mt-2">
+              Click "Edit" to change the avatar
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Activity */}
       <Card>
@@ -529,16 +536,16 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
             <div className="flex justify-between">
               <span className="text-gray-600">Visibility:</span>
               <span className="font-medium">
-                {guild.isPublic ? 'Public' : 'Private'}
+                {guild.guild_type === 'public' ? 'Public' : 'Private'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Created:</span>
-              <span className="font-medium">{formatDate(guild.createdAt)}</span>
+              <span className="font-medium">{formatDate(guild.created_at)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Owner:</span>
-              <span className="font-medium">{guild.createdBy}</span>
+              <span className="font-medium">{guild.owner_nickname || guild.owner_username || guild.created_by}</span>
             </div>
           </div>
         </CardContent>
@@ -551,14 +558,14 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
-          {translations.members.title} ({guild.memberCount})
+          {translations.members.title} ({guild.member_count})
         </CardTitle>
       </CardHeader>
       <CardContent>
         {guild.members && guild.members.length > 0 ? (
           <div className="space-y-3">
             {guild.members.map(member => {
-              const isCurrentUser = member.userId === currentUserId;
+              const isCurrentUser = member.user_id === currentUserId;
               const canManageUser = canModerate && !isCurrentUser && member.role !== 'owner';
               const isLoading = 
                 removeUserMutation.isPending ||
@@ -568,10 +575,10 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                 removeModeratorMutation.isPending;
 
               return (
-                <div key={member.userId} className="flex items-center justify-between p-3 border rounded-lg">
+                <div key={member.user_id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={member.avatarUrl} alt={member.username} />
+                      <AvatarImage src={member.avatar_url} alt={member.username} />
                       <AvatarFallback>
                         {member.username.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -581,11 +588,11 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                         <span className="font-medium">{member.username}</span>
                         {member.role === 'owner' && <Crown className="h-4 w-4 text-yellow-500" />}
                         {member.role === 'moderator' && <Shield className="h-4 w-4 text-blue-500" />}
-                        {member.isBlocked && <Ban className="h-4 w-4 text-red-500" />}
+                        {member.is_blocked && <Ban className="h-4 w-4 text-red-500" />}
                       </div>
                       <p className="text-sm text-gray-600">
-                        Joined {formatDate(member.joinedAt)}
-                        {member.isBlocked && (
+                        Joined {formatDate(member.joined_at)}
+                        {member.is_blocked && (
                           <span className="text-red-500 ml-2">(Blocked from commenting)</span>
                         )}
                       </p>
@@ -619,7 +626,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                           {isOwner && (
                             <>
                               <DropdownMenuItem
-                                onClick={() => handleAssignModerator(member.userId, member.username)}
+                                onClick={() => handleAssignModerator(member.user_id, member.username)}
                                 disabled={isLoading}
                               >
                                 <Shield className="h-4 w-4 mr-2" />
@@ -630,13 +637,13 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                           )}
                           <DropdownMenuItem
                             onClick={() => 
-                              member.isBlocked 
-                                ? handleUnblockUser(member.userId, member.username)
-                                : handleBlockUser(member.userId, member.username)
+                              member.is_blocked 
+                                ? handleUnblockUser(member.user_id, member.username)
+                                : handleBlockUser(member.user_id, member.username)
                             }
                             disabled={isLoading}
                           >
-                            {member.isBlocked ? (
+                            {member.is_blocked ? (
                               <>
                                 <CheckCircle className="h-4 w-4 mr-2" />
                                 Unblock User
@@ -649,7 +656,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                             )}
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleRemoveUser(member.userId, member.username)}
+                            onClick={() => handleRemoveUser(member.user_id, member.username)}
                             disabled={isLoading}
                             className="text-red-600"
                           >
@@ -676,7 +683,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="h-5 w-5" />
-          Goals ({guild.goalCount})
+          Goals ({guild.goal_count})
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -692,7 +699,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5" />
-          Quests ({guild.questCount})
+          Quests ({guild.quest_count})
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -812,8 +819,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
 
   const renderCommentsTab = () => {
     // Check if current user is a member
-    const isMember = guild?.members?.some(member => member.userId === currentUserId) || false;
-    const userRole = guild?.members?.find(member => member.userId === currentUserId)?.role;
+    const isMember = guild?.members?.some(member => member.user_id === currentUserId) || false;
+    const userRole = guild?.members?.find(member => member.user_id === currentUserId)?.role;
 
     return (
       <GuildComments
@@ -883,6 +890,12 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
               currentUserId={currentUserId || ''}
               userRole={userRole || 'member'}
               className="w-full"
+              onGuildDataUpdate={() => {
+                // Refresh guild data when join requests are approved/rejected
+                queryClient.invalidateQueries({ queryKey: ['guild', guildId] });
+                // Also refresh analytics to update member count
+                refreshAnalytics();
+              }}
             />
           </TabsContent>
         )}
@@ -897,6 +910,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
               onMemberUpdate={() => {
                 // Refetch guild data when members are updated
                 queryClient.invalidateQueries({ queryKey: ['guild', guildId] });
+                // Also refresh analytics to update member count
+                refreshAnalytics();
               }}
               className="w-full"
             />
@@ -909,6 +924,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                 onOwnershipTransferred={() => {
                   // Refetch guild data when ownership is transferred
                   queryClient.invalidateQueries({ queryKey: ['guild', guildId] });
+                  // Also refresh analytics to update member count
+                  refreshAnalytics();
                 }}
                 className="w-full"
               />

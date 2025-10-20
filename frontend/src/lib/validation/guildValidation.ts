@@ -27,18 +27,18 @@ const TAG_REGEX = /^[a-zA-Z0-9\s]+$/;
 export const guildCreateSchema = z.object({
   name: z
     .string()
-    .min(MIN_GUILD_NAME_LENGTH, {
+    .refine((val) => val.length === 0 || val.length >= MIN_GUILD_NAME_LENGTH, {
       message: `Guild name must be at least ${MIN_GUILD_NAME_LENGTH} characters long`,
     })
-    .max(MAX_GUILD_NAME_LENGTH, {
+    .refine((val) => val.length === 0 || val.length <= MAX_GUILD_NAME_LENGTH, {
       message: `Guild name must be less than ${MAX_GUILD_NAME_LENGTH} characters`,
     })
-    .regex(GUILD_NAME_REGEX, {
+    .refine((val) => val.length === 0 || GUILD_NAME_REGEX.test(val), {
       message: 'Guild name can only contain letters, numbers, spaces, hyphens, and underscores',
     })
     .transform((val) => val.trim())
-    .refine((val) => val.length >= MIN_GUILD_NAME_LENGTH, {
-      message: 'Guild name cannot be empty after trimming',
+    .refine((val) => val.length === 0 || val.length >= MIN_GUILD_NAME_LENGTH, {
+      message: 'Guild name is required',
     }),
 
   description: z

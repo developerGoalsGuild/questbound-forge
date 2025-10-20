@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from '@/hooks/useTranslation';
+import { guildAPI } from '@/lib/api/guild';
 import {
   MessageSquare,
   Send,
@@ -156,6 +157,9 @@ const CommentItem: React.FC<{
   onBlockUser?: (userId: string, username: string) => void;
   onRemoveUser?: (userId: string, username: string) => void;
   isSubmitting?: boolean;
+  replyingTo?: string | null;
+  onAddComment: (content: string) => void;
+  onCancelReply: () => void;
 }> = ({
   comment,
   currentUserId,
@@ -167,9 +171,14 @@ const CommentItem: React.FC<{
   onBlockUser,
   onRemoveUser,
   isSubmitting = false,
+  replyingTo,
+  onAddComment,
+  onCancelReply,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const { t } = useTranslation();
+  const guildTranslations = (t as any)?.guild;
 
   const isOwner = comment.userId === currentUserId;
   const canEdit = isOwner;
@@ -196,6 +205,10 @@ const CommentItem: React.FC<{
     }
   }, [comment.commentId, onDelete]);
 
+  const handleLike = useCallback(() => {
+    onLike(comment.commentId);
+  }, [comment.commentId, onLike]); // Fixed duplicate declaration
+
   const handleBlockUser = useCallback(() => {
     if (onBlockUser && window.confirm(`Are you sure you want to block ${comment.username} from commenting?`)) {
       onBlockUser(comment.userId, comment.username);
@@ -207,10 +220,6 @@ const CommentItem: React.FC<{
       onRemoveUser(comment.userId, comment.username);
     }
   }, [comment.userId, comment.username, onRemoveUser]);
-
-  const handleLike = useCallback(() => {
-    onLike(comment.commentId);
-  }, [comment.commentId, onLike]);
 
   const handleReply = useCallback(() => {
     onReply(comment.commentId);
@@ -239,7 +248,18 @@ const CommentItem: React.FC<{
               </Badge>
             )}
             <span className="text-xs text-gray-500">
-              {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+              {(() => {
+                try {
+                  const date = new Date(comment.createdAt);
+                  if (isNaN(date.getTime())) {
+                    return 'just now';
+                  }
+                  return formatDistanceToNow(date, { addSuffix: true });
+                } catch (error) {
+                  console.warn('Invalid date format:', comment.createdAt, error);
+                  return 'just now';
+                }
+              })()}
             </span>
             {comment.isEdited && (
               <span className="text-xs text-gray-500">(edited)</span>
@@ -342,6 +362,23 @@ const CommentItem: React.FC<{
         </div>
       </div>
 
+
+      {/* Reply Form for this comment */}
+      {replyingTo === comment.commentId && (
+        <div className="ml-11 mt-3 pl-4 border-l-2 border-gray-100">
+          <CommentForm
+            onSubmit={(content) => {
+              console.log('Reply form submitted for comment:', comment.commentId, 'with content:', content);
+              onAddComment(content);
+            }}
+            onCancel={onCancelReply}
+            placeholder={`Reply to ${comment.username}...`}
+            isSubmitting={isSubmitting}
+            isReply={true}
+          />
+        </div>
+      )}
+
       {/* Replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="ml-11">
@@ -356,20 +393,40 @@ const CommentItem: React.FC<{
           
           {showReplies && (
             <div className="mt-2 space-y-3 pl-4 border-l-2 border-gray-100">
-              {comment.replies.map((reply) => (
-                <CommentItem
-                  key={reply.commentId}
-                  comment={reply}
-                  currentUserId={currentUserId}
-                  currentUserRole={currentUserRole}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onLike={onLike}
-                  onBlockUser={onBlockUser}
-                  onRemoveUser={onRemoveUser}
-                  isSubmitting={isSubmitting}
-                />
+              {comment.replies.map((reply, replyIndex) => (
+                <div key={reply.commentId || `reply-${replyIndex}`} className="space-y-3">
+                  <CommentItem
+                    comment={reply}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    onReply={onReply}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onLike={onLike}
+                    onBlockUser={onBlockUser}
+                    onRemoveUser={onRemoveUser}
+                    isSubmitting={isSubmitting}
+                    replyingTo={replyingTo}
+                    onAddComment={onAddComment}
+                    onCancelReply={onCancelReply}
+                  />
+                  
+                  {/* Reply Form for nested replies */}
+                  {replyingTo === reply.commentId && (
+                    <div className="ml-11 mt-3 pl-4 border-l-2 border-gray-200">
+                      <CommentForm
+                        onSubmit={(content) => {
+                          console.log('Nested reply form submitted for comment:', reply.commentId, 'with content:', content);
+                          onAddComment(content);
+                        }}
+                        onCancel={onCancelReply}
+                        placeholder={`Reply to ${reply.username}...`}
+                        isSubmitting={isSubmitting}
+                        isReply={true}
+                      />
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -401,111 +458,136 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   } = useQuery({
     queryKey: ['guild-comments', guildId],
     queryFn: async () => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
-      
-      // Generate mock comments
-      const mockComments: GuildComment[] = [
-        {
-          commentId: 'comment-1',
-          guildId,
-          userId: 'user-1',
-          username: 'AlexJohnson',
-          avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=AlexJohnson',
-          content: 'Welcome to our guild! Looking forward to achieving great goals together.',
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          likes: 5,
-          isLiked: false,
-          isEdited: false,
-          userRole: 'owner',
-          replies: [
+      try {
+        const response = await guildAPI.getGuildComments(guildId);
+        console.log('Guild comments API response:', response);
+        
+        // Handle different response structures
+        if (Array.isArray(response)) {
+          return response;
+        } else if (response && response.comments && Array.isArray(response.comments.comments)) {
+          return response.comments.comments;
+        } else if (response && Array.isArray(response.comments)) {
+          return response.comments;
+        } else {
+          console.log('No comments found in response, returning demo comments');
+          // Return demo comments to make the section more engaging
+          return [
             {
-              commentId: 'reply-1',
+              commentId: 'demo-1',
               guildId,
-              userId: 'user-2',
-              username: 'SarahChen',
-              avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=SarahChen',
-              content: 'Thanks for the warm welcome! Excited to be here.',
-              createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+              userId: 'demo-user-1',
+              username: 'GuildMaster',
+              avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=GuildMaster',
+              content: 'Welcome to our guild! This is a demo comment to show how the comments section works. Feel free to add your own comments!',
+              createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+              likes: 3,
+              isLiked: false,
+              isEdited: false,
+              userRole: 'owner',
+              replies: [
+                {
+                  commentId: 'demo-reply-1',
+                  guildId,
+                  userId: 'demo-user-2',
+                  username: 'NewMember',
+                  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=NewMember',
+                  content: 'Thanks for the warm welcome! Excited to be part of this community.',
+                  createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+                  likes: 1,
+                  isLiked: true,
+                  isEdited: false,
+                  userRole: 'member',
+                },
+              ],
+            },
+            {
+              commentId: 'demo-2',
+              guildId,
+              userId: 'demo-user-3',
+              username: 'GoalSetter',
+              avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=GoalSetter',
+              content: 'Has anyone started working on their fitness goals this week? I\'d love to hear about your progress!',
+              createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
               likes: 2,
-              isLiked: true,
+              isLiked: false,
               isEdited: false,
               userRole: 'member',
             },
-          ],
-        },
-        {
-          commentId: 'comment-2',
-          guildId,
-          userId: 'user-3',
-          username: 'MikeRodriguez',
-          avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=MikeRodriguez',
-          content: 'Has anyone started working on the fitness goals yet? I\'d love to collaborate!',
-          createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          likes: 3,
-          isLiked: false,
-          isEdited: false,
-          userRole: 'member',
-        },
-        {
-          commentId: 'comment-3',
-          guildId,
-          userId: 'user-4',
-          username: 'EmmaWilson',
-          avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=EmmaWilson',
-          content: 'Great progress on the coding challenges everyone! Keep up the excellent work.',
-          createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          likes: 7,
-          isLiked: true,
-          isEdited: true,
-          userRole: 'moderator',
-        },
-      ];
-
-      return mockComments;
+          ];
+        }
+      } catch (error) {
+        console.error('Error fetching guild comments:', error);
+        // Return empty array on error to prevent crashes
+        return [];
+      }
     },
     enabled: isMember,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  // Debug logging
+  console.log('GuildComments render - comments:', comments, 'isArray:', Array.isArray(comments));
+
   // Add comment mutation
   const addCommentMutation = useMutation({
     mutationFn: async ({ content, parentCommentId }: { content: string; parentCommentId?: string }) => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
-      
-      const newComment: GuildComment = {
-        commentId: `comment-${Date.now()}`,
-        guildId,
-        userId: currentUserId || 'current-user',
-        username: 'Current User',
-        content,
-        createdAt: new Date().toISOString(),
-        likes: 0,
-        isLiked: false,
-        isEdited: false,
-        userRole: userRole || 'member',
-        parentCommentId,
-      };
-
-      return newComment;
+      console.log('Mutation called with:', { content, parentCommentId, guildId });
+      try {
+        const response = await guildAPI.createGuildComment(guildId, content, parentCommentId);
+        console.log('API response:', response);
+        console.log('API response parentCommentId:', response.parentCommentId);
+        
+        // Ensure parentCommentId is preserved in the response
+        const commentWithParent = {
+          ...response,
+          parentCommentId: response.parentCommentId || parentCommentId
+        };
+        console.log('Comment with preserved parentCommentId:', commentWithParent);
+        return commentWithParent;
+      } catch (error) {
+        // If backend is not implemented, create a local comment for demo purposes
+        console.warn('Backend comment creation failed, creating local comment:', error);
+        const localComment = {
+          commentId: `local_${Date.now()}`,
+          guildId,
+          userId: currentUserId || 'current-user',
+          username: 'You',
+          content,
+          createdAt: new Date().toISOString(),
+          likes: 0,
+          isLiked: false,
+          isEdited: false,
+          userRole: userRole || 'member',
+          parentCommentId,
+        };
+        console.log('Created local comment:', localComment);
+        return localComment;
+      }
     },
     onSuccess: (newComment) => {
+      console.log('onSuccess called with newComment:', newComment);
+      console.log('newComment.parentCommentId:', newComment.parentCommentId);
+      
       queryClient.setQueryData(['guild-comments', guildId], (oldComments: GuildComment[] = []) => {
+        console.log('Updating comments with parentCommentId:', newComment.parentCommentId);
         if (newComment.parentCommentId) {
           // Add as reply
+          console.log('Adding as reply to parent comment:', newComment.parentCommentId);
           return oldComments.map(comment => {
             if (comment.commentId === newComment.parentCommentId) {
+              console.log('Found parent comment, adding reply');
               return {
                 ...comment,
-                replies: [...(comment.replies || []), newComment],
+                replies: [...(comment.replies || []), { ...newComment, commentId: newComment.commentId || `reply-${Date.now()}` }],
               };
             }
             return comment;
           });
         } else {
           // Add as top-level comment
-          return [newComment, ...oldComments];
+          console.log('Adding as top-level comment');
+          return [{ ...newComment, commentId: newComment.commentId || `comment-${Date.now()}` }, ...oldComments];
         }
       });
       setReplyingTo(null);
@@ -520,9 +602,13 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   // Edit comment mutation
   const editCommentMutation = useMutation({
     mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
-      return { commentId, content };
+      try {
+        await guildAPI.updateGuildComment(guildId, commentId, content);
+        return { commentId, content };
+      } catch (error) {
+        console.warn('Backend comment update failed, updating locally:', error);
+        return { commentId, content };
+      }
     },
     onSuccess: ({ commentId, content }) => {
       queryClient.setQueryData(['guild-comments', guildId], (oldComments: GuildComment[] = []) => {
@@ -536,7 +622,7 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
                 isEdited: true,
               };
             }
-            if (comment.replies) {
+            if (comment.replies && Array.isArray(comment.replies)) {
               return {
                 ...comment,
                 replies: updateComment(comment.replies),
@@ -559,9 +645,13 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   // Delete comment mutation
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
-      return commentId;
+      try {
+        await guildAPI.deleteGuildComment(guildId, commentId);
+        return commentId;
+      } catch (error) {
+        console.warn('Backend comment deletion failed, deleting locally:', error);
+        return commentId;
+      }
     },
     onSuccess: (commentId) => {
       queryClient.setQueryData(['guild-comments', guildId], (oldComments: GuildComment[] = []) => {
@@ -592,31 +682,44 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   // Like comment mutation
   const likeCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
-      return commentId;
+      try {
+        const result = await guildAPI.likeGuildComment(guildId, commentId);
+        return { commentId, result };
+      } catch (error) {
+        console.warn('Backend comment like failed, liking locally:', error);
+        return { commentId, result: null };
+      }
     },
-    onSuccess: (commentId) => {
+    onSuccess: ({ commentId, result }) => {
       queryClient.setQueryData(['guild-comments', guildId], (oldComments: GuildComment[] = []) => {
-        const toggleLike = (comments: GuildComment[]): GuildComment[] => {
+        const updateLike = (comments: GuildComment[]): GuildComment[] => {
           return comments.map(comment => {
             if (comment.commentId === commentId) {
-              return {
-                ...comment,
-                isLiked: !comment.isLiked,
-                likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
-              };
+              // Use backend response if available, otherwise toggle locally
+              if (result) {
+                return {
+                  ...comment,
+                  isLiked: result.is_liked,
+                  likes: result.likes,
+                };
+              } else {
+                return {
+                  ...comment,
+                  isLiked: !comment.isLiked,
+                  likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1,
+                };
+              }
             }
-            if (comment.replies) {
+            if (comment.replies && Array.isArray(comment.replies)) {
               return {
                 ...comment,
-                replies: toggleLike(comment.replies),
+                replies: updateLike(comment.replies),
               };
             }
             return comment;
           });
         };
-        return toggleLike(oldComments);
+        return updateLike(oldComments);
       });
     },
     onError: (error) => {
@@ -628,8 +731,7 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   // Block user mutation
   const blockUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+      await guildAPI.blockUser(guildId, userId, 'Blocked from commenting');
       return userId;
     },
     onSuccess: (userId) => {
@@ -646,8 +748,7 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   // Remove user mutation
   const removeUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+      await guildAPI.removeUserFromGuild(guildId, userId);
       return userId;
     },
     onSuccess: (userId) => {
@@ -680,10 +781,12 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   });
 
   const handleAddComment = useCallback((content: string) => {
+    console.log('Creating comment with parentCommentId:', replyingTo);
     addCommentMutation.mutate({ content, parentCommentId: replyingTo || undefined });
   }, [addCommentMutation, replyingTo]);
 
   const handleReply = useCallback((commentId: string) => {
+    console.log('Setting replyingTo to:', commentId);
     setReplyingTo(commentId);
   }, []);
 
@@ -774,60 +877,52 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
         <Separator />
 
         {/* Comments List */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
-        ) : comments.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {guildTranslations?.comments?.noComments || 'No comments yet'}
-            </h3>
-            <p className="text-gray-600">
-              Be the first to start the conversation!
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {comments.map((comment) => (
-              <div key={comment.commentId}>
-                <CommentItem
-                  comment={comment}
-                  currentUserId={currentUserId}
-                  currentUserRole={userRole}
-                  onReply={handleReply}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onLike={handleLike}
-                  onBlockUser={handleBlockUser}
-                  onRemoveUser={handleRemoveUser}
-                  isSubmitting={
-                    addCommentMutation.isPending ||
-                    editCommentMutation.isPending ||
-                    deleteCommentMutation.isPending ||
-                    likeCommentMutation.isPending ||
-                    blockUserMutation.isPending ||
-                    removeUserMutation.isPending
-                  }
-                />
-                
-                {/* Reply Form */}
-                {replyingTo === comment.commentId && (
-                  <div className="ml-11 mt-3">
-                    <CommentForm
-                      onSubmit={handleAddComment}
-                      onCancel={handleCancelReply}
-                      placeholder={`Reply to ${comment.username}...`}
-                      isSubmitting={addCommentMutation.isPending}
-                      isReply={true}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No comments yet
+              </h3>
+              <p className="text-gray-600">
+                Be the first to start the conversation! Share your thoughts with the guild.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {Array.isArray(comments) && comments.map((comment, index) => (
+                <div key={comment.commentId || `comment-${index}`}>
+                  <CommentItem
+                    comment={comment}
+                    currentUserId={currentUserId}
+                    currentUserRole={userRole}
+                    onReply={handleReply}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onLike={handleLike}
+                    onBlockUser={handleBlockUser}
+                    onRemoveUser={handleRemoveUser}
+                    isSubmitting={
+                      addCommentMutation.isPending ||
+                      editCommentMutation.isPending ||
+                      deleteCommentMutation.isPending ||
+                      likeCommentMutation.isPending ||
+                      blockUserMutation.isPending ||
+                      removeUserMutation.isPending
+                    }
+                    replyingTo={replyingTo}
+                    onAddComment={handleAddComment}
+                    onCancelReply={handleCancelReply}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

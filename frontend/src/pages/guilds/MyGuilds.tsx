@@ -60,7 +60,7 @@ export const MyGuilds: React.FC = () => {
   const guilds = guildsData?.guilds || [];
 
   const handleGuildClick = useCallback((guild: Guild) => {
-    navigate(`/guilds/${guild.guildId}`);
+    navigate(`/guilds/${guild.guild_id}`);
   }, [navigate]);
 
   const handleRankingGuildClick = useCallback((guild: GuildRankingData) => {
@@ -102,7 +102,7 @@ export const MyGuilds: React.FC = () => {
     setShowCreateModal(false);
     toast.success('Guild created successfully!');
     refetch();
-    navigate(`/guilds/${guild.guildId}`);
+    navigate(`/guilds/${guild.guild_id}`);
   }, [refetch, navigate]);
 
   const handleCreateCancel = useCallback(() => {

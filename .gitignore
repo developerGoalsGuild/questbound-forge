@@ -108,3 +108,4 @@ backend/services/quest-service/tests/__pycache__/test_performance.cpython-313-py
 backend/services/quest-service/tests/__pycache__/test_profile.cpython-313-pytest-8.4.1.pyc
 frontend/package-lock.json
 frontend/.env.development
+frontend/.env.development

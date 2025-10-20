@@ -290,6 +290,74 @@ export interface GuildTranslations {
     loading: string;
     error: string;
   };
+  edit: {
+    title: string;
+    subtitle: string;
+    basicInfo: string;
+    settings: string;
+    avatar: string;
+    members: string;
+    guildName: string;
+    guildNamePlaceholder: string;
+    description: string;
+    descriptionPlaceholder: string;
+    guildType: string;
+    selectGuildType: string;
+    publicGuild: string;
+    privateGuild: string;
+    approvalGuild: string;
+    addTag: string;
+    tagsHelp: string;
+    allowJoinRequests: string;
+    allowJoinRequestsDesc: string;
+    requireApproval: string;
+    requireApprovalDesc: string;
+    locked: string;
+    requireApprovalLockedDesc: string;
+    allowComments: string;
+    allowCommentsDesc: string;
+    uploadAvatar: string;
+    avatarHelp: string;
+    preview: string;
+    remove: string;
+    memberManagement: string;
+    memberManagementComingSoon: string;
+    cancel: string;
+      save: string;
+      uploadingAvatar: string;
+      loading: string;
+    errorTitle: string;
+    errorMessage: string;
+    permissionDenied: string;
+    permissionMessage: string;
+    backToGuilds: string;
+    backToGuild: string;
+    guildNotFound: string;
+    guildNotFoundMessage: string;
+    edit: string;
+    guilds: string;
+  };
+  memberManagement: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    error: string;
+    noMembers: string;
+    joinedOn: string;
+    promote: string;
+    demote: string;
+    remove: string;
+    cancel: string;
+    removeMember: string;
+    removeMemberDesc: string;
+    promoteModerator: string;
+    promoteModeratorDesc: string;
+    demoteModerator: string;
+    demoteModeratorDesc: string;
+    memberRemoved: string;
+    memberPromoted: string;
+    memberDemoted: string;
+  };
       joinRequests: {
         title: string;
         empty: string;
@@ -598,6 +666,74 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       loading: 'Loading comments...',
       error: 'Failed to load comments',
     },
+    edit: {
+      title: 'Edit Guild',
+      subtitle: 'Update your guild information and settings',
+      basicInfo: 'Basic Info',
+      settings: 'Settings',
+      avatar: 'Avatar',
+      members: 'Members',
+      guildName: 'Guild Name',
+      guildNamePlaceholder: 'Enter guild name',
+      description: 'Description',
+      descriptionPlaceholder: 'Enter guild description',
+      guildType: 'Guild Type',
+      selectGuildType: 'Select guild type',
+      publicGuild: 'Public',
+      privateGuild: 'Private',
+      approvalGuild: 'Approval Required',
+      addTag: 'Add tag...',
+      tagsHelp: 'Press Enter or comma to add tags. Maximum 10 tags.',
+      allowJoinRequests: 'Allow Join Requests',
+      allowJoinRequestsDesc: 'Allow users to request to join this guild',
+      requireApproval: 'Require Approval',
+      requireApprovalDesc: 'Require approval for new members to join',
+      locked: 'Locked',
+      requireApprovalLockedDesc: 'This setting is locked because the guild type is "Approval Required". Change the guild type to modify this setting.',
+      allowComments: 'Allow Comments',
+      allowCommentsDesc: 'Allow members to post comments in this guild',
+      uploadAvatar: 'Upload New Avatar',
+      avatarHelp: 'JPG, PNG or WebP. Max size 5MB.',
+      preview: 'Preview',
+      remove: 'Remove',
+      memberManagement: 'Member Management',
+      memberManagementComingSoon: 'Member management features coming soon',
+      cancel: 'Cancel',
+      save: 'Save Changes',
+      uploadingAvatar: 'Uploading Avatar...',
+      loading: 'Loading guild details...',
+      errorTitle: 'Error Loading Guild',
+      errorMessage: 'Unable to load guild details. Please try again.',
+      permissionDenied: 'Permission Denied',
+      permissionMessage: 'You do not have permission to edit this guild.',
+      backToGuilds: 'Back to Guilds',
+      backToGuild: 'Back to Guild',
+      guildNotFound: 'Guild Not Found',
+      guildNotFoundMessage: 'The guild you are looking for does not exist.',
+      edit: 'Edit',
+      guilds: 'Guilds',
+    },
+    memberManagement: {
+      title: 'Member Management',
+      subtitle: 'Manage guild members and their roles',
+      loading: 'Loading members...',
+      error: 'Failed to load members',
+      noMembers: 'No members found',
+      joinedOn: 'Joined on',
+      promote: 'Promote',
+      demote: 'Demote',
+      remove: 'Remove',
+      cancel: 'Cancel',
+      removeMember: 'Remove Member',
+      removeMemberDesc: 'Are you sure you want to remove {username} from this guild?',
+      promoteModerator: 'Promote to Moderator',
+      promoteModeratorDesc: 'Are you sure you want to promote {username} to moderator?',
+      demoteModerator: 'Demote Moderator',
+      demoteModeratorDesc: 'Are you sure you want to demote {username} from moderator?',
+      memberRemoved: 'Member removed successfully',
+      memberPromoted: 'Member promoted successfully',
+      memberDemoted: 'Member demoted successfully',
+    },
         joinRequests: {
           title: 'Join Requests',
           empty: 'No pending join requests',
@@ -861,6 +997,42 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       tagTooLong: 'Cada etiqueta debe tener menos de 20 caracteres',
       tagInvalid: 'Las etiquetas solo pueden contener letras, números y espacios',
       tooManyTags: 'Máximo 10 etiquetas permitidas',
+    },
+    edit: {
+      title: 'Editar Gremio',
+      subtitle: 'Actualiza la información y configuración de tu gremio',
+      basicInfo: 'Información Básica',
+      settings: 'Configuración',
+      avatar: 'Avatar',
+      members: 'Miembros',
+      guildName: 'Nombre del Gremio',
+      guildNamePlaceholder: 'Ingresa el nombre del gremio',
+      description: 'Descripción',
+      descriptionPlaceholder: 'Ingresa la descripción del gremio',
+      guildType: 'Tipo de Gremio',
+      selectGuildType: 'Seleccionar tipo de gremio',
+      publicGuild: 'Público',
+      privateGuild: 'Privado',
+      approvalGuild: 'Requiere Aprobación',
+      addTag: 'Agregar etiqueta...',
+      tagsHelp: 'Presiona Enter o coma para agregar etiquetas. Máximo 10 etiquetas.',
+      allowJoinRequests: 'Permitir Solicitudes de Ingreso',
+      allowJoinRequestsDesc: 'Permitir que los usuarios soliciten unirse a este gremio',
+      requireApproval: 'Requerir Aprobación',
+      requireApprovalDesc: 'Requerir aprobación para que nuevos miembros se unan',
+      locked: 'Bloqueado',
+      requireApprovalLockedDesc: 'Esta configuración está bloqueada porque el tipo de gremio es "Requiere Aprobación". Cambia el tipo de gremio para modificar esta configuración.',
+      allowComments: 'Permitir Comentarios',
+      allowCommentsDesc: 'Permitir que los miembros publiquen comentarios en este gremio',
+      uploadAvatar: 'Subir Nuevo Avatar',
+      avatarHelp: 'JPG, PNG o WebP. Tamaño máximo 5MB.',
+      preview: 'Vista Previa',
+      remove: 'Eliminar',
+      memberManagement: 'Gestión de Miembros',
+      saveChanges: 'Guardar Cambios',
+      saving: 'Guardando...',
+      cancel: 'Cancelar',
+      uploadingAvatar: 'Subiendo avatar...',
     },
     messages: {
       createSuccess: '¡Gremio creado exitosamente!',
@@ -1224,6 +1396,42 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         approved: 'Approuvé',
         rejected: 'Rejeté',
       },
+    },
+    edit: {
+      title: 'Modifier la Guilde',
+      subtitle: 'Mettez à jour les informations et paramètres de votre guilde',
+      basicInfo: 'Informations de Base',
+      settings: 'Paramètres',
+      avatar: 'Avatar',
+      members: 'Membres',
+      guildName: 'Nom de la Guilde',
+      guildNamePlaceholder: 'Entrez le nom de la guilde',
+      description: 'Description',
+      descriptionPlaceholder: 'Entrez la description de la guilde',
+      guildType: 'Type de Guilde',
+      selectGuildType: 'Sélectionner le type de guilde',
+      publicGuild: 'Publique',
+      privateGuild: 'Privée',
+      approvalGuild: 'Nécessite une Approbation',
+      addTag: 'Ajouter une étiquette...',
+      tagsHelp: 'Appuyez sur Entrée ou virgule pour ajouter des étiquettes. Maximum 10 étiquettes.',
+      allowJoinRequests: 'Autoriser les Demandes d\'Adhésion',
+      allowJoinRequestsDesc: 'Autoriser les utilisateurs à demander à rejoindre cette guilde',
+      requireApproval: 'Exiger une Approbation',
+      requireApprovalDesc: 'Exiger une approbation pour que de nouveaux membres rejoignent',
+      locked: 'Verrouillé',
+      requireApprovalLockedDesc: 'Ce paramètre est verrouillé car le type de guilde est "Nécessite une Approbation". Changez le type de guilde pour modifier ce paramètre.',
+      allowComments: 'Autoriser les Commentaires',
+      allowCommentsDesc: 'Autoriser les membres à publier des commentaires dans cette guilde',
+      uploadAvatar: 'Télécharger un Nouvel Avatar',
+      avatarHelp: 'JPG, PNG ou WebP. Taille maximale 5MB.',
+      preview: 'Aperçu',
+      remove: 'Supprimer',
+      memberManagement: 'Gestion des Membres',
+      saveChanges: 'Enregistrer les Modifications',
+      saving: 'Enregistrement...',
+      cancel: 'Annuler',
+      uploadingAvatar: 'Téléchargement de l\'avatar...',
     },
   },
 };

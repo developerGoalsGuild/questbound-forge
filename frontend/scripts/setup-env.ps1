@@ -12,7 +12,7 @@ $envContent = @"
 # API Gateway Configuration
 VITE_API_GATEWAY_KEY=$ApiGatewayKey
 VITE_API_GATEWAY_URL=$ApiGatewayUrl
-VITE_API_BASE_URL=/v1
+# VITE_API_BASE_URL is not set in dev - frontend uses proxy
 
 # AppSync Configuration
 VITE_APPSYNC_ENDPOINT=$AppSyncEndpoint

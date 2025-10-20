@@ -329,9 +329,14 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredAndSortedGuilds.map((guild, index) => (
+            {filteredAndSortedGuilds.map((guild, index) => {
+              // Debug: Log guild data to check for missing guildId
+              if (!guild.guildId) {
+                console.warn('Guild missing guildId:', guild, 'at index:', index);
+              }
+              return (
               <div
-                key={guild.guildId}
+                key={guild.guildId || `guild-${index}`}
                 className={cn(
                   'transition-all duration-200',
                   onGuildClick && 'cursor-pointer hover:scale-[1.02]'
@@ -344,7 +349,8 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
                   showTrends={true}
                 />
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

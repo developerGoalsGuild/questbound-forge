@@ -1,6 +1,19 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
+
+
+class MemberLeaderboardItem(BaseModel):
+    user_id: str = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    avatar_url: Optional[str] = Field(None, description="User avatar URL")
+    score: float = Field(..., description="Leaderboard score")
+    rank: int = Field(..., description="Rank position")
+    goals_completed: int = Field(0, description="Goals completed")
+    quests_completed: int = Field(0, description="Quests completed")
+    comments_count: int = Field(0, description="Number of comments")
+    last_activity: Optional[datetime] = Field(None, description="Last activity timestamp")
+
 
 class GuildAnalyticsResponse(BaseModel):
     guild_id: str = Field(..., description="Guild ID")
@@ -16,6 +29,15 @@ class GuildAnalyticsResponse(BaseModel):
     quest_completion_rate: float = Field(..., description="Quest completion rate")
     activity_score: float = Field(..., description="Overall activity score")
     last_updated: datetime = Field(..., description="Last update timestamp")
+    # Additional fields for frontend compatibility
+    guild_name: Optional[str] = Field(None, description="Guild name")
+    guild_type: Optional[str] = Field(None, description="Guild type")
+    created_at: Optional[datetime] = Field(None, description="Guild creation timestamp")
+    last_activity_at: Optional[datetime] = Field(None, description="Last activity timestamp")
+    # Alias to keep JSON field camelCase for frontend compatibility
+    member_leaderboard: List[MemberLeaderboardItem] = Field(
+        default_factory=list, alias="memberLeaderboard", description="Member leaderboard"
+    )
 
 class GuildRankingResponse(BaseModel):
     guild_id: str = Field(..., description="Guild ID")

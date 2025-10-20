@@ -69,8 +69,8 @@ const ModerationDialog: React.FC<ModerationDialogProps> = ({
   onConfirm,
   isProcessing,
 }) => {
-  const { t } = useTranslation();
-  const translations = getGuildTranslations(t('lang'));
+  const { t, language } = useTranslation();
+  const translations = getGuildTranslations(language);
   const [reason, setReason] = useState('');
   const [selectedReason, setSelectedReason] = useState('');
 
@@ -202,8 +202,8 @@ export const GuildModeration: React.FC<GuildModerationProps> = ({
   onMemberUpdate,
   className,
 }) => {
-  const { t } = useTranslation();
-  const translations = getGuildTranslations(t('lang'));
+  const { t, language } = useTranslation();
+  const translations = getGuildTranslations(language);
   
   const [selectedMember, setSelectedMember] = useState<GuildMember | null>(null);
   const [moderationAction, setModerationAction] = useState<'block' | 'unblock' | 'toggle_comment' | null>(null);
@@ -297,7 +297,7 @@ export const GuildModeration: React.FC<GuildModerationProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {moderatableMembers.map((member) => (
+              {moderatableMembers.filter(member => member && member.userId).map((member) => (
                 <div
                   key={member.userId}
                   className="flex items-center gap-3 p-3 border rounded-lg"

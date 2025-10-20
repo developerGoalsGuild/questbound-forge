@@ -8,7 +8,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { GuildAvatar } from './GuildAvatar';
 import { Progress } from '@/components/ui/progress';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -262,18 +262,19 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
           <div className="flex items-center gap-4">
             <RankingBadge position={data.position} previousPosition={data.previousPosition} />
             
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={data.avatarUrl} alt={data.name} />
-              <AvatarFallback>
-                {data.name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <GuildAvatar 
+              guildId={data.guildId}
+              guildName={data.name}
+              avatarUrl={data.avatarUrl}
+              size="md"
+              className="h-12 w-12"
+            />
             
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-semibold text-gray-900">{data.name}</h3>
-                {data.badges.map(badge => (
-                  <Badge key={badge} variant="secondary" className="text-xs">
+                {(data.badges || []).map((badge, index) => (
+                  <Badge key={`${badge}-${index}`} variant="secondary" className="text-xs">
                     {badge}
                   </Badge>
                 ))}
@@ -283,30 +284,30 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
               <div className="flex items-center gap-4 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   <Users className="h-3 w-3" />
-                  {data.memberCount} {guildTranslations?.analytics?.members || 'members'}
+                  {data.memberCount || 0} {guildTranslations?.analytics?.members || 'members'}
                 </span>
                 <span className="flex items-center gap-1">
                   <Target className="h-3 w-3" />
-                  {data.goalCount} {guildTranslations?.analytics?.goals || 'goals'}
+                  {data.goalCount || 0} {guildTranslations?.analytics?.goals || 'goals'}
                 </span>
                 <span className="flex items-center gap-1">
                   <Zap className="h-3 w-3" />
-                  {data.totalScore.toLocaleString()} pts
+                  {(data.totalScore || 0).toLocaleString()} pts
                 </span>
               </div>
             </div>
             
             <div className="text-right">
               <div className="text-lg font-bold text-gray-900">
-                {data.totalScore.toLocaleString()}
+                {(data.totalScore || 0).toLocaleString()}
               </div>
               <div className="text-xs text-gray-500">Total Score</div>
-              {showTrends && data.growthRate !== 0 && (
+              {showTrends && (data.growthRate || 0) !== 0 && (
                 <div className={cn(
                   'text-xs font-medium mt-1',
-                  data.growthRate > 0 ? 'text-green-600' : 'text-red-600'
+                  (data.growthRate || 0) > 0 ? 'text-green-600' : 'text-red-600'
                 )}>
-                  {data.growthRate > 0 ? '+' : ''}{data.growthRate}%
+                  {(data.growthRate || 0) > 0 ? '+' : ''}{data.growthRate || 0}%
                 </div>
               )}
             </div>
@@ -340,17 +341,18 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
       <CardContent className="space-y-6">
         {/* Guild Info */}
         <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={data.avatarUrl} alt={data.name} />
-            <AvatarFallback className="text-lg">
-              {data.name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <GuildAvatar 
+            guildId={data.guildId}
+            guildName={data.name}
+            avatarUrl={data.avatarUrl}
+            size="lg"
+            className="h-16 w-16"
+          />
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              {data.badges.map(badge => (
-                <Badge key={badge} variant="secondary">
+              {(data.badges || []).map((badge, index) => (
+                <Badge key={`${badge}-${index}`} variant="secondary">
                   {badge}
                 </Badge>
               ))}

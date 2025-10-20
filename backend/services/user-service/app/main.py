@@ -996,23 +996,10 @@ def login(body: LoginLocal, request: Request):
         or item.get("user_type")
         or "user"
     )
-    token = issue_local_jwt(item["id"], email, ttl_seconds=3600, role=user_role)
+    token = issue_local_jwt(item["id"], email, ttl_seconds=3600, role=user_role,nickname=item.get("nickname"))
     record_attempt(email, success=True, ip=client_ip, ua=ua, reason="OK")
     _safe_event("login.success", cid=cid, email=_mask_email(email), ip=client_ip, ua=ua)
-    return TokenResponse(**token).model_dump()
-
-@app.post("/auth/renew", response_model=None)
-def renew_token(request: Request, authorization: Optional[str] = Header(None)):
-    cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
-    authz = authorization or ""
-    if not authz.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authz.split(" ", 1)[1].strip()
-    try:
-        claims = verify_local_jwt(token)
-    except Exception:
-        _safe_event("renew.token_invalid", cid=cid)
-        raise HTTPException(status_code=401, detail="Token expired or invalid")
+    return TokenResponse(**token).model_dump()  
 
     user_id = claims.get("sub")
     email = (claims.get("email") or "").lower()
@@ -1036,7 +1023,7 @@ def renew_token(request: Request, authorization: Optional[str] = Header(None)):
         logger.error("renew.ddb_error", exc_info=True)
         raise HTTPException(status_code=500, detail="Unable to renew token")
 
-    new_tok = issue_local_jwt(user_id, email, ttl_seconds=3600, role=role)
+    new_tok = issue_local_jwt(user_id, email, ttl_seconds=3600, role=role, nickname=item.get("nickname"))
     _safe_event("renew.success", cid=cid, email=_mask_email(email))
     return TokenResponse(**new_tok).model_dump()
 
@@ -1170,7 +1157,7 @@ def change_password(
         raise HTTPException(status_code=500, detail="Could not update password")
 
     _safe_event("password_changed", cid=cid, email=_mask_email(email))
-    token = issue_local_jwt(item["user_id"], email)
+    token = issue_local_jwt(item["user_id"], email, nickname=item.get("nickname"))
     return TokenResponse(**token).model_dump()
 
 

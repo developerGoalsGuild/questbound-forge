@@ -11,7 +11,8 @@ from fastapi.security import HTTPBearer
 
 from ..models.analytics import GuildAnalyticsResponse, MemberLeaderboardItem
 from ..db.guild_db import get_guild_analytics, get_guild_rankings, GuildDBError, GuildNotFoundError
-from ..security.auth import get_current_user_id
+from ..security.authentication import authenticate
+from ..security.auth_models import AuthContext
 from ..security.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/guilds", tags=["guild-analytics"])
@@ -20,7 +21,7 @@ security = HTTPBearer()
 @router.get("/{guild_id}/analytics", response_model=GuildAnalyticsResponse)
 async def get_guild_analytics_endpoint(
     guild_id: str,
-    current_user_id: Optional[str] = Depends(get_current_user_id)
+    auth: Optional[AuthContext] = Depends(authenticate)
 ):
     """Get analytics for a specific guild."""
     try:
@@ -41,12 +42,12 @@ async def get_guild_analytics_endpoint(
 async def get_guild_leaderboard(
     guild_id: str,
     limit: int = Query(10, ge=1, le=50, description="Number of members to return"),
-    current_user_id: Optional[str] = Depends(get_current_user_id)
+    auth: Optional[AuthContext] = Depends(authenticate)
 ):
     """Get member leaderboard for a specific guild."""
     try:
         analytics = await get_guild_analytics(guild_id=guild_id)
-        leaderboard = analytics.memberLeaderboard[:limit]
+        leaderboard = analytics.member_leaderboard[:limit]
         return leaderboard
     except GuildNotFoundError:
         raise HTTPException(
@@ -62,7 +63,7 @@ async def get_guild_leaderboard(
 @router.get("/rankings", response_model=List[dict])
 async def get_guild_rankings_endpoint(
     limit: int = Query(50, ge=1, le=100, description="Number of guilds to return"),
-    current_user_id: Optional[str] = Depends(get_current_user_id)
+    auth: Optional[AuthContext] = Depends(authenticate)
 ):
     """Get guild rankings."""
     try:

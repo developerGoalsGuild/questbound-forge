@@ -9,7 +9,7 @@ import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { GuildAvatar } from './GuildAvatar';
 import {
   Users,
   Target,
@@ -64,10 +64,10 @@ export const GuildCard: React.FC<GuildCardProps> = ({
   const { announce } = useAccessibility();
 
   // Determine user's role in the guild
-  const userRole = guild.members?.find(member => member.userId === currentUserId)?.role;
+  const userRole = guild.members?.find(member => member.user_id === currentUserId)?.role;
   const isOwner = userRole === 'owner';
   const isMember = userRole === 'member' || isOwner;
-  const canJoin = !isMember && guild.guildType === 'public';
+  const canJoin = !isMember && guild.guild_type === 'public';
 
   const handleGuildClick = useCallback(() => {
     onGuildClick?.(guild);
@@ -82,7 +82,7 @@ export const GuildCard: React.FC<GuildCardProps> = ({
     announce(`Joining ${guild.name}...`, { priority: 'polite' });
     
     try {
-      await onJoin(guild.guildId);
+      await onJoin(guild.guild_id);
       announce(`Successfully joined ${guild.name}`, { priority: 'polite' });
     } catch (error) {
       console.error('Failed to join guild:', error);
@@ -91,7 +91,7 @@ export const GuildCard: React.FC<GuildCardProps> = ({
       setIsLoading(false);
       setActionLoading(null);
     }
-  }, [guild.guildId, guild.name, onJoin, isLoading, announce]);
+  }, [guild.guild_id, guild.name, onJoin, isLoading, announce]);
 
   const handleLeave = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -103,7 +103,7 @@ export const GuildCard: React.FC<GuildCardProps> = ({
       announce(`Leaving ${guild.name}...`, { priority: 'polite' });
       
       try {
-        await onLeave(guild.guildId);
+        await onLeave(guild.guild_id);
         announce(`Successfully left ${guild.name}`, { priority: 'polite' });
       } catch (error) {
         console.error('Failed to leave guild:', error);
@@ -113,7 +113,7 @@ export const GuildCard: React.FC<GuildCardProps> = ({
         setActionLoading(null);
       }
     }
-  }, [guild.guildId, guild.name, onLeave, isLoading, guildTranslations?.messages?.confirmLeave, announce]);
+  }, [guild.guild_id, guild.name, onLeave, isLoading, guildTranslations?.messages?.confirmLeave, announce]);
 
   const handleSettings = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -188,12 +188,12 @@ export const GuildCard: React.FC<GuildCardProps> = ({
             disabled={isLoading}
             className="h-8"
             aria-label={`${guildTranslations?.details?.actions?.join || 'Join'} ${guild.name}`}
-            aria-describedby={isLoading ? `join-loading-${guild.guildId}` : undefined}
+            aria-describedby={isLoading ? `join-loading-${guild.guild_id}` : undefined}
           >
             {actionLoading === 'join' ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
-                <span id={`join-loading-${guild.guildId}`} className="sr-only">Joining guild...</span>
+                <span id={`join-loading-${guild.guild_id}`} className="sr-only">Joining guild...</span>
               </>
             ) : (
               <UserPlus className="h-4 w-4 mr-1" aria-hidden="true" />
@@ -210,12 +210,12 @@ export const GuildCard: React.FC<GuildCardProps> = ({
             disabled={isLoading}
             className="h-8"
             aria-label={`${guildTranslations?.details?.actions?.leave || 'Leave'} ${guild.name}`}
-            aria-describedby={isLoading ? `leave-loading-${guild.guildId}` : undefined}
+            aria-describedby={isLoading ? `leave-loading-${guild.guild_id}` : undefined}
           >
             {actionLoading === 'leave' ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
-                <span id={`leave-loading-${guild.guildId}`} className="sr-only">Leaving guild...</span>
+                <span id={`leave-loading-${guild.guild_id}`} className="sr-only">Leaving guild...</span>
               </>
             ) : (
               <UserMinus className="h-4 w-4 mr-1" aria-hidden="true" />
@@ -238,8 +238,8 @@ export const GuildCard: React.FC<GuildCardProps> = ({
       onClick={handleGuildClick}
       tabIndex={0}
       role="button"
-      aria-label={`${guildTranslations?.details?.actions?.viewProfile || 'View guild'} ${guild.name}. ${guild.memberCount} members, ${guild.goalCount} goals, ${guild.questCount} quests. ${guild.guildType} guild.`}
-      aria-describedby={`guild-${guild.guildId}-description`}
+      aria-label={`${guildTranslations?.details?.actions?.viewProfile || 'View guild'} ${guild.name}. ${guild.member_count} members, ${guild.goal_count} goals, ${guild.quest_count} quests. ${guild.guild_type} guild.`}
+      aria-describedby={`guild-${guild.guild_id}-description`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -251,17 +251,18 @@ export const GuildCard: React.FC<GuildCardProps> = ({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {/* Guild Avatar */}
-            <Avatar className="h-10 w-10 flex-shrink-0">
-              <AvatarImage src={guild.avatarUrl || ''} alt={guild.name} />
-              <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
-                {getGuildInitials(guild.name)}
-              </AvatarFallback>
-            </Avatar>
+            <GuildAvatar 
+              guildId={guild.guild_id}
+              guildName={guild.name}
+              avatarUrl={guild.avatar_url}
+              size="sm"
+              className="h-10 w-10 flex-shrink-0"
+            />
 
             {/* Guild Info */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-gray-900 truncate" id={`guild-${guild.guildId}-title`}>
+                <h3 className="font-semibold text-gray-900 truncate" id={`guild-${guild.guild_id}-title`}>
                   {guild.name}
                 </h3>
                 {isOwner && (
@@ -271,21 +272,21 @@ export const GuildCard: React.FC<GuildCardProps> = ({
                     role="img"
                   />
                 )}
-                {guild.guildType === 'public' && (
+                {guild.guild_type === 'public' && (
                   <Globe 
                     className="h-4 w-4 text-green-500 flex-shrink-0" 
                     aria-label="Public guild"
                     role="img"
                   />
                 )}
-                {guild.guildType === 'private' && (
+                {guild.guild_type === 'private' && (
                   <Lock 
                     className="h-4 w-4 text-gray-500 flex-shrink-0" 
                     aria-label="Private guild"
                     role="img"
                   />
                 )}
-                {guild.guildType === 'approval' && (
+                {guild.guild_type === 'approval' && (
                   <Shield 
                     className="h-4 w-4 text-blue-500 flex-shrink-0" 
                     aria-label="Approval required guild"
@@ -295,7 +296,7 @@ export const GuildCard: React.FC<GuildCardProps> = ({
               </div>
               
               {guild.description && variant !== 'compact' && (
-                <p className="text-sm text-gray-600 line-clamp-2" id={`guild-${guild.guildId}-description`}>
+                <p className="text-sm text-gray-600 line-clamp-2" id={`guild-${guild.guild_id}-description`}>
                   {guild.description}
                 </p>
               )}
@@ -310,22 +311,22 @@ export const GuildCard: React.FC<GuildCardProps> = ({
       <CardContent className={cn('pt-0', variant === 'compact' && 'pt-0')}>
         {/* Stats */}
         <div className="flex items-center gap-4 mb-3 text-sm text-gray-600" role="group" aria-label="Guild statistics">
-          <div className="flex items-center gap-1" aria-label={`${guild.memberCount} members`}>
+          <div className="flex items-center gap-1" aria-label={`${guild.member_count} members`}>
             <Users className="h-4 w-4" aria-hidden="true" />
-            <span>{guild.memberCount}</span>
+            <span>{guild.member_count}</span>
           </div>
-          <div className="flex items-center gap-1" aria-label={`${guild.goalCount} goals`}>
+          <div className="flex items-center gap-1" aria-label={`${guild.goal_count} goals`}>
             <Target className="h-4 w-4" aria-hidden="true" />
-            <span>{guild.goalCount}</span>
+            <span>{guild.goal_count}</span>
           </div>
-          <div className="flex items-center gap-1" aria-label={`${guild.questCount} quests`}>
+          <div className="flex items-center gap-1" aria-label={`${guild.quest_count} quests`}>
             <Trophy className="h-4 w-4" aria-hidden="true" />
-            <span>{guild.questCount}</span>
+            <span>{guild.quest_count}</span>
           </div>
           {variant !== 'compact' && (
-            <div className="flex items-center gap-1 ml-auto" aria-label={`Created ${formatDate(guild.createdAt)}`}>
+            <div className="flex items-center gap-1 ml-auto" aria-label={`Created ${formatDate(guild.created_at)}`}>
               <Calendar className="h-4 w-4" aria-hidden="true" />
-              <span>{formatDate(guild.createdAt)}</span>
+              <span>{formatDate(guild.created_at)}</span>
             </div>
           )}
         </div>

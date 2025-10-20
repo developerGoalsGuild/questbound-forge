@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -8,6 +9,7 @@ import { logger } from '@/lib/logger';
 
 const Login = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,7 @@ const Login = () => {
         } catch {}
       }
       const dest = userType ? `/dashboard?type=${encodeURIComponent(userType)}` : '/dashboard';
-      window.location.href = dest;
+      navigate(dest, { replace: true });
     } catch (err: any) {
       const msg = err?.message || t?.login?.messages?.loginFailed || 'Login failed';
       setError(msg);

@@ -29,9 +29,8 @@ import QuestTemplateDetails from './pages/quests/QuestTemplateDetails';
 import Invites from './pages/collaborations/Invites';
 import MyCollaborations from './pages/collaborations/MyCollaborations';
 import { MyGuilds, CreateGuild, GuildDetails, GuildAnalytics, GuildRankings } from './pages/guilds';
+import GuildEditPage from './pages/guilds/GuildEdit';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
-
-
 
 const queryClient = new QueryClient();
 
@@ -73,9 +72,11 @@ const App = () => (
             <Route path="/guilds" element={<ProtectedRoute><AuthenticatedLayout><MyGuilds /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/guilds/create" element={<ProtectedRoute><AuthenticatedLayout><CreateGuild /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/guilds/:id" element={<ProtectedRoute><AuthenticatedLayout><GuildDetails /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/guilds/:id/edit" element={<ProtectedRoute><AuthenticatedLayout><GuildEditPage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/guilds/analytics" element={<ProtectedRoute><AuthenticatedLayout><GuildAnalytics /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/guilds/rankings" element={<ProtectedRoute><AuthenticatedLayout><GuildRankings /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/login" element={<Login />} />
             <Route path="/login/Login" element={<Login />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

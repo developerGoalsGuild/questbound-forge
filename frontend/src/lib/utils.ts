@@ -21,10 +21,13 @@ export interface LoginResponse {
 
 
 export function getApiBase(): string {
+  // In dev, use proxy to avoid CORS
+  if (import.meta.env.DEV) return '/v1';
+  
+  // In production, use the full API Gateway URL
   const base = import.meta.env.VITE_API_BASE_URL as string | undefined;
   if (base && base.trim()) return base;
-  // In dev, default to '/v1' so Vite proxy can avoid CORS
-  if (import.meta.env.DEV) return '/v1';
+  
   return '';
 }
 

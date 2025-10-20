@@ -14,7 +14,8 @@ from ..models.guild import (
     GuildListResponse, 
     GuildCreatePayload, 
     GuildUpdatePayload,
-    GuildType
+    GuildType,
+    GuildSettings
 )
 from ..models.join_request import (
     GuildJoinRequestResponse,
@@ -37,7 +38,8 @@ from ..db.guild_db import (
     GuildValidationError,
     GuildConflictError
 )
-from ..security.auth import get_current_user_id
+from ..security.authentication import authenticate
+from ..security.auth_models import AuthContext
 from ..security.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/guilds", tags=["guilds"])
@@ -47,17 +49,26 @@ security = HTTPBearer()
 @rate_limit(requests_per_hour=10)
 async def create_guild_endpoint(
     payload: GuildCreatePayload,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Create a new guild."""
     try:
+        # Business rule validation: If guild type is "approval", require_approval must be true
+        settings = payload.settings or GuildSettings()
+        if payload.guild_type == GuildType.APPROVAL:
+            settings.require_approval = True
+        
+        # Extract username from JWT claims
+        username = auth.claims.get('username') or auth.claims.get('nickname') or auth.claims.get('preferred_username') or 'Unknown'
+        
         guild = await create_guild(
             name=payload.name,
             description=payload.description,
-            guild_type=GuildType(payload.guildType),
+            guild_type=payload.guild_type,
             tags=payload.tags,
-            created_by=current_user_id,
-            settings=payload.settings
+            created_by=auth.user_id,
+            created_by_username=username,
+            settings=settings
         )
         return guild
     except GuildValidationError as e:
@@ -103,26 +114,49 @@ async def get_guild_endpoint(
 async def update_guild_endpoint(
     guild_id: str,
     payload: GuildUpdatePayload,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Update guild details."""
     try:
+        # Get current guild data for validation
+        current_guild = await get_guild(guild_id=guild_id)
+        
         # Convert payload to kwargs
         update_data = {}
         if payload.name is not None:
             update_data['name'] = payload.name
         if payload.description is not None:
             update_data['description'] = payload.description
-        if payload.guildType is not None:
-            update_data['guild_type'] = payload.guildType
+        if payload.guild_type is not None:
+            update_data['guild_type'] = payload.guild_type
         if payload.tags is not None:
             update_data['tags'] = payload.tags
         if payload.settings is not None:
             update_data['settings'] = payload.settings.dict()
         
+        # Business rule validation: If guild type is "approval", require_approval must be true
+        new_guild_type = update_data.get('guild_type', current_guild.guild_type)
+        new_settings = update_data.get('settings', current_guild.settings)
+        
+        if new_guild_type == GuildType.APPROVAL:
+            # If settings are being updated, check the new require_approval value
+            if payload.settings is not None:
+                if not new_settings.get('require_approval', False):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Guilds with type 'Approval Required' must have 'require_approval' set to true. Change the guild type to modify this setting."
+                    )
+            else:
+                # If settings are not being updated, ensure current require_approval is true
+                if not current_guild.settings.get('require_approval', False):
+                    # Automatically set require_approval to true
+                    if 'settings' not in update_data:
+                        update_data['settings'] = current_guild.settings.copy()
+                    update_data['settings']['require_approval'] = True
+        
         guild = await update_guild(
             guild_id=guild_id,
-            updated_by=current_user_id,
+            updated_by=auth.user_id,
             **update_data
         )
         return guild
@@ -146,11 +180,11 @@ async def update_guild_endpoint(
 @rate_limit(requests_per_hour=5)
 async def delete_guild_endpoint(
     guild_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Delete a guild."""
     try:
-        await delete_guild(guild_id=guild_id, deleted_by=current_user_id)
+        await delete_guild(guild_id=guild_id, deleted_by=auth.user_id)
     except GuildNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -207,11 +241,11 @@ async def list_user_guilds_endpoint(user_id: str):
 @rate_limit(requests_per_hour=10)
 async def join_guild_endpoint(
     guild_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Join a guild."""
     try:
-        await join_guild(guild_id=guild_id, user_id=current_user_id)
+        await join_guild(guild_id=guild_id, user_id=auth.user_id)
     except GuildNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -237,11 +271,11 @@ async def join_guild_endpoint(
 @rate_limit(requests_per_hour=10)
 async def leave_guild_endpoint(
     guild_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Leave a guild."""
     try:
-        await leave_guild(guild_id=guild_id, user_id=current_user_id)
+        await leave_guild(guild_id=guild_id, user_id=auth.user_id)
     except GuildNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -263,14 +297,14 @@ async def leave_guild_endpoint(
 async def remove_user_from_guild_endpoint(
     guild_id: str,
     user_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Remove a user from a guild."""
     try:
         await remove_user_from_guild(
             guild_id=guild_id,
             user_id=user_id,
-            removed_by=current_user_id
+            removed_by=auth.user_id
         )
     except GuildNotFoundError:
         raise HTTPException(

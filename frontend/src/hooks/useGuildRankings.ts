@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { GuildRankingData } from '@/components/guilds/GuildRankingCard';
+import { guildAPI } from '@/lib/api/guild';
 
 interface UseGuildRankingsOptions {
   autoRefresh?: boolean;
@@ -128,17 +129,21 @@ export const useGuildRankings = ({
     setError(null);
 
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+      // Call the real API
+      console.log('Fetching guild rankings from API...');
+      const response = await guildAPI.getGuildRankings(limit);
+      console.log('Guild rankings API response:', response);
       
-      // Generate mock data
-      const rankingsData = generateMockGuildRankings(limit);
+      const rankingsData = response.rankings || response || [];
       
       setRankings(rankingsData);
       setLastUpdated(new Date());
+      console.log('Guild rankings loaded successfully:', rankingsData.length, 'items');
     } catch (err) {
       console.error('Failed to fetch guild rankings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load guild rankings');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load guild rankings';
+      setError(errorMessage);
+      setRankings([]); // Set empty array instead of mock data
     } finally {
       setLoading(false);
     }

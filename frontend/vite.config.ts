@@ -20,12 +20,22 @@ export default defineConfig(async ({ mode }) => {
       host: "::",
       port: 8080,
       proxy: {
-        // Proxy API Gateway during development to avoid CORS
-        // Use VITE_API_BASE_URL="/v1" to enable this path
+        // Proxy API Gateway calls during development to avoid CORS
         "/v1": {
-          target: env.VITE_API_GATEWAY_URL,
+          target: env.VITE_API_GATEWAY_URL || "https://3xlvsffmxc.execute-api.us-east-2.amazonaws.com",
           changeOrigin: true,
           secure: true,
+          configure: (proxy: any, _options: any) => {
+            proxy.on('error', (err: any, _req: any, _res: any) => {
+              console.log('proxy error', err);
+            });
+            proxy.on('proxyReq', (proxyReq: any, req: any, _res: any) => {
+              console.log('Sending Request to the Target:', req.method, req.url);
+            });
+            proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
+              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+            });
+          },
         },
         // Proxy AppSync GraphQL during development to avoid CORS
         "/appsync": {

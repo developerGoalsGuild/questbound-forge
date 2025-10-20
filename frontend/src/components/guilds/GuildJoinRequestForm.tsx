@@ -32,8 +32,8 @@ export const GuildJoinRequestForm: React.FC<GuildJoinRequestFormProps> = ({
   onCancel,
   className,
 }) => {
-  const { t } = useTranslation();
-  const translations = getGuildTranslations(t('lang'));
+  const { t, language } = useTranslation();
+  const translations = getGuildTranslations(language);
   
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

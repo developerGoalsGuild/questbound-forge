@@ -40,6 +40,7 @@ interface GuildJoinRequestsProps {
   currentUserId: string;
   userRole: 'owner' | 'moderator' | 'member';
   className?: string;
+  onGuildDataUpdate?: () => void; // Callback to refresh guild data
 }
 
 interface ApprovalDialogProps {
@@ -64,10 +65,18 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
   const [reason, setReason] = useState('');
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
 
+  // Safety check for null request
+  if (!request) {
+    return null;
+  }
+
   const handleSubmit = useCallback(() => {
+    console.log('📝 handleSubmit called with action:', action);
     if (action === 'approve') {
+      console.log('✅ Calling onApprove with reason:', reason);
       onApprove(reason || undefined);
     } else if (action === 'reject') {
+      console.log('❌ Calling onReject with reason:', reason);
       onReject(reason || undefined);
     }
     setReason('');
@@ -93,7 +102,7 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={request.avatarUrl} alt={request.username} />
+              <AvatarImage src={request.avatar_url} alt={request.username} />
               <AvatarFallback>
                 {request.username.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -101,7 +110,18 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
             <div>
               <p className="font-medium">{request.username}</p>
               <p className="text-sm text-gray-500">
-                {guildTranslations?.joinRequests?.requested || 'Requested'} {formatDistanceToNow(new Date(request.requestedAt))} {guildTranslations?.analytics?.daysAgo || 'ago'}
+                {guildTranslations?.joinRequests?.requested || 'Requested'} {(() => {
+                  try {
+                    const date = new Date(request.requested_at);
+                    if (isNaN(date.getTime())) {
+                      return 'Invalid date';
+                    }
+                    return formatDistanceToNow(date);
+                  } catch (error) {
+                    console.error('Error formatting date:', error, request.requested_at);
+                    return 'Unknown time';
+                  }
+                })()} {guildTranslations?.analytics?.daysAgo || 'ago'}
               </p>
             </div>
           </div>
@@ -122,8 +142,14 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
           <Button
             variant="outline"
             onClick={() => {
+              console.log('🔘 Reject button clicked');
               setAction('reject');
-              handleSubmit();
+              // Call handleSubmit with the action directly instead of relying on state
+              console.log('📝 Calling handleSubmit with reject action');
+              console.log('❌ Calling onReject with reason:', reason);
+              onReject(reason || undefined);
+              setReason('');
+              setAction(null);
             }}
             disabled={isProcessing}
           >
@@ -135,8 +161,16 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
           </Button>
           <Button
             onClick={() => {
+              console.log('🔘 Approve button clicked');
               setAction('approve');
-              handleSubmit();
+              // Call handleSubmit with the action directly instead of relying on state
+              console.log('📝 Calling handleSubmit with approve action');
+              if (action === 'approve' || true) { // Force approve for now
+                console.log('✅ Calling onApprove with reason:', reason);
+                onApprove(reason || undefined);
+              }
+              setReason('');
+              setAction(null);
             }}
             disabled={isProcessing}
           >
@@ -157,6 +191,7 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
   currentUserId,
   userRole,
   className,
+  onGuildDataUpdate,
 }) => {
   const { t } = useTranslation();
   const guildTranslations = (t as any)?.guild;
@@ -191,16 +226,33 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
   }, [fetchRequests]);
 
   const handleApprove = useCallback(async (reason?: string) => {
-    if (!selectedRequest) return;
+    console.log('🔍 handleApprove called with:', { reason, selectedRequest, guildId });
+    
+    if (!selectedRequest) {
+      console.log('❌ No selectedRequest, returning early');
+      return;
+    }
 
     try {
+      console.log('🚀 Starting approval process...');
       setProcessing(true);
-      await guildAPI.approveJoinRequest(guildId, selectedRequest.userId, reason);
+      
+      console.log('📡 Calling guildAPI.approveJoinRequest...');
+      await guildAPI.approveJoinRequest(guildId, selectedRequest.user_id, reason);
+      
+      console.log('✅ Approval successful');
       toast.success('Join request approved');
-      setRequests(prev => prev.filter(req => req.userId !== selectedRequest.userId));
+      setRequests(prev => prev.filter(req => req.user_id !== selectedRequest.user_id));
       setIsDialogOpen(false);
       setSelectedRequest(null);
+      
+      // Refresh guild data to update member count
+      if (onGuildDataUpdate) {
+        console.log('🔄 Refreshing guild data after approval');
+        onGuildDataUpdate();
+      }
     } catch (err: any) {
+      console.error('❌ Approval failed:', err);
       toast.error(err.message || 'Failed to approve request');
     } finally {
       setProcessing(false);
@@ -212,9 +264,9 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
 
     try {
       setProcessing(true);
-      await guildAPI.rejectJoinRequest(guildId, selectedRequest.userId, reason);
+      await guildAPI.rejectJoinRequest(guildId, selectedRequest.user_id, reason);
       toast.success('Join request rejected');
-      setRequests(prev => prev.filter(req => req.userId !== selectedRequest.userId));
+      setRequests(prev => prev.filter(req => req.user_id !== selectedRequest.user_id));
       setIsDialogOpen(false);
       setSelectedRequest(null);
     } catch (err: any) {
@@ -292,12 +344,12 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
             <div className="space-y-3">
               {requests.map((request) => (
                 <div
-                  key={request.userId}
+                  key={request.user_id}
                   className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => handleRequestClick(request)}
                 >
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={request.avatarUrl} alt={request.username} />
+                    <AvatarImage src={request.avatar_url} alt={request.username} />
                     <AvatarFallback>
                       {request.username.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -308,7 +360,18 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <Calendar className="h-4 w-4" />
                       <span>
-                        {formatDistanceToNow(new Date(request.requestedAt))} ago
+                        {(() => {
+                          try {
+                            const date = new Date(request.requested_at);
+                            if (isNaN(date.getTime())) {
+                              return 'Invalid date';
+                            }
+                            return `${formatDistanceToNow(date)} ago`;
+                          } catch (error) {
+                            console.error('Error formatting date:', error, request.requested_at);
+                            return 'Unknown time';
+                          }
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -335,17 +398,19 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
         </CardContent>
       </Card>
 
-      <ApprovalDialog
-        request={selectedRequest!}
-        isOpen={isDialogOpen}
-        onClose={() => {
-          setIsDialogOpen(false);
-          setSelectedRequest(null);
-        }}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        isProcessing={processing}
-      />
+      {selectedRequest && (
+        <ApprovalDialog
+          request={selectedRequest}
+          isOpen={isDialogOpen}
+          onClose={() => {
+            setIsDialogOpen(false);
+            setSelectedRequest(null);
+          }}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isProcessing={processing}
+        />
+      )}
     </>
   );
 };

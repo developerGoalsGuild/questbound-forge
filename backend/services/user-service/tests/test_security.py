@@ -97,6 +97,30 @@ def test_issue_local_jwt_with_role():
     assert payload["role"] == "admin"
 
 
+def test_issue_local_jwt_with_nickname():
+    sub = "user-123"
+    email = "test@example.com"
+    nickname = "TestUser"
+
+    token_data = issue_local_jwt(sub, email, nickname=nickname)
+
+    payload = verify_local_jwt(token_data["access_token"])
+    assert payload["nickname"] == nickname
+
+
+def test_issue_local_jwt_with_role_and_nickname():
+    sub = "user-123"
+    email = "test@example.com"
+    role = "admin"
+    nickname = "TestAdmin"
+
+    token_data = issue_local_jwt(sub, email, role=role, nickname=nickname)
+
+    payload = verify_local_jwt(token_data["access_token"])
+    assert payload["role"] == role
+    assert payload["nickname"] == nickname
+
+
 def test_verify_local_jwt_invalid_token():
     with pytest.raises(Exception):
         verify_local_jwt("invalid.token.here")

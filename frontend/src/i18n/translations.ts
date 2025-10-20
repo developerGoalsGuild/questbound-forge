@@ -33,6 +33,7 @@ import type { HeaderTranslations } from '@/models/header';
 import type { QuestTranslations } from './quest';
 import type { CollaborationsTranslations } from './collaborations';
 import type { CommonTranslations } from './common';
+import type { GuildTranslations } from './guild';
 
 import { navTranslations } from './nav';
 import { loginTranslations } from './login';
@@ -52,6 +53,7 @@ import { goalDetailsTranslations } from './goalDetails';
 import { headerTranslations } from './header';
 import { questTranslations } from './quest';
 import { collaborationsTranslations } from './collaborations';
+import { guildTranslations } from './guild';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -69,6 +71,7 @@ export type Translations = { [key: string]: any } & {
   goalDetails: GoalDetailsTranslations;
   header: HeaderTranslations;
   quest: QuestTranslations;
+  guild: GuildTranslations;
   common: CommonTranslations;
 } & CollaborationsTranslations;
 
@@ -93,6 +96,7 @@ export const translations: Record<Language, Translations> = {
     goalDetails: goalDetailsTranslations.en,
     header: headerTranslations.en,
     quest: questTranslations.en,
+    guild: guildTranslations.en,
     ...collaborationsTranslations.en,
     common: commonTranslations.en,
   },
@@ -113,6 +117,7 @@ export const translations: Record<Language, Translations> = {
     goalDetails: goalDetailsTranslations.es,
     header: headerTranslations.es,
     quest: questTranslations.es,
+    guild: guildTranslations.es,
     ...collaborationsTranslations.es,
     common: commonTranslations.es,
   },
@@ -133,6 +138,7 @@ export const translations: Record<Language, Translations> = {
     goalDetails: goalDetailsTranslations.fr,
     header: headerTranslations.fr,
     quest: questTranslations.fr,
+    guild: guildTranslations.fr,
     ...collaborationsTranslations.fr,
     common: commonTranslations.fr,
   },

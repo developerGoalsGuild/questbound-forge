@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { guildAPI, GuildCreateInput } from '@/lib/api/guild';
+import { guildAPI, GuildCreateInput, checkGuildNameAvailability } from '@/lib/api/guild';
 import { guildCreateSchema, GuildCreateForm, getTagSuggestions } from '@/lib/validation/guildValidation';
 import { getGuildTranslations, GUILD_TRANSLATION_KEYS } from '@/i18n/guild';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -237,13 +238,15 @@ export const GuildCreationForm: React.FC<GuildCreationFormProps> = ({
   mode = 'create',
   className,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const queryClient = useQueryClient();
 
   // Get translations with fallback
-  const translations = getGuildTranslations(t('lang'));
+  const translations = getGuildTranslations(language);
   
   // Form accessibility
   const { announceFormSuccess, announceFormError, announceValidationError, focusFirstError } = useFormAccessibility();
@@ -257,14 +260,17 @@ export const GuildCreationForm: React.FC<GuildCreationFormProps> = ({
     setError,
     clearErrors,
   } = useForm<GuildCreateForm>({
-    resolver: zodResolver(guildCreateSchema),
+    // Temporarily remove resolver to prevent validation on mount
+    // resolver: zodResolver(guildCreateSchema),
+    mode: 'onSubmit', // Only validate on submit, not on mount
+    reValidateMode: 'onBlur', // Re-validate on blur after first validation
+    shouldFocusError: true, // Focus first error field
     defaultValues: {
       name: initialData?.name || '',
       description: initialData?.description || '',
       tags: initialData?.tags || [],
-      guildType: initialData?.guildType ?? 'public',
+      guildType: initialData?.guild_type ?? 'public',
     },
-    mode: 'onChange',
   });
 
   const watchedTags = watch('tags');
@@ -312,7 +318,38 @@ export const GuildCreationForm: React.FC<GuildCreationFormProps> = ({
     toast.error(`${translations.create.form.avatar.error}: ${error}`);
   }, []);
 
+  const handleAvatarFileSelect = useCallback((file: File) => {
+    console.log('handleAvatarFileSelect called with file:', file.name, file.size, file.type);
+    setAvatarFile(file);
+    console.log('Avatar file state updated:', file.name, file.size, file.type);
+  }, []);
+
   const onSubmit = useCallback(async (data: GuildCreateForm) => {
+    console.log('Form submission started, avatarFile state:', avatarFile);
+    
+    // Manual validation
+    const validationResult = guildCreateSchema.safeParse(data);
+    if (!validationResult.success) {
+      // Set validation errors
+      validationResult.error.errors.forEach((error) => {
+        setError(error.path[0] as keyof GuildCreateForm, {
+          type: 'manual',
+          message: error.message,
+        });
+      });
+      return;
+    }
+    
+    // Check guild name availability
+    const isNameAvailable = await checkGuildNameAvailability(data.name);
+    if (!isNameAvailable) {
+      setError('name', {
+        type: 'manual',
+        message: 'Guild name is already taken. Please choose a different name.',
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -320,10 +357,54 @@ export const GuildCreationForm: React.FC<GuildCreationFormProps> = ({
         name: data.name,
         description: data.description,
         tags: data.tags,
-        guildType: data.guildType,
+        guild_type: data.guildType,
       };
 
+      // Create the guild first
       const createdGuild = await guildAPI.createGuild(guildData);
+      
+      console.log('Guild created, checking avatarFile again:', avatarFile);
+      
+      // If there's an avatar file, upload it to S3
+      if (avatarFile && createdGuild.guild_id) {
+        console.log('Starting avatar upload process:', {
+          fileName: avatarFile.name,
+          fileSize: avatarFile.size,
+          fileType: avatarFile.type,
+          guildId: createdGuild.guild_id
+        });
+        
+        try {
+          // Upload avatar to S3
+          const { uploadGuildAvatar } = await import('@/lib/api/guild');
+          const avatarResponse = await uploadGuildAvatar(createdGuild.guild_id, avatarFile);
+          
+          console.log('Avatar upload successful:', avatarResponse);
+          
+          // Update the guild with the avatar URL
+          const updatedGuild = {
+            ...createdGuild,
+            avatar_url: avatarResponse.avatar_url,
+            avatar_key: avatarResponse.avatar_key
+          };
+          
+          // Invalidate guild details cache so the avatar shows immediately
+          queryClient.invalidateQueries({ queryKey: ['guild', createdGuild.guild_id] });
+          queryClient.invalidateQueries({ queryKey: ['guilds'] });
+          toast.success(translations.messages.createSuccess);
+          announceFormSuccess(translations.messages.createSuccess);
+          onSuccess?.(updatedGuild);
+          return;
+        } catch (avatarError) {
+          console.error('Avatar upload error:', avatarError);
+          toast.error('Guild created but avatar upload failed. You can upload it later.');
+        }
+      } else {
+        console.log('No avatar upload needed:', {
+          hasAvatarFile: !!avatarFile,
+          hasGuildId: !!createdGuild.guild_id
+        });
+      }
       
       toast.success(translations.messages.createSuccess);
       announceFormSuccess(translations.messages.createSuccess);
@@ -349,7 +430,7 @@ export const GuildCreationForm: React.FC<GuildCreationFormProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [translations, onSuccess, setError, announceFormSuccess, announceFormError, announceValidationError]);
+  }, [translations, onSuccess, setError, announceFormSuccess, announceFormError, announceValidationError, avatarFile]);
 
   const handleCancel = useCallback(() => {
     if (isDirty) {
@@ -421,6 +502,7 @@ export const GuildCreationForm: React.FC<GuildCreationFormProps> = ({
                 currentAvatarUrl={avatarUrl}
                 onUploadSuccess={handleAvatarUploadSuccess}
                 onUploadError={handleAvatarUploadError}
+                onFileSelect={handleAvatarFileSelect}
                 disabled={isSubmitting}
                 size="lg"
               />

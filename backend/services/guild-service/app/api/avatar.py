@@ -9,11 +9,13 @@ import os
 import boto3
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 from botocore.exceptions import ClientError
 
-from ..models.avatar import AvatarUploadRequest, AvatarUploadResponse, AvatarGetResponse
-from ..security.auth import get_current_user_id
+from ..models.avatar import AvatarUploadRequest, AvatarUploadResponse, AvatarGetResponse, AvatarConfirmRequest
+from ..security.authentication import authenticate
+from ..security.auth_models import AuthContext
 from ..security.rate_limiter import rate_limit
 from ..db.guild_db import get_guild, update_guild, GuildNotFoundError, GuildPermissionError
 
@@ -22,8 +24,8 @@ security = HTTPBearer()
 
 # Initialize S3 client
 s3_client = boto3.client('s3')
-AVATAR_BUCKET = os.getenv('AVATAR_S3_BUCKET', 'goalsguild-guild-avatars-dev')
-AVATAR_MAX_SIZE = int(os.getenv('AVATAR_MAX_SIZE_MB', '5')) * 1024 * 1024  # Convert MB to bytes
+AVATAR_BUCKET = os.getenv('AVATAR_BUCKET', 'goalsguild-guild-avatars-dev')
+AVATAR_MAX_SIZE = int(os.getenv('AVATAR_MAX_SIZE_MB', '1')) * 1024 * 1024  # Convert MB to bytes (1MB max after frontend compression)
 AVATAR_ALLOWED_TYPES = os.getenv('AVATAR_ALLOWED_TYPES', 'image/jpeg,image/png,image/webp').split(',')
 
 @router.post("/{guild_id}/avatar/upload-url", response_model=AvatarUploadResponse)
@@ -31,7 +33,7 @@ AVATAR_ALLOWED_TYPES = os.getenv('AVATAR_ALLOWED_TYPES', 'image/jpeg,image/png,i
 async def generate_avatar_upload_url(
     guild_id: str,
     request: AvatarUploadRequest,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Generate a presigned URL for uploading a guild avatar."""
     try:
@@ -44,7 +46,7 @@ async def generate_avatar_upload_url(
             )
         
         # Check if user is the guild owner
-        if guild.created_by != current_user_id:
+        if guild.created_by != auth.user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only guild owner can upload avatar"
@@ -80,12 +82,11 @@ async def generate_avatar_upload_url(
             ExpiresIn=3600  # 1 hour
         )
         
-        # Generate public URL
-        avatar_url = f"https://{AVATAR_BUCKET}.s3.amazonaws.com/{avatar_key}"
-        
+        # Return API-served path (bucket is private)
+        api_avatar_path = f"/v1/guilds/{guild_id}/avatar"
         return AvatarUploadResponse(
             uploadUrl=presigned_url,
-            avatarUrl=avatar_url,
+            avatarUrl=api_avatar_path,
             avatarKey=avatar_key
         )
         
@@ -104,8 +105,8 @@ async def generate_avatar_upload_url(
 @rate_limit(requests_per_hour=20)
 async def confirm_avatar_upload(
     guild_id: str,
-    avatar_key: str,
-    current_user_id: str = Depends(get_current_user_id)
+    payload: AvatarConfirmRequest,
+    auth: AuthContext = Depends(authenticate)
 ):
     """Confirm avatar upload and update guild record."""
     try:
@@ -117,7 +118,7 @@ async def confirm_avatar_upload(
                 detail="Guild not found"
             )
         
-        if guild.created_by != current_user_id:
+        if guild.created_by != auth.user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only guild owner can update avatar"
@@ -125,22 +126,18 @@ async def confirm_avatar_upload(
         
         # Verify the file exists in S3
         try:
-            s3_client.head_object(Bucket=AVATAR_BUCKET, Key=avatar_key)
+            s3_client.head_object(Bucket=AVATAR_BUCKET, Key=payload.avatar_key)
         except ClientError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Avatar file not found in storage"
             )
         
-        # Generate public URL
-        avatar_url = f"https://{AVATAR_BUCKET}.s3.amazonaws.com/{avatar_key}"
-        
-        # Update guild with new avatar
+        # Update guild with new avatar key
         await update_guild(
             guild_id=guild_id,
-            updated_by=current_user_id,
-            avatar_url=avatar_url,
-            avatar_key=avatar_key
+            updated_by=auth.user_id,
+            avatar_key=payload.avatar_key
         )
         
     except GuildNotFoundError:
@@ -159,12 +156,12 @@ async def confirm_avatar_upload(
             detail="Failed to confirm avatar upload"
         )
 
-@router.get("/{guild_id}/avatar", response_model=AvatarGetResponse)
+@router.get("/{guild_id}/avatar")
 async def get_guild_avatar(
     guild_id: str,
-    current_user_id: Optional[str] = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
-    """Get guild avatar information."""
+    """Generate a signed S3 URL for the avatar (bypasses API Gateway size limits)."""
     try:
         guild = await get_guild(guild_id=guild_id)
         if not guild:
@@ -172,34 +169,31 @@ async def get_guild_avatar(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Guild not found"
             )
-        
-        if not guild.avatar_url or not guild.avatar_key:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Guild has no avatar"
-            )
-        
-        return AvatarGetResponse(
-            avatarUrl=guild.avatar_url,
-            avatarKey=guild.avatar_key
+
+        if not guild.avatar_key:
+            # Return a response indicating no avatar instead of an error
+            return {"avatar_url": None, "has_avatar": False}
+
+        # Generate a signed URL that expires in 1 hour
+        signed_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': AVATAR_BUCKET, 'Key': guild.avatar_key},
+            ExpiresIn=3600  # 1 hour
         )
         
-    except GuildNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Guild not found"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve guild avatar"
-        )
+        # Return the signed URL as JSON
+        return {"avatar_url": signed_url}
+
+    except ClientError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar file not found")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve guild avatar")
 
 @router.delete("/{guild_id}/avatar", status_code=status.HTTP_204_NO_CONTENT)
 @rate_limit(requests_per_hour=5)
 async def delete_guild_avatar(
     guild_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Delete guild avatar."""
     try:
@@ -211,7 +205,7 @@ async def delete_guild_avatar(
                 detail="Guild not found"
             )
         
-        if guild.created_by != current_user_id:
+        if guild.created_by != auth.user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only guild owner can delete avatar"
@@ -233,7 +227,7 @@ async def delete_guild_avatar(
         # Update guild to remove avatar
         await update_guild(
             guild_id=guild_id,
-            updated_by=current_user_id,
+            updated_by=auth.user_id,
             avatar_url=None,
             avatar_key=None
         )

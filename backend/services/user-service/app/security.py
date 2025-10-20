@@ -65,7 +65,15 @@ def generate_secure_password(length: int = 16) -> str:
 # Local JWT
 
 
-def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_seconds: int = 3600, *, role: str | None = None) -> dict:
+def issue_local_jwt(
+    sub: str,
+    email: str,
+    scopes: list[str] | None = None,
+    ttl_seconds: int = 3600,
+    *,
+    role: str | None = None,
+    nickname: str | None = None,
+) -> dict:
     now = int(time.time())
     payload = {
     "iss": settings.jwt_issuer,
@@ -81,6 +89,8 @@ def issue_local_jwt(sub: str, email: str, scopes: list[str] | None = None, ttl_s
     }
     if role:
         payload["role"] = role
+    if nickname:
+        payload["nickname"] = nickname
     
     # Ensure JWT secret is valid before encoding
     jwt_secret = settings.jwt_secret

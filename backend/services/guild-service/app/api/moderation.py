@@ -10,8 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer
 
 from ..models.moderation import (
-    TransferOwnershipRequest,
-    ModeratorAssignmentPayload,
+    TransferOwnershipPayload,
     ModerationActionPayload
 )
 from ..models.join_request import (
@@ -33,7 +32,8 @@ from ..db.guild_db import (
     GuildValidationError,
     GuildConflictError
 )
-from ..security.auth import get_current_user_id
+from ..security.authentication import authenticate
+from ..security.auth_models import AuthContext
 from ..security.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/guilds", tags=["guild-moderation"])
@@ -44,7 +44,7 @@ security = HTTPBearer()
 async def create_join_request(
     guild_id: str,
     message: Optional[str] = None,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Create a join request for an approval-required guild."""
     try:
@@ -53,7 +53,7 @@ async def create_join_request(
         
         join_request = await create_join_request(
             guild_id=guild_id,
-            user_id=current_user_id,
+            user_id=auth.user_id,
             username=username,
             message=message
         )
@@ -83,7 +83,7 @@ async def create_join_request(
 async def get_join_requests(
     guild_id: str,
     status: Optional[JoinRequestStatus] = Query(None, description="Filter by request status"),
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Get join requests for a guild (owners and moderators only)."""
     try:
@@ -120,7 +120,7 @@ async def approve_join_request(
     guild_id: str,
     user_id: str,
     reason: Optional[str] = None,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Approve a join request."""
     try:
@@ -128,7 +128,7 @@ async def approve_join_request(
             guild_id=guild_id,
             user_id=user_id,
             status=JoinRequestStatus.APPROVED.value,
-            reviewed_by=current_user_id,
+            reviewed_by=auth.user_id,
             review_reason=reason
         )
     except GuildNotFoundError:
@@ -153,7 +153,7 @@ async def reject_join_request(
     guild_id: str,
     user_id: str,
     reason: Optional[str] = None,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Reject a join request."""
     try:
@@ -161,7 +161,7 @@ async def reject_join_request(
             guild_id=guild_id,
             user_id=user_id,
             status=JoinRequestStatus.REJECTED.value,
-            reviewed_by=current_user_id,
+            reviewed_by=auth.user_id,
             review_reason=reason
         )
     except GuildNotFoundError:
@@ -184,15 +184,15 @@ async def reject_join_request(
 @rate_limit(requests_per_hour=1)
 async def transfer_ownership(
     guild_id: str,
-    payload: TransferOwnershipRequest,
-    current_user_id: str = Depends(get_current_user_id)
+    payload: TransferOwnershipPayload,
+    auth: AuthContext = Depends(authenticate)
 ):
     """Transfer guild ownership to another member."""
     try:
         await transfer_guild_ownership(
             guild_id=guild_id,
-            current_owner_id=current_user_id,
-            new_owner_id=payload.newOwnerId,
+            current_owner_id=auth.user_id,
+            new_owner_id=payload.new_owner_id,
             reason=payload.reason
         )
     except GuildNotFoundError:
@@ -220,15 +220,15 @@ async def transfer_ownership(
 @rate_limit(requests_per_hour=10)
 async def assign_moderator(
     guild_id: str,
-    payload: ModeratorAssignmentPayload,
-    current_user_id: str = Depends(get_current_user_id)
+    payload: dict,
+    auth: AuthContext = Depends(authenticate)
 ):
     """Assign a member as a moderator."""
     try:
         await assign_moderator(
             guild_id=guild_id,
-            user_id=payload.userId,
-            assigned_by=current_user_id
+            user_id=payload.get("user_id") or payload.get("userId"),
+            assigned_by=auth.user_id
         )
     except GuildNotFoundError:
         raise HTTPException(
@@ -256,14 +256,14 @@ async def assign_moderator(
 async def remove_moderator(
     guild_id: str,
     user_id: str,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Remove a member's moderator status."""
     try:
         await remove_moderator(
             guild_id=guild_id,
             user_id=user_id,
-            removed_by=current_user_id
+            removed_by=auth.user_id
         )
     except GuildNotFoundError:
         raise HTTPException(
@@ -286,17 +286,17 @@ async def remove_moderator(
 async def perform_moderation_action(
     guild_id: str,
     payload: ModerationActionPayload,
-    current_user_id: str = Depends(get_current_user_id)
+    auth: AuthContext = Depends(authenticate)
 ):
     """Perform a moderation action."""
     try:
         await perform_moderation_action(
             guild_id=guild_id,
             action=payload.action,
-            target_user_id=payload.targetUserId,
-            comment_id=payload.commentId,
+            target_user_id=payload.target_user_id or payload.targetUserId,
+            comment_id=payload.comment_id or payload.commentId,
             reason=payload.reason,
-            performed_by=current_user_id
+            performed_by=auth.user_id
         )
     except GuildNotFoundError:
         raise HTTPException(

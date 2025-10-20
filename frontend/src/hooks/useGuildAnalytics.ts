@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { GuildAnalyticsData } from '@/components/guilds/GuildAnalyticsCard';
+import { guildAPI } from '@/lib/api/guild';
 
 interface UseGuildAnalyticsOptions {
   guildId: string;
@@ -116,24 +117,42 @@ export const useGuildAnalytics = ({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchAnalytics = useCallback(async () => {
-    if (!guildId) return;
+    if (!guildId || guildId === 'undefined' || guildId.trim() === '') {
+      console.warn('useGuildAnalytics: Invalid guild ID provided:', guildId);
+      setError('Invalid guild ID provided');
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      // Simulate API call delay (shorter for testing)
-      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+      // Call the real API
+      console.log('Fetching guild analytics from API for guild:', guildId);
+      const analyticsData = await guildAPI.getGuildAnalytics(guildId);
+      console.log('Guild analytics API response:', analyticsData);
       
-      // Generate mock data
-      const analyticsData = generateMockAnalyticsData(guildId);
+      // Validate the data structure
+      if (!analyticsData) {
+        throw new Error('No analytics data received from API');
+      }
+      
+      // Check for required fields
+      const requiredFields = ['totalMembers', 'activeMembers', 'totalGoals', 'completedGoals', 'totalQuests', 'completedQuests'];
+      const missingFields = requiredFields.filter(field => analyticsData[field] === undefined);
+      if (missingFields.length > 0) {
+        console.warn('Missing required analytics fields:', missingFields);
+      }
       
       setData(analyticsData);
       setLastUpdated(new Date());
+      console.log('Guild analytics loaded successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load guild analytics';
       setError(errorMessage);
       console.error('Guild analytics error:', err);
+      setData(null); // Set null instead of mock data
     } finally {
       setLoading(false);
     }

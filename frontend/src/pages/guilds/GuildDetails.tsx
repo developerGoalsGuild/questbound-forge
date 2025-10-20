@@ -21,19 +21,18 @@ export const GuildDetails: React.FC = () => {
   const { t } = useTranslation();
   const guildTranslations = (t as any)?.guild;
 
+
   const handleBack = useCallback(() => {
     navigate('/guilds');
   }, [navigate]);
 
   const handleEdit = useCallback((guild: Guild) => {
-    // TODO: Implement guild edit modal
-    console.log('Edit guild:', guild);
-    toast.info(guildTranslations?.messages?.error || 'Guild editing feature coming soon!');
-  }, []);
+    navigate(`/guilds/${guild.guild_id}/edit`);
+  }, [navigate]);
 
   const handleDelete = useCallback(async (guild: Guild) => {
     try {
-      await guildAPI.deleteGuild(guild.guildId);
+      await guildAPI.deleteGuild(guild.guild_id);
       toast.success(guildTranslations?.messages?.deleteSuccess || 'Guild deleted successfully!');
       navigate('/guilds');
     } catch (error) {
@@ -43,12 +42,13 @@ export const GuildDetails: React.FC = () => {
   }, [navigate]);
 
   if (!guildId) {
+    console.error('GuildDetails: No guild ID provided in URL parameters');
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{guildTranslations?.details?.notFound || 'Guild Not Found'}</h1>
           <p className="text-gray-600 mb-4">
-            {guildTranslations?.details?.notFound || 'The requested guild could not be found.'}
+            {guildTranslations?.details?.invalidId || 'Invalid guild ID provided in the URL.'}
           </p>
           <button
             onClick={handleBack}

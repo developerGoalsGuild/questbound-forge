@@ -59,11 +59,35 @@ resource "aws_iam_role_policy" "lambda_dynamodb_access" {
         "dynamodb:Query",
         "dynamodb:Scan",
         "dynamodb:BatchGetItem",
-        "dynamodb:BatchWriteItem"
+        "dynamodb:BatchWriteItem",
+        "dynamodb:TransactWriteItems",
+        "dynamodb:TransactGetItems"
       ],
       Resource = [
         "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core",
-        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core/index/*"
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_core/index/*",
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_guild",
+        "arn:aws:dynamodb:${var.aws_region}:*:table/gg_guild/index/*"
+      ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda_s3_access" {
+  name = "goalsguild_lambda_s3_access_${var.environment}"
+  role = var.existing_lambda_exec_role_name != "" ? data.aws_iam_role.existing_lambda_exec[0].id : aws_iam_role.lambda_exec_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:PutObjectAcl"
+      ],
+      Resource = [
+        "arn:aws:s3:::goalsguild-guild-avatars-${var.environment}/*"
       ]
     }]
   })

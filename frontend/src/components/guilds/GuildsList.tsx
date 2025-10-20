@@ -147,15 +147,15 @@ export const GuildsList: React.FC<GuildsListProps> = ({
     filtered.sort((a, b) => {
       switch (localSortBy) {
         case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         case 'members':
-          return b.memberCount - a.memberCount;
+          return b.member_count - a.member_count;
         case 'activity':
           // For now, use member count as a proxy for activity
           // In the future, this could be based on actual activity metrics
-          return b.memberCount - a.memberCount;
+          return b.member_count - a.member_count;
         default:
           return 0;
       }
@@ -386,7 +386,7 @@ export const GuildsList: React.FC<GuildsListProps> = ({
       >
         {filteredAndSortedGuilds.map(guild => (
           <GuildCard
-            key={guild.guildId}
+            key={guild.guild_id}
             guild={guild}
             currentUserId={currentUserId}
             onGuildClick={onGuildClick}

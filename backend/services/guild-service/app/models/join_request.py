@@ -27,3 +27,9 @@ class GuildJoinRequestListResponse(BaseModel):
     requests: list[GuildJoinRequestResponse] = Field(..., description="List of join requests")
     total: int = Field(..., description="Total number of requests")
 
+class GuildJoinRequestApprovalPayload(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500, description="Approval reason")
+
+class GuildJoinRequestRejectionPayload(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500, description="Rejection reason")
+

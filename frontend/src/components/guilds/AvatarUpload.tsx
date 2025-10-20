@@ -5,12 +5,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { resizeImageFile, isValidImageFile, getFileSizeKB, formatFileSize } from '@/lib/utils/imageResize';
 
 interface AvatarUploadProps {
   guildId?: string;
   currentAvatarUrl?: string;
   onUploadSuccess: (avatarUrl: string) => void;
   onUploadError: (error: string) => void;
+  onFileSelect?: (file: File) => void; // New prop for file selection
+  onAvatarRemoved?: () => void; // New prop for avatar removal
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -40,6 +43,8 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   currentAvatarUrl,
   onUploadSuccess,
   onUploadError,
+  onFileSelect,
+  onAvatarRemoved,
   disabled = false,
   size = 'lg',
   className,
@@ -54,64 +59,44 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
   const validateFile = useCallback((file: File): string | null => {
     // File type validation
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
+    if (!isValidImageFile(file)) {
       return 'Please select a valid image file (JPEG, PNG, or WebP)';
     }
 
-    // File size validation (5MB max)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // File size validation (10MB max for original file - will be resized)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      return 'File size must be less than 5MB';
+      return 'File size must be less than 10MB';
     }
 
     return null;
   }, []);
 
-  const handleFileSelect = useCallback((file: File) => {
-    const validationError = validateFile(file);
-    if (validationError) {
-      setUploadState(prev => ({ ...prev, error: validationError }));
-      onUploadError(validationError);
-      return;
+  const uploadToS3 = useCallback(async (file: File): Promise<string> => {
+    if (!guildId) {
+      // During guild creation, we can't upload to S3 yet
+      // Return a data URL for preview purposes
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
-    // Clear previous error
-    setUploadState(prev => ({ ...prev, error: null }));
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadState(prev => ({ 
-        ...prev, 
-        preview: e.target?.result as string 
-      }));
-    };
-    reader.readAsDataURL(file);
-  }, [validateFile, onUploadError]);
-
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
+    try {
+      // Import the upload function
+      const { uploadGuildAvatar } = await import('@/lib/api/guild');
+      
+      // Upload to S3 via backend
+      const response = await uploadGuildAvatar(guildId, file);
+      
+      return response.avatar_url;
+    } catch (error) {
+      console.error('Avatar upload failed:', error);
+      throw error;
     }
-  }, [handleFileSelect]);
-
-  const simulateUpload = useCallback(async (file: File): Promise<string> => {
-    // Simulate upload progress
-    for (let progress = 0; progress <= 100; progress += 10) {
-      setUploadState(prev => ({ ...prev, progress }));
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Generate mock avatar URL
-    const timestamp = Date.now();
-    const mockAvatarUrl = `https://via.placeholder.com/256x256/6366f1/ffffff?text=Guild+${guildId || 'Avatar'}+${timestamp}`;
-    
-    return mockAvatarUrl;
   }, [guildId]);
 
   const handleUpload = useCallback(async (file: File) => {
@@ -123,7 +108,10 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     }));
 
     try {
-      const avatarUrl = await simulateUpload(file);
+      // Show progress during upload
+      setUploadState(prev => ({ ...prev, progress: 25 }));
+      
+      const avatarUrl = await uploadToS3(file);
       
       setUploadState(prev => ({ 
         ...prev, 
@@ -145,7 +133,91 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       onUploadError(errorMessage);
       toast.error(`Upload failed: ${errorMessage}`);
     }
-  }, [simulateUpload, onUploadSuccess, onUploadError]);
+  }, [uploadToS3, onUploadSuccess, onUploadError]);
+
+  const handleFileSelect = useCallback(async (file: File) => {
+    const validationError = validateFile(file);
+    if (validationError) {
+      setUploadState(prev => ({ ...prev, error: validationError }));
+      onUploadError(validationError);
+      return;
+    }
+
+    // Clear previous error
+    setUploadState(prev => ({ ...prev, error: null }));
+
+    try {
+      // Show resizing progress
+      setUploadState(prev => ({ 
+        ...prev, 
+        isUploading: true, 
+        progress: 10,
+        error: null 
+      }));
+
+      // Resize the image to meet 500KB requirement
+      const originalSizeKB = getFileSizeKB(file);
+      console.log(`Original file size: ${formatFileSize(file.size)}`);
+      
+      const resizedFile = await resizeImageFile(file, {
+        maxWidth: 512,
+        maxHeight: 512,
+        maxSizeKB: 500,
+        quality: 0.8,
+        format: 'image/jpeg'
+      });
+
+      const resizedSizeKB = getFileSizeKB(resizedFile);
+      console.log(`Resized file size: ${formatFileSize(resizedFile.size)}`);
+
+      // If no guildId, just create preview and call onFileSelect
+      if (!guildId) {
+        console.log('No guildId, creating preview and calling onFileSelect');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          setUploadState(prev => ({ 
+            ...prev, 
+            preview: dataUrl,
+            isUploading: false,
+            progress: 0
+          }));
+          onUploadSuccess(dataUrl); // Call success with data URL
+          console.log('Calling onFileSelect with resized file:', resizedFile.name, resizedFile.size, resizedFile.type);
+          onFileSelect?.(resizedFile); // Also call file select callback with resized file
+        };
+        reader.readAsDataURL(resizedFile);
+        return;
+      }
+
+      // If guildId exists, proceed with upload using resized file
+      setUploadState(prev => ({ 
+        ...prev, 
+        isUploading: false, 
+        progress: 0
+      }));
+      handleUpload(resizedFile);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process image';
+      console.error('Image processing error:', error);
+      setUploadState(prev => ({ 
+        ...prev, 
+        isUploading: false, 
+        progress: 0,
+        error: errorMessage 
+      }));
+      onUploadError(errorMessage);
+      toast.error(`Image processing failed: ${errorMessage}`);
+    }
+  }, [validateFile, onUploadError, onUploadSuccess, onFileSelect, guildId, handleUpload]);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    console.log('File selected:', file?.name, file?.type, file?.size);
+    if (file) {
+      handleFileSelect(file);
+    }
+  }, [handleFileSelect]);
 
   const handleRemovePreview = useCallback(() => {
     setUploadState(prev => ({ 
@@ -158,24 +230,59 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     }
   }, []);
 
-  const handleRemoveAvatar = useCallback(() => {
-    setUploadState(prev => ({ 
-      ...prev, 
-      preview: null, 
-      error: null 
-    }));
-    onUploadSuccess('');
-    toast.success('Avatar removed successfully!');
-  }, [onUploadSuccess]);
+  const handleRemoveAvatar = useCallback(async () => {
+    if (!guildId) {
+      // During guild creation, just clear the preview
+      setUploadState(prev => ({ 
+        ...prev, 
+        preview: null, 
+        error: null 
+      }));
+      onUploadSuccess('');
+      toast.success('Avatar removed successfully!');
+      return;
+    }
+
+    try {
+      setUploadState(prev => ({ 
+        ...prev, 
+        isUploading: true,
+        error: null 
+      }));
+
+      // Import and call the delete function
+      const { deleteGuildAvatar } = await import('@/lib/api/guild');
+      await deleteGuildAvatar(guildId);
+
+      setUploadState(prev => ({ 
+        ...prev, 
+        isUploading: false,
+        preview: null 
+      }));
+
+      onUploadSuccess('');
+      onAvatarRemoved?.();
+      toast.success('Avatar removed successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to remove avatar';
+      setUploadState(prev => ({ 
+        ...prev, 
+        isUploading: false,
+        error: errorMessage 
+      }));
+      onUploadError(errorMessage);
+      toast.error(`Failed to remove avatar: ${errorMessage}`);
+    }
+  }, [guildId, onUploadSuccess, onUploadError, onAvatarRemoved]);
 
   const handleClick = useCallback(() => {
-    if (!disabled && !uploadState.isUploading) {
-      fileInputRef.current?.click();
-    }
-  }, [disabled, uploadState.isUploading]);
+    // This function is no longer needed since we're using label approach
+    // The label will automatically trigger the file input
+    console.log('Label-based file picker should open automatically');
+  }, []);
 
   const displayImage = uploadState.preview || currentAvatarUrl;
-  const hasImage = Boolean(displayImage);
+  const hasImage = Boolean(displayImage && displayImage.trim() !== '');
 
   return (
     <div className={cn('flex flex-col items-center space-y-4', className)}>
@@ -229,6 +336,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
             {uploadState.preview ? (
               <div className="flex space-x-2">
                 <Button
+                  type="button"
                   onClick={() => {
                     const file = fileInputRef.current?.files?.[0];
                     if (file) {
@@ -243,6 +351,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
                   Confirm Upload
                 </Button>
                 <Button
+                  type="button"
                   onClick={handleRemovePreview}
                   variant="outline"
                   size="sm"
@@ -252,28 +361,56 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
                 </Button>
               </div>
             ) : (
-              <Button
-                onClick={handleClick}
-                variant="outline"
-                size="sm"
-                className="w-full"
-                disabled={disabled}
-              >
-                <Upload className="w-4 h-4 mr-1" />
-                {hasImage ? 'Change Avatar' : 'Upload Avatar'}
-              </Button>
+              <div className="w-full">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  className="sr-only"
+                  disabled={disabled}
+                  aria-label="Upload avatar file"
+                  id="avatar-upload-input"
+                  style={{ 
+                    position: 'absolute', 
+                    left: '-9999px', 
+                    opacity: 0,
+                    pointerEvents: 'none'
+                  }}
+                />
+                <label 
+                  htmlFor="avatar-upload-input" 
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 w-full cursor-pointer",
+                    disabled && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <Upload className="w-4 h-4 mr-1" />
+                  {hasImage ? 'Change Avatar' : 'Choose Image'}
+                </label>
+              </div>
             )}
 
             {hasImage && !uploadState.preview && (
               <Button
+                type="button"
                 onClick={handleRemoveAvatar}
                 variant="destructive"
                 size="sm"
                 className="w-full"
-                disabled={disabled}
+                disabled={disabled || uploadState.isUploading}
               >
-                <X className="w-4 h-4 mr-1" />
-                Remove Avatar
+                {uploadState.isUploading ? (
+                  <>
+                    <Upload className="w-4 h-4 mr-1 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4 mr-1" />
+                    Remove Avatar
+                  </>
+                )}
               </Button>
             )}
           </>
@@ -287,24 +424,14 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
           </div>
         )}
 
-        {/* File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/jpg,image/png,image/webp"
-          onChange={handleFileChange}
-          className="hidden"
-          disabled={disabled}
-          aria-label="Upload avatar file"
-          id="avatar-upload-input"
-        />
       </div>
 
       {/* Help Text */}
       <div className="text-xs text-gray-500 text-center">
         <p>Supported formats: JPEG, PNG, WebP</p>
-        <p>Maximum size: 5MB</p>
-        <p>Recommended: 256x256 pixels</p>
+        <p>Maximum size: 10MB (will be resized to 500KB)</p>
+        <p>Recommended: 512x512 pixels</p>
+        <p>Images will be automatically compressed</p>
       </div>
     </div>
   );
