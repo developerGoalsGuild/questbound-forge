@@ -65,6 +65,8 @@ interface GuildCommentsProps {
   currentUserId?: string;
   isMember: boolean;
   userRole?: 'owner' | 'moderator' | 'member';
+  isBlocked?: boolean;
+  canComment?: boolean;
   className?: string;
 }
 
@@ -441,6 +443,8 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
   currentUserId,
   isMember,
   userRole,
+  isBlocked = false,
+  canComment = true,
   className = '',
 }) => {
   const queryClient = useQueryClient();
@@ -820,15 +824,59 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
         <CardContent className="p-8 text-center">
           <Lock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Members Only
+            {guildTranslations?.comments?.membersOnly?.title || 'Members Only'}
           </h3>
           <p className="text-gray-600 mb-4">
-            You need to be a member of this guild to view and post comments.
+            {guildTranslations?.comments?.membersOnly?.message || 'You need to be a member of this guild to view and post comments.'}
           </p>
           <Button variant="outline" size="sm">
             <Users className="h-4 w-4 mr-2" />
-            Join Guild
+            {guildTranslations?.comments?.membersOnly?.joinButton || 'Join Guild'}
           </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isBlocked) {
+    return (
+      <Card className={className}>
+        <CardContent className="p-8 text-center">
+          <Ban className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {guildTranslations?.comments?.blocked?.title || 'Access Restricted'}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {guildTranslations?.comments?.blocked?.message || 'You have been blocked from accessing the comments section of this guild.'}
+          </p>
+          <Alert className="max-w-md mx-auto">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {guildTranslations?.comments?.blocked?.contactModerator || 'Contact a guild moderator if you believe this is an error.'}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!canComment) {
+    return (
+      <Card className={className}>
+        <CardContent className="p-8 text-center">
+          <MessageSquare className="h-12 w-12 text-orange-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {guildTranslations?.comments?.commentingDisabled?.title || 'Commenting Disabled'}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {guildTranslations?.comments?.commentingDisabled?.message || 'You are not allowed to post comments in this guild.'}
+          </p>
+          <Alert className="max-w-md mx-auto">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {guildTranslations?.comments?.commentingDisabled?.contactModerator || 'Contact a guild moderator if you believe this is an error.'}
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );

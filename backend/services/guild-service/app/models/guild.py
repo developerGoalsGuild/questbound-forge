@@ -18,6 +18,16 @@ class GuildSettings(BaseModel):
     require_approval: bool = False
     allow_comments: bool = True
 
+class GuildUserPermissions(BaseModel):
+    is_member: bool = Field(False, description="Whether the user is a member of this guild")
+    is_owner: bool = Field(False, description="Whether the user is the owner of this guild")
+    is_moderator: bool = Field(False, description="Whether the user is a moderator of this guild")
+    can_join: bool = Field(False, description="Whether the user can join this guild")
+    can_request_join: bool = Field(False, description="Whether the user can request to join this guild")
+    has_pending_request: bool = Field(False, description="Whether the user has a pending join request")
+    can_leave: bool = Field(False, description="Whether the user can leave this guild")
+    can_manage: bool = Field(False, description="Whether the user can manage this guild")
+
 class GuildCreatePayload(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Guild name")
     description: Optional[str] = Field(None, max_length=500, description="Guild description")
@@ -81,6 +91,9 @@ class GuildResponse(BaseModel):
     moderators: Optional[List[str]] = Field(None, description="Moderator user IDs")
     pending_requests: Optional[int] = Field(None, description="Number of pending join requests")
     settings: Optional[GuildSettings] = Field(None, description="Guild settings")
+    
+    # User permissions (computed based on current user)
+    user_permissions: Optional[GuildUserPermissions] = Field(None, description="Current user's permissions for this guild")
 
 class GuildListResponse(BaseModel):
     guilds: List[GuildResponse] = Field(..., description="List of guilds")

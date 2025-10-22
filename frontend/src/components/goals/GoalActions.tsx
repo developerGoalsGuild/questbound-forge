@@ -70,6 +70,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Get translations with safety checks
   const goalsTranslations = (t as any)?.goals;
@@ -151,6 +152,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
       setIsDeleting(true);
       try {
         await onDelete(goalId);
+        setShowDeleteDialog(false);
         toast({
           title: 'Success',
           description: 'Goal deleted successfully',
@@ -275,7 +277,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {/* Will be handled by AlertDialog */}}
+                  onClick={() => setShowDeleteDialog(true)}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -285,6 +287,29 @@ const GoalActions: React.FC<GoalActionsProps> = ({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        
+        {onDelete && (
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{goalTitle}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     );
   }

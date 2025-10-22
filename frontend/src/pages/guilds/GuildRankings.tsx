@@ -8,6 +8,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GuildRankingList } from '@/components/guilds/GuildRankingList';
+import { GuildScoreInfo } from '@/components/guilds/GuildScoreInfo';
 import { useGuildRankings } from '@/hooks/useGuildRankings';
 import { GuildRankingData } from '@/components/guilds/GuildRankingCard';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ export const GuildRankings: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Trophy className="h-8 w-8 text-yellow-500" />
               Guild Rankings
+              <GuildScoreInfo variant="icon" size="lg" />
             </h1>
             <p className="text-gray-600 mt-1">
               Discover the top-performing guilds in the community

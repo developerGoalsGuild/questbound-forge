@@ -20,6 +20,11 @@ interface QuestListProps {
   onFail: (id: string) => void;
   onDelete: (id: string) => void;
   onCreateQuest: () => void;
+  loadingStates?: Record<string, boolean>;
+  quests?: Quest[];
+  loading?: boolean;
+  error?: string | null;
+  onRefresh?: () => void;
 }
 
 const QuestList: React.FC<QuestListProps> = ({
@@ -30,9 +35,21 @@ const QuestList: React.FC<QuestListProps> = ({
   onFail,
   onDelete,
   onCreateQuest,
+  loadingStates: externalLoadingStates,
+  quests: externalQuests,
+  loading: externalLoading,
+  error: externalError,
+  onRefresh: externalRefresh,
 }) => {
   const { t } = useTranslation();
-  const { quests, loading, error, refresh, loadingStates } = useQuests();
+  const { quests: internalQuests, loading: internalLoading, error: internalError, refresh: internalRefresh, loadingStates: internalLoadingStates } = useQuests();
+  
+  // Use external data if provided, otherwise use internal ones
+  const quests = externalQuests || internalQuests;
+  const loading = externalLoading !== undefined ? externalLoading : internalLoading;
+  const error = externalError !== undefined ? externalError : internalError;
+  const refresh = externalRefresh || internalRefresh;
+  const loadingStates = externalLoadingStates || internalLoadingStates;
   
   // Use the quest filters hook
   const { filters, hasActiveFilters, updateFilters, clearFilters } = useQuestFilters({

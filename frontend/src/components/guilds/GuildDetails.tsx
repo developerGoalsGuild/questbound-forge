@@ -626,7 +626,11 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                           {isOwner && (
                             <>
                               <DropdownMenuItem
-                                onClick={() => handleAssignModerator(member.user_id, member.username)}
+                                onClick={() => (
+                                  member.role === 'moderator'
+                                    ? handleRemoveModerator(member.user_id, member.username)
+                                    : handleAssignModerator(member.user_id, member.username)
+                                )}
                                 disabled={isLoading}
                               >
                                 <Shield className="h-4 w-4 mr-2" />
@@ -820,7 +824,10 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
   const renderCommentsTab = () => {
     // Check if current user is a member
     const isMember = guild?.members?.some(member => member.user_id === currentUserId) || false;
-    const userRole = guild?.members?.find(member => member.user_id === currentUserId)?.role;
+    const currentUserMember = guild?.members?.find(member => member.user_id === currentUserId);
+    const userRole = currentUserMember?.role;
+    const isBlocked = currentUserMember?.is_blocked || false;
+    const canComment = currentUserMember?.can_comment !== false; // Default to true if not specified
 
     return (
       <GuildComments
@@ -828,6 +835,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
         currentUserId={currentUserId}
         isMember={isMember}
         userRole={userRole}
+        isBlocked={isBlocked}
+        canComment={canComment}
         className="w-full"
       />
     );

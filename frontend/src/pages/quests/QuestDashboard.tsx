@@ -30,7 +30,7 @@ const QuestDashboard: React.FC = () => {
   const [isCheckingCompletion, setIsCheckingCompletion] = useState(false);
   const [completionCheckResult, setCompletionCheckResult] = useState<{ completed_quests: string[], errors: string[] } | null>(null);
   const [isAnalyticsExpanded, setIsAnalyticsExpanded] = useState(false);
-  const { quests, loading, error, refresh } = useQuests();
+  const { quests, loading, error, refresh, start, cancel, fail, deleteQuest, loadingStates } = useQuests();
   const { templates: questTemplates, isLoading: templatesLoading, error: templatesError } = useQuestTemplates();
 
   // Calculate statistics from quests
@@ -80,28 +80,52 @@ const QuestDashboard: React.FC = () => {
     navigate(`/quests/details/${id}`);
   };
 
-  const handleStart = (id: string) => {
-    // Quest start logic will be handled by the QuestCard component
-    logger.info('Quest start requested', { questId: id });
+  const handleStart = async (id: string) => {
+    try {
+      await start(id);
+      logger.info('Quest started successfully', { questId: id });
+      // Refresh the quest list to show updated state
+      refresh();
+    } catch (error) {
+      logger.error('Failed to start quest', { questId: id, error });
+    }
   };
 
   const handleEdit = (id: string) => {
     navigate(`/quests/edit/${id}`);
   };
 
-  const handleCancel = (id: string) => {
-    // Quest cancel logic will be handled by the QuestCard component
-    logger.info('Quest cancel requested', { questId: id });
+  const handleCancel = async (id: string) => {
+    try {
+      await cancel(id);
+      logger.info('Quest cancelled successfully', { questId: id });
+      // Refresh the quest list to show updated state
+      refresh();
+    } catch (error) {
+      logger.error('Failed to cancel quest', { questId: id, error });
+    }
   };
 
-  const handleFail = (id: string) => {
-    // Quest fail logic will be handled by the QuestCard component
-    logger.info('Quest fail requested', { questId: id });
+  const handleFail = async (id: string) => {
+    try {
+      await fail(id);
+      logger.info('Quest marked as failed successfully', { questId: id });
+      // Refresh the quest list to show updated state
+      refresh();
+    } catch (error) {
+      logger.error('Failed to mark quest as failed', { questId: id, error });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    // Quest delete logic will be handled by the QuestCard component
-    logger.info('Quest delete requested', { questId: id });
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteQuest(id);
+      logger.info('Quest deleted successfully', { questId: id });
+      // Refresh the quest list to show updated state
+      refresh();
+    } catch (error) {
+      logger.error('Failed to delete quest', { questId: id, error });
+    }
   };
 
   // Template action handlers
@@ -386,6 +410,11 @@ const QuestDashboard: React.FC = () => {
                 onFail={handleFail}
                 onDelete={handleDelete}
                 onCreateQuest={handleCreateQuest}
+                loadingStates={loadingStates}
+                quests={quests}
+                loading={loading}
+                error={error}
+                onRefresh={refresh}
               />
             </Suspense>
           }

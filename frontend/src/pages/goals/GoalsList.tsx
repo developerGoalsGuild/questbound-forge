@@ -487,7 +487,6 @@ const GoalsListPage: React.FC = () => {
                           onEdit={handleEditGoal}
                           onDelete={handleDeleteGoal}
                           onStatusChange={handleStatusChange}
-                          onViewTasks={handleViewTasks}
                           onViewDetails={handleViewDetails}
                           variant="compact"
                         />
@@ -543,7 +542,6 @@ const GoalsListPage: React.FC = () => {
                       onEdit={handleEditGoal}
                       onDelete={handleDeleteGoal}
                       onStatusChange={handleStatusChange}
-                      onViewTasks={handleViewTasks}
                       onViewDetails={handleViewDetails}
                       variant="minimal"
                     />

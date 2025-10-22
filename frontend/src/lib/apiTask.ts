@@ -1,4 +1,4 @@
-import { getAccessToken, graphQLClient } from './utils';
+import { getAccessToken, getApiBase, graphQLClient } from './utils';
 import {  MY_TASKS } from '@/graphql/queries';
 import { graphqlRaw } from './api';
 import { logger } from './logger';
@@ -34,7 +34,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskResponse> 
     throw new Error('User is not authenticated');
   }
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const baseUrl = getApiBase();
   const url = baseUrl.replace(/\/$/, '') + '/quests/createTask';
 
   const response = await fetch(url, {                                         
@@ -178,7 +178,7 @@ export async function updateTask(taskId: string, updates: Partial<CreateTaskInpu
     });
   }
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const baseUrl = getApiBase();
   const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}`;
 
   logger.info('Task update API call', {
@@ -280,7 +280,7 @@ export async function triggerQuestCompletion(taskId: string, goalId: string): Pr
     timestamp: new Date().toISOString()
   });
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const baseUrl = getApiBase();
   const url = baseUrl.replace(/\/$/, '') + '/quests/check-completion';
 
   logger.info('Quest completion API call', {
@@ -362,7 +362,7 @@ export async function triggerManualQuestCompletionCheck(): Promise<{ completed_q
     timestamp: new Date().toISOString()
   });
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const baseUrl = getApiBase();
   const url = baseUrl.replace(/\/$/, '') + '/quests/check-completion';
 
   logger.info('Manual quest completion API call', {
@@ -438,7 +438,7 @@ export async function deleteTask(taskId: string): Promise<void> {
     throw new Error('User is not authenticated');
   }
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const baseUrl = getApiBase();
   const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}`;
 
   const response = await fetch(url, {

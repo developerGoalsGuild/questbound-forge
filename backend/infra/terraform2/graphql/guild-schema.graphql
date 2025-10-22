@@ -1,0 +1,312 @@
+# Guild GraphQL Schema Extensions
+# This file contains the GraphQL schema additions for guild features
+
+# Guild Types
+type Guild {
+  id: ID!
+  name: String!
+  description: String
+  createdBy: User!
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp
+  memberCount: Int!
+  goalCount: Int!
+  questCount: Int!
+  guildType: GuildType!
+  tags: [String!]!
+  members: [GuildMember!]
+  goals: [Goal!]
+  quests: [Quest!]
+  # Ranking data
+  position: Int
+  previousPosition: Int
+  totalScore: Int
+  activityScore: Int
+  growthRate: Float
+  badges: [String!]
+  # Avatar data
+  avatarUrl: String
+  # Moderation data
+  moderators: [String!]
+  pendingRequests: Int
+  settings: GuildSettings
+  # User permissions
+  userPermissions: GuildUserPermissions
+}
+
+type GuildMember {
+  userId: ID!
+  username: String!
+  email: String
+  avatarUrl: String
+  role: GuildRole!
+  joinedAt: AWSTimestamp!
+  lastSeenAt: AWSTimestamp
+  invitedBy: String
+  # Moderation fields
+  isBlocked: Boolean
+  blockedAt: AWSTimestamp
+  blockedBy: String
+  canComment: Boolean
+}
+
+type GuildSettings {
+  allowJoinRequests: Boolean!
+  requireApproval: Boolean!
+  allowComments: Boolean!
+}
+
+type GuildUserPermissions {
+  isMember: Boolean!
+  isOwner: Boolean!
+  isModerator: Boolean!
+  canJoin: Boolean!
+  canRequestJoin: Boolean!
+  hasPendingRequest: Boolean!
+  canLeave: Boolean!
+  canManage: Boolean!
+}
+
+type GuildComment {
+  id: ID!
+  guildId: ID!
+  userId: ID!
+  username: String!
+  avatarUrl: String
+  content: String!
+  createdAt: AWSTimestamp!
+  updatedAt: AWSTimestamp
+  parentCommentId: ID
+  replies: [GuildComment!]
+  likes: Int!
+  isLiked: Boolean!
+  isEdited: Boolean!
+  userRole: String!
+}
+
+type GuildRanking {
+  guildId: ID!
+  position: Int!
+  previousPosition: Int
+  totalScore: Int!
+  memberCount: Int!
+  goalCount: Int!
+  questCount: Int!
+  activityScore: Int!
+  growthRate: Float!
+  badges: [String!]!
+  calculatedAt: AWSTimestamp!
+}
+
+type GuildAnalytics {
+  totalMembers: Int!
+  activeMembers: Int!
+  totalGoals: Int!
+  completedGoals: Int!
+  totalQuests: Int!
+  completedQuests: Int!
+  weeklyActivity: Int!
+  monthlyActivity: Int!
+  averageGoalCompletion: Float!
+  averageQuestCompletion: Float!
+  memberGrowthRate: Float!
+  goalGrowthRate: Float!
+  questGrowthRate: Float!
+  topPerformers: Int!
+  newMembersThisWeek: Int!
+  goalsCreatedThisWeek: Int!
+  questsCompletedThisWeek: Int!
+  createdAt: AWSTimestamp!
+  lastActivityAt: AWSTimestamp!
+  memberLeaderboard: [MemberLeaderboardItem!]!
+}
+
+type MemberLeaderboardItem {
+  userId: ID!
+  username: String!
+  avatarUrl: String
+  role: String!
+  goalsCompleted: Int!
+  questsCompleted: Int!
+  activityScore: Int!
+  totalXp: Int!
+  joinedAt: AWSTimestamp!
+  lastSeenAt: AWSTimestamp
+}
+
+type GuildJoinRequest {
+  guildId: ID!
+  userId: ID!
+  username: String!
+  email: String
+  avatarUrl: String
+  requestedAt: AWSTimestamp!
+  status: JoinRequestStatus!
+  reviewedBy: String
+  reviewedAt: AWSTimestamp
+  reviewReason: String
+}
+
+# Enums
+enum GuildType {
+  PUBLIC
+  PRIVATE
+  APPROVAL
+}
+
+enum GuildRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+# Input Types
+input CreateGuildInput {
+  name: String!
+  description: String
+  tags: [String!]
+  guildType: GuildType!
+  settings: GuildSettingsInput
+}
+
+input UpdateGuildInput {
+  name: String
+  description: String
+  tags: [String!]
+  guildType: GuildType
+  settings: GuildSettingsInput
+}
+
+input GuildSettingsInput {
+  allowJoinRequests: Boolean
+  requireApproval: Boolean
+  allowComments: Boolean
+}
+
+input CreateGuildCommentInput {
+  content: String!
+  parentCommentId: ID
+}
+
+input UpdateGuildCommentInput {
+  content: String!
+}
+
+input GuildJoinRequestInput {
+  message: String
+}
+
+input TransferOwnershipInput {
+  newOwnerId: ID!
+  reason: String
+}
+
+input ModerationActionInput {
+  action: ModerationActionType!
+  targetUserId: ID
+  commentId: ID
+  reason: String
+}
+
+enum ModerationActionType {
+  BLOCK_USER
+  UNBLOCK_USER
+  REMOVE_COMMENT
+  TOGGLE_COMMENT_PERMISSION
+}
+
+# Queries
+extend type Query {
+  # Guild queries
+  myGuilds(limit: Int, nextToken: String): GuildConnection
+  guild(guildId: ID!, includeMembers: Boolean, includeGoals: Boolean, includeQuests: Boolean): Guild
+  discoverGuilds(search: String, tags: [String!], limit: Int, offset: Int, guildType: GuildType): GuildConnection
+  
+  # Guild member queries
+  guildMembers(guildId: ID!, limit: Int, nextToken: String, role: GuildRole): GuildMemberConnection
+  
+  # Guild comment queries
+  guildComments(guildId: ID!, limit: Int, nextToken: String): GuildCommentConnection
+  
+  # Guild ranking queries
+  guildRankings(limit: Int): [GuildRanking!]!
+  guildRanking(guildId: ID!): GuildRanking
+  
+  # Guild analytics queries
+  guildAnalytics(guildId: ID!): GuildAnalytics
+  guildLeaderboard(guildId: ID!): [MemberLeaderboardItem!]!
+  
+  # Guild join request queries
+  guildJoinRequests(guildId: ID!): [GuildJoinRequest!]!
+  hasPendingJoinRequest(guildId: ID!): Boolean!
+}
+
+# Mutations
+extend type Mutation {
+  # Guild management
+  createGuild(input: CreateGuildInput!): Guild!
+  updateGuild(guildId: ID!, input: UpdateGuildInput!): Guild!
+  deleteGuild(guildId: ID!): Boolean!
+  
+  # Guild membership
+  joinGuild(guildId: ID!): Guild!
+  leaveGuild(guildId: ID!): Boolean!
+  removeGuildMember(guildId: ID!, userId: ID!): Boolean!
+  
+  # Content association
+  addGoalToGuild(guildId: ID!, goalId: ID!): Guild!
+  removeGoalFromGuild(guildId: ID!, goalId: ID!): Guild!
+  addQuestToGuild(guildId: ID!, questId: ID!): Guild!
+  removeQuestFromGuild(guildId: ID!, questId: ID!): Guild!
+  
+  # Guild comments
+  createGuildComment(guildId: ID!, input: CreateGuildCommentInput!): GuildComment!
+  updateGuildComment(guildId: ID!, commentId: ID!, input: UpdateGuildCommentInput!): GuildComment!
+  deleteGuildComment(guildId: ID!, commentId: ID!): Boolean!
+  likeGuildComment(guildId: ID!, commentId: ID!): GuildComment!
+  
+  # Guild join requests
+  requestToJoinGuild(guildId: ID!, input: GuildJoinRequestInput): Boolean!
+  approveJoinRequest(guildId: ID!, userId: ID!, reason: String): Boolean!
+  rejectJoinRequest(guildId: ID!, userId: ID!, reason: String): Boolean!
+  
+  # Guild ownership and moderation
+  transferGuildOwnership(guildId: ID!, input: TransferOwnershipInput!): Boolean!
+  assignModerator(guildId: ID!, userId: ID!): Boolean!
+  removeModerator(guildId: ID!, userId: ID!): Boolean!
+  performModerationAction(guildId: ID!, input: ModerationActionInput!): Boolean!
+  
+  # Avatar management
+  uploadGuildAvatar(guildId: ID!, file: AWSFile!): String!
+  deleteGuildAvatar(guildId: ID!): Boolean!
+}
+
+# Connection Types
+type GuildConnection {
+  items: [Guild!]!
+  nextToken: String
+  totalCount: Int!
+}
+
+type GuildMemberConnection {
+  items: [GuildMember!]!
+  nextToken: String
+  totalCount: Int!
+}
+
+type GuildCommentConnection {
+  items: [GuildComment!]!
+  nextToken: String
+  totalCount: Int!
+}
+
+# Scalars
+scalar AWSFile
+
+

@@ -117,9 +117,18 @@ class QuestAnalyticsCalculator:
         
         filtered = []
         for quest in quests:
-            # Convert quest timestamps to datetime
-            quest_date = self._timestamp_to_datetime(quest.createdAt)
-            if quest_date >= self.cutoff_date:
+            # For analytics, we should include quests that were either:
+            # 1. Created within the period, OR
+            # 2. Started within the period (if they have a startedAt timestamp)
+            
+            quest_created_date = self._timestamp_to_datetime(quest.createdAt)
+            quest_started_date = self._timestamp_to_datetime(quest.startedAt) if quest.startedAt else None
+            
+            # Include if created within period OR started within period
+            created_within_period = quest_created_date >= self.cutoff_date
+            started_within_period = quest_started_date and quest_started_date >= self.cutoff_date
+            
+            if created_within_period or started_within_period:
                 filtered.append(quest)
         
         return filtered

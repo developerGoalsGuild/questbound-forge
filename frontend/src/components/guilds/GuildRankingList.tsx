@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GuildRankingCard, GuildRankingData } from './GuildRankingCard';
+import { GuildScoreInfo } from './GuildScoreInfo';
 import { cn } from '@/lib/utils';
 import {
   Search,
@@ -216,6 +217,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" />
             {title}
+            <GuildScoreInfo variant="icon" size="sm" />
           </CardTitle>
           {showStats && stats && (
             <div className="flex items-center gap-4 text-sm text-gray-600">

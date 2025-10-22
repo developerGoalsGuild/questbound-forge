@@ -30,13 +30,23 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // Get translations with safety checks
-  const goalsTranslations = (t as any)?.goals;
-  const section = goalsTranslations?.section ?? {};
-  const questions = goalsTranslations?.questions ?? {};
-  const hints = goalsTranslations?.hints ?? {};
-  const questionHints = (hints.questions ?? {}) as Record<string, string | undefined>;
-  const iconLabelTemplate = typeof hints.iconLabel === 'string' ? hints.iconLabel : 'More information about {field}';
+  // Get translations with safety checks - use goal creation translations
+  const goalCreationTranslations = (t as any)?.goalCreation;
+  const nlpTranslations = goalCreationTranslations?.nlp ?? {};
+  const questions = nlpTranslations.questions ?? {};
+  const hints = nlpTranslations.hints ?? {};
+  const questionHints = hints as Record<string, string | undefined>;
+  const iconLabelTemplate = 'More information about {field}';
+
+  // Debug logging to see what translations are available
+  console.log('NLPQuestionsSection Debug:', {
+    goalCreationTranslations: !!goalCreationTranslations,
+    nlpTranslations: !!nlpTranslations,
+    hints: !!hints,
+    questionHints: questionHints,
+    questions: questions,
+    iconLabelTemplate
+  });
 
   // Accessibility helpers
   const createHintId = (id: string) => `${id}-hint`;
@@ -50,9 +60,8 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
 
   // Info icon + tooltip component (accessible)
   const InfoHint = ({ hint, targetId, fieldLabel }: { hint?: string; targetId: string; fieldLabel: string }) => {
-    if (!hint) {
-      return null;
-    }
+    // Always show the icon, even if no hint is available
+    const displayHint = hint || 'Click for more information about this field';
     const descriptionId = createHintId(targetId);
     const tooltipId = `${descriptionId}-content`;
     return (
@@ -76,11 +85,11 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
             aria-labelledby={descriptionId}
             className="max-w-xs text-sm leading-relaxed"
           >
-            {hint}
+            {displayHint}
           </TooltipContent>
         </Tooltip>
         <span id={descriptionId} className="sr-only">
-          {hint}
+          {displayHint}
         </span>
       </>
     );
@@ -118,6 +127,16 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
             const hint = questionHints[key];
             const currentError = validateAnswer(key, answers?.[key] || '');
             const hasError = Boolean(currentError);
+
+            // Debug logging for each question
+            console.log(`NLP Question ${key}:`, {
+              questionLabel,
+              hint,
+              hasHint: !!hint,
+              questionHints,
+              questions,
+              nlpTranslations
+            });
 
             return (
               <div key={key} className="space-y-2">

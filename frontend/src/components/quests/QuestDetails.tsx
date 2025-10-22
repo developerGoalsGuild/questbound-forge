@@ -117,11 +117,17 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
 
   // Find the specific quest
   useEffect(() => {
+    console.log('QuestDetails: Finding quest', { questId, questsLength: quests?.length, loading });
     if (quests && quests.length > 0) {
       const foundQuest = quests.find(q => q.id === questId);
+      console.log('QuestDetails: Quest found', { foundQuest: !!foundQuest, questId });
       setQuest(foundQuest || null);
+    } else if (quests && quests.length === 0) {
+      // No quests found at all
+      console.log('QuestDetails: No quests found at all');
+      setQuest(null);
     }
-  }, [quests, questId]);
+  }, [quests, questId, loading]);
 
   // Load quests if not already loaded
   useEffect(() => {
@@ -132,11 +138,13 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
 
   // Load goals and tasks when quest is found
   useEffect(() => {
+    console.log('QuestDetails: Goals loading effect', { quest: !!quest, questId: quest?.id });
     if (quest) {
       const loadLinkedData = async () => {
         try {
           // Load goals
           if (quest.linkedGoalIds && quest.linkedGoalIds.length > 0) {
+            console.log('QuestDetails: Loading goals for quest', { questId: quest.id, linkedGoalIds: quest.linkedGoalIds });
             try {
               const goalsData = await loadGoals();
               const linkedGoals = (goalsData || []).filter(goal => 
@@ -147,6 +155,8 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
               console.warn('Failed to load goals for quest:', error);
               // Continue without goals - quest progress will still work
             }
+          } else {
+            console.log('QuestDetails: No linked goals for quest', { questId: quest.id });
           }
 
           // Load tasks - handle GraphQL errors gracefully
@@ -426,6 +436,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
 
   // Quest not found
   if (!quest) {
+    console.log('QuestDetails: Quest not found, showing error message', { questId, loading, error, questsLength: quests?.length });
     return (
       <div className={`space-y-6 ${className}`}>
         <Alert>

@@ -444,7 +444,7 @@ export async function getGoal(goalId: string): Promise<GoalResponse> {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${apiBase}/quests/${goalId}`, {
+    const response = await fetch(`${apiBase}/quest/goals/${goalId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

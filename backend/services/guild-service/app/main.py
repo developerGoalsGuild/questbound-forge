@@ -14,7 +14,7 @@ import boto3
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import BotoCoreError, ClientError
 from botocore.config import Config
-from fastapi import Body, Depends, FastAPI, HTTPException, Request, UploadFile, File
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, UploadFile, File
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -32,6 +32,7 @@ from .db.guild_db import (
     check_guild_name_availability, create_guild_comment, get_guild_comments,
     update_guild_comment, delete_guild_comment, like_guild_comment,
     create_join_request, get_guild_join_requests, approve_join_request, reject_join_request,
+    has_pending_join_request,
     perform_moderation_action, assign_moderator, remove_moderator,
     GuildDBError, GuildNotFoundError, GuildPermissionError, GuildValidationError, GuildConflictError
 )
@@ -43,6 +44,7 @@ from .settings import Settings
 from .api.avatar import router as avatar_router
 from .api.comments import router as comments_router
 from .api.members import router as members_router
+from .api.moderation import router as moderation_router
 from common.logging import log_event
 # TODO: Implement these modules
 # from .db.guild_member_db import (
@@ -66,12 +68,28 @@ async def get_guild_members(guild_id: str, limit: int = 50, offset: int = 0, rol
     return {"members": [], "total": 0, "limit": limit, "offset": offset, "has_more": False}
 
 async def block_user(guild_id: str, user_id: str, blocked_by: str):
-    """Stub function for block_user."""
-    raise NotImplementedError("block_user not implemented yet")
+    """Block a user from commenting in the guild."""
+    from .db.guild_db import perform_moderation_action
+    await perform_moderation_action(
+        guild_id=guild_id,
+        action='block_user',
+        target_user_id=user_id,
+        comment_id=None,
+        reason='Blocked by moderator',
+        performed_by=blocked_by
+    )
 
 async def unblock_user(guild_id: str, user_id: str, unblocked_by: str):
-    """Stub function for unblock_user."""
-    raise NotImplementedError("unblock_user not implemented yet")
+    """Unblock a user from commenting in the guild."""
+    from .db.guild_db import perform_moderation_action
+    await perform_moderation_action(
+        guild_id=guild_id,
+        action='unblock_user',
+        target_user_id=user_id,
+        comment_id=None,
+        reason='Unblocked by moderator',
+        performed_by=unblocked_by
+    )
 
 async def toggle_comment_permission(guild_id: str, user_id: str, can_comment: bool, updated_by: str):
     """Stub function for toggle_comment_permission."""
@@ -150,7 +168,8 @@ async def update_comment(guild_id: str, comment_id: str, user_id: str, content: 
         comment = await update_guild_comment(
             guild_id=guild_id,
             comment_id=comment_id,
-            content=content
+            content=content,
+            user_id=user_id
         )
         return comment
     except Exception as e:
@@ -443,10 +462,7 @@ def transfer_guild_ownership(guild_id: str, new_owner_id: str, current_owner_id:
     # TODO: Implement guild ownership transfer
     pass
 
-def assign_moderator(guild_id: str, user_id: str, assigned_by: str):
-    """Assign moderator role to user."""
-    # TODO: Implement moderator assignment
-    pass
+# assign_moderator function is now properly implemented in db/guild_db.py
 
 def remove_moderator(guild_id: str, user_id: str, removed_by: str):
     """Remove moderator role from user."""
@@ -503,6 +519,7 @@ app.add_middleware(
 app.include_router(avatar_router)
 app.include_router(comments_router)
 app.include_router(members_router)
+app.include_router(moderation_router)
 
 
 # Global exception handlers
@@ -661,7 +678,8 @@ async def get_guild_endpoint(
             guild_id=guild_id,
             include_members=include_members,
             include_goals=include_goals,
-            include_quests=include_quests
+            include_quests=include_quests,
+            current_user_id=auth.user_id
         )
         
         if not guild:
@@ -902,14 +920,14 @@ async def remove_user_from_guild_endpoint(
 # Guild discovery
 @app.get("/guilds", response_model=GuildListResponse)
 async def list_guilds_endpoint(
-    search: Optional[str] = None,
-    guild_type: Optional[str] = None,
-    tags: Optional[str] = None,
-    limit: int = 20,
-    offset: int = 0,
+    search: Optional[str] = Query(None, description="Search guilds by name or description"),
+    guild_type: Optional[str] = Query(None, description="Filter by guild type"),
+    tags: Optional[str] = Query(None, description="Filter by tags (comma-separated)"),
+    limit: int = Query(50, ge=1, le=100, description="Number of guilds to return"),
+    offset: int = Query(0, ge=0, description="Number of guilds to skip"),
     auth: AuthContext = Depends(authenticate)
 ):
-    """List guilds with optional filtering."""
+    """List guilds with optional filtering, search, and pagination."""
     try:
         # Parse tags if provided
         tag_list = tags.split(',') if tags else None
@@ -919,7 +937,8 @@ async def list_guilds_endpoint(
             guild_type=guild_type,
             tags=tag_list,
             limit=limit,
-            offset=offset
+            offset=offset,
+            current_user_id=auth.user_id
         )
         
         return guilds
@@ -1098,6 +1117,28 @@ async def reject_join_request_endpoint(
         raise HTTPException(status_code=500, detail="Failed to reject join request")
     except Exception as e:
         logger.error("Unexpected error rejecting join request", extra={"error": str(e)}, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/guilds/{guild_id}/join-requests/check")
+async def check_pending_join_request_endpoint(
+    guild_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Check if the current user has a pending join request for the guild."""
+    try:
+        has_pending = await has_pending_join_request(guild_id=guild_id, user_id=auth.user_id)
+        
+        return {
+            "hasPendingRequest": has_pending
+        }
+        
+    except GuildNotFoundError:
+        raise HTTPException(status_code=404, detail="Guild not found")
+    except GuildDBError as e:
+        logger.error("Database error checking pending join request", extra={"error": str(e)})
+        raise HTTPException(status_code=500, detail="Failed to check pending join request")
+    except Exception as e:
+        logger.error("Unexpected error checking pending join request", extra={"error": str(e)}, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Ownership transfer

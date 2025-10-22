@@ -19,7 +19,6 @@ import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
 import ChangePassword from './pages/account/ChangePassword';
 import ProfileView from './pages/profile/ProfileView';
 import ProfileEdit from './pages/profile/ProfileEdit';
-import QuestListPage from './pages/quests/QuestList';
 import QuestCreatePage from './pages/quests/QuestCreate';
 import QuestDetailsPage from './pages/quests/QuestDetails';
 import QuestEditPage from './pages/quests/QuestEdit';
@@ -60,7 +59,6 @@ const App = () => (
             <Route path="/goals/details/:id" element={<ProtectedRoute><AuthenticatedLayout><GoalDetails /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/goals/:id" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/goals/:id/tasks" element={<ProtectedRoute><AuthenticatedLayout><Goals /></AuthenticatedLayout></ProtectedRoute>} />
-            <Route path="/quests" element={<ProtectedRoute><AuthenticatedLayout><QuestListPage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/dashboard" element={<ProtectedRoute><AuthenticatedLayout><ErrorBoundary><QuestDashboard /></ErrorBoundary></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/create" element={<ProtectedRoute><AuthenticatedLayout><QuestCreatePage /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/quests/create-template" element={<ProtectedRoute><AuthenticatedLayout><ErrorBoundary><QuestTemplateCreate /></ErrorBoundary></AuthenticatedLayout></ProtectedRoute>} />

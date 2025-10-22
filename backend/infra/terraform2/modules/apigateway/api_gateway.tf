@@ -130,6 +130,25 @@ resource "aws_api_gateway_resource" "quests_goal_id" {
   path_part   = "{goal_id}"
 }
 
+# New resource for /quest/goals/{goal_id}
+resource "aws_api_gateway_resource" "quest" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "quest"
+}
+
+resource "aws_api_gateway_resource" "quest_goals" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quest.id
+  path_part   = "goals"
+}
+
+resource "aws_api_gateway_resource" "quest_goals_goal_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.quest_goals.id
+  path_part   = "{goal_id}"
+}
+
 resource "aws_api_gateway_resource" "quests_create_task" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.quests.id
@@ -504,6 +523,12 @@ resource "aws_api_gateway_resource" "guilds_id_join_requests_user_id_reject" {
   path_part   = "reject"
 }
 
+resource "aws_api_gateway_resource" "guilds_id_join_requests_check" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_join_requests.id
+  path_part   = "check"
+}
+
 resource "aws_api_gateway_resource" "guilds_id_ownership_transfer" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.guilds_id.id
@@ -520,6 +545,12 @@ resource "aws_api_gateway_resource" "guilds_id_moderators" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.guilds_id.id
   path_part   = "moderators"
+}
+
+resource "aws_api_gateway_resource" "guilds_id_moderators_assign" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.guilds_id_moderators.id
+  path_part   = "assign"
 }
 
 resource "aws_api_gateway_resource" "guilds_id_moderators_user_id" {
@@ -1291,6 +1322,78 @@ resource "aws_api_gateway_integration_response" "quests_goal_id_delete_options_i
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+  response_templates = {
+    "application/json" = jsonencode({})
+    "text/plain" = jsonencode({})
+  }
+}
+
+# GET /quest/goals/{goal_id}
+resource "aws_api_gateway_method" "quest_goals_goal_id_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.quest_goals_goal_id.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_integration" "quest_goals_goal_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.quest_goals_goal_id.id
+  http_method             = aws_api_gateway_method.quest_goals_goal_id_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.quest_service_lambda_arn}/invocations"
+}
+
+# OPTIONS /quest/goals/{goal_id}
+resource "aws_api_gateway_method" "quest_goals_goal_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.quest_goals_goal_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "quest_goals_goal_id_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_goals_goal_id.id
+  http_method = aws_api_gateway_method.quest_goals_goal_id_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "quest_goals_goal_id_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_goals_goal_id.id
+  http_method  = aws_api_gateway_method.quest_goals_goal_id_options.http_method
+  status_code  = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "quest_goals_goal_id_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.quest_goals_goal_id.id
+  http_method = aws_api_gateway_method.quest_goals_goal_id_options.http_method
+  status_code = aws_api_gateway_method_response.quest_goals_goal_id_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
   }
   response_templates = {
@@ -3067,6 +3170,25 @@ resource "aws_api_gateway_integration" "guilds_id_join_requests_user_id_reject_p
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
+# GET /guilds/{guild_id}/join-requests/check
+resource "aws_api_gateway_method" "guilds_id_join_requests_check_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.guilds_id_join_requests_check.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_integration" "guilds_id_join_requests_check_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.guilds_id_join_requests_check.id
+  http_method             = aws_api_gateway_method.guilds_id_join_requests_check_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
+}
+
 # POST /guilds/{guild_id}/ownership/transfer
 resource "aws_api_gateway_method" "guilds_id_ownership_transfer_transfer_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
@@ -3103,19 +3225,19 @@ resource "aws_api_gateway_integration" "guilds_id_moderators_get_integration" {
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
-# POST /guilds/{guild_id}/moderators (Assign moderator)
-resource "aws_api_gateway_method" "guilds_id_moderators_post" {
+# POST /guilds/{guild_id}/moderators/assign (Assign moderator)
+resource "aws_api_gateway_method" "guilds_id_moderators_assign_post" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
-  resource_id   = aws_api_gateway_resource.guilds_id_moderators.id
+  resource_id   = aws_api_gateway_resource.guilds_id_moderators_assign.id
   http_method   = "POST"
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
 }
 
-resource "aws_api_gateway_integration" "guilds_id_moderators_post_integration" {
+resource "aws_api_gateway_integration" "guilds_id_moderators_assign_post_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
-  resource_id             = aws_api_gateway_resource.guilds_id_moderators.id
-  http_method             = aws_api_gateway_method.guilds_id_moderators_post.http_method
+  resource_id             = aws_api_gateway_resource.guilds_id_moderators_assign.id
+  http_method             = aws_api_gateway_method.guilds_id_moderators_assign_post.http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
@@ -3542,6 +3664,8 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.quests_goal_id_put,
       aws_api_gateway_method.quests_goal_id_put_options,
       aws_api_gateway_method.quests_goal_id_delete,
+      aws_api_gateway_method.quest_goals_goal_id_get,
+      aws_api_gateway_method.quest_goals_goal_id_options,
       aws_api_gateway_method.quests_goal_id_quests_get,
       aws_api_gateway_method.quests_tasks_options,
       aws_api_gateway_method.quests_create_task_post,
@@ -3612,11 +3736,12 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.guilds_id_analytics_leaderboard_get,
       aws_api_gateway_method.guilds_id_join_requests_post,
       aws_api_gateway_method.guilds_id_join_requests_get,
-      aws_api_gateway_method.guilds_id_join_requests_user_id_approve_post,
-      aws_api_gateway_method.guilds_id_join_requests_user_id_reject_post,
+      aws_api_gateway_method.guilds_id_join_requests_user_id_approve_put,
+      aws_api_gateway_method.guilds_id_join_requests_user_id_reject_put,
+      aws_api_gateway_method.guilds_id_join_requests_check_get,
       aws_api_gateway_method.guilds_id_ownership_transfer_transfer_post,
       aws_api_gateway_method.guilds_id_moderators_get,
-      aws_api_gateway_method.guilds_id_moderators_post,
+      aws_api_gateway_method.guilds_id_moderators_assign_post,
       aws_api_gateway_method.guilds_id_moderators_user_id_delete,
       aws_api_gateway_method.guilds_id_moderation_action_post,
       aws_api_gateway_method.guilds_id_block_user_post,
@@ -3684,6 +3809,8 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.quests_goal_id_put_options_integration,
     aws_api_gateway_integration.quests_goal_id_delete_integration,
     aws_api_gateway_integration.quests_goal_id_delete_options_integration,
+    aws_api_gateway_integration.quest_goals_goal_id_get_integration,
+    aws_api_gateway_integration.quest_goals_goal_id_options_integration,
     aws_api_gateway_integration.quests_goal_id_quests_get_integration,
     aws_api_gateway_integration.quests_progress_get_integration,
     aws_api_gateway_integration.quests_progress_options_integration,
@@ -3748,11 +3875,12 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.guilds_id_analytics_leaderboard_get_integration,
     aws_api_gateway_integration.guilds_id_join_requests_post_integration,
     aws_api_gateway_integration.guilds_id_join_requests_get_integration,
-    aws_api_gateway_integration.guilds_id_join_requests_user_id_approve_post_integration,
-    aws_api_gateway_integration.guilds_id_join_requests_user_id_reject_post_integration,
+    aws_api_gateway_integration.guilds_id_join_requests_user_id_approve_put_integration,
+    aws_api_gateway_integration.guilds_id_join_requests_user_id_reject_put_integration,
+    aws_api_gateway_integration.guilds_id_join_requests_check_get_integration,
     aws_api_gateway_integration.guilds_id_ownership_transfer_transfer_post_integration,
     aws_api_gateway_integration.guilds_id_moderators_get_integration,
-    aws_api_gateway_integration.guilds_id_moderators_post_integration,
+    aws_api_gateway_integration.guilds_id_moderators_assign_post_integration,
     aws_api_gateway_integration.guilds_id_moderators_user_id_delete_integration,
     aws_api_gateway_integration.guilds_id_moderation_action_post_integration,
     aws_api_gateway_integration.guilds_id_block_user_post_integration,

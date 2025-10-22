@@ -7,6 +7,17 @@
 
 import { getAccessToken, getApiBase } from '@/lib/utils';
 
+export interface GuildUserPermissions {
+  is_member: boolean;
+  is_owner: boolean;
+  is_moderator: boolean;
+  can_join: boolean;
+  can_request_join: boolean;
+  has_pending_request: boolean;
+  can_leave: boolean;
+  can_manage: boolean;
+}
+
 export interface Guild {
   guild_id: string;
   name: string;
@@ -43,6 +54,8 @@ export interface Guild {
     require_approval: boolean;
     allow_comments: boolean;
   };
+  // User permissions
+  user_permissions?: GuildUserPermissions;
 }
 
 export interface GuildCreateInput {
@@ -117,8 +130,10 @@ export interface Quest {
 
 export interface GuildListResponse {
   guilds: Guild[];
-  nextToken?: string;
-  totalCount: number;
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export interface GuildMemberListResponse {
@@ -388,7 +403,8 @@ export async function discoverGuilds(
   search?: string,
   tags?: string[],
   limit: number = 50,
-  nextToken?: string
+  offset: number = 0,
+  guildType?: string
 ): Promise<GuildListResponse> {
   const params = new URLSearchParams();
   
@@ -397,23 +413,28 @@ export async function discoverGuilds(
     params.append('limit', limit.toString());
   }
   
+  // Add offset if provided
+  if (offset > 0) {
+    params.append('offset', offset.toString());
+  }
+  
   // Add search if provided
   if (search) {
     params.append('search', search);
   }
   
-  // Add nextToken if provided
-  if (nextToken) {
-    params.append('next_token', nextToken);
+  // Add guild type if provided
+  if (guildType) {
+    params.append('guild_type', guildType);
   }
 
-  // Add tags if provided
+  // Add tags if provided (comma-separated)
   if (tags && tags.length > 0) {
-    tags.forEach(tag => params.append('tags', tag));
+    params.append('tags', tags.join(','));
   }
 
   const queryString = params.toString();
-  return apiRequest<GuildListResponse>(`/guilds/discover${queryString ? `?${queryString}` : ''}`);
+  return apiRequest<GuildListResponse>(`/guilds${queryString ? `?${queryString}` : ''}`);
 }
 
 // Avatar upload functions
@@ -616,7 +637,10 @@ export const mockGuildAPI = {
     
     return {
       guilds: mockGuilds,
-      totalCount: mockGuilds.length,
+      total: mockGuilds.length,
+      limit: 50,
+      offset: 0,
+      has_more: false
     };
   },
 
@@ -813,7 +837,7 @@ export const mockGuildAPI = {
     return mockGuild;
   },
 
-  discoverGuilds: async (search?: string, tags?: string[]): Promise<GuildListResponse> => {
+  discoverGuilds: async (search?: string, tags?: string[], limit: number = 50, offset: number = 0, guildType?: string): Promise<GuildListResponse> => {
     await new Promise(resolve => setTimeout(resolve, 400));
     
     const mockGuilds: Guild[] = [
@@ -843,9 +867,40 @@ export const mockGuildAPI = {
       },
     ];
     
+    let filteredGuilds = [...mockGuilds];
+    
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredGuilds = filteredGuilds.filter(guild => 
+        guild.name.toLowerCase().includes(searchLower) ||
+        (guild.description && guild.description.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Apply guild type filter
+    if (guildType) {
+      filteredGuilds = filteredGuilds.filter(guild => guild.guild_type === guildType);
+    }
+    
+    // Apply tags filter
+    if (tags && tags.length > 0) {
+      filteredGuilds = filteredGuilds.filter(guild => 
+        tags.some(tag => guild.tags.includes(tag))
+      );
+    }
+    
+    // Apply pagination
+    const total = filteredGuilds.length;
+    const paginatedGuilds = filteredGuilds.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
+    
     return {
-      guilds: mockGuilds,
-      totalCount: mockGuilds.length,
+      guilds: paginatedGuilds,
+      total,
+      limit,
+      offset,
+      has_more: hasMore
     };
   },
 
@@ -1247,7 +1302,7 @@ export const guildAPI = {
       throw new Error('No access token available');
     }
 
-    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/moderators`, {
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/moderators/assign`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1783,5 +1838,31 @@ export const guildAPI = {
     }
 
     return response.json();
+  },
+
+  // Check if user has pending join request
+  hasPendingJoinRequest: async (guild_id: string): Promise<boolean> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/join-requests/check`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to check join request status';
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    return data.hasPendingRequest || false;
   },
 };

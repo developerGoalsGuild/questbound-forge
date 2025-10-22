@@ -151,6 +151,7 @@ export interface GuildTranslations {
       leaving: string;
       settings: string;
       invite: string;
+      pendingRequest: string;
     };
     stats: {
       members: string;
@@ -276,6 +277,27 @@ export interface GuildTranslations {
   rankings: {
     title: string;
     score: string;
+    scoreInfo: {
+      title: string;
+      description: string;
+      formula: {
+        activityScore: string;
+        growthBonus: string;
+        totalScore: string;
+      };
+      examples: {
+        title: string;
+        newGuild: string;
+        establishedGuild: string;
+        topGuild: string;
+      };
+      tips: {
+        title: string;
+        memberGrowth: string;
+        newGuildBoost: string;
+        activityMatters: string;
+      };
+    };
   };
   comments: {
     post: string;
@@ -289,6 +311,21 @@ export interface GuildTranslations {
     noComments: string;
     loading: string;
     error: string;
+    membersOnly: {
+      title: string;
+      message: string;
+      joinButton: string;
+    };
+    blocked: {
+      title: string;
+      message: string;
+      contactModerator: string;
+    };
+    commentingDisabled: {
+      title: string;
+      message: string;
+      contactModerator: string;
+    };
   };
   edit: {
     title: string;
@@ -526,6 +563,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         leaving: 'Leaving...',
         settings: 'Settings',
         invite: 'Invite Members',
+        pendingRequest: 'Pending Request',
       },
       stats: {
         members: 'Members',
@@ -652,6 +690,31 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     rankings: {
       title: 'Rankings',
       score: 'Score',
+      scoreInfo: {
+        title: 'How Guild Scores Are Calculated',
+        description: 'Guild scores are calculated based on member count, growth, and goals completed by members to encourage active, growing communities.',
+        formula: {
+          activityScore: 'Activity Score = Members × 10 points',
+          growthBonus: 'Growth Bonus = (30 - days old) × 2 points (for guilds under 30 days)',
+          goalsCompleted: 'Goals Completed = Completed goals by members in last 30 days × 10 points',
+          socialEngagement: 'Social Engagement = Comments + Likes in last 30 days × 1 point each',
+          totalScore: 'Total Score = Activity Score + Growth Bonus + Goals Completed + Social Engagement',
+        },
+        examples: {
+          title: 'Examples',
+          newGuild: 'New Guild (10 days, 20 members, 5 goals, 20 comments/likes): 200 + 40 + 50 + 20 = 310 points',
+          establishedGuild: 'Established Guild (60 days, 50 members, 15 goals, 50 comments/likes): 500 + 0 + 150 + 50 = 700 points',
+          topGuild: 'Top Guild (5 days, 100 members, 25 goals, 100 comments/likes): 1000 + 50 + 250 + 100 = 1400 points',
+        },
+        tips: {
+          title: 'Tips to Improve Your Score',
+          memberGrowth: '• Focus on growing your member base (10 points per member)',
+          newGuildBoost: '• New guilds get bonus points for the first 30 days',
+          goalsCompleted: '• Encourage members to complete their goals (10 points per completed goal)',
+          socialEngagement: '• Foster community interaction through comments and likes (1 point each)',
+          activityMatters: '• Create an engaging environment that promotes both goal achievement and social interaction',
+        },
+      },
     },
     comments: {
       post: 'Comment',
@@ -665,6 +728,21 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       noComments: 'No comments yet',
       loading: 'Loading comments...',
       error: 'Failed to load comments',
+      membersOnly: {
+        title: 'Members Only',
+        message: 'You need to be a member of this guild to view and post comments.',
+        joinButton: 'Join Guild',
+      },
+      blocked: {
+        title: 'Access Restricted',
+        message: 'You have been blocked from accessing the comments section of this guild.',
+        contactModerator: 'Contact a guild moderator if you believe this is an error.',
+      },
+      commentingDisabled: {
+        title: 'Commenting Disabled',
+        message: 'You are not allowed to post comments in this guild.',
+        contactModerator: 'Contact a guild moderator if you believe this is an error.',
+      },
     },
     edit: {
       title: 'Edit Guild',
@@ -900,6 +978,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         leaving: 'Abandonando...',
         settings: 'Configuración',
         invite: 'Invitar Miembros',
+        pendingRequest: 'Solicitud Pendiente',
       },
       stats: {
         members: 'Miembros',
@@ -1066,6 +1145,31 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     rankings: {
       title: 'Clasificaciones',
       score: 'Puntuación',
+      scoreInfo: {
+        title: 'Cómo se Calculan las Puntuaciones de Guild',
+        description: 'Las puntuaciones de guild se calculan basándose en el número de miembros, crecimiento y objetivos completados por los miembros para fomentar comunidades activas y en crecimiento.',
+        formula: {
+          activityScore: 'Puntuación de Actividad = Miembros × 10 puntos',
+          growthBonus: 'Bono de Crecimiento = (30 - días de antigüedad) × 2 puntos (para guilds menores de 30 días)',
+          goalsCompleted: 'Objetivos Completados = Objetivos completados por miembros en los últimos 30 días × 10 puntos',
+          socialEngagement: 'Compromiso Social = Comentarios + Likes en los últimos 30 días × 1 punto cada uno',
+          totalScore: 'Puntuación Total = Puntuación de Actividad + Bono de Crecimiento + Objetivos Completados + Compromiso Social',
+        },
+        examples: {
+          title: 'Ejemplos',
+          newGuild: 'Guild Nueva (10 días, 20 miembros, 5 objetivos, 20 comentarios/likes): 200 + 40 + 50 + 20 = 310 puntos',
+          establishedGuild: 'Guild Establecida (60 días, 50 miembros, 15 objetivos, 50 comentarios/likes): 500 + 0 + 150 + 50 = 700 puntos',
+          topGuild: 'Guild Top (5 días, 100 miembros, 25 objetivos, 100 comentarios/likes): 1000 + 50 + 250 + 100 = 1400 puntos',
+        },
+        tips: {
+          title: 'Consejos para Mejorar tu Puntuación',
+          memberGrowth: '• Enfócate en hacer crecer tu base de miembros (10 puntos por miembro)',
+          newGuildBoost: '• Las guilds nuevas obtienen puntos bonus durante los primeros 30 días',
+          goalsCompleted: '• Fomenta que los miembros completen sus objetivos (10 puntos por objetivo completado)',
+          socialEngagement: '• Fomenta la interacción comunitaria a través de comentarios y likes (1 punto cada uno)',
+          activityMatters: '• Crea un ambiente atractivo que promueva tanto el logro de objetivos como la interacción social',
+        },
+      },
     },
     comments: {
       post: 'Comentar',
@@ -1079,6 +1183,21 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       noComments: 'Aún no hay comentarios',
       loading: 'Cargando comentarios...',
       error: 'Error al cargar comentarios',
+      membersOnly: {
+        title: 'Solo Miembros',
+        message: 'Necesitas ser miembro de este gremio para ver y publicar comentarios.',
+        joinButton: 'Unirse al Gremio',
+      },
+      blocked: {
+        title: 'Acceso Restringido',
+        message: 'Has sido bloqueado del acceso a la sección de comentarios de este gremio.',
+        contactModerator: 'Contacta a un moderador del gremio si crees que esto es un error.',
+      },
+      commentingDisabled: {
+        title: 'Comentarios Deshabilitados',
+        message: 'No tienes permitido publicar comentarios en este gremio.',
+        contactModerator: 'Contacta a un moderador del gremio si crees que esto es un error.',
+      },
     },
     joinRequests: {
       title: 'Solicitudes de Ingreso',
@@ -1235,6 +1354,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         leaving: 'Départ...',
         settings: 'Paramètres',
         invite: 'Inviter des Membres',
+        pendingRequest: 'Demande en Attente',
       },
       stats: {
         members: 'Membres',
@@ -1365,6 +1485,31 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     rankings: {
       title: 'Classements',
       score: 'Score',
+      scoreInfo: {
+        title: 'Comment les Scores de Guild sont Calculés',
+        description: 'Les scores de guild sont calculés en fonction du nombre de membres, de la croissance et des objectifs complétés par les membres pour encourager des communautés actives et en croissance.',
+        formula: {
+          activityScore: 'Score d\'Activité = Membres × 10 points',
+          growthBonus: 'Bonus de Croissance = (30 - jours d\'âge) × 2 points (pour les guilds de moins de 30 jours)',
+          goalsCompleted: 'Objectifs Complétés = Objectifs complétés par les membres dans les 30 derniers jours × 10 points',
+          socialEngagement: 'Engagement Social = Commentaires + Likes dans les 30 derniers jours × 1 point chacun',
+          totalScore: 'Score Total = Score d\'Activité + Bonus de Croissance + Objectifs Complétés + Engagement Social',
+        },
+        examples: {
+          title: 'Exemples',
+          newGuild: 'Guild Nouvelle (10 jours, 20 membres, 5 objectifs, 20 commentaires/likes) : 200 + 40 + 50 + 20 = 310 points',
+          establishedGuild: 'Guild Établie (60 jours, 50 membres, 15 objectifs, 50 commentaires/likes) : 500 + 0 + 150 + 50 = 700 points',
+          topGuild: 'Guild Top (5 jours, 100 membres, 25 objectifs, 100 commentaires/likes) : 1000 + 50 + 250 + 100 = 1400 points',
+        },
+        tips: {
+          title: 'Conseils pour Améliorer votre Score',
+          memberGrowth: '• Concentrez-vous sur la croissance de votre base de membres (10 points par membre)',
+          newGuildBoost: '• Les nouvelles guilds reçoivent des points bonus pendant les 30 premiers jours',
+          goalsCompleted: '• Encouragez les membres à compléter leurs objectifs (10 points par objectif complété)',
+          socialEngagement: '• Favorisez l\'interaction communautaire par les commentaires et likes (1 point chacun)',
+          activityMatters: '• Créez un environnement engageant qui promeut à la fois l\'accomplissement d\'objectifs et l\'interaction sociale',
+        },
+      },
     },
     comments: {
       post: 'Commenter',
@@ -1378,6 +1523,21 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       noComments: 'Aucun commentaire pour le moment',
       loading: 'Chargement des commentaires...',
       error: 'Échec du chargement des commentaires',
+      membersOnly: {
+        title: 'Membres Seulement',
+        message: 'Vous devez être membre de cette guilde pour voir et publier des commentaires.',
+        joinButton: 'Rejoindre la Guilde',
+      },
+      blocked: {
+        title: 'Accès Restreint',
+        message: 'Vous avez été bloqué de l\'accès à la section des commentaires de cette guilde.',
+        contactModerator: 'Contactez un modérateur de la guilde si vous pensez que c\'est une erreur.',
+      },
+      commentingDisabled: {
+        title: 'Commentaires Désactivés',
+        message: 'Vous n\'êtes pas autorisé à publier des commentaires dans cette guilde.',
+        contactModerator: 'Contactez un modérateur de la guilde si vous pensez que c\'est une erreur.',
+      },
     },
     joinRequests: {
       title: 'Demandes d\'Adhésion',

@@ -62,12 +62,6 @@ const UserMenu: React.FC<UserMenuProps> = ({
       path: '/dashboard',
     },
     {
-      id: 'quests',
-      label: headerTranslations?.userMenu?.quests || 'Quests',
-      icon: Target,
-      path: '/quests',
-    },
-    {
       id: 'quest-dashboard',
       label: headerTranslations?.userMenu?.questDashboard || 'Quest Dashboard',
       icon: BarChart3,

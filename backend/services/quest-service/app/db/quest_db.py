@@ -47,6 +47,8 @@ _add_common_to_path()
 from common.logging import get_structured_logger
 
 from ..models.quest import QuestCreatePayload, QuestUpdatePayload, QuestResponse, QuestStatus, QuestKind
+from ..models import GoalResponse, AnswerOutput
+from ..utils import _normalize_deadline_output, _sanitize_string, _serialize_answers
 from ..settings import Settings
 
 # Initialize logger
@@ -329,6 +331,204 @@ def create_quest(user_id: str, payload: QuestCreatePayload) -> QuestResponse:
         raise QuestDBError(f"Failed to create quest: {str(e)}")
 
 
+def _goal_item_to_response(item: Dict) -> GoalResponse:
+    """
+    Convert a goal database item to GoalResponse.
+    
+    Args:
+        item: Database item from DynamoDB
+        
+    Returns:
+        GoalResponse object
+    """
+    return GoalResponse(
+        id=str(item.get("id")),
+        userId=str(item.get("userId")),
+        title=str(item.get("title", "")),
+        description=_sanitize_string(item.get("description")),
+        category=_sanitize_string(item.get("category")) if item.get("category") else None,
+        tags=[str(tag) for tag in item.get("tags", []) if isinstance(tag, str)],
+        answers=[AnswerOutput(**a) for a in _serialize_answers(item.get("answers"))],
+        deadline=item.get("deadline"),  # Keep as string, don't convert
+        status=str(item.get("status", "active")),
+        createdAt=int(item.get("createdAt", 0)),
+        updatedAt=int(item.get("updatedAt", 0)),
+        # Progress fields (only those that exist in GoalResponse model)
+        progress=item.get("progress"),
+        completedTasks=item.get("completedTasks"),
+        totalTasks=item.get("totalTasks"),
+        milestones=item.get("milestones")
+    )
+
+
+def get_goal(user_id: str, goal_id: str) -> GoalResponse:
+    """
+    Get a specific goal by ID.
+    
+    Args:
+        user_id: User ID requesting the goal
+        goal_id: Goal ID
+        
+    Returns:
+        QuestResponse object
+        
+    Raises:
+        QuestNotFoundError: If goal is not found
+        QuestDBError: If database operation fails
+    """
+    table = _get_dynamodb_table()
+    
+    try:
+        # First try to get as owner
+        response = table.get_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"GOAL#{goal_id}"
+            }
+        )
+        
+        if "Item" in response:
+            logger.info('goal.get_success_owner', 
+                       user_id=user_id, 
+                       goal_id=goal_id,
+                       access_type="owner")
+            try:
+                return _goal_item_to_response(response["Item"])
+            except Exception as e:
+                logger.error('goal.response_conversion_failed', 
+                           user_id=user_id, 
+                           goal_id=goal_id,
+                           error=str(e),
+                           exc_info=True,
+                           item_data=response["Item"])
+                raise QuestDBError(f"Failed to convert goal response: {str(e)}")
+        
+        # If not found as owner, check if user is a collaborator
+        # We need to find the actual owner first
+        logger.info('goal.scanning_for_owner', 
+                   user_id=user_id, 
+                   goal_id=goal_id)
+        
+        owner_scan = table.scan(
+            FilterExpression=Attr("type").eq("Goal") & Attr("id").eq(goal_id),
+            ProjectionExpression="PK, #type, id",
+            ExpressionAttributeNames={"#type": "type"},
+            Limit=1
+        )
+        
+        logger.info('goal.scan_results', 
+                   user_id=user_id, 
+                   goal_id=goal_id,
+                   scan_count=len(owner_scan.get("Items", [])),
+                   items=owner_scan.get("Items", []),
+                   scan_consumed_capacity=owner_scan.get("ConsumedCapacity", {}),
+                   scan_count_processed=owner_scan.get("Count", 0),
+                   scan_scanned_count=owner_scan.get("ScannedCount", 0))
+        
+        if not owner_scan.get("Items"):
+            # Try a broader scan without type filter in case the goal doesn't have a type field
+            logger.info('goal.trying_broader_scan', 
+                       user_id=user_id, 
+                       goal_id=goal_id)
+            
+            broader_scan = table.scan(
+                FilterExpression=Attr("id").eq(goal_id),
+                ProjectionExpression="PK, id, #type",
+                ExpressionAttributeNames={"#type": "type"},
+                Limit=1
+            )
+            
+            logger.info('goal.broader_scan_results', 
+                       user_id=user_id, 
+                       goal_id=goal_id,
+                       scan_count=len(broader_scan.get("Items", [])),
+                       items=broader_scan.get("Items", []),
+                       scan_consumed_capacity=broader_scan.get("ConsumedCapacity", {}),
+                       scan_count_processed=broader_scan.get("Count", 0),
+                       scan_scanned_count=broader_scan.get("ScannedCount", 0))
+            
+            if not broader_scan.get("Items"):
+                logger.warning('goal.not_found_after_broader_scan', 
+                              user_id=user_id, 
+                              goal_id=goal_id)
+                raise QuestNotFoundError(f"Goal {goal_id} not found")
+            
+            # Use the broader scan results
+            owner_scan = broader_scan
+        
+        # Extract owner user_id from PK (USER#{user_id})
+        owner_pk = owner_scan["Items"][0]["PK"]
+        owner_user_id = owner_pk.replace("USER#", "")
+        
+        # Check if requesting user is a collaborator
+        collaborator_pk = f"RESOURCE#GOAL#{goal_id}"
+        collaborator_sk = f"COLLABORATOR#{user_id}"
+        
+        logger.info('goal.checking_collaborator_access', 
+                   user_id=user_id, 
+                   goal_id=goal_id,
+                   collaborator_pk=collaborator_pk,
+                   collaborator_sk=collaborator_sk)
+        
+        collaborator_response = table.get_item(
+            Key={"PK": collaborator_pk, "SK": collaborator_sk}
+        )
+        
+        logger.info('goal.collaborator_check_result', 
+                   user_id=user_id, 
+                   goal_id=goal_id,
+                   has_collaborator_access="Item" in collaborator_response,
+                   collaborator_item=collaborator_response.get("Item", {}))
+        
+        if "Item" not in collaborator_response:
+            logger.warning('goal.access_denied', 
+                          user_id=user_id, 
+                          goal_id=goal_id)
+            raise QuestPermissionError(f"Access denied to goal {goal_id}")
+        
+        # Get the goal from the owner
+        owner_response = table.get_item(
+            Key={
+                "PK": f"USER#{owner_user_id}",
+                "SK": f"GOAL#{goal_id}"
+            }
+        )
+        
+        if "Item" not in owner_response:
+            logger.warning('goal.not_found_after_collaborator_check', 
+                          user_id=user_id, 
+                          goal_id=goal_id)
+            raise QuestNotFoundError(f"Goal {goal_id} not found")
+        
+        logger.info('goal.get_success_collaborator', 
+                   user_id=user_id, 
+                   goal_id=goal_id,
+                   access_type="collaborator")
+        
+        try:
+            return _goal_item_to_response(owner_response["Item"])
+        except Exception as e:
+            logger.error('goal.response_conversion_failed_collaborator', 
+                       user_id=user_id, 
+                       goal_id=goal_id,
+                       error=str(e),
+                       exc_info=True,
+                       item_data=owner_response["Item"])
+            raise QuestDBError(f"Failed to convert goal response: {str(e)}")
+        
+    except QuestNotFoundError:
+        raise
+    except QuestPermissionError:
+        raise
+    except Exception as e:
+        logger.error('goal.get_failed', 
+                    user_id=user_id, 
+                    goal_id=goal_id, 
+                    error=str(e),
+                    exc_info=e)
+        raise QuestDBError(f"Failed to get goal: {str(e)}")
+
+
 def get_quest(user_id: str, quest_id: str) -> QuestResponse:
     """
     Get a specific quest by ID.
@@ -365,9 +565,8 @@ def get_quest(user_id: str, quest_id: str) -> QuestResponse:
         # If not found as owner, check if user is a collaborator
         # We need to find the actual owner first
         owner_scan = table.scan(
-            FilterExpression=Attr("#type").eq("Quest") & Attr("id").eq(quest_id),
+            FilterExpression=Attr("type").eq("Quest") & Attr("id").eq(quest_id),
             ProjectionExpression="PK",
-            ExpressionAttributeNames={"#type": "type"},
             Limit=1
         )
         

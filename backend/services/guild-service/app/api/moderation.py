@@ -8,6 +8,7 @@ including join requests, ownership transfer, and user management.
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer
+import logging
 
 from ..models.moderation import (
     TransferOwnershipPayload,
@@ -23,8 +24,8 @@ from ..db.guild_db import (
     get_guild_join_requests,
     update_join_request_status,
     transfer_guild_ownership,
-    assign_moderator,
-    remove_moderator,
+    assign_moderator as db_assign_moderator,
+    remove_moderator as db_remove_moderator,
     perform_moderation_action,
     GuildDBError,
     GuildNotFoundError,
@@ -38,6 +39,9 @@ from ..security.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/guilds", tags=["guild-moderation"])
 security = HTTPBearer()
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 @router.post("/{guild_id}/join-requests", response_model=GuildJoinRequestResponse, status_code=status.HTTP_201_CREATED)
 @rate_limit(requests_per_hour=5)
@@ -96,7 +100,7 @@ async def get_join_requests(
         
         return GuildJoinRequestListResponse(
             requests=join_requests,
-            lastEvaluatedKey=None
+            total=len(join_requests)
         )
     except GuildNotFoundError:
         raise HTTPException(
@@ -224,31 +228,65 @@ async def assign_moderator(
     auth: AuthContext = Depends(authenticate)
 ):
     """Assign a member as a moderator."""
+    logger.info(f"DEBUG: assign_moderator called with guild_id={guild_id}, payload={payload}, auth.user_id={auth.user_id}")
+    
     try:
-        await assign_moderator(
+        # Extract user_id from payload with debug logging
+        user_id = payload.get("user_id") or payload.get("userId")
+        logger.info(f"DEBUG: Extracted user_id={user_id} from payload")
+        
+        if not user_id:
+            logger.error("DEBUG: No user_id found in payload")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="user_id is required"
+            )
+        
+        logger.info(f"DEBUG: Calling db_assign_moderator with guild_id={guild_id}, user_id={user_id}, assigned_by={auth.user_id}")
+        
+        await db_assign_moderator(
             guild_id=guild_id,
-            user_id=payload.get("user_id") or payload.get("userId"),
+            user_id=user_id,
             assigned_by=auth.user_id
         )
-    except GuildNotFoundError:
+        
+        logger.info(f"DEBUG: Successfully assigned moderator {user_id} to guild {guild_id}")
+        
+    except GuildNotFoundError as e:
+        logger.error(f"DEBUG: GuildNotFoundError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Guild not found"
         )
     except GuildPermissionError as e:
+        logger.error(f"DEBUG: GuildPermissionError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e)
         )
     except GuildValidationError as e:
+        logger.error(f"DEBUG: GuildValidationError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except GuildConflictError as e:
+        logger.error(f"DEBUG: GuildConflictError - {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
     except GuildDBError as e:
+        logger.error(f"DEBUG: GuildDBError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to assign moderator"
+        )
+    except Exception as e:
+        logger.error(f"DEBUG: Unexpected error in assign_moderator - {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
         )
 
 @router.delete("/{guild_id}/moderators/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -259,26 +297,48 @@ async def remove_moderator(
     auth: AuthContext = Depends(authenticate)
 ):
     """Remove a member's moderator status."""
+    logger.info(f"DEBUG: remove_moderator called with guild_id={guild_id}, user_id={user_id}, auth.user_id={auth.user_id}")
+    
     try:
-        await remove_moderator(
+        logger.info(f"DEBUG: Calling db_remove_moderator with guild_id={guild_id}, user_id={user_id}, removed_by={auth.user_id}")
+        
+        await db_remove_moderator(
             guild_id=guild_id,
             user_id=user_id,
             removed_by=auth.user_id
         )
-    except GuildNotFoundError:
+        
+        logger.info(f"DEBUG: Successfully removed moderator {user_id} from guild {guild_id}")
+        
+    except GuildNotFoundError as e:
+        logger.error(f"DEBUG: GuildNotFoundError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Guild not found"
         )
     except GuildPermissionError as e:
+        logger.error(f"DEBUG: GuildPermissionError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e)
         )
+    except GuildConflictError as e:
+        logger.error(f"DEBUG: GuildConflictError - {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
     except GuildDBError as e:
+        logger.error(f"DEBUG: GuildDBError - {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to remove moderator"
+        )
+    except Exception as e:
+        logger.error(f"DEBUG: Unexpected error in remove_moderator - {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
         )
 
 @router.post("/{guild_id}/moderation/action", status_code=status.HTTP_204_NO_CONTENT)

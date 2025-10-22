@@ -23,7 +23,7 @@ from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalW
 from .models.quest_template import QuestTemplateCreatePayload, QuestTemplateUpdatePayload, QuestTemplateResponse, QuestTemplateListResponse
 from .models.analytics import QuestAnalytics, AnalyticsPeriod
 from .db.quest_db import (
-    create_quest, get_quest, update_quest, change_quest_status, 
+    create_quest, get_quest, get_goal as get_goal_from_db, update_quest, change_quest_status, 
     delete_quest, list_user_quests, QuestDBError, QuestNotFoundError,
     QuestVersionConflictError, QuestPermissionError, QuestValidationError
 )
@@ -120,6 +120,24 @@ logger.info('quest.service.startup',
 settings = Settings()
 root_path = os.getenv("QUEST_SERVICE_ROOT_PATH", f"/{settings.environment.upper()}")
 app = FastAPI(root_path=root_path, title="Quest Service", version="2.0.0")
+
+# Log all registered routes at startup to diagnose routing issues
+@app.on_event("startup")
+async def _log_registered_routes() -> None:
+    try:
+        routes_summary = []
+        for route in app.router.routes:
+            try:
+                path = getattr(route, 'path', None) or getattr(route, 'path_regex', None)
+                methods = sorted(list(getattr(route, 'methods', set()))) if hasattr(route, 'methods') else []
+                name = getattr(route, 'name', None)
+                if path and methods:
+                    routes_summary.append({"path": path, "methods": methods, "name": name})
+            except Exception:
+                continue
+        logger.info('server.routes_registered', count=len(routes_summary), routes=[{"path": r["path"], "methods": r["methods"]} for r in routes_summary])
+    except Exception as e:
+        logger.error('server.routes_log_failed', exc_info=e)
 
 def _norm_origin(origin: Optional[str]) -> Optional[str]:
     if not origin:
@@ -227,21 +245,18 @@ def check_goal_access(user_id: str, goal_id: str, table) -> tuple[bool, str, Opt
         # GSI1PK = GOAL#{goal_id}, GSI1SK = USER#{user_id}
         from boto3.dynamodb.conditions import Key, Attr
         
-        collaborator_query = table.query(
-            
-            KeyConditionExpression=Key("PK").eq(f"RESOURCE#GOAL#{goal_id}") & Key("SK").eq(f"COLLABORATOR#{user_id}")          ,            
-            ProjectionExpression="resourceId",
-            Limit=1
+        collaborator_response = table.get_item(
+            Key={"PK": f"RESOURCE#GOAL#{goal_id}", "SK": f"COLLABORATOR#{user_id}"}
         )
         
         logger.info('goal.access_check_collaborator_query', 
                    user_id=user_id, 
                    goal_id=goal_id, 
-                   query_count=len(collaborator_query.get("Items", [])))
+                   has_collaborator_access="Item" in collaborator_response)
         
-        if collaborator_query.get("Items"):
+        if "Item" in collaborator_response:
             # User is a collaborator, extract owner from the collaborator record
-            collaborator_item = collaborator_query["Items"][0]
+            collaborator_item = collaborator_response["Item"]
             # The PK format is RESOURCE#GOAL#{goal_id}, we need to find the actual owner
             # We'll need to scan for the goal to find the owner
             logger.info('goal.access_check_scanning_for_goal', 
@@ -562,6 +577,16 @@ def _to_response_with_access(item: Dict, access_type: str, current_user_id: str)
         GoalWithAccessResponse with access control fields
     """
     is_owner = access_type == "owner"
+    goal_owner_id = str(item.get("userId"))
+    is_goal_owner = current_user_id == goal_owner_id
+    
+    logger.info('goal.access_control_debug', 
+               current_user_id=current_user_id,
+               goal_owner_id=goal_owner_id,
+               access_type=access_type,
+               is_owner=is_owner,
+               is_goal_owner=is_goal_owner,
+               can_edit=is_owner or is_goal_owner)
     
     return GoalWithAccessResponse(
         id=str(item.get("id")),
@@ -577,9 +602,9 @@ def _to_response_with_access(item: Dict, access_type: str, current_user_id: str)
         updatedAt=int(item.get("updatedAt", 0)),
         # Access control fields
         accessType=access_type,
-        canEdit=is_owner,
-        canDelete=is_owner,
-        canAddTasks=is_owner,
+        canEdit=is_owner or is_goal_owner,  # Owner or actual goal owner can edit
+        canDelete=is_owner or is_goal_owner,  # Owner or actual goal owner can delete
+        canAddTasks=True,  # Both owners and collaborators can add tasks
         canComment=True,  # Both owners and collaborators can comment
     )
 
@@ -934,11 +959,38 @@ async def create_task(
 ):
   user_id = auth.user_id
 
-  # Validate user owns the goal and goal is active
+  logger.info('task.create_requested', 
+             user_id=user_id, 
+             goal_id=payload.goalId,
+             task_title=payload.title)
+
+  # Check if user has access to the goal (owner or collaborator)
+  has_access, access_type, owner_user_id = check_goal_access(user_id, payload.goalId, table)
+  
+  logger.info('task.access_check_result', 
+             user_id=user_id, 
+             goal_id=payload.goalId,
+             has_access=has_access,
+             access_type=access_type,
+             owner_user_id=owner_user_id)
+  
+  if not has_access:
+    logger.warning('task.access_denied', 
+                  user_id=user_id, 
+                  goal_id=payload.goalId)
+    raise HTTPException(status_code=404, detail="Goal not found")
+  
+  # Get the goal item from the owner's record
   try:
-    response = table.get_item(
-      Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{payload.goalId}"}
-    )
+    if access_type == "owner":
+      response = table.get_item(
+        Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{payload.goalId}"}
+      )
+    else:
+      # User is a collaborator, get goal from owner's record
+      response = table.get_item(
+        Key={"PK": f"USER#{owner_user_id}", "SK": f"GOAL#{payload.goalId}"}
+      )
   except (ClientError, BotoCoreError) as exc:
     raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -968,7 +1020,9 @@ async def create_task(
     )
 
   # Build and save task item
-  item = _build_task_item(user_id, payload)
+  # Use the goal owner's user ID for the task, not the collaborator's
+  task_owner_id = owner_user_id if access_type == "collaborator" else user_id
+  item = _build_task_item(task_owner_id, payload)
   try:
     table.put_item(
       Item=item,
@@ -980,7 +1034,7 @@ async def create_task(
   # Trigger progress recalculation for the goal (asynchronous)
   try:
     # Calculate progress and update goal record
-    progress_data = compute_goal_progress(payload.goalId, user_id, table)
+    progress_data = compute_goal_progress(payload.goalId, task_owner_id, table)
     
     # Update goal with progress data
     goal_update_expression = "SET progress = :progress, milestones = :milestones, completedTasks = :completedTasks, totalTasks = :totalTasks, updatedAt = :updatedAt"
@@ -993,7 +1047,7 @@ async def create_task(
     }
     
     table.update_item(
-      Key={"PK": f"USER#{user_id}", "SK": f"GOAL#{payload.goalId}"},
+      Key={"PK": f"USER#{task_owner_id}", "SK": f"GOAL#{payload.goalId}"},
       UpdateExpression=goal_update_expression,
       ExpressionAttributeValues=goal_expression_values
     )
@@ -1303,7 +1357,9 @@ async def list_quest_templates(
 
 # ---------- Goal Access Endpoints ----------
 
-@app.get("/quests/{goal_id}", response_model=GoalWithAccessResponse)
+# Exclude reserved static paths from the dynamic matcher to prevent misrouting
+# Regex uses a negative lookahead to reject specific literals
+@app.get("/quests/{goal_id:(?!analytics$)(?!templates$)(?!progress$)(?!quests$)[^/]+}", response_model=GoalWithAccessResponse)
 async def get_goal(
     goal_id: str,
     auth: AuthContext = Depends(authenticate),
@@ -1313,6 +1369,12 @@ async def get_goal(
     Get a specific goal by ID with collaboration access support.
     Returns access control information for the frontend.
     """
+    # Guard: detect if static paths like 'analytics' are being routed here erroneously
+    if goal_id in {"analytics", "templates", "progress", "quests"}:
+        logger.warning('goal.dynamic_route_misroute',
+                      goal_id=goal_id,
+                      user_id=auth.user_id,
+                      hint="Static endpoint likely shadowed by dynamic route")
     logger.info('goal.get_requested', goal_id=goal_id, user_id=auth.user_id)
     
     try:
@@ -1945,6 +2007,39 @@ async def list_goal_quests_endpoint(
         raise HTTPException(status_code=500, detail="Failed to list goal quests")
 
 
+@app.get("/quests/{quest_id}", response_model=QuestResponse)
+async def get_quest_simple_endpoint(
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Get a specific quest by ID with collaboration access support.
+    Simple endpoint for direct quest access.
+    """
+    logger.info('quest.get_requested', quest_id=quest_id, user_id=auth.user_id)
+    
+    try:
+        # Use the existing get_quest function which already has collaboration access
+        quest_data = get_quest(auth.user_id, quest_id)
+        
+        logger.info('quest.get_success', 
+                   quest_id=quest_id, 
+                   user_id=auth.user_id)
+        
+        return quest_data
+        
+    except QuestNotFoundError as e:
+        logger.warning('quest.not_found', quest_id=quest_id, user_id=auth.user_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestPermissionError as e:
+        logger.warning('quest.access_denied', quest_id=quest_id, user_id=auth.user_id)
+        raise HTTPException(status_code=404, detail="Quest not found")
+    except Exception as exc:
+        logger.error('quest.get_failed', quest_id=quest_id, user_id=auth.user_id, exc_info=exc)
+        raise HTTPException(status_code=500, detail="Failed to get quest")
+
+
 @app.get("/quests/quests/{quest_id}", response_model=QuestResponse)
 async def get_quest_endpoint(
     quest_id: str,
@@ -1975,6 +2070,75 @@ async def get_quest_endpoint(
     except Exception as exc:
         logger.error('quest.get_failed', quest_id=quest_id, user_id=auth.user_id, exc_info=exc)
         raise HTTPException(status_code=500, detail="Failed to get quest")
+
+
+@app.get("/quest/goals/{goal_id}", response_model=GoalWithAccessResponse)
+async def get_goal_endpoint(
+    goal_id: str,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    """
+    Get a specific goal by ID with collaboration access support.
+    This endpoint is specifically for goals within the quest service.
+    """
+    logger.info('goal.get_requested', goal_id=goal_id, user_id=auth.user_id)
+    
+    try:
+        # Check if user has access to the goal
+        has_access, access_type, owner_user_id = check_goal_access(auth.user_id, goal_id, table)
+        
+        if not has_access:
+            logger.warning('goal.access_denied', goal_id=goal_id, user_id=auth.user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Handle special case where user is collaborator but goal doesn't exist
+        if access_type == "collaborator_missing_goal":
+            logger.warning('goal.collaborator_access_but_goal_missing', 
+                         goal_id=goal_id, 
+                         user_id=auth.user_id,
+                         message="User has collaboration access but goal doesn't exist")
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        # Use the actual owner's user_id to get the goal
+        goal_user_id = owner_user_id if owner_user_id else auth.user_id
+        
+        logger.info('goal.access_granted', 
+                   goal_id=goal_id, 
+                   user_id=auth.user_id, 
+                   access_type=access_type,
+                   goal_user_id=goal_user_id)
+        
+        # Get the goal from the owner
+        response = table.get_item(
+            Key={"PK": f"USER#{goal_user_id}", "SK": f"GOAL#{goal_id}"}
+        )
+        
+        if "Item" not in response:
+            logger.warning('goal.not_found', 
+                         goal_id=goal_id, 
+                         user_id=auth.user_id,
+                         goal_user_id=goal_user_id)
+            raise HTTPException(status_code=404, detail="Goal not found")
+        
+        goal_item = response["Item"]
+        goal_data = _to_response_with_access(goal_item, access_type, auth.user_id)
+        
+        logger.info('goal.get_success', 
+                   goal_id=goal_id, 
+                   user_id=auth.user_id)
+        
+        return goal_data
+        
+    except QuestNotFoundError as e:
+        logger.warning('goal.not_found', goal_id=goal_id, user_id=auth.user_id)
+        raise HTTPException(status_code=404, detail=str(e))
+    except QuestPermissionError as e:
+        logger.warning('goal.access_denied', goal_id=goal_id, user_id=auth.user_id)
+        raise HTTPException(status_code=404, detail="Goal not found")
+    except Exception as exc:
+        logger.error('goal.get_failed', goal_id=goal_id, user_id=auth.user_id, exc_info=exc)
+        raise HTTPException(status_code=500, detail="Failed to get goal")
 
 
 @app.post("/quests/quests/{quest_id}/start", response_model=QuestResponse)
@@ -2327,26 +2491,177 @@ async def create_quest_template(
 
 
 @app.get("/quests/analytics", response_model=QuestAnalytics)
-async def get_quest_template(
-    template_id: str,
-    auth: AuthContext = Depends(authenticate)
+async def get_quest_analytics(
+    auth: AuthContext = Depends(authenticate),
+    period: AnalyticsPeriod = "weekly",
+    force_refresh: bool = False
 ):
-    """Get a quest template by ID"""
-    log_event(logger, 'quest_template.get_start', user_id=auth.user_id, template_id=template_id)
+    """
+    Get quest analytics for the authenticated user.
+    
+    Args:
+        auth: Authentication context
+        period: Analytics period (daily, weekly, monthly, allTime)
+        force_refresh: Force refresh of cached analytics data
+    
+    Returns:
+        QuestAnalytics: Comprehensive analytics data
+    """
+    # Capture start time and input parameters for diagnostics
+    t_start = time.perf_counter()
+    log_event(
+        logger,
+        'quest_analytics.get_start',
+        user_id=auth.user_id,
+        period=period,
+        force_refresh=force_refresh,
+    )
     
     try:
-        template = get_template(template_id, auth.user_id)
-        log_event(logger, 'quest_template.get_success', user_id=auth.user_id, template_id=template_id)
-        return template
-    except QuestTemplateNotFoundError as e:
-        log_event(logger, 'quest_template.get_not_found', user_id=auth.user_id, template_id=template_id)
-        raise HTTPException(status_code=404, detail=str(e))
-    except QuestTemplatePermissionError as e:
-        log_event(logger, 'quest_template.get_permission_error', user_id=auth.user_id, template_id=template_id)
-        raise HTTPException(status_code=403, detail=str(e))
-    except QuestTemplateDBError as e:
-        log_event(logger, 'quest_template.get_db_error', user_id=auth.user_id, template_id=template_id, error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to get quest template")
+        # Cache lookup (if not forced refresh)
+        if not force_refresh:
+            t_cache_start = time.perf_counter()
+            log_event(
+                logger,
+                'quest_analytics.cache_lookup_start',
+                user_id=auth.user_id,
+                period=period,
+            )
+            try:
+                cached_analytics = get_cached_analytics(auth.user_id, period)
+                cache_lookup_duration_ms = int((time.perf_counter() - t_cache_start) * 1000)
+                if cached_analytics:
+                    age_s = max(0, int(time.time()) - int(getattr(cached_analytics, 'calculatedAt', 0)))
+                    log_event(
+                        logger,
+                        'quest_analytics.cache_lookup_hit',
+                        user_id=auth.user_id,
+                        period=period,
+                        duration_ms=cache_lookup_duration_ms,
+                        age_s=age_s,
+                    )
+                    log_event(
+                        logger,
+                        'quest_analytics.get_complete',
+                        user_id=auth.user_id,
+                        period=period,
+                        from_cache=True,
+                        duration_ms=int((time.perf_counter() - t_start) * 1000),
+                    )
+                    return cached_analytics
+                else:
+                    log_event(
+                        logger,
+                        'quest_analytics.cache_lookup_miss',
+                        user_id=auth.user_id,
+                        period=period,
+                        duration_ms=cache_lookup_duration_ms,
+                    )
+            except AnalyticsDBError as e:
+                cache_lookup_duration_ms = int((time.perf_counter() - t_cache_start) * 1000)
+                log_event(
+                    logger,
+                    'quest_analytics.cache_lookup_error',
+                    user_id=auth.user_id,
+                    period=period,
+                    error=str(e),
+                    duration_ms=cache_lookup_duration_ms,
+                )
+                # Continue to compute analytics on cache error
+        
+        # List quests for analytics
+        t_list_start = time.perf_counter()
+        log_event(
+            logger,
+            'quest_analytics.list_quests_start',
+            user_id=auth.user_id,
+            period=period,
+        )
+        quests = list_user_quests(auth.user_id)
+        log_event(
+            logger,
+            'quest_analytics.list_quests_success',
+            user_id=auth.user_id,
+            period=period,
+            count=len(quests),
+            duration_ms=int((time.perf_counter() - t_list_start) * 1000),
+        )
+        
+        # Calculate analytics
+        t_calc_start = time.perf_counter()
+        log_event(
+            logger,
+            'quest_analytics.calculate_start',
+            user_id=auth.user_id,
+            period=period,
+            quest_count=len(quests),
+        )
+        analytics = calculate_quest_analytics(auth.user_id, period, quests)
+        log_event(
+            logger,
+            'quest_analytics.calculate_success',
+            user_id=auth.user_id,
+            period=period,
+            duration_ms=int((time.perf_counter() - t_calc_start) * 1000),
+            total_quests=analytics.totalQuests,
+            completed_quests=analytics.completedQuests,
+            success_rate=analytics.successRate,
+        )
+        
+        # Save to cache (non-blocking to result; errors are logged)
+        t_cache_save_start = time.perf_counter()
+        try:
+            cache_analytics(analytics)
+            log_event(
+                logger,
+                'quest_analytics.cache_save_success',
+                user_id=auth.user_id,
+                period=period,
+                duration_ms=int((time.perf_counter() - t_cache_save_start) * 1000),
+            )
+        except AnalyticsDBError as e:
+            log_event(
+                logger,
+                'quest_analytics.cache_save_error',
+                user_id=auth.user_id,
+                period=period,
+                error=str(e),
+                duration_ms=int((time.perf_counter() - t_cache_save_start) * 1000),
+            )
+            # Continue without caching if save fails
+        
+        # Completion log
+        total_duration_ms = int((time.perf_counter() - t_start) * 1000)
+        log_event(
+            logger,
+            'quest_analytics.get_success',
+            user_id=auth.user_id,
+            period=period,
+            total_quests=analytics.totalQuests,
+            duration_ms=total_duration_ms,
+        )
+        log_event(
+            logger,
+            'quest_analytics.get_complete',
+            user_id=auth.user_id,
+            period=period,
+            from_cache=False,
+            duration_ms=total_duration_ms,
+        )
+        return analytics
+    
+    except Exception as e:
+        # Include stack trace for deeper diagnostics
+        logger.error('quest_analytics.get_error_stack', exc_info=e)
+        log_event(
+            logger,
+            'quest_analytics.get_error',
+            user_id=auth.user_id,
+            period=period,
+            force_refresh=force_refresh,
+            error=str(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to get quest analytics")
 
 
 @app.put("/quests/templates/{template_id}", response_model=QuestTemplateResponse)
@@ -2430,63 +2745,7 @@ async def list_quest_templates(
         return QuestTemplateListResponse(templates=[], total=0, hasMore=False, nextToken=None)
 
 
-@app.get("/quests/analytics", response_model=QuestAnalytics)
-async def get_quest_analytics(
-    auth: AuthContext = Depends(authenticate),
-    period: AnalyticsPeriod = "weekly",
-    force_refresh: bool = False
-):
-    """
-    Get quest analytics for the authenticated user.
-    
-    Args:
-        auth: Authentication context
-        period: Analytics period (daily, weekly, monthly, allTime)
-        force_refresh: Force refresh of cached analytics data
-    
-    Returns:
-        QuestAnalytics: Comprehensive analytics data
-    """
-    log_event(logger, 'quest_analytics.get_start', 
-             user_id=auth.user_id, period=period, force_refresh=force_refresh)
-    
-    try:
-        # Try to get cached analytics first (unless force refresh)
-        if not force_refresh:
-            try:
-                cached_analytics = get_cached_analytics(auth.user_id, period)
-                if cached_analytics:
-                    log_event(logger, 'quest_analytics.get_cached_success', 
-                             user_id=auth.user_id, period=period)
-                    return cached_analytics
-            except AnalyticsDBError:
-                # Cache miss or error, continue to calculate
-                pass
-        
-        # Get user's quests for the period
-        quests = list_user_quests(auth.user_id)  # Get all quests for analytics
-        
-        # Calculate analytics
-        analytics = calculate_quest_analytics(auth.user_id, period, quests)
-        
-        # Save to cache
-        try:
-            cache_analytics(analytics)
-        except AnalyticsDBError as e:
-            log_event(logger, 'quest_analytics.save_cache_error', 
-                     user_id=auth.user_id, error=str(e))
-            # Continue without caching if save fails
-        
-        log_event(logger, 'quest_analytics.get_success', 
-                 user_id=auth.user_id, period=period, 
-                 total_quests=analytics.totalQuests)
-        
-        return analytics
-        
-    except Exception as e:
-        log_event(logger, 'quest_analytics.get_error', 
-                 user_id=auth.user_id, error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to get quest analytics")
+# Duplicate analytics route (older version) removed to avoid conflicts
 
 
 # Lambda handler for both GraphQL resolvers and API Gateway requests

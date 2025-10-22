@@ -20,6 +20,9 @@ class Settings:
         
         # S3 settings
         self.guild_avatar_bucket = os.getenv("GUILD_AVATAR_BUCKET") or f"goalsguild-guild-avatars-{self.environment}"
+        
+        # Core table for accessing goals data
+        self.core_table_name = self._get_ssm_parameter("core-table") or os.getenv("CORE_TABLE") or "gg_core"
     
     def _get_ssm_parameter(self, parameter_name: str) -> Optional[str]:
         """Get parameter from SSM Parameter Store."""

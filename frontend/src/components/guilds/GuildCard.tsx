@@ -5,7 +5,7 @@
  * following the project's design patterns and accessibility standards.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,10 +24,11 @@ import {
   Lock,
   Shield,
   MoreVertical,
+  Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Guild, GuildMember } from '@/lib/api/guild';
+import { Guild, GuildMember, guildAPI } from '@/lib/api/guild';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getGuildTranslations } from '@/i18n/guild';
 import { useAccessibility } from '@/hooks/useAccessibility';
@@ -63,11 +64,18 @@ export const GuildCard: React.FC<GuildCardProps> = ({
   const guildTranslations = (t as any)?.guild;
   const { announce } = useAccessibility();
 
-  // Determine user's role in the guild
-  const userRole = guild.members?.find(member => member.user_id === currentUserId)?.role;
-  const isOwner = userRole === 'owner';
-  const isMember = userRole === 'member' || isOwner;
-  const canJoin = !isMember && guild.guild_type === 'public';
+  // Use permissions from the guild response if available, otherwise fall back to manual computation
+  const permissions = guild.user_permissions;
+  
+  const isMember = permissions?.is_member ?? false;
+  const isOwner = permissions?.is_owner ?? false;
+  const isModerator = permissions?.is_moderator ?? false;
+  const canJoin = permissions?.can_join ?? false;
+  const canRequestJoin = permissions?.can_request_join ?? false;
+  const canLeave = permissions?.can_leave ?? false;
+  const canManage = permissions?.can_manage ?? false;
+  const hasPendingRequest = permissions?.has_pending_request ?? false;
+
 
   const handleGuildClick = useCallback(() => {
     onGuildClick?.(guild);
@@ -181,7 +189,30 @@ export const GuildCard: React.FC<GuildCardProps> = ({
           </Button>
         )}
 
-        {canJoin && (
+
+        {canLeave && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLeave}
+            disabled={isLoading}
+            className="h-8"
+            aria-label={`${guildTranslations?.details?.actions?.leave || 'Leave'} ${guild.name}`}
+            aria-describedby={isLoading ? `leave-loading-${guild.guild_id}` : undefined}
+          >
+            {actionLoading === 'leave' ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
+                <span id={`leave-loading-${guild.guild_id}`} className="sr-only">Leaving guild...</span>
+              </>
+            ) : (
+              <UserMinus className="h-4 w-4 mr-1" aria-hidden="true" />
+            )}
+            {guildTranslations?.details?.actions?.leave || 'Leave'}
+          </Button>
+        )}
+
+        {canJoin && !hasPendingRequest && (
           <Button
             size="sm"
             onClick={handleJoin}
@@ -202,25 +233,28 @@ export const GuildCard: React.FC<GuildCardProps> = ({
           </Button>
         )}
 
-        {isMember && !isOwner && (
+        {canRequestJoin && !hasPendingRequest && (
           <Button
-            variant="outline"
             size="sm"
-            onClick={handleLeave}
+            onClick={() => {/* TODO: Handle join request */}}
             disabled={isLoading}
             className="h-8"
-            aria-label={`${guildTranslations?.details?.actions?.leave || 'Leave'} ${guild.name}`}
-            aria-describedby={isLoading ? `leave-loading-${guild.guild_id}` : undefined}
+            aria-label={`Request to join ${guild.name}`}
           >
-            {actionLoading === 'leave' ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
-                <span id={`leave-loading-${guild.guild_id}`} className="sr-only">Leaving guild...</span>
-              </>
-            ) : (
-              <UserMinus className="h-4 w-4 mr-1" aria-hidden="true" />
-            )}
-            {guildTranslations?.details?.actions?.leave || 'Leave'}
+            <Shield className="h-4 w-4 mr-1" aria-hidden="true" />
+            Request to Join
+          </Button>
+        )}
+
+        {hasPendingRequest && (
+          <Button
+            size="sm"
+            disabled
+            className="h-8 bg-yellow-100 text-yellow-800 hover:bg-yellow-100 cursor-not-allowed"
+            aria-label={`Join request pending for ${guild.name}`}
+          >
+            <Clock className="h-4 w-4 mr-1" aria-hidden="true" />
+            {guildTranslations?.details?.actions?.pendingRequest || 'Pending Request'}
           </Button>
         )}
       </div>

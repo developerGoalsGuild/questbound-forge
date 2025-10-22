@@ -90,9 +90,8 @@ export const MyGuilds: React.FC = () => {
   }, [refetch]);
 
   const handleGuildSettings = useCallback((guild: Guild) => {
-    // TODO: Implement guild settings modal
-    console.log('Guild settings:', guild);
-  }, []);
+    navigate(`/guilds/${guild.guild_id}`);
+  }, [navigate]);
 
   const handleCreateGuild = useCallback(() => {
     setShowCreateModal(true);

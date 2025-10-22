@@ -7,6 +7,7 @@ including CRUD operations, membership management, and guild discovery.
 
 import os
 import boto3
+import logging
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
 from typing import List, Optional, Dict, Any
@@ -28,6 +29,9 @@ table = dynamodb.Table(table_name)
 s3_client = boto3.client('s3')
 AVATAR_BUCKET = os.getenv('AVATAR_BUCKET', 'goalsguild-guild-avatars-dev')
 
+# Set up logger
+logger = logging.getLogger(__name__)
+
 def generate_avatar_signed_url(avatar_key: Optional[str]) -> Optional[str]:
     """Generate a signed S3 URL for the guild avatar if it exists."""
     if not avatar_key:
@@ -46,11 +50,47 @@ def generate_avatar_signed_url(avatar_key: Optional[str]) -> Optional[str]:
 
 def build_guild_response(item: Dict[str, Any], members: Optional[List[GuildMemberResponse]] = None, 
                         goals: Optional[List[Dict[str, Any]]] = None, 
-                        quests: Optional[List[Dict[str, Any]]] = None) -> GuildResponse:
+                        quests: Optional[List[Dict[str, Any]]] = None,
+                        current_user_id: Optional[str] = None) -> GuildResponse:
     """Build a GuildResponse object from a DynamoDB item with signed avatar URL."""
     # Generate signed URL for avatar if it exists
     avatar_key = item.get('avatar_key')
     avatar_url = generate_avatar_signed_url(avatar_key)
+    
+    # Compute user permissions if current_user_id is provided
+    user_permissions = None
+    if current_user_id and members:
+        from ..models.guild import GuildUserPermissions
+        
+        # Find user's role in the guild
+        user_member = next((member for member in members if member.user_id == current_user_id), None)
+        user_role = user_member.role if user_member else None
+        
+        # Determine permissions
+        is_member = user_role in ['member', 'moderator', 'owner']
+        is_owner = user_role == 'owner'
+        is_moderator = user_role == 'moderator'
+        
+        guild_type = GuildType(item['guild_type'])
+        can_join = not is_member and guild_type == GuildType.PUBLIC
+        can_request_join = not is_member and guild_type == GuildType.APPROVAL
+        can_leave = is_member and not is_owner
+        can_manage = is_owner or is_moderator
+        
+        # Note: has_pending_request would need to be checked separately if needed
+        # For now, we'll set it to False and let the frontend handle it
+        has_pending_request = False
+        
+        user_permissions = GuildUserPermissions(
+            is_member=is_member,
+            is_owner=is_owner,
+            is_moderator=is_moderator,
+            can_join=can_join,
+            can_request_join=can_request_join,
+            has_pending_request=has_pending_request,
+            can_leave=can_leave,
+            can_manage=can_manage
+        )
     
     return GuildResponse(
         guild_id=item['guild_id'],
@@ -79,7 +119,8 @@ def build_guild_response(item: Dict[str, Any], members: Optional[List[GuildMembe
         owner_nickname=item.get('owner_nickname'),
         moderators=item.get('moderators', []),
         pending_requests=item.get('pending_requests', 0),
-        settings=GuildSettings(**item.get('settings', {}))
+        settings=GuildSettings(**item.get('settings', {})),
+        user_permissions=user_permissions
     )
 
 class GuildDBError(Exception):
@@ -145,7 +186,8 @@ async def create_guild(
             'member_count': 1,
             'goal_count': 0,
             'quest_count': 0,
-            'moderators': [],
+            # Note: Do not initialize 'moderators' here. DynamoDB doesn't allow empty sets.
+            # We'll create the attribute when the first moderator is assigned.
             'pending_requests': 0,
             'settings': settings.dict(),
             'TTL': int((now.timestamp() + (365 * 24 * 60 * 60)))  # 1 year TTL for inactive guilds
@@ -200,7 +242,8 @@ async def get_guild(
     guild_id: str,
     include_members: bool = False,
     include_goals: bool = False,
-    include_quests: bool = False
+    include_quests: bool = False,
+    current_user_id: Optional[str] = None
 ) -> Optional[GuildResponse]:
     """Get guild details."""
     try:
@@ -254,7 +297,7 @@ async def get_guild(
         if include_quests:
             quests = []  # TODO: Implement quests integration
         
-        return build_guild_response(guild_item, members, goals, quests)
+        return build_guild_response(guild_item, members, goals, quests, current_user_id)
         
     except ClientError as e:
         raise GuildDBError(f"Failed to get guild: {str(e)}")
@@ -399,6 +442,33 @@ async def delete_guild(guild_id: str, deleted_by: str) -> None:
 # Comment operations (stubs for initial wiring)
 # ------------------------------------------------------------
 
+async def check_user_comment_permissions(guild_id: str, user_id: str) -> tuple[bool, bool]:
+    """
+    Check if a user can comment in a guild.
+    Returns (is_blocked, can_comment)
+    """
+    try:
+        # Get the user's member record
+        response = table.get_item(
+            Key={
+                'PK': f'GUILD#{guild_id}',
+                'SK': f'MEMBER#{user_id}'
+            }
+        )
+        
+        if 'Item' not in response:
+            # User is not a member
+            return False, False
+            
+        member = response['Item']
+        is_blocked = member.get('is_blocked', False)
+        can_comment = member.get('can_comment', True)  # Default to True if not specified
+        
+        return is_blocked, can_comment
+        
+    except ClientError as e:
+        raise GuildDBError(f"Failed to check user comment permissions: {str(e)}")
+
 async def create_guild_comment(
     guild_id: str,
     user_id: str,
@@ -409,6 +479,15 @@ async def create_guild_comment(
 ) -> GuildCommentResponse:
     """Create a guild comment in DynamoDB."""
     try:
+        # Check if user is blocked or has commenting disabled
+        is_blocked, can_comment = await check_user_comment_permissions(guild_id, user_id)
+        
+        if is_blocked:
+            raise GuildPermissionError("You have been blocked from commenting in this guild")
+        
+        if not can_comment:
+            raise GuildPermissionError("You are not allowed to comment in this guild")
+        
         now = datetime.utcnow()
         comment_id = f"comment_{uuid4()}"
         
@@ -457,6 +536,24 @@ async def create_guild_comment(
 async def get_guild_comments(guild_id: str, current_user_id: str = None) -> List[GuildCommentResponse]:
     """Get all comments for a guild from DynamoDB."""
     try:
+        # Check if user is blocked (only if current_user_id is provided and user is a member)
+        if current_user_id:
+            # First check if user is a member
+            member_response = table.get_item(
+                Key={
+                    'PK': f'GUILD#{guild_id}',
+                    'SK': f'MEMBER#{current_user_id}'
+                }
+            )
+            
+            # Only check blocking if user is a member
+            if 'Item' in member_response:
+                member = member_response['Item']
+                is_blocked = member.get('is_blocked', False)
+                
+                if is_blocked:
+                    raise GuildPermissionError("You have been blocked from viewing comments in this guild")
+        
         # Query comments for the guild
         response = table.query(
             KeyConditionExpression=Key('PK').eq(f"GUILD#{guild_id}") & Key('SK').begins_with("COMMENT#"),
@@ -511,9 +608,19 @@ async def update_guild_comment(
     guild_id: str,
     comment_id: str,
     content: str,
+    user_id: str,
 ) -> GuildCommentResponse:
     """Update a guild comment in DynamoDB."""
     try:
+        # Check if user is blocked or has commenting disabled
+        is_blocked, can_comment = await check_user_comment_permissions(guild_id, user_id)
+        
+        if is_blocked:
+            raise GuildPermissionError("You have been blocked from commenting in this guild")
+        
+        if not can_comment:
+            raise GuildPermissionError("You are not allowed to comment in this guild")
+        
         now = datetime.utcnow()
         
         # Update the comment
@@ -570,6 +677,12 @@ async def delete_guild_comment(guild_id: str, comment_id: str) -> None:
 async def like_guild_comment(guild_id: str, comment_id: str, user_id: str) -> dict:
     """Like or unlike a guild comment in DynamoDB."""
     try:
+        # Check if user is blocked (blocked users can't like comments)
+        is_blocked, can_comment = await check_user_comment_permissions(guild_id, user_id)
+        
+        if is_blocked:
+            raise GuildPermissionError("You have been blocked from interacting with comments in this guild")
+        
         # First, check if the comment exists
         response = table.get_item(
             Key={
@@ -622,57 +735,127 @@ async def list_guilds(
     search: Optional[str] = None,
     guild_type: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    limit: int = 20,
-    offset: int = 0
+    limit: int = 50,
+    offset: int = 0,
+    current_user_id: Optional[str] = None
 ) -> GuildListResponse:
-    """List guilds with optional filtering."""
+    """List guilds with optional filtering, search, and pagination."""
     try:
-        # Build query parameters
-        if guild_type:
-            # Query by guild type
-            response = table.query(
-                IndexName='GSI1',
-                KeyConditionExpression=Key('GSI1PK').eq(f'GUILD#{guild_type}'),
-                Limit=limit,
-                ScanIndexForward=False  # Sort by creation date descending
-            )
-        else:
-            # Scan all guilds (less efficient, but needed for search)
-            filter_expression = Attr('SK').eq('METADATA')
+        # Validate parameters
+        if limit <= 0:
+            limit = 50  # Default limit
+        if offset < 0:
+            offset = 0  # Default offset
             
-            if search:
-                filter_expression = filter_expression & (
-                    Attr('#name').contains(search) | 
-                    Attr('description').contains(search)
-                )
-            
-            if tags:
-                for tag in tags:
-                    filter_expression = filter_expression & Attr('tags').contains(tag)
-            
-            expr_names = {'#name': 'name'} if search else {}
-            print(f"DEBUG: list_guilds - search: {search}")
-            print(f"DEBUG: list_guilds - ExpressionAttributeNames: {expr_names}")
-            print(f"DEBUG: list_guilds - FilterExpression: {filter_expression}")
-            
-            response = table.scan(
-                FilterExpression=filter_expression,
-                ExpressionAttributeNames=expr_names,
-                Limit=limit
-            )
-            
-            print(f"DEBUG: list_guilds - Scan response items count: {len(response.get('Items', []))}")
+        # Build filter expression
+        filter_expression = Attr('SK').eq('METADATA')
         
+        # Add search filter
+        if search:
+            search_lower = search.lower()
+            filter_expression = filter_expression & (
+                Attr('#name').contains(search_lower) | 
+                Attr('description').contains(search_lower)
+            )
+        
+        # Add guild type filter
+        if guild_type:
+            filter_expression = filter_expression & Attr('guild_type').eq(guild_type)
+        
+        # Add tags filter
+        if tags:
+            for tag in tags:
+                filter_expression = filter_expression & Attr('tags').contains(tag)
+        
+        # Build expression attribute names
+        expr_names = {'#name': 'name'} if search else {}
+        
+        # Calculate pagination - we need to scan enough items to cover offset + limit
+        scan_limit = limit + offset  # We need to scan more to account for offset
+        
+        # Perform scan with pagination
+        all_guilds = []
+        last_evaluated_key = None
+        scanned_count = 0
+        
+        # Only scan if we need to get items
+        if scan_limit > 0:
+            while len(all_guilds) < scan_limit:
+                remaining_needed = scan_limit - len(all_guilds)
+                if remaining_needed <= 0:
+                    break
+                    
+                # DynamoDB requires limit to be at least 1 and at most 100
+                scan_limit_value = min(100, max(1, remaining_needed))
+                
+                scan_kwargs = {
+                    'FilterExpression': filter_expression,
+                    'ExpressionAttributeNames': expr_names,
+                    'Limit': scan_limit_value
+                }
+                
+                if last_evaluated_key:
+                    scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
+                
+                response = table.scan(**scan_kwargs)
+                
+                all_guilds.extend(response['Items'])
+                scanned_count += response.get('ScannedCount', 0)
+                
+                last_evaluated_key = response.get('LastEvaluatedKey')
+                if not last_evaluated_key:
+                    break
+        
+        # Apply offset and limit
+        paginated_guilds = all_guilds[offset:offset + limit]
+        
+        # Build guild responses with user permissions
         guilds = []
-        for item in response['Items']:
-            guilds.append(build_guild_response(item))
+        for item in paginated_guilds:
+            # Get members if we need to compute permissions
+            members = None
+            if current_user_id:
+                try:
+                    members_response = table.query(
+                        KeyConditionExpression=Key('PK').eq(f'GUILD#{item["guild_id"]}') & Key('SK').begins_with('MEMBER#'),
+                        ProjectionExpression='user_id, username, nickname, email, avatar_url, #r, joined_at, last_seen_at, invited_by, is_blocked, blocked_at, blocked_by, can_comment',
+                        ExpressionAttributeNames={'#r': 'role'}
+                    )
+                    members = [
+                        GuildMemberResponse(
+                            user_id=member_item['user_id'],
+                            username=member_item.get('username', member_item.get('nickname', 'Unknown')),
+                            nickname=member_item.get('nickname'),
+                            email=member_item.get('email'),
+                            avatar_url=member_item.get('avatar_url'),
+                            role=member_item['role'],
+                            joined_at=datetime.fromisoformat(member_item['joined_at']),
+                            last_seen_at=datetime.fromisoformat(member_item['last_seen_at']) if member_item.get('last_seen_at') else None,
+                            invited_by=member_item.get('invited_by'),
+                            is_blocked=member_item.get('is_blocked', False),
+                            blocked_at=datetime.fromisoformat(member_item['blocked_at']) if member_item.get('blocked_at') else None,
+                            blocked_by=member_item.get('blocked_by'),
+                            can_comment=member_item.get('can_comment', True)
+                        )
+                        for member_item in members_response['Items']
+                    ]
+                except Exception:
+                    # If we can't get members, continue without permissions
+                    members = None
+            
+            guild = build_guild_response(item, members=members, current_user_id=current_user_id)
+            guilds.append(guild)
+        
+        # Calculate total count (approximate for performance)
+        total_count = len(all_guilds)
+        has_more = len(all_guilds) > offset + limit
         
         return GuildListResponse(
             guilds=guilds,
-            total=len(guilds),
+            total=total_count,
             limit=limit,
             offset=offset,
-            has_more=len(guilds) == limit
+            has_more=has_more
         )
         
     except ClientError as e:
@@ -698,12 +881,15 @@ async def list_user_guilds(user_id: str) -> GuildListResponse:
                 has_more=False
             )
         
-        # Get guild details for each guild
+        # Get guild details for each guild with member information
         guilds = []
         for guild_id in guild_ids:
-            guild = await get_guild(guild_id)
+            guild = await get_guild(guild_id, include_members=True, current_user_id=user_id)
             if guild:
-                guilds.append(guild)
+                # Verify the user is actually a member by checking the members list
+                is_member = any(member.user_id == user_id for member in (guild.members or []))
+                if is_member:
+                    guilds.append(guild)
         
         return GuildListResponse(
             guilds=guilds,
@@ -928,7 +1114,7 @@ async def create_join_request(guild_id: str, user_id: str, username: str, messag
             raise GuildConflictError("You are already a member of this guild")
         
         # Create join request
-    now = datetime.utcnow()
+        now = datetime.utcnow()
         join_request_item = {
             'PK': f'GUILD#{guild_id}',
             'SK': f'JOIN_REQUEST#{user_id}',
@@ -940,22 +1126,22 @@ async def create_join_request(guild_id: str, user_id: str, username: str, messag
             'requested_at': now.isoformat(),
             'TTL': int((now.timestamp() + (30 * 24 * 60 * 60)))  # 30 days TTL
         }
-        
+
         table.put_item(Item=join_request_item)
-        
-    return GuildJoinRequestResponse(
-        guild_id=guild_id,
-        user_id=user_id,
-        username=username,
-        email=None,
-        avatar_url=None,
-        requested_at=now,
-        status=JoinRequestStatus.PENDING,
-        reviewed_by=None,
-        reviewed_at=None,
-        review_reason=None,
-    )
-        
+
+        return GuildJoinRequestResponse(
+            guild_id=guild_id,
+            user_id=user_id,
+            username=username,
+            email=None,
+            avatar_url=None,
+            requested_at=now,
+            status=JoinRequestStatus.PENDING,
+            reviewed_by=None,
+            reviewed_at=None,
+            review_reason=None,
+        )
+
     except ClientError as e:
         raise GuildDBError(f"Failed to create join request: {str(e)}")
 
@@ -1245,8 +1431,11 @@ async def assign_moderator(
     assigned_by: str,
 ) -> None:
     """Assign moderator role to a user."""
+    logger.info(f"DEBUG: assign_moderator called with guild_id={guild_id}, user_id={user_id}, assigned_by={assigned_by}")
+    
     try:
         # Verify guild exists
+        logger.info(f"DEBUG: Checking if guild {guild_id} exists")
         guild_response = table.get_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1255,9 +1444,13 @@ async def assign_moderator(
         )
         
         if 'Item' not in guild_response:
+            logger.error(f"DEBUG: Guild {guild_id} not found")
             raise GuildNotFoundError("Guild not found")
         
+        logger.info(f"DEBUG: Guild {guild_id} found")
+        
         # Verify the assigner has permission (must be owner)
+        logger.info(f"DEBUG: Checking assigner {assigned_by} permissions")
         assigner_response = table.get_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1266,15 +1459,19 @@ async def assign_moderator(
         )
         
         if 'Item' not in assigner_response:
+            logger.error(f"DEBUG: Assigner {assigned_by} is not a member of guild {guild_id}")
             raise GuildPermissionError("User is not a member of this guild")
         
         assigner_item = assigner_response['Item']
         assigner_role = assigner_item.get('role', 'member')
+        logger.info(f"DEBUG: Assigner {assigned_by} has role: {assigner_role}")
         
         if assigner_role != 'owner':
+            logger.error(f"DEBUG: Assigner {assigned_by} is not owner (role: {assigner_role})")
             raise GuildPermissionError("Only guild owners can assign moderators")
         
         # Verify target user is a member of the guild
+        logger.info(f"DEBUG: Checking if target user {user_id} is a member of guild {guild_id}")
         target_member_response = table.get_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1283,16 +1480,20 @@ async def assign_moderator(
         )
         
         if 'Item' not in target_member_response:
+            logger.error(f"DEBUG: Target user {user_id} is not a member of guild {guild_id}")
             raise GuildNotFoundError("Target user is not a member of this guild")
         
         target_member_item = target_member_response['Item']
         current_role = target_member_item.get('role', 'member')
+        logger.info(f"DEBUG: Target user {user_id} current role: {current_role}")
         
         # Check if user is already a moderator or owner
         if current_role in ['moderator', 'owner']:
+            logger.error(f"DEBUG: User {user_id} is already a {current_role}")
             raise GuildConflictError(f"User is already a {current_role}")
         
         # Update user's role to moderator
+        logger.info(f"DEBUG: Updating user {user_id} role to moderator")
         table.update_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1310,6 +1511,8 @@ async def assign_moderator(
         )
         
         # Add user to moderators list in guild metadata
+        logger.info(f"DEBUG: Adding user {user_id} to moderators list in guild metadata")
+        # Add to a String Set; when attribute doesn't exist, DynamoDB will create it
         table.update_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1317,15 +1520,19 @@ async def assign_moderator(
             },
             UpdateExpression='ADD moderators :moderator_id',
             ExpressionAttributeValues={
-                ':moderator_id': {user_id}
+                ':moderator_id': set([user_id])
             }
         )
         
         # Log the action
-        logger.info(f"User {user_id} assigned as moderator for guild {guild_id} by {assigned_by}")
+        logger.info(f"DEBUG: Successfully assigned user {user_id} as moderator for guild {guild_id} by {assigned_by}")
         
     except ClientError as e:
+        logger.error(f"DEBUG: ClientError in assign_moderator - {str(e)}")
         raise GuildDBError(f"Failed to assign moderator: {str(e)}")
+    except Exception as e:
+        logger.error(f"DEBUG: Unexpected error in assign_moderator - {type(e).__name__}: {str(e)}")
+        raise
 
 
 async def remove_moderator(
@@ -1334,8 +1541,11 @@ async def remove_moderator(
     removed_by: str,
 ) -> None:
     """Remove moderator role from a user."""
+    logger.info(f"DEBUG: remove_moderator called with guild_id={guild_id}, user_id={user_id}, removed_by={removed_by}")
+    
     try:
         # Verify guild exists
+        logger.info(f"DEBUG: Checking if guild {guild_id} exists")
         guild_response = table.get_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1344,9 +1554,13 @@ async def remove_moderator(
         )
         
         if 'Item' not in guild_response:
+            logger.error(f"DEBUG: Guild {guild_id} not found")
             raise GuildNotFoundError("Guild not found")
         
+        logger.info(f"DEBUG: Guild {guild_id} found")
+        
         # Verify the remover has permission (must be owner)
+        logger.info(f"DEBUG: Checking remover {removed_by} permissions")
         remover_response = table.get_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1355,15 +1569,19 @@ async def remove_moderator(
         )
         
         if 'Item' not in remover_response:
+            logger.error(f"DEBUG: Remover {removed_by} is not a member of guild {guild_id}")
             raise GuildPermissionError("User is not a member of this guild")
         
         remover_item = remover_response['Item']
         remover_role = remover_item.get('role', 'member')
+        logger.info(f"DEBUG: Remover {removed_by} has role: {remover_role}")
         
         if remover_role != 'owner':
+            logger.error(f"DEBUG: Remover {removed_by} is not owner (role: {remover_role})")
             raise GuildPermissionError("Only guild owners can remove moderators")
         
         # Verify target user is a member of the guild
+        logger.info(f"DEBUG: Checking if target user {user_id} is a member of guild {guild_id}")
         target_member_response = table.get_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1372,16 +1590,20 @@ async def remove_moderator(
         )
         
         if 'Item' not in target_member_response:
+            logger.error(f"DEBUG: Target user {user_id} is not a member of guild {guild_id}")
             raise GuildNotFoundError("Target user is not a member of this guild")
         
         target_member_item = target_member_response['Item']
         current_role = target_member_item.get('role', 'member')
+        logger.info(f"DEBUG: Target user {user_id} current role: {current_role}")
         
         # Check if user is actually a moderator
         if current_role != 'moderator':
+            logger.error(f"DEBUG: User {user_id} is not a moderator (current role: {current_role})")
             raise GuildConflictError(f"User is not a moderator (current role: {current_role})")
         
         # Update user's role back to member
+        logger.info(f"DEBUG: Updating user {user_id} role back to member")
         table.update_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1397,6 +1619,8 @@ async def remove_moderator(
         )
         
         # Remove user from moderators list in guild metadata
+        logger.info(f"DEBUG: Removing user {user_id} from moderators list in guild metadata")
+        # Remove from a String Set; must pass a String Set type
         table.update_item(
             Key={
                 'PK': f'GUILD#{guild_id}',
@@ -1404,18 +1628,103 @@ async def remove_moderator(
             },
             UpdateExpression='DELETE moderators :moderator_id',
             ExpressionAttributeValues={
-                ':moderator_id': {user_id}
+                ':moderator_id': set([user_id])
             }
         )
         
         # Log the action
-        logger.info(f"User {user_id} removed as moderator for guild {guild_id} by {removed_by}")
+        logger.info(f"DEBUG: Successfully removed user {user_id} as moderator for guild {guild_id} by {removed_by}")
         
     except ClientError as e:
+        logger.error(f"DEBUG: ClientError in remove_moderator - {str(e)}")
         raise GuildDBError(f"Failed to remove moderator: {str(e)}")
+    except Exception as e:
+        logger.error(f"DEBUG: Unexpected error in remove_moderator - {type(e).__name__}: {str(e)}")
+        raise
+
+
+async def _get_guild_goals_completed_score(guild_id: str, since_date: datetime) -> int:
+    """Get the number of goals completed by guild members in the last 30 days."""
+    try:
+        # Get all guild members
+        members_response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('MEMBER#'),
+            ProjectionExpression='user_id'
+        )
+        
+        if not members_response.get('Items'):
+            return 0
+        
+        member_user_ids = [member['user_id'] for member in members_response['Items']]
+        
+        # Access the core table to query for completed goals
+        from .settings import Settings
+        settings = Settings()
+        core_table = dynamodb.Table(settings.core_table_name)
+        
+        # Convert since_date to timestamp for comparison
+        since_timestamp = int(since_date.timestamp() * 1000)
+        
+        goals_completed_count = 0
+        
+        # Query each member's completed goals
+        for user_id in member_user_ids:
+            try:
+                # Query for completed goals by this user since the cutoff date
+                response = core_table.query(
+                    KeyConditionExpression=Key('PK').eq(f'USER#{user_id}') & Key('SK').begins_with('GOAL#'),
+                    FilterExpression=Attr('status').eq('completed') & Attr('updatedAt').gte(since_timestamp),
+                    ProjectionExpression='id, status, updatedAt'
+                )
+                
+                goals_completed_count += len(response.get('Items', []))
+                
+            except ClientError as e:
+                logger.warning(f"Failed to query goals for user {user_id}: {str(e)}")
+                continue
+        
+        # Return score: 10 points per completed goal
+        return goals_completed_count * 10
+        
+    except Exception as e:
+        logger.error(f"Failed to get guild goals completed score: {str(e)}")
+        return 0
+
+
+async def _get_guild_social_engagement_score(guild_id: str, since_date: datetime) -> int:
+    """Get social engagement score from comments and likes in the last 30 days."""
+    try:
+        # Convert since_date to timestamp for comparison
+        since_timestamp = int(since_date.timestamp() * 1000)
+        
+        # Query for comments created since the cutoff date
+        comments_response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('COMMENT#'),
+            FilterExpression=Attr('createdAt').gte(since_timestamp),
+            ProjectionExpression='id, createdAt, likes'
+        )
+        
+        comments_count = len(comments_response.get('Items', []))
+        
+        # Count total likes on all comments (including older ones)
+        total_likes = 0
+        for comment in comments_response.get('Items', []):
+            likes = comment.get('likes', 0)
+            if isinstance(likes, int):
+                total_likes += likes
+            elif isinstance(likes, list):
+                total_likes += len(likes)
+        
+        # Return score: 1 point per comment + 1 point per like
+        return comments_count + total_likes
+        
+    except Exception as e:
+        logger.error(f"Failed to get guild social engagement score: {str(e)}")
+        return 0
+
 
 async def get_guild_rankings(limit: int = 50) -> List[Dict[str, Any]]:
-    """Get guild rankings based on member count and activity."""
+    """Get guild rankings based on member count, activity, and goals completed in last 30 days."""
     try:
         # Get all guilds with their metadata
         response = table.scan(
@@ -1428,8 +1737,9 @@ async def get_guild_rankings(limit: int = 50) -> List[Dict[str, Any]]:
         
         guilds = response['Items']
         
-        # Calculate ranking scores based on member count and age
+        # Calculate ranking scores based on member count, age, and goals completed
         now = datetime.utcnow()
+        thirty_days_ago = now - timedelta(days=30)
         rankings = []
         
         for guild in guilds:
@@ -1447,8 +1757,14 @@ async def get_guild_rankings(limit: int = 50) -> List[Dict[str, Any]]:
             else:
                 growth_bonus = 0
             
+            # Get goals completed in the last 30 days for this guild
+            goals_completed_score = await _get_guild_goals_completed_score(guild['guild_id'], thirty_days_ago)
+            
+            # Get social engagement score from comments and likes
+            social_engagement_score = await _get_guild_social_engagement_score(guild['guild_id'], thirty_days_ago)
+            
             # Total score
-            total_score = activity_score + growth_bonus
+            total_score = activity_score + growth_bonus + goals_completed_score + social_engagement_score
             
             # Generate signed S3 URL for avatar if it exists
             avatar_key = guild.get('avatar_key')
@@ -1462,6 +1778,8 @@ async def get_guild_rankings(limit: int = 50) -> List[Dict[str, Any]]:
                 'total_score': total_score,
                 'activity_score': activity_score,
                 'growth_rate': growth_bonus,
+                'goals_completed_score': goals_completed_score,
+                'social_engagement_score': social_engagement_score,
                 'member_count': member_count,
                 'badges': [],
                 'trend': 'stable'
@@ -1701,4 +2019,26 @@ async def check_guild_name_availability(name: str) -> bool:
         print(f"DEBUG: Error type: {type(e)}")
         print(f"DEBUG: Error args: {e.args}")
         raise GuildDBError(f"Failed to check guild name availability: {e}")
+
+
+async def has_pending_join_request(guild_id: str, user_id: str) -> bool:
+    """Check if a user has a pending join request for a guild."""
+    try:
+        response = table.get_item(
+            Key={
+                'PK': f'GUILD#{guild_id}',
+                'SK': f'JOIN_REQUEST#{user_id}'
+            }
+        )
+        
+        if 'Item' not in response:
+            return False
+            
+        # Check if the request is still pending
+        return response['Item'].get('status') == 'pending'
+        
+    except ClientError as e:
+        raise GuildDBError(f"Failed to check pending join request: {str(e)}")
+    except Exception as e:
+        raise GuildDBError(f"Failed to check pending join request: {str(e)}")
 
