@@ -3040,30 +3040,30 @@ resource "aws_api_gateway_method" "guilds_id_join_requests_user_id_approve_put" 
   authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
 }
 
-resource "aws_api_gateway_integration" "guilds_id_join_requests_user_id_approve_post_integration" {
+resource "aws_api_gateway_integration" "guilds_id_join_requests_user_id_approve_put_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.guilds_id_join_requests_user_id_approve.id
-  http_method             = aws_api_gateway_method.guilds_id_join_requests_user_id_approve_post.http_method
+  http_method             = aws_api_gateway_method.guilds_id_join_requests_user_id_approve_put.http_method
   type                    = "AWS_PROXY"
-  integration_http_method = "POST"
+  integration_http_method = "PUT"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
-# POST /guilds/{guild_id}/join-requests/{user_id}/reject
-resource "aws_api_gateway_method" "guilds_id_join_requests_user_id_reject_post" {
+# PUT /guilds/{guild_id}/join-requests/{user_id}/reject
+resource "aws_api_gateway_method" "guilds_id_join_requests_user_id_reject_put" {
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.guilds_id_join_requests_user_id_reject.id
-  http_method   = "POST"
+  http_method   = "PUT"
   authorization = "CUSTOM"
   authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
 }
 
-resource "aws_api_gateway_integration" "guilds_id_join_requests_user_id_reject_post_integration" {
+resource "aws_api_gateway_integration" "guilds_id_join_requests_user_id_reject_put_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.guilds_id_join_requests_user_id_reject.id
-  http_method             = aws_api_gateway_method.guilds_id_join_requests_user_id_reject_post.http_method
+  http_method             = aws_api_gateway_method.guilds_id_join_requests_user_id_reject_put.http_method
   type                    = "AWS_PROXY"
-  integration_http_method = "POST"
+  integration_http_method = "PUT"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
