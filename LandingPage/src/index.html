@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GoalsGuild - Transform your goals into achievements through intelligent collaboration, gamification, and AI-powered guidance.">
+    <meta name="keywords" content="goal management, collaboration, gamification, productivity, personal development">
+    <title>GoalsGuild - Achieve Your Goals Together</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="icon" type="image/png" href="assets/images/transparentLogo.png">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <img src="assets/images/transparentLogo.png" alt="GoalsGuild Logo" class="logo">
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="blog.html">Blog</a></li>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="#waitlist" class="btn btn-primary">Join Waitlist</a></li>
+            </ul>
+            <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Transform Your Goals Into <span class="highlight">Achievements</span></h1>
+                <p class="hero-subtitle">Connect with like-minded achievers, gamify your progress, and unlock your full potential through intelligent collaboration.</p>
+                <div class="hero-cta">
+                    <a href="#waitlist" class="btn btn-primary btn-large">Join Early Access</a>
+                    <a href="#features" class="btn btn-secondary btn-large">Learn More</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="assets/images/transparentLogo.png" alt="GoalsGuild Platform" loading="lazy">
+            </div>
+        </div>
+    </section>
+
+    <!-- Carousel Section -->
+    <section class="carousel-section">
+        <div class="container">
+            <h2 class="section-title">Discover GoalsGuild Features</h2>
+            <p class="section-subtitle">Explore the powerful tools that will transform your goal achievement journey</p>
+            <div class="carousel" id="featuresCarousel">
+                <div class="carousel-wrapper">
+                    <div class="carousel-track">
+                        <div class="carousel-slide active">
+                            <div class="carousel-content">
+                                <div class="carousel-icon">
+                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 11l3 3L22 4"></path>
+                                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                                    </svg>
+                                </div>
+                                <h3>Smart Goal Management</h3>
+                                <p>Create detailed, actionable goals with AI-guided questions that help you define clear objectives and break them into manageable tasks.</p>
+                                <div class="carousel-features">
+                                    <span class="feature-tag">AI-Powered</span>
+                                    <span class="feature-tag">Task Breakdown</span>
+                                    <span class="feature-tag">Progress Tracking</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="carousel-content">
+                                <div class="carousel-icon">
+                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                                        <circle cx="9" cy="7" r="4"></circle>
+                                        <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                                        <path d="M16 3.13a4 4 0 010 7.75"></path>
+                                    </svg>
+                                </div>
+                                <h3>Intelligent Matching</h3>
+                                <p>Our AI connects you with users who have complementary goals, skills, and experience to maximize collaboration success.</p>
+                                <div class="carousel-features">
+                                    <span class="feature-tag">Smart Algorithm</span>
+                                    <span class="feature-tag">Skill Matching</span>
+                                    <span class="feature-tag">Goal Alignment</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="carousel-content">
+                                <div class="carousel-icon">
+                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                        <path d="M2 17l10 5 10-5"></path>
+                                        <path d="M2 12l10 5 10-5"></path>
+                                    </svg>
+                                </div>
+                                <h3>Gamification Engine</h3>
+                                <p>Earn XP, unlock levels, collect badges, and compete in challenges. Stay motivated with a system designed for sustained engagement.</p>
+                                <div class="carousel-features">
+                                    <span class="feature-tag">XP System</span>
+                                    <span class="feature-tag">Badges & Rewards</span>
+                                    <span class="feature-tag">Leaderboards</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="carousel-slide">
+                            <div class="carousel-content">
+                                <div class="carousel-icon">
+                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                                    </svg>
+                                </div>
+                                <h3>Real-Time Collaboration</h3>
+                                <p>Chat with your team, join forums, participate in groups, and connect with mentors who've achieved similar goals.</p>
+                                <div class="carousel-features">
+                                    <span class="feature-tag">Live Chat</span>
+                                    <span class="feature-tag">Forums</span>
+                                    <span class="feature-tag">Mentorship</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Navigation Controls -->
+                    <button class="carousel-btn carousel-prev" aria-label="Previous slide">
+                    </button>
+                    <button class="carousel-btn carousel-next" aria-label="Next slide">
+                    </button>
+                    
+                    <!-- Progress Bar -->
+                    <div class="carousel-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Indicators -->
+                    <div class="carousel-indicators">
+                        <button class="indicator active" data-slide="0" aria-label="Go to slide 1">
+                            <span class="indicator-dot"></span>
+                            <span class="indicator-label">Smart Goals</span>
+                        </button>
+                        <button class="indicator" data-slide="1" aria-label="Go to slide 2">
+                            <span class="indicator-dot"></span>
+                            <span class="indicator-label">Matching</span>
+                        </button>
+                        <button class="indicator" data-slide="2" aria-label="Go to slide 3">
+                            <span class="indicator-dot"></span>
+                            <span class="indicator-label">Gamification</span>
+                        </button>
+                        <button class="indicator" data-slide="3" aria-label="Go to slide 4">
+                            <span class="indicator-dot"></span>
+                            <span class="indicator-label">Collaboration</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Auto-play Controls -->
+                    <div class="carousel-controls">
+                        <button class="control-btn play-pause" aria-label="Toggle auto-play">
+                            <svg class="play-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <svg class="pause-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                        </button>
+                        <span class="control-label">Auto-play</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Powerful Features to Achieve More</h2>
+            <div class="features-grid">
+                <div class="feature-card" data-feature="smart-goals">
+                    <div class="card-background"></div>
+                    <div class="card-content">
+                        <div class="feature-icon">
+                            <div class="icon-wrapper">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 11l3 3L22 4"></path>
+                                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                                </svg>
+                            </div>
+                            <div class="icon-glow"></div>
+                        </div>
+                        <div class="feature-header">
+                            <h3>Smart Goal Management</h3>
+                            <div class="feature-badge">AI-Powered</div>
+                        </div>
+                        <p>AI-guided goal creation with NLP questions. Break down objectives into actionable tasks with deadlines and track your progress systematically.</p>
+                        <div class="feature-tags">
+                            <span class="tag">NLP Processing</span>
+                            <span class="tag">Task Breakdown</span>
+                            <span class="tag">Progress Tracking</span>
+                        </div>
+                        <div class="card-footer">
+                            <div class="learn-more">
+                                <span>Learn More</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M12 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-card" data-feature="user-matching">
+                    <div class="card-background"></div>
+                    <div class="card-content">
+                        <div class="feature-icon">
+                            <div class="icon-wrapper">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 010 7.75"></path>
+                                </svg>
+                            </div>
+                            <div class="icon-glow"></div>
+                        </div>
+                        <div class="feature-header">
+                            <h3>Intelligent User Matching</h3>
+                            <div class="feature-badge">Smart Algorithm</div>
+                        </div>
+                        <p>Find collaborators with complementary goals and skills. Our AI algorithms connect you with the right partners for mutual success.</p>
+                        <div class="feature-tags">
+                            <span class="tag">AI Matching</span>
+                            <span class="tag">Skill Analysis</span>
+                            <span class="tag">Goal Alignment</span>
+                        </div>
+                        <div class="card-footer">
+                            <div class="learn-more">
+                                <span>Learn More</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M12 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-card" data-feature="gamification">
+                    <div class="card-background"></div>
+                    <div class="card-content">
+                        <div class="feature-icon">
+                            <div class="icon-wrapper">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                    <path d="M2 17l10 5 10-5"></path>
+                                    <path d="M2 12l10 5 10-5"></path>
+                                </svg>
+                            </div>
+                            <div class="icon-glow"></div>
+                        </div>
+                        <div class="feature-header">
+                            <h3>Gamification Engine</h3>
+                            <div class="feature-badge">Engaging</div>
+                        </div>
+                        <p>Earn experience points, level up, collect badges, and compete in challenges. Stay engaged with a progression system that rewards your efforts.</p>
+                        <div class="feature-tags">
+                            <span class="tag">XP System</span>
+                            <span class="tag">Badges</span>
+                            <span class="tag">Leaderboards</span>
+                        </div>
+                        <div class="card-footer">
+                            <div class="learn-more">
+                                <span>Learn More</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M12 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-card" data-feature="collaboration">
+                    <div class="card-background"></div>
+                    <div class="card-content">
+                        <div class="feature-icon">
+                            <div class="icon-wrapper">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="icon-glow"></div>
+                        </div>
+                        <div class="feature-header">
+                            <h3>Real-Time Collaboration</h3>
+                            <div class="feature-badge">Live</div>
+                        </div>
+                        <p>Chat with partners, join discussion forums, create groups, and connect with mentors. Build a support network that drives success.</p>
+                        <div class="feature-tags">
+                            <span class="tag">Live Chat</span>
+                            <span class="tag">Forums</span>
+                            <span class="tag">Mentorship</span>
+                        </div>
+                        <div class="card-footer">
+                            <div class="learn-more">
+                                <span>Learn More</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M12 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-card" data-feature="ai-insights">
+                    <div class="card-background"></div>
+                    <div class="card-content">
+                        <div class="feature-icon">
+                            <div class="icon-wrapper">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 6v6l4 2"></path>
+                                </svg>
+                            </div>
+                            <div class="icon-glow"></div>
+                        </div>
+                        <div class="feature-header">
+                            <h3>AI-Powered Insights</h3>
+                            <div class="feature-badge">Intelligent</div>
+                        </div>
+                        <p>Get personalized recommendations, progress analysis, and AI-generated inspirational content to optimize your goal achievement strategy.</p>
+                        <div class="feature-tags">
+                            <span class="tag">ML Analytics</span>
+                            <span class="tag">Predictions</span>
+                            <span class="tag">Personalization</span>
+                        </div>
+                        <div class="card-footer">
+                            <div class="learn-more">
+                                <span>Learn More</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M12 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-card" data-feature="progress-tracking">
+                    <div class="card-background"></div>
+                    <div class="card-content">
+                        <div class="feature-icon">
+                            <div class="icon-wrapper">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                            </div>
+                            <div class="icon-glow"></div>
+                        </div>
+                        <div class="feature-header">
+                            <h3>Progress Tracking</h3>
+                            <div class="feature-badge">Analytics</div>
+                        </div>
+                        <p>Visual dashboards, milestone tracking, and detailed analytics help you understand your patterns and celebrate achievements.</p>
+                        <div class="feature-tags">
+                            <span class="tag">Dashboards</span>
+                            <span class="tag">Milestones</span>
+                            <span class="tag">Analytics</span>
+                        </div>
+                        <div class="card-footer">
+                            <div class="learn-more">
+                                <span>Learn More</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14"></path>
+                                    <path d="M12 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How GoalsGuild Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Create Your Goals</h3>
+                    <p>Use our AI-guided questions to define clear, achievable objectives and break them into actionable tasks.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Find Your Team</h3>
+                    <p>Our intelligent matching algorithm connects you with collaborators who share or complement your goals.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Collaborate & Progress</h3>
+                    <p>Work together through chat, forums, and shared goals. Track progress and support each other's journey.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Achieve & Celebrate</h3>
+                    <p>Earn XP, unlock badges, level up, and celebrate milestones with your community as you achieve your goals.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Waitlist Section -->
+    <section id="waitlist" class="waitlist">
+        <div class="container">
+            <div class="waitlist-content">
+                <h2>Join the Waitlist</h2>
+                <p>Be among the first to experience the future of goal achievement. Sign up for early access and exclusive benefits.</p>
+                <form class="waitlist-form" id="waitlistForm">
+                    <div class="form-group">
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required aria-label="Email address">
+                        <button type="submit" class="btn btn-primary">Join Now</button>
+                    </div>
+                    <p class="form-note">We respect your privacy. Unsubscribe at any time.</p>
+                </form>
+                <div id="formMessage" class="form-message" role="alert" aria-live="polite"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contact" class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="assets/images/transparentLogo.png" alt="GoalsGuild Logo" class="footer-logo">
+                    <p>Transform your goals into achievements through intelligent collaboration.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <ul>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#how-it-works">How It Works</a></li>
+                            <li><a href="blog.html">Blog</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Company</h4>
+                        <ul>
+                            <li><a href="#about">About Us</a></li>
+                            <li><a href="#contact">Contact</a></li>
+                            <li><a href="#careers">Careers</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Legal</h4>
+                        <ul>
+                            <li><a href="#privacy">Privacy Policy</a></li>
+                            <li><a href="#terms">Terms of Service</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-social">
+                    <h4>Follow Us</h4>
+                    <div class="social-links">
+                        <a href="https://linkedin.com/company/goalsguild" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                            </svg>
+                        </a>
+                        <a href="https://twitter.com/goalsguild" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </a>
+                        <a href="https://instagram.com/goalsguild" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                            </svg>
+                        </a>
+                        <a href="https://facebook.com/goalsguild" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 GoalsGuild. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/carousel.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
+

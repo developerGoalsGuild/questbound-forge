@@ -589,6 +589,50 @@ resource "aws_api_gateway_resource" "guilds_id_comment_permission" {
   path_part   = "comment-permission"
 }
 
+# Messaging service resources
+resource "aws_api_gateway_resource" "messaging" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "messaging"
+}
+
+resource "aws_api_gateway_resource" "messaging_rooms" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.messaging.id
+  path_part   = "rooms"
+}
+
+resource "aws_api_gateway_resource" "messaging_rooms_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.messaging_rooms.id
+  path_part   = "{room_id}"
+}
+
+resource "aws_api_gateway_resource" "messaging_rooms_id_messages" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  path_part   = "messages"
+}
+
+resource "aws_api_gateway_resource" "messaging_rooms_id_join" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  path_part   = "join"
+}
+
+resource "aws_api_gateway_resource" "messaging_rooms_id_leave" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  path_part   = "leave"
+}
+
+# WebSocket API for real-time messaging
+resource "aws_api_gateway_resource" "messaging_websocket" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "ws"
+}
+
 resource "aws_api_gateway_resource" "users_user_id_guilds" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_resource.users.id
@@ -3333,6 +3377,317 @@ resource "aws_api_gateway_integration" "guilds_id_comment_permission_post_integr
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
+# Messaging service methods and integrations
+
+# GET /messaging/rooms
+resource "aws_api_gateway_method" "messaging_rooms_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_rooms_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms.id
+  http_method             = aws_api_gateway_method.messaging_rooms_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_options_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms.id
+  http_method             = aws_api_gateway_method.messaging_rooms_options.http_method
+  type                    = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+# POST /messaging/rooms
+resource "aws_api_gateway_method" "messaging_rooms_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms.id
+  http_method             = aws_api_gateway_method.messaging_rooms_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+# GET /messaging/rooms/{room_id}
+resource "aws_api_gateway_method" "messaging_rooms_id_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_rooms_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_options_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_options.http_method
+  type                    = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+# PUT /messaging/rooms/{room_id}
+resource "aws_api_gateway_method" "messaging_rooms_id_put" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method   = "PUT"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_put_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_put.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+# DELETE /messaging/rooms/{room_id}
+resource "aws_api_gateway_method" "messaging_rooms_id_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method   = "DELETE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_delete_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_delete.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+# GET /messaging/rooms/{room_id}/messages
+resource "aws_api_gateway_method" "messaging_rooms_id_messages_get" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_messages.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_rooms_id_messages_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_messages.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_messages_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_messages.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_messages_options_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_messages.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_options.http_method
+  type                    = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+# POST /messaging/rooms/{room_id}/messages
+resource "aws_api_gateway_method" "messaging_rooms_id_messages_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_messages.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_messages_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_messages.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+# POST /messaging/rooms/{room_id}/join
+resource "aws_api_gateway_method" "messaging_rooms_id_join_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_join.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_rooms_id_join_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_join.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_join_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_join.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_join_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_join_options_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_join.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_join_options.http_method
+  type                    = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+# POST /messaging/rooms/{room_id}/leave
+resource "aws_api_gateway_method" "messaging_rooms_id_leave_post" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_leave.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_rooms_id_leave_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_rooms_id_leave.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_leave_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_leave.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_leave_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_rooms_id_leave_options_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_rooms_id_leave.id
+  http_method             = aws_api_gateway_method.messaging_rooms_id_leave_options.http_method
+  type                    = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+# WebSocket methods for real-time messaging
+resource "aws_api_gateway_method" "messaging_websocket_connect" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_websocket.id
+  http_method   = "GET"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_websocket_disconnect" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_websocket.id
+  http_method   = "DELETE"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_method" "messaging_websocket_default" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.messaging_websocket.id
+  http_method   = "POST"
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.lambda_authorizer.id
+}
+
+resource "aws_api_gateway_integration" "messaging_websocket_connect_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_websocket.id
+  http_method             = aws_api_gateway_method.messaging_websocket_connect.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_websocket_disconnect_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_websocket.id
+  http_method             = aws_api_gateway_method.messaging_websocket_disconnect.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "messaging_websocket_default_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.messaging_websocket.id
+  http_method             = aws_api_gateway_method.messaging_websocket_default.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
+}
+
 # Method-level throttling for sensitive endpoints
 resource "aws_api_gateway_method_settings" "quest_create_throttling" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
@@ -3747,6 +4102,24 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.guilds_id_block_user_post,
       aws_api_gateway_method.guilds_id_unblock_user_post,
       aws_api_gateway_method.guilds_id_comment_permission_post,
+      # Messaging endpoints
+      aws_api_gateway_method.messaging_rooms_get,
+      aws_api_gateway_method.messaging_rooms_options,
+      aws_api_gateway_method.messaging_rooms_post,
+      aws_api_gateway_method.messaging_rooms_id_get,
+      aws_api_gateway_method.messaging_rooms_id_options,
+      aws_api_gateway_method.messaging_rooms_id_put,
+      aws_api_gateway_method.messaging_rooms_id_delete,
+      aws_api_gateway_method.messaging_rooms_id_messages_get,
+      aws_api_gateway_method.messaging_rooms_id_messages_options,
+      aws_api_gateway_method.messaging_rooms_id_messages_post,
+      aws_api_gateway_method.messaging_rooms_id_join_post,
+      aws_api_gateway_method.messaging_rooms_id_join_options,
+      aws_api_gateway_method.messaging_rooms_id_leave_post,
+      aws_api_gateway_method.messaging_rooms_id_leave_options,
+      aws_api_gateway_method.messaging_websocket_connect,
+      aws_api_gateway_method.messaging_websocket_disconnect,
+      aws_api_gateway_method.messaging_websocket_default,
       # Collaboration endpoints
       aws_api_gateway_method.collaborations_invites_post,
       aws_api_gateway_method.collaborations_invites_options,
@@ -3886,6 +4259,24 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.guilds_id_block_user_post_integration,
     aws_api_gateway_integration.guilds_id_unblock_user_post_integration,
     aws_api_gateway_integration.guilds_id_comment_permission_post_integration,
+    # Messaging service integrations
+    aws_api_gateway_integration.messaging_rooms_get_integration,
+    aws_api_gateway_integration.messaging_rooms_options_integration,
+    aws_api_gateway_integration.messaging_rooms_post_integration,
+    aws_api_gateway_integration.messaging_rooms_id_get_integration,
+    aws_api_gateway_integration.messaging_rooms_id_options_integration,
+    aws_api_gateway_integration.messaging_rooms_id_put_integration,
+    aws_api_gateway_integration.messaging_rooms_id_delete_integration,
+    aws_api_gateway_integration.messaging_rooms_id_messages_get_integration,
+    aws_api_gateway_integration.messaging_rooms_id_messages_options_integration,
+    aws_api_gateway_integration.messaging_rooms_id_messages_post_integration,
+    aws_api_gateway_integration.messaging_rooms_id_join_post_integration,
+    aws_api_gateway_integration.messaging_rooms_id_join_options_integration,
+    aws_api_gateway_integration.messaging_rooms_id_leave_post_integration,
+    aws_api_gateway_integration.messaging_rooms_id_leave_options_integration,
+    aws_api_gateway_integration.messaging_websocket_connect_integration,
+    aws_api_gateway_integration.messaging_websocket_disconnect_integration,
+    aws_api_gateway_integration.messaging_websocket_default_integration,
     aws_api_gateway_integration.collaborations_invites_post_integration,
     aws_api_gateway_integration.collaborations_invites_options_integration,
     aws_api_gateway_integration.collaborations_invites_get_integration,

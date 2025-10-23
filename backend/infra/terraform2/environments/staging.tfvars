@@ -38,3 +38,4 @@ guild_avatar_bucket_cors_max_age = 3600
 
 # Guild Service Configuration
 guild_ranking_calculation_frequency = "rate(1 hour)"  # Hourly for staging
+

@@ -30,7 +30,9 @@ enum QuestStatus {
   active
   completed
   cancelled
-  failed
+  fai
+  
+  led
 }
 
 enum QuestKind {
@@ -197,7 +199,7 @@ type Quest {
   periodDays: Int
 }
 
-type Message {
+type Message @aws_lambda {
   id: ID!
   roomId: ID!
   senderId: ID!
@@ -227,7 +229,7 @@ type Query {
   myDashboardGoals(limit: Int, status: String, sortBy: String): [Goal!]!
   myTasks(goalId: ID!): [Task!]!
   tasks(goalId: ID!): [Task!]!
-  messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]!
+  messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]! @aws_lambda
   offers(tags: [String!], limit: Int = 20): [Offer!]!
   
   # Progress queries
@@ -265,7 +267,7 @@ type Mutation {
   """
   Post a message to a chat room.
   """
-  sendMessage(roomId: ID!, text: String!): Message!
+  sendMessage(roomId: ID!, text: String!): Message! @aws_lambda
   
   """
   Non-public mutation to create a new task associated with a goal.
@@ -282,7 +284,7 @@ type Subscription {
   """
   Subscribe to new messages for a room. Requires the same roomId as in sendMessage.
   """
-  onMessage(roomId: ID!): Message!
+  onMessage(roomId: ID!): Message! @aws_lambda
   @aws_subscribe(mutations: ["sendMessage"])
   
 }

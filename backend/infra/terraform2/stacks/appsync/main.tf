@@ -363,6 +363,93 @@ resource "aws_appsync_resolver" "query_user" {
 
 # Removed createTask mutation resolver - already exists in AppSync API
 
+# Messaging data source with permissions for both tables
+resource "aws_appsync_datasource" "messaging_ddb" {
+  api_id           = module.appsync.api_id
+  name             = "MessagingDDB"
+  type             = "AMAZON_DYNAMODB"
+  service_role_arn = aws_iam_role.messaging_ddb_role.arn
+  dynamodb_config {
+    table_name = var.core_table_name
+  }
+}
+
+# IAM role for messaging data source with permissions for both tables
+resource "aws_iam_role" "messaging_ddb_role" {
+  name = "goalsguild-${var.environment}-appsync-messaging-ddb-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "appsync.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "messaging_ddb_policy" {
+  role = aws_iam_role.messaging_ddb_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:PutItem",
+        "dynamodb:GetItem", 
+        "dynamodb:Query",
+        "dynamodb:UpdateItem",
+        "dynamodb:TransactWriteItems"
+      ]
+      Resource = [
+        data.terraform_remote_state.database.outputs.gg_core_table_arn,
+        "${data.terraform_remote_state.database.outputs.gg_core_table_arn}/index/*",
+        data.terraform_remote_state.database.outputs.guild_table_arn,
+        "${data.terraform_remote_state.database.outputs.guild_table_arn}/index/*"
+      ]
+    }]
+  })
+}
+
+# Messaging resolvers
+resource "aws_appsync_resolver" "query_messages" {
+  api_id = module.appsync.api_id
+  type   = "Query"
+  field  = "messages"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  code   = file("${local.resolvers_path}/messages.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "mutation_sendMessage" {
+  api_id = module.appsync.api_id
+  type   = "Mutation"
+  field  = "sendMessage"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  code   = file("${local.resolvers_path}/sendMessage.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "subscription_onMessage" {
+  api_id = module.appsync.api_id
+  type   = "Subscription"
+  field  = "onMessage"
+  kind   = "UNIT"
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  code   = file("${local.resolvers_path}/onMessage.subscribe.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
 locals {
   schema_path = "${path.module}/../../graphql/schema.graphql"
 }
@@ -377,6 +464,8 @@ module "appsync" {
   lambda_authorizer_arn = data.terraform_remote_state.authorizer.outputs.lambda_authorizer_arn
   ddb_table_name = data.terraform_remote_state.database.outputs.gg_core_table_name
   ddb_table_arn  = data.terraform_remote_state.database.outputs.gg_core_table_arn
+  guild_table_name = data.terraform_remote_state.database.outputs.guild_table_name
+  guild_table_arn  = data.terraform_remote_state.database.outputs.guild_table_arn
   tags = {
     Project     = "goalsguild"
     Environment = var.environment

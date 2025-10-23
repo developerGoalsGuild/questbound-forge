@@ -17,6 +17,14 @@ variable "ddb_table_name" {
 variable "ddb_table_arn" {
   type = string
 }
+variable "guild_table_name" {
+  type    = string
+  default = null
+}
+variable "guild_table_arn" {
+  type    = string
+  default = null
+}
 variable "region" {
   type = string
 }

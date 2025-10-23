@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Shield, Menu, X, Globe, User as UserIcon, LogOut } from 'lucide-react';
+import { Shield, Menu, X, Globe, User as UserIcon, LogOut, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -20,6 +20,7 @@ const Header = () => {
   const nav = (t as any).nav || {};
   const auth = (t as any).auth || {};
   const goalsLabel = (t as any).goals || 'Quests';
+  const chatLabel = nav.chat || 'Chat';
 
   const languages: { code: Language; name: string; flag: string }[] = [
     { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -68,6 +69,12 @@ const Header = () => {
             <Link to="/goals" className="font-medium hover:text-primary transition-colors">
               {goalsLabel}
             </Link>
+            {isAuthenticated && (
+              <Link to="/chat" className="font-medium hover:text-primary transition-colors flex items-center gap-1">
+                <MessageSquare className="h-4 w-4" />
+                {chatLabel}
+              </Link>
+            )}
           </nav>
 
           {/* Action Buttons & Language Selector */}
@@ -154,6 +161,12 @@ const Header = () => {
               <Link to="/goals" className="font-medium hover:text-primary transition-colors">
                 {goalsLabel}
               </Link>
+              {isAuthenticated && (
+                <Link to="/chat" className="font-medium hover:text-primary transition-colors flex items-center gap-1">
+                  <MessageSquare className="h-4 w-4" />
+                  {chatLabel}
+                </Link>
+              )}
 
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
                 {!isAuthenticated && (

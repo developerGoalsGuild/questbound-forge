@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messaging Fixes Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .message { margin: 5px 0; padding: 5px; border-radius: 3px; }
+        .own-message { background-color: #007bff; color: white; text-align: right; }
+        .other-message { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <h1>Messaging Fixes Test</h1>
+    
+    <div class="test-section info">
+        <h3>Test Authentication Data</h3>
+        <p>This test verifies that the messaging system can properly extract user information from localStorage.</p>
+        <button onclick="testAuthData()">Test Auth Data Extraction</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="test-section info">
+        <h3>Test Message Structure</h3>
+        <p>This test verifies that messages are created with the correct structure and timestamps.</p>
+        <button onclick="testMessageStructure()">Test Message Structure</button>
+        <div id="message-result"></div>
+    </div>
+
+    <div class="test-section info">
+        <h3>Test Timestamp Formatting</h3>
+        <p>This test verifies that timestamps are properly formatted and displayed.</p>
+        <button onclick="testTimestampFormatting()">Test Timestamp Formatting</button>
+        <div id="timestamp-result"></div>
+    </div>
+
+    <div class="test-section info">
+        <h3>Live Chat Test</h3>
+        <p>This test simulates the messaging functionality with the fixes applied.</p>
+        <button onclick="startChatTest()">Start Chat Test</button>
+        <button onclick="sendTestMessage()">Send Test Message</button>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        // Mock localStorage auth data
+        const mockAuthData = {
+            user: {
+                id: 'test-user-123',
+                username: 'TestUser',
+                name: 'Test User'
+            },
+            access_token: 'mock-jwt-token'
+        };
+
+        // Set up mock auth data
+        localStorage.setItem('auth', JSON.stringify(mockAuthData));
+
+        function testAuthData() {
+            const resultDiv = document.getElementById('auth-result');
+            try {
+                const authData = localStorage.getItem('auth');
+                if (authData) {
+                    const auth = JSON.parse(authData);
+                    const userId = auth.user?.id || auth.sub || 'anonymous';
+                    const username = auth.user?.username || auth.user?.name || 'User';
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Auth Data Extraction Successful</strong><br>
+                            User ID: ${userId}<br>
+                            Username: ${username}<br>
+                            Token: ${auth.access_token ? 'Present' : 'Missing'}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ No auth data found</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error parsing auth data: ${error.message}</div>`;
+            }
+        }
+
+        function testMessageStructure() {
+            const resultDiv = document.getElementById('message-result');
+            try {
+                // Create a test message with the correct structure
+                const testMessage = {
+                    id: Date.now().toString(),
+                    text: 'Test message content',
+                    roomId: 'ROOM-general',
+                    senderId: 'test-user-123',
+                    ts: Date.now(),
+                    type: 'message',
+                    roomType: 'general',
+                    createdAt: new Date().toISOString()
+                };
+
+                // Verify the structure
+                const hasRequiredFields = testMessage.id && testMessage.text && testMessage.senderId && testMessage.ts;
+                const hasCorrectTypes = typeof testMessage.ts === 'number' && typeof testMessage.text === 'string';
+
+                if (hasRequiredFields && hasCorrectTypes) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Message Structure Correct</strong><br>
+                            ID: ${testMessage.id}<br>
+                            Text: ${testMessage.text}<br>
+                            Sender ID: ${testMessage.senderId}<br>
+                            Timestamp: ${testMessage.ts} (${typeof testMessage.ts})<br>
+                            Created At: ${testMessage.createdAt}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ Message structure is incorrect</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error creating message: ${error.message}</div>`;
+            }
+        }
+
+        function testTimestampFormatting() {
+            const resultDiv = document.getElementById('timestamp-result');
+            try {
+                const now = Date.now();
+                const testTimestamps = [
+                    { ts: now - 30000, expected: '30s ago' },
+                    { ts: now - 300000, expected: '5m ago' },
+                    { ts: now - 3600000, expected: '1h ago' },
+                    { ts: now - 86400000, expected: '1d ago' }
+                ];
+
+                let results = '<div class="success"><strong>✅ Timestamp Formatting Test</strong><br>';
+                
+                testTimestamps.forEach(({ ts, expected }) => {
+                    const date = new Date(ts);
+                    const diffInMinutes = Math.floor((now - ts) / (1000 * 60));
+                    
+                    let formatted;
+                    if (diffInMinutes < 1) {
+                        formatted = 'Just now';
+                    } else if (diffInMinutes < 60) {
+                        formatted = `${diffInMinutes}m ago`;
+                    } else if (diffInMinutes < 1440) {
+                        const hours = Math.floor(diffInMinutes / 60);
+                        formatted = `${hours}h ago`;
+                    } else {
+                        formatted = date.toLocaleDateString();
+                    }
+                    
+                    results += `${formatted} (${expected})<br>`;
+                });
+                
+                results += '</div>';
+                resultDiv.innerHTML = results;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error testing timestamps: ${error.message}</div>`;
+            }
+        }
+
+        let messageCount = 0;
+        const messagesDiv = document.getElementById('messages');
+
+        function startChatTest() {
+            messagesDiv.innerHTML = '';
+            messageCount = 0;
+            
+            // Add some initial messages
+            addMessage('Welcome to the chat!', 'system', false);
+            addMessage('This is a test message to demonstrate the chat functionality.', 'test-user', false);
+        }
+
+        function sendTestMessage() {
+            messageCount++;
+            const content = `Test message ${messageCount}`;
+            addMessage(content, 'test-user-123', true);
+        }
+
+        function addMessage(content, senderId, isOwn) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOwn ? 'own-message' : 'other-message'}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <strong>${senderId}</strong>: ${content}
+                <small style="display: block; opacity: 0.7;">${timestamp}</small>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

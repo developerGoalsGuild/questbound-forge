@@ -1,0 +1,12 @@
+# Messaging Service Configuration
+# Copy this file to terraform.tfvars and update the values
+
+environment = "dev"
+aws_region  = "us-east-1"
+
+
+# Docker image configuration
+existing_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/goalsguild_messaging_service:v1"
+
+# JWT secret for authentication
+jwt_secret = "your-jwt-secret-here"

@@ -35,6 +35,17 @@ resource "aws_appsync_datasource" "ddb" {
   }
 }
 
+resource "aws_appsync_datasource" "guild_ddb" {
+  count           = var.guild_table_name != null ? 1 : 0
+  api_id          = aws_appsync_graphql_api.this.id
+  name            = "GuildDDB"
+  type            = "AMAZON_DYNAMODB"
+  service_role_arn = aws_iam_role.ds_guild_ddb_role[0].arn
+  dynamodb_config {
+    table_name = var.guild_table_name
+  }
+}
+
 resource "aws_iam_role" "ds_ddb_role" {
   name = "${var.name}-ds-ddb-role"
   assume_role_policy = jsonencode({
@@ -48,6 +59,24 @@ resource "aws_iam_role_policy" "ds_ddb_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{ Effect = "Allow", Action = ["dynamodb:PutItem","dynamodb:GetItem","dynamodb:Query","dynamodb:UpdateItem","dynamodb:TransactWriteItems"], Resource = [var.ddb_table_arn, "${var.ddb_table_arn}/index/*"] }]
+  })
+}
+
+resource "aws_iam_role" "ds_guild_ddb_role" {
+  count = var.guild_table_name != null ? 1 : 0
+  name = "${var.name}-ds-guild-ddb-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{ Effect = "Allow", Principal = { Service = "appsync.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy" "ds_guild_ddb_policy" {
+  count = var.guild_table_name != null ? 1 : 0
+  role = aws_iam_role.ds_guild_ddb_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{ Effect = "Allow", Action = ["dynamodb:PutItem","dynamodb:GetItem","dynamodb:Query","dynamodb:UpdateItem","dynamodb:TransactWriteItems"], Resource = [var.guild_table_arn, "${var.guild_table_arn}/index/*"] }]
   })
 }
 

@@ -10,6 +10,7 @@ export interface NavTranslations {
   signup: string;
   dashboard: string;
   goals: string;
+  chat: string;
   logout: string;
 }
 
@@ -24,6 +25,7 @@ export const navTranslations: Record<Language, NavTranslations> = {
     signup: 'Join Guild',
     dashboard: 'Dashboard',
     goals: 'Quests',
+    chat: 'Chat',
     logout: 'Sign Out',
   },
   es: {
@@ -36,6 +38,7 @@ export const navTranslations: Record<Language, NavTranslations> = {
     signup: 'Unirse al Gremio',
     dashboard: 'Panel',
     goals: 'Misiones',
+    chat: 'Chat',
     logout: 'Cerrar sesión',
   },
   fr: {
@@ -48,6 +51,7 @@ export const navTranslations: Record<Language, NavTranslations> = {
     signup: 'Rejoindre la Guilde',
     dashboard: 'Tableau de bord',
     goals: 'Quêtes',
+    chat: 'Chat',
     logout: 'Se déconnecter',
   },
 };

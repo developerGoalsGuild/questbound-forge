@@ -16,18 +16,37 @@ export function request(ctx) {
   const ts = util.time.nowEpochMilliSeconds();
   const id = util.autoId();
 
+  // Determine table and key pattern based on roomId
+  let tableName, pk, roomType;
+  
+  if (roomId.startsWith('GUILD#')) {
+    // Guild chat - use gg_guild table
+    tableName = 'gg_guild';
+    pk = roomId; // roomId is already in GUILD# format
+    roomType = 'guild';
+  } else {
+    // General room - use gg_core table
+    tableName = 'gg_core';
+    pk = 'ROOM#' + roomId;
+    roomType = 'general';
+  }
+
   const item = {
-    PK: 'ROOM#' + roomId,
+    PK: pk,
     SK: 'MSG#' + ts + '#' + id,
     type: 'Message',
     id: id,
     roomId: roomId,
     senderId: senderId,
     text: text,
-    ts: ts
+    ts: ts,
+    roomType: roomType
   };
 
-  return put({ item: item });
+  return put({ 
+    item: item,
+    table: tableName
+  });
 }
 
 export function response(ctx) {

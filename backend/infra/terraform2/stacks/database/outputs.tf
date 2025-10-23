@@ -27,3 +27,19 @@ output "guild_table_policy_arn" {
   description = "ARN of the guild table IAM policy"
   value       = aws_iam_policy.guild_table_policy.arn
 }
+
+# gg_core table outputs
+output "gg_core_table_name" {
+  description = "Name of the gg_core DynamoDB table"
+  value       = module.gg_core.table_name
+}
+
+output "gg_core_table_arn" {
+  description = "ARN of the gg_core DynamoDB table"
+  value       = module.gg_core.arn
+}
+
+output "gg_core_table_stream_arn" {
+  description = "ARN of the gg_core DynamoDB table stream"
+  value       = module.gg_core.stream_arn
+}

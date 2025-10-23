@@ -21,7 +21,8 @@ import {
   Mail,
   Users,
   Shield,
-  Trophy
+  Trophy,
+  MessageSquare
 } from 'lucide-react';
 import { UserMenuProps, MenuItem } from '@/models/header';
 import { getUserInitials, getUserDisplayName } from '@/lib/apiHeader';
@@ -78,6 +79,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
       label: headerTranslations?.userMenu?.myCollaborations || 'My Collaborations',
       icon: Users,
       path: '/my-collaborations',
+    },
+    {
+      id: 'chat',
+      label: headerTranslations?.userMenu?.chat || 'Chat',
+      icon: MessageSquare,
+      path: '/chat',
     },
     {
       id: 'guilds',

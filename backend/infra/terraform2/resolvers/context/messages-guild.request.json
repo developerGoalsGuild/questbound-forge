@@ -1,0 +1,16 @@
+{
+  "args": {
+    "roomId": "GUILD#guild-456",
+    "after": 1640995200000,
+    "limit": 10
+  },
+  "identity": {
+    "sub": "33333333-3333-4333-8333-333333333333",
+    "username": "guildmember",
+    "claims": {
+      "sub": "33333333-3333-4333-8333-333333333333"
+    },
+    "sourceIp": ["127.0.0.1"],
+    "groups": ["guild-456-members"]
+  }
+}

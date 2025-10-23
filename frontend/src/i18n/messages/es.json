@@ -1,0 +1,90 @@
+{
+  "messaging": {
+    "chat": {
+      "title": "Chat",
+      "noMessages": "Aún no hay mensajes",
+      "noMessagesDescription": "Inicia la conversación enviando un mensaje abajo.",
+      "loadingMessages": "Cargando mensajes...",
+      "loadMore": "Cargar más mensajes",
+      "scrollToBottom": "Ir al final"
+    },
+    "input": {
+      "placeholder": "Escribe un mensaje...",
+      "placeholderConnecting": "Conectando al chat...",
+      "placeholderError": "Error de conexión",
+      "sendMessage": "Enviar mensaje",
+      "sending": "Enviando...",
+      "attachFile": "Adjuntar archivo",
+      "addEmoji": "Agregar emoji",
+      "voiceMessage": "Mensaje de voz",
+      "stopRecording": "Detener grabación",
+      "helperText": "Presiona Enter para enviar, Shift+Enter para nueva línea",
+      "messageTooLong": "Mensaje muy largo",
+      "copyMessage": "Copiar mensaje",
+      "copied": "¡Copiado!",
+      "reply": "Responder",
+      "editMessage": "Editar mensaje",
+      "deleteMessage": "Eliminar mensaje"
+    },
+    "header": {
+      "connected": "Conectado",
+      "disconnected": "Desconectado",
+      "activeConnections": "Conexiones activas",
+      "retryConnection": "Reintentar conexión",
+      "viewMembers": "Ver miembros",
+      "roomSettings": "Configuración de sala",
+      "guild": "Gremio",
+      "general": "General"
+    },
+    "status": {
+      "connecting": "Conectando al chat...",
+      "connected": "Conectado al chat",
+      "disconnected": "Desconectado del chat. Intentando reconectar...",
+      "error": "Error de conexión. Por favor verifica tu red.",
+      "retry": "Reintentar",
+      "rateLimitExceeded": "Límite de velocidad excedido. Puedes enviar mensajes nuevamente en {seconds} segundos.",
+      "rateLimitWarning": "Estás enviando mensajes muy rápido. Por favor reduce la velocidad."
+    },
+    "typing": {
+      "isTyping": "{username} está escribiendo...",
+      "areTyping": "{username} y {count} otros están escribiendo...",
+      "twoTyping": "{username1} y {username2} están escribiendo..."
+    },
+    "errors": {
+      "connectionFailed": "Error al conectar con el servicio de mensajería",
+      "sendMessageFailed": "Error al enviar mensaje",
+      "loadMessagesFailed": "Error al cargar mensajes",
+      "rateLimitExceeded": "Límite de velocidad excedido. Por favor reduce la velocidad.",
+      "messageTooLong": "El mensaje es muy largo",
+      "invalidMessage": "Mensaje inválido",
+      "networkError": "Error de red. Por favor verifica tu conexión.",
+      "unauthorized": "No autorizado. Por favor inicia sesión nuevamente.",
+      "forbidden": "Acceso denegado. No tienes permiso para acceder a esta sala.",
+      "notFound": "Sala no encontrada",
+      "serverError": "Error del servidor. Por favor intenta más tarde."
+    },
+    "notifications": {
+      "messageReceived": "Nuevo mensaje de {username}",
+      "connectionRestored": "Conexión restaurada",
+      "connectionLost": "Conexión perdida",
+      "rateLimitHit": "Límite de velocidad alcanzado",
+      "messageSent": "Mensaje enviado",
+      "messageFailed": "Error al enviar mensaje"
+    },
+    "rooms": {
+      "general": "Sala General",
+      "guild": "Chat de Gremio",
+      "private": "Sala Privada",
+      "public": "Sala Pública"
+    },
+    "time": {
+      "justNow": "Ahora mismo",
+      "minutesAgo": "Hace {count} minutos",
+      "hoursAgo": "Hace {count} horas",
+      "daysAgo": "Hace {count} días",
+      "weeksAgo": "Hace {count} semanas",
+      "monthsAgo": "Hace {count} meses",
+      "yearsAgo": "Hace {count} años"
+    }
+  }
+}

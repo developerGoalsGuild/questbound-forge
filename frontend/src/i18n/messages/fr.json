@@ -1,0 +1,90 @@
+{
+  "messaging": {
+    "chat": {
+      "title": "Chat",
+      "noMessages": "Aucun message pour le moment",
+      "noMessagesDescription": "Commencez la conversation en envoyant un message ci-dessous.",
+      "loadingMessages": "Chargement des messages...",
+      "loadMore": "Charger plus de messages",
+      "scrollToBottom": "Aller en bas"
+    },
+    "input": {
+      "placeholder": "Tapez un message...",
+      "placeholderConnecting": "Connexion au chat...",
+      "placeholderError": "Erreur de connexion",
+      "sendMessage": "Envoyer le message",
+      "sending": "Envoi en cours...",
+      "attachFile": "Joindre un fichier",
+      "addEmoji": "Ajouter un emoji",
+      "voiceMessage": "Message vocal",
+      "stopRecording": "Arrêter l'enregistrement",
+      "helperText": "Appuyez sur Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne",
+      "messageTooLong": "Message trop long",
+      "copyMessage": "Copier le message",
+      "copied": "Copié !",
+      "reply": "Répondre",
+      "editMessage": "Modifier le message",
+      "deleteMessage": "Supprimer le message"
+    },
+    "header": {
+      "connected": "Connecté",
+      "disconnected": "Déconnecté",
+      "activeConnections": "Connexions actives",
+      "retryConnection": "Réessayer la connexion",
+      "viewMembers": "Voir les membres",
+      "roomSettings": "Paramètres de la salle",
+      "guild": "Guilde",
+      "general": "Général"
+    },
+    "status": {
+      "connecting": "Connexion au chat...",
+      "connected": "Connecté au chat",
+      "disconnected": "Déconnecté du chat. Tentative de reconnexion...",
+      "error": "Erreur de connexion. Veuillez vérifier votre réseau.",
+      "retry": "Réessayer",
+      "rateLimitExceeded": "Limite de débit dépassée. Vous pouvez envoyer des messages dans {seconds} secondes.",
+      "rateLimitWarning": "Vous envoyez des messages trop rapidement. Veuillez ralentir."
+    },
+    "typing": {
+      "isTyping": "{username} est en train d'écrire...",
+      "areTyping": "{username} et {count} autres sont en train d'écrire...",
+      "twoTyping": "{username1} et {username2} sont en train d'écrire..."
+    },
+    "errors": {
+      "connectionFailed": "Échec de la connexion au service de messagerie",
+      "sendMessageFailed": "Échec de l'envoi du message",
+      "loadMessagesFailed": "Échec du chargement des messages",
+      "rateLimitExceeded": "Limite de débit dépassée. Veuillez ralentir.",
+      "messageTooLong": "Le message est trop long",
+      "invalidMessage": "Message invalide",
+      "networkError": "Erreur réseau. Veuillez vérifier votre connexion.",
+      "unauthorized": "Non autorisé. Veuillez vous reconnecter.",
+      "forbidden": "Accès refusé. Vous n'avez pas la permission d'accéder à cette salle.",
+      "notFound": "Salle introuvable",
+      "serverError": "Erreur du serveur. Veuillez réessayer plus tard."
+    },
+    "notifications": {
+      "messageReceived": "Nouveau message de {username}",
+      "connectionRestored": "Connexion restaurée",
+      "connectionLost": "Connexion perdue",
+      "rateLimitHit": "Limite de débit atteinte",
+      "messageSent": "Message envoyé",
+      "messageFailed": "Échec de l'envoi du message"
+    },
+    "rooms": {
+      "general": "Salle Générale",
+      "guild": "Chat de Guilde",
+      "private": "Salle Privée",
+      "public": "Salle Publique"
+    },
+    "time": {
+      "justNow": "À l'instant",
+      "minutesAgo": "Il y a {count} minutes",
+      "hoursAgo": "Il y a {count} heures",
+      "daysAgo": "Il y a {count} jours",
+      "weeksAgo": "Il y a {count} semaines",
+      "monthsAgo": "Il y a {count} mois",
+      "yearsAgo": "Il y a {count} années"
+    }
+  }
+}

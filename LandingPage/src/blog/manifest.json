@@ -1,0 +1,49 @@
+{
+  "articles": [
+    {
+      "id": "2025-10-23-welcome-to-goalsguild",
+      "title": "Welcome to GoalsGuild: Transform Your Goals into Achievements",
+      "excerpt": "We're excited to announce the launch of GoalsGuild, a revolutionary platform that combines intelligent collaboration, gamification, and AI-powered guidance to help you achieve your goals.",
+      "date": "2025-10-23",
+      "category": "feature-announcement",
+      "categoryLabel": "Feature Announcement",
+      "url": "blog/articles/2025-10-23-welcome-to-goalsguild.html"
+    },
+    {
+      "id": "2025-10-20-smart-goal-management",
+      "title": "Introducing Smart Goal Management with AI Guidance",
+      "excerpt": "Learn how our AI-powered goal creation system uses NLP questions to help you define clear, actionable objectives and break them into manageable tasks.",
+      "date": "2025-10-20",
+      "category": "feature-announcement",
+      "categoryLabel": "Feature Announcement",
+      "url": "blog/articles/2025-10-20-smart-goal-management.html"
+    },
+    {
+      "id": "2025-10-15-gamification-engine",
+      "title": "Level Up Your Goals: The GoalsGuild Gamification System",
+      "excerpt": "Discover how our gamification engine keeps you motivated with XP, levels, badges, and challenges. Stay engaged and celebrate every milestone on your journey to success.",
+      "date": "2025-10-15",
+      "category": "guide",
+      "categoryLabel": "Guides & Tips",
+      "url": "blog/articles/2025-10-15-gamification-engine.html"
+    },
+    {
+      "id": "2025-10-10-intelligent-matching",
+      "title": "Find Your Perfect Collaboration Partner",
+      "excerpt": "Our intelligent matching algorithm connects you with users who have complementary goals and skills. Learn how AI helps you build the perfect support network.",
+      "date": "2025-10-10",
+      "category": "feature-announcement",
+      "categoryLabel": "Feature Announcement",
+      "url": "blog/articles/2025-10-10-intelligent-matching.html"
+    },
+    {
+      "id": "2025-10-05-success-story-sarah",
+      "title": "Success Story: How Sarah Achieved Her Fitness Goals",
+      "excerpt": "Meet Sarah, who used GoalsGuild to connect with a fitness partner and lose 30 pounds in 6 months. Read her inspiring journey and tips for success.",
+      "date": "2025-10-05",
+      "category": "success-story",
+      "categoryLabel": "Success Stories",
+      "url": "blog/articles/2025-10-05-success-story-sarah.html"
+    }
+  ]
+}
