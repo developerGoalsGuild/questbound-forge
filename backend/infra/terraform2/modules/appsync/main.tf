@@ -8,7 +8,7 @@ resource "aws_appsync_graphql_api" "this" {
     content {
       authorizer_uri                   = var.lambda_authorizer_arn
       authorizer_result_ttl_in_seconds = 300
-      identity_validation_expression   = "^(Bearer\\s+)?[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+$"
+      identity_validation_expression   = ".*"
     }
   }
 

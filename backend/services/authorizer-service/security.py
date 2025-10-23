@@ -58,6 +58,14 @@ def verify_local_jwt(token: str) -> dict:
   Raises jwt.PyJWTError on failure.
   Returns the decoded payload dictionary on success.
   """
+  import logging
+  logger = logging.getLogger("security")
+  
+  logger.debug(f"JWT verification attempt - Token length: {len(token)}")
+  logger.debug(f"JWT verification attempt - Expected audience: {JWT_AUDIENCE}")
+  logger.debug(f"JWT verification attempt - Expected issuer: {JWT_ISSUER}")
+  logger.debug(f"JWT verification attempt - Expected algorithm: {JWT_ALGORITHM}")
+  
   options = {
     "require_sub": True,
     "require_iat": True,
@@ -65,12 +73,19 @@ def verify_local_jwt(token: str) -> dict:
     "require_aud": True,
     "require_iss": True,
   }
-  payload = jwt.decode(
-    token,
-    JWT_SECRET,
-    algorithms=[JWT_ALGORITHM],
-    options=options,
-    audience=JWT_AUDIENCE,
-    issuer=JWT_ISSUER,
-  )
-  return payload
+  
+  try:
+    payload = jwt.decode(
+      token,
+      JWT_SECRET,
+      algorithms=[JWT_ALGORITHM],
+      options=options,
+      audience=JWT_AUDIENCE,
+      issuer=JWT_ISSUER,
+    )
+    logger.debug(f"JWT verification successful - Payload keys: {list(payload.keys())}")
+    return payload
+  except Exception as e:
+    logger.error(f"JWT verification failed - Error: {str(e)}")
+    logger.error(f"JWT verification failed - Token prefix: {token[:50]}...")
+    raise

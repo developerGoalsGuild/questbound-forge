@@ -21,8 +21,8 @@ def _to_bool(v: str | None, default=False) -> bool:
     return v.strip().lower() in ("1", "true", "yes", "on")
 
 
-AUTH_LOG_ENABLED = _to_bool(os.getenv("AUTH_LOG_ENABLED"), False)
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+AUTH_LOG_ENABLED = _to_bool(os.getenv("AUTH_LOG_ENABLED"), True)  # Enable logging by default
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()  # Use DEBUG level for more details
 ENABLE_LOCAL_JWT = _to_bool(os.getenv("ENABLE_LOCAL_JWT"), True)
 
 logger = logging.getLogger("authorizer")
@@ -59,25 +59,29 @@ def _dbg(event_name: str, **fields: Any) -> None:
 
 
 def _extract_token(event: dict) -> str:
+    _dbg("extract_token_start", event_keys=list(event.keys()))
+    
     # REST TOKEN authorizer
     if "authorizationToken" in event:
         raw = event["authorizationToken"]
         parts = raw.split()
         token = parts[-1] if parts else raw
-        _dbg("token_extracted", source="TOKEN", token=token)
+        _dbg("token_extracted", source="TOKEN", token=token, raw_length=len(raw), parts_count=len(parts))
         return token
 
     # HTTP API (REQUEST/Lambda authorizer v2)
     headers = event.get("headers") or {}
+    _dbg("extract_token_headers", header_keys=list(headers.keys()))
+    
     for k in ("authorization", "Authorization"):
         if k in headers and headers[k]:
             raw = headers[k]
             parts = raw.split()
             token = parts[-1] if parts else raw
-            _dbg("token_extracted", source="HEADER", header_key=k, token=token)
+            _dbg("token_extracted", source="HEADER", header_key=k, token=token, raw_length=len(raw), parts_count=len(parts))
             return token
 
-    _dbg("token_missing")
+    _dbg("token_missing", available_keys=list(event.keys()), headers_available=bool(headers))
     raise Unauthorized("No token provided")
 
 
@@ -168,11 +172,12 @@ def handler(event, context):
         # 1) Optional local HS256
         if ENABLE_LOCAL_JWT:
             try:
+                _dbg("local_verify_attempt", token_length=len(token), token_prefix=token[:20] + "..." if len(token) > 20 else token)
                 claims = verify_local_jwt(token)
                 provider = "local"
-                _dbg("local_verify_ok", sub=claims.get("sub"), scope=claims.get("scope"))
+                _dbg("local_verify_ok", sub=claims.get("sub"), scope=claims.get("scope"), claims_keys=list(claims.keys()))
             except Exception as e_local:
-                _dbg("local_verify_failed", error_type=type(e_local).__name__, error=str(e_local), token=token)
+                _dbg("local_verify_failed", error_type=type(e_local).__name__, error=str(e_local), token_length=len(token), token_prefix=token[:20] + "..." if len(token) > 20 else token)
                 
                 # Development escape hatch: handle alg: 'none' tokens for dev mode
                 try:
@@ -205,6 +210,7 @@ def handler(event, context):
         # 2) Cognito RS256
         if claims is None:
             try:
+                _dbg("cognito_verify_attempt", token_length=len(token), token_prefix=token[:20] + "..." if len(token) > 20 else token)
                 claims = verify_cognito_jwt(token)
                 provider = "cognito"
                 _dbg(
@@ -212,9 +218,10 @@ def handler(event, context):
                     sub=claims.get("sub"),
                     token_use=claims.get("token_use"),
                     scope=claims.get("scope"),
+                    claims_keys=list(claims.keys())
                 )
             except Exception as e_cog:
-                _dbg("cognito_verify_failed", error_type=type(e_cog).__name__, error=str(e_cog), token=token)
+                _dbg("cognito_verify_failed", error_type=type(e_cog).__name__, error=str(e_cog), token_length=len(token), token_prefix=token[:20] + "..." if len(token) > 20 else token)
                 if is_httpapi:
                     _dbg("auth_deny_httpapi", reason="verify_failed", **req_meta)
                     return _httpapi_simple_response(False, {"error": "Unauthorized"})
@@ -230,6 +237,8 @@ def handler(event, context):
             "email": claims.get("email", ""),
             "scope": claims.get("scope", ""),
         }
+
+        _dbg("auth_success", principal=principal, provider=provider, context=ctx, **req_meta)
 
         # HTTP API v2 simple response
         if is_httpapi:
