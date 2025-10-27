@@ -4,7 +4,7 @@ import { put } from '@aws-appsync/utils/dynamodb';
 
 export function request(ctx) {
   const identity = ctx.identity || {};
-  const senderId = identity.sub;
+  const senderId = identity.sub || (identity.resolverContext && identity.resolverContext.sub);
   if (!senderId) util.unauthorized();
 
   const args = ctx.args || {};
@@ -27,7 +27,8 @@ export function request(ctx) {
   } else {
     // General room - use gg_core table
     tableName = 'gg_core';
-    pk = 'ROOM#' + roomId;
+    // Use roomId as-is to match messaging service storage pattern
+    pk = roomId;
     roomType = 'general';
   }
 
@@ -45,7 +46,7 @@ export function request(ctx) {
 
   return put({ 
     item: item,
-    table: tableName
+    tableName: tableName
   });
 }
 

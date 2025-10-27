@@ -14,13 +14,13 @@ output "lambda_function_arn" {
 }
 
 output "function_url" {
-  description = "Function URL for the messaging service"
-  value       = length(module.messaging_lambda) > 0 ? module.messaging_lambda[0].lambda_function_url : "No Lambda function created (no image URI provided)"
+  description = "Function URL for the messaging service (disabled - using API Gateway)"
+  value       = "Disabled - Use API Gateway endpoints instead"
 }
 
 output "websocket_url" {
-  description = "WebSocket URL for the messaging service"
-  value       = length(module.messaging_lambda) > 0 ? "${module.messaging_lambda[0].lambda_function_url}/ws" : "No Lambda function created (no image URI provided)"
+  description = "WebSocket URL for the messaging service (disabled - using API Gateway)"
+  value       = "Disabled - Use API Gateway WebSocket endpoints instead"
 }
 
 output "cloudwatch_log_group" {
@@ -28,7 +28,7 @@ output "cloudwatch_log_group" {
   value       = length(aws_cloudwatch_log_group.messaging_service) > 0 ? aws_cloudwatch_log_group.messaging_service[0].name : "No log group created (no Lambda function)"
 }
 
-output "jwt_secret_arn" {
-  description = "ARN of the JWT secret in Secrets Manager"
-  value       = aws_secretsmanager_secret.jwt_secret.arn
+output "jwt_secret_parameter_name" {
+  description = "Name of the JWT secret parameter in SSM Parameter Store"
+  value       = data.aws_ssm_parameter.jwt_secret.name
 }

@@ -37,7 +37,33 @@ output "cloudfront_hosted_zone_id" {
 
 output "website_url" {
   description = "URL of the website"
-  value       = "https://${aws_cloudfront_distribution.landing_page.domain_name}"
+  value       = var.custom_domain != "" ? "https://${var.custom_domain}" : "https://${aws_cloudfront_distribution.landing_page.domain_name}"
+}
+
+output "ssl_certificate_arn" {
+  description = "ARN of the SSL certificate"
+  value       = var.custom_domain != "" ? (var.ssl_certificate_arn != "" ? var.ssl_certificate_arn : aws_acm_certificate.landing_page[0].arn) : null
+}
+
+output "ssl_certificate_status" {
+  description = "Status of the SSL certificate"
+  value       = var.custom_domain != "" ? (var.ssl_certificate_arn != "" ? "External" : aws_acm_certificate.landing_page[0].status) : null
+}
+
+output "dns_validation_records" {
+  description = "DNS validation records for the certificate"
+  value       = var.custom_domain != "" && !var.use_route53 ? [
+    for dvo in aws_acm_certificate.landing_page[0].domain_validation_options : {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  ] : null
+}
+
+output "route53_records_created" {
+  description = "Whether Route53 records were automatically created"
+  value       = var.custom_domain != "" && var.use_route53
 }
 
 output "s3_website_url" {

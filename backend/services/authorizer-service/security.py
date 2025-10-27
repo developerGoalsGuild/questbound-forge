@@ -4,7 +4,6 @@ from typing import Optional
 
 import jwt
 from jwt import PyJWTError
-from passlib.context import CryptContext
 from ssm import settings
 
 
@@ -15,22 +14,6 @@ JWT_AUDIENCE = settings.jwt_audience
 JWT_ISSUER = settings.jwt_issuer
 
 JWT_EXP_DELTA_SECONDS = 3600  # 1 hour token expiration
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def hash_password(password: str) -> str:
-  """
-  Hash a plaintext password using bcrypt.
-  """
-  return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-  """
-  Verify a plaintext password against the hashed password.
-  """
-  return pwd_context.verify(plain_password, hashed_password)
 
 
 def issue_local_jwt(subject: str, additional_claims: Optional[dict] = None) -> str:

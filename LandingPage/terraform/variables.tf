@@ -27,8 +27,26 @@ variable "custom_domain" {
   default     = ""
 }
 
+variable "additional_domains" {
+  description = "Additional domains to include in the SSL certificate (SANs)"
+  type        = list(string)
+  default     = []
+}
+
 variable "ssl_certificate_arn" {
-  description = "ARN of SSL certificate for custom domain (required if custom_domain is set)"
+  description = "ARN of SSL certificate for custom domain (optional - will create ACM certificate if not provided)"
+  type        = string
+  default     = ""
+}
+
+variable "use_route53" {
+  description = "Whether to use Route53 for DNS management and automatic certificate validation"
+  type        = bool
+  default     = false
+}
+
+variable "route53_zone_name" {
+  description = "Route53 hosted zone name (e.g., example.com)"
   type        = string
   default     = ""
 }

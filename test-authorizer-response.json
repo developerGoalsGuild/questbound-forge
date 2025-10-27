@@ -1,0 +1,1 @@
+{"isAuthorized": true, "resolverContext": {"provider": "local", "sub": "b8e53ac4-1649-4ce9-8725-a0e5e56d8527", "email": "andres_alvar@hotmail.com", "scope": "user:read"}, "deniedFields": ["Mutation.*"], "ttlOverride": 300}

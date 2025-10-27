@@ -15,11 +15,6 @@ variable "existing_image_uri" {
   default     = ""
 }
 
-variable "jwt_secret" {
-  description = "JWT secret for authentication"
-  type        = string
-  sensitive   = true
-}
 
 # Additional variables from dev.tfvars to suppress warnings
 variable "core_table_name" {

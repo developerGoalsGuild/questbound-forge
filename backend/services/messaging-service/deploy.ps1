@@ -63,7 +63,7 @@ if ($Deploy) {
     echo $ECRLogin | docker login --username AWS --password-stdin $ECRRegistry
     
     # Tag and push image
-    $ImageURI = "$ECRRegistry/$ECRRepository:$ImageTag"
+    $ImageURI = "${ECRRegistry}/${ECRRepository}:${ImageTag}"
     docker tag $ServiceName $ImageURI
     docker push $ImageURI
     
@@ -87,5 +87,5 @@ if ($Build) {
 }
 
 if ($Deploy) {
-    Write-Host "📋 ECR Image: $ECRRegistry/$ECRRepository:$ImageTag" -ForegroundColor Cyan
+    Write-Host "ECR Image: ${ECRRegistry}/${ECRRepository}:${ImageTag}" -ForegroundColor Cyan
 }

@@ -109,3 +109,5 @@ backend/services/quest-service/tests/__pycache__/test_profile.cpython-313-pytest
 frontend/package-lock.json
 frontend/.env.development
 frontend/.env.development
+backend/services/authorizer-service/build/*
+*.zip

@@ -85,18 +85,11 @@ module "messaging_lambda" {
     ENVIRONMENT         = var.environment
     DYNAMODB_TABLE_NAME = local.gg_core_table_name
     GUILD_TABLE_NAME   = local.guild_table_name
+    JWT_SECRET_PARAMETER_NAME = "/goalsguild/user-service/JWT_SECRET"
   }
   
-  # Enable function URL for WebSocket connections
-  enable_function_url     = true
-  function_url_auth_type  = "NONE"  # WebSocket connections need open access
-  function_url_cors = {
-    allow_credentials = false
-    allow_headers     = ["content-type", "authorization", "sec-websocket-key", "sec-websocket-version", "sec-websocket-protocol"]
-    allow_methods     = ["*"]
-    allow_origins     = ["*"]
-    max_age          = 86400
-  }
+  # Disable function URL - will use API Gateway instead
+  enable_function_url     = false
 }
 
 # CloudWatch Log Group (only create if Lambda function exists)
@@ -113,24 +106,9 @@ resource "aws_cloudwatch_log_group" "messaging_service" {
   }
 }
 
-# JWT Secret in Secrets Manager
-resource "aws_secretsmanager_secret" "jwt_secret" {
-  name                    = "goalsguild-${var.environment}-messaging-service-jwt-secret"
-  description             = "JWT secret for messaging service authentication"
-  recovery_window_in_days = 7
-
-  tags = {
-    Project     = "goalsguild"
-    Environment = var.environment
-    Component   = "messaging-service"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "jwt_secret" {
-  secret_id = aws_secretsmanager_secret.jwt_secret.id
-  secret_string = jsonencode({
-    jwt_secret = var.jwt_secret
-  })
+# JWT Secret from SSM Parameter Store (use existing parameter)
+data "aws_ssm_parameter" "jwt_secret" {
+  name = "/goalsguild/user-service/JWT_SECRET"
 }
 
 # IAM Policy for DynamoDB access
@@ -175,10 +153,10 @@ resource "aws_iam_role_policy_attachment" "messaging_service_dynamodb_policy" {
   policy_arn = aws_iam_policy.messaging_service_dynamodb_policy.arn
 }
 
-# IAM Policy for Secrets Manager access
-resource "aws_iam_policy" "messaging_service_secrets_policy" {
-  name        = "goalsguild-${var.environment}-messaging-service-secrets-policy"
-  description = "Policy for messaging service to access Secrets Manager"
+# IAM Policy for SSM Parameter Store access
+resource "aws_iam_policy" "messaging_service_ssm_policy" {
+  name        = "goalsguild-${var.environment}-messaging-service-ssm-policy"
+  description = "Policy for messaging service to access SSM Parameter Store"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -186,10 +164,11 @@ resource "aws_iam_policy" "messaging_service_secrets_policy" {
       {
         Effect = "Allow"
         Action = [
-          "secretsmanager:GetSecretValue"
+          "ssm:GetParameter",
+          "ssm:GetParameters"
         ]
         Resource = [
-          aws_secretsmanager_secret.jwt_secret.arn
+          data.aws_ssm_parameter.jwt_secret.arn
         ]
       }
     ]
@@ -202,10 +181,17 @@ resource "aws_iam_policy" "messaging_service_secrets_policy" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "messaging_service_secrets_policy" {
+resource "aws_iam_role_policy_attachment" "messaging_service_ssm_policy" {
   role       = local.lambda_exec_role_name
-  policy_arn = aws_iam_policy.messaging_service_secrets_policy.arn
+  policy_arn = aws_iam_policy.messaging_service_ssm_policy.arn
 }
+
+
+
+
+
+
+
 
 
 

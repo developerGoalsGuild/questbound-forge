@@ -1,10 +1,9 @@
 // resolvers/messages.js
 import { util } from '@aws-appsync/utils';
-import { query } from '@aws-appsync/utils/dynamodb';
 
 export function request(ctx) {
   const identity = ctx.identity || {};
-  const userId = identity.sub;
+  const userId = identity.sub || (identity.resolverContext && identity.resolverContext.sub);
   if (!userId) util.unauthorized();
 
   const args = ctx.args || {};
@@ -16,39 +15,40 @@ export function request(ctx) {
 
   // Determine table and key pattern based on roomId
   let tableName, pk;
-  
   if (roomId.startsWith('GUILD#')) {
-    // Guild chat - use gg_guild table
     tableName = 'gg_guild';
-    pk = roomId; // roomId is already in GUILD# format
+    pk = roomId; // Guild rooms use gg_guild table
   } else {
-    // General room - use gg_core table
     tableName = 'gg_core';
-    pk = 'ROOM#' + roomId;
+    // For general rooms, use roomId as-is (don't add ROOM# prefix)
+    // The messaging service stores with room_id as-is
+    pk = roomId;
   }
 
-  // Build query parameters
-  const queryParams = {
-    table: tableName,
-    key: {
-      PK: pk,
-      SK: { begins_with: 'MSG#' }
+  const exprNames = { '#pk': 'PK', '#sk': 'SK' };
+  const exprValues = util.dynamodb.toMapValues({ ':pk': pk, ':sk': 'MSG#' });
+
+  const req = {
+    operation: 'Query',
+    query: {
+      expression: '#pk = :pk AND begins_with(#sk, :sk)',
+      expressionNames: exprNames,
+      expressionValues: exprValues,
     },
-    limit: limit,
-    scanIndexForward: false // Sort by timestamp descending (newest first)
+    scanIndexForward: false,
+    limit,
   };
 
-  // Add filter for 'after' timestamp if provided
+  // Note: AppSync JS runtime uses top-level 'nextToken' handling automatically;
+  // for 'after' we keep it simple with a filter; if you need key condition, restructure SK to include ts
   if (after) {
-    queryParams.filter = {
+    req.filter = {
       expression: 'ts > :after',
-      expressionValues: {
-        ':after': after
-      }
+      expressionValues: util.dynamodb.toMapValues({ ':after': after }),
     };
   }
 
-  return query(queryParams);
+  return req;
 }
 
 export function response(ctx) {

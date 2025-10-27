@@ -12,7 +12,7 @@ The messaging service is a FastAPI-based WebSocket service that provides real-ti
 - **Application Load Balancer**: HTTP/WebSocket load balancing
 - **DynamoDB**: Message storage (gg_core and guild tables)
 - **CloudWatch**: Logging and monitoring
-- **Secrets Manager**: JWT secret storage
+- **SSM Parameter Store**: JWT secret storage
 - **ECR**: Docker image repository
 
 ## Prerequisites
@@ -71,7 +71,7 @@ The messaging service is a FastAPI-based WebSocket service that provides real-ti
 - `vpc_cidr`: VPC CIDR block
 - `public_subnet_ids`: Public subnet IDs for ALB
 - `private_subnet_ids`: Private subnet IDs for ECS service
-- `jwt_secret`: JWT secret for authentication
+- `jwt_secret`: JWT secret for authentication (now retrieved from SSM Parameter Store at `/goalsguild/user-service/JWT_SECRET`)
 
 ### Optional Variables
 

@@ -26,9 +26,6 @@ quest_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:funct
 # Security stack: reuse existing Lambda exec role in dev
 existing_lambda_exec_role_name = "goalsguild_lambda_exec_role_dev"
 
-# JWT secret for user authentication
-jwt_secret = "test-secret-key-for-development-only"
-
 # Email token secret for email verification
 email_token_secret = "email-verification-secret-key-dev"
 

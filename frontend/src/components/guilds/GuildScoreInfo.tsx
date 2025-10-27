@@ -209,3 +209,5 @@ export const GuildScoreInfo: React.FC<GuildScoreInfoProps> = ({
 export default GuildScoreInfo;
 
 
+
+
