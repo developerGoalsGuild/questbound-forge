@@ -1,0 +1,7 @@
+{
+  "KeyConditionExpression": "PK = :pk AND begins_with(SK, :sk)",
+  "ExpressionAttributeValues": {
+    ":pk": {"S": "ROOM-general"},
+    ":sk": {"S": "MSG#"}
+  }
+}

@@ -12,9 +12,9 @@ const endpoint = envEndpoint && envEndpoint.trim()
       ? inferredBrowserEndpoint()
       : 'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql');
 
-// If an API key is provided via env, prefer apiKey auth by default in dev.
+// Use Lambda authorizer by default. API key is only for public queries like isEmailAvailable/isNicknameAvailable
 const apiKey = (import.meta.env.VITE_APPSYNC_API_KEY as string | undefined) || '';
-const defaultAuthMode = apiKey ? 'apiKey' : 'lambda';
+const defaultAuthMode = 'lambda'; // Always use Lambda authorizer, API key auth is used selectively
 
 const awsConfig = {
   API: {

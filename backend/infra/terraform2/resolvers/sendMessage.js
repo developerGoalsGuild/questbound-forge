@@ -44,7 +44,11 @@ export function request(ctx) {
     roomType: roomType
   };
 
-  return put({ 
+  return put({
+    key: {
+      PK: pk,
+      SK: `MSG#${ts}#${id}`
+    },
     item: item,
     tableName: tableName
   });
