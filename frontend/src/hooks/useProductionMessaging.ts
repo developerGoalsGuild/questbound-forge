@@ -75,7 +75,21 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   });
 
   // Configure AppSync client with proper authentication
-  const client = generateClient();
+  const client = generateClient({
+    authMode: 'lambda',
+    authToken: () => {
+      const authData = localStorage.getItem('auth');
+      if (authData) {
+        try {
+          const auth = JSON.parse(authData);
+          return auth.access_token;
+        } catch (error) {
+          console.error('Error parsing auth data:', error);
+        }
+      }
+      return null;
+    }
+  });
   
   const subscriptionRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -161,6 +175,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
 
     } catch (error) {
       console.error('Failed to load messages:', error);
+      console.error('Error details:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
