@@ -75,23 +75,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   });
 
   // Configure AppSync client with proper authentication
-  const client = generateClient({
-    authMode: 'lambda',
-    authToken: () => {
-      const authData = localStorage.getItem('auth');
-      if (authData) {
-        try {
-          const auth = JSON.parse(authData);
-          console.log('Using auth token for mutation:', auth.access_token);
-          return auth.access_token;
-        } catch (error) {
-          console.error('Error parsing auth data:', error);
-        }
-      }
-      console.log('No auth token found for mutation');
-      return null;
-    }
-  });
+  const client = generateClient();
   
   const subscriptionRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -189,47 +173,15 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   const sendMessage = useCallback(async (content: string, messageType: string = 'text'): Promise<MessageSendResult> => {
     try {
       console.log('Sending message via AppSync:', { roomId, content, messageType });
-      console.log('GraphQL mutation:', SEND_MESSAGE_MUTATION);
       
-      // Get auth token
-      const authData = localStorage.getItem('auth');
-      let authToken = null;
-      if (authData) {
-        try {
-          const auth = JSON.parse(authData);
-          authToken = auth.access_token;
-          console.log('Using auth token for mutation:', authToken);
-        } catch (error) {
-          console.error('Error parsing auth data:', error);
+      const result = await client.graphql({
+        query: SEND_MESSAGE_MUTATION,
+        variables: {
+          roomId,
+          text: content
         }
-      }
-      
-      if (!authToken) {
-        console.log('No auth token found for mutation');
-        throw new Error('No authentication token available');
-      }
-      
-      // Use fetch API directly to send the mutation
-      const response = await fetch('https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          query: SEND_MESSAGE_MUTATION,
-          variables: {
-            roomId,
-            text: content
-          }
-        })
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
       console.log('GraphQL result:', result);
 
       const message = result.data?.sendMessage;
@@ -345,6 +297,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     loadMessages: async (filters?: MessageFilters) => {
       await loadMessages(filters?.limit || 50, filters?.after?.toString());
     },
+    loadMoreMessages, // Add missing export
     connect: async (roomId: string) => {
       await connect();
     },
