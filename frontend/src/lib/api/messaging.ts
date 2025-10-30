@@ -4,6 +4,7 @@
  */
 
 import { Message, MessageFilters, PaginationInfo, RoomInfo, ConnectionStats, RateLimitInfo } from '../../types/messaging';
+import { getApiBase } from '@/lib/utils';
 
 // GraphQL queries and mutations
 export const MESSAGING_QUERIES = {
@@ -46,14 +47,27 @@ export const MESSAGING_QUERIES = {
 
 // REST API endpoints
 const MESSAGING_SERVICE_URL = import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8000';
-const API_GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || 'https://api.goalsguild.com';
+const API_GATEWAY_URL = import.meta.env.DEV
+  ? getApiBase() // dev proxy to avoid CORS
+  : (import.meta.env.VITE_API_GATEWAY_URL || 'https://api.goalsguild.com');
 const API_GATEWAY_KEY = import.meta.env.VITE_API_GATEWAY_KEY || '';
 
 /**
  * Get authentication headers for API requests
  */
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('authToken');
+  // Prefer token from localStorage.auth
+  let token: string | null = null;
+  try {
+    const raw = localStorage.getItem('auth');
+    if (raw) {
+      const auth = JSON.parse(raw);
+      token = auth?.access_token || auth?.id_token || null;
+    }
+  } catch {}
+  if (!token) {
+    token = localStorage.getItem('authToken');
+  }
   return {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
@@ -181,20 +195,80 @@ export async function sendMessage(roomId: string, text: string): Promise<Message
  * Get room information
  */
 export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
+  // Prefer API Gateway (CORS-enabled) endpoints
+  // Try /messaging/rooms/{roomId} first, then fallback to /rooms/{roomId}/connections
+  const tryEndpoints = [
+    `${API_GATEWAY_URL}/messaging/rooms/${roomId}`,
+    `${API_GATEWAY_URL}/messaging/rooms/${roomId}/connections`,
+  ];
+  let lastError: any = null;
+  for (const url of tryEndpoints) {
+    try {
+      const response = await fetch(url, { method: 'GET', headers: getAuthHeaders() });
+      if (response.ok) {
+        return await response.json();
+      }
+      lastError = new Error(`Failed to get room info from ${url}: ${response.status} ${response.statusText}`);
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  console.error('Error getting room info:', lastError);
+  throw lastError || new Error('Failed to get room info');
+}
+
+/**
+ * List available chat rooms from the messaging service
+ */
+export async function listRooms(): Promise<Array<{ id: string; name: string; type: 'general' | 'guild'; description?: string; memberCount?: number; isActive?: boolean }>> {
   try {
-    const response = await fetch(`${MESSAGING_SERVICE_URL}/rooms/${roomId}/connections`, {
+    // Call via API Gateway to avoid Lambda Function URL CORS
+    const response = await fetch(`${API_GATEWAY_URL}/messaging/rooms`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
-
     if (!response.ok) {
-      throw new Error(`Failed to get room info: ${response.statusText}`);
+      const body = await response.json().catch(() => ({} as any));
+      const msg = body?.detail || response.statusText || 'Failed to list rooms';
+      throw new Error(msg);
     }
+    const data = await response.json();
+    return (data?.rooms || []) as Array<{ id: string; name: string; type: 'general' | 'guild'; description?: string; memberCount?: number; isActive?: boolean }>;
+  } catch (e) {
+    console.error('Error listing rooms:', e);
+    return [];
+  }
+}
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error getting room info:', error);
-    throw error;
+/**
+ * Join a room (HTTP presence)
+ */
+export async function joinRoom(roomId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${roomId}/join`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    return res.ok;
+  } catch (e) {
+    console.error('joinRoom failed', e);
+    return false;
+  }
+}
+
+/**
+ * Leave a room (HTTP presence)
+ */
+export async function leaveRoom(roomId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${roomId}/leave`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    return res.ok;
+  } catch (e) {
+    console.error('leaveRoom failed', e);
+    return false;
   }
 }
 

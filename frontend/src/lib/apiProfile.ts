@@ -1,5 +1,5 @@
 import { authFetch, isNicknameAvailableForUser, updateUserProfile, type UserProfile, type ProfileUpdateInput, graphqlRaw } from '@/lib/api';
-import { MY_PROFILE } from '@/graphql/queries';
+import { MY_PROFILE, GET_USER } from '@/graphql/queries';
 import { type Language } from '@/i18n/translations';
 import { getCountries as i18nGetCountries } from '@/i18n/countries';
 import { logger } from './logger';
@@ -82,6 +82,12 @@ export async function validateProfileField(field: string, value: unknown, curren
     return checkNicknameAvailability(value, currentProfile?.nickname);
   }
   return true;
+}
+
+// Lightweight fetch for displaying other users' nicknames in chat
+export async function getUserById(userId: string): Promise<{ id: string; nickname?: string; fullName?: string }> {
+  const data = await graphqlRaw<{ user: { id: string; nickname?: string; fullName?: string } }>(GET_USER, { userId }, { quiet: true });
+  return data.user;
 }
 
 

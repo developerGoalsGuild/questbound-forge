@@ -58,3 +58,8 @@ variable "existing_lambda_exec_role_name" {
   type    = string
   default = ""
 }
+
+variable "lambda_subscription_auth_arn_override" {
+  type    = string
+  default = ""
+}

@@ -33,7 +33,7 @@ def _fetch_jwks() -> Dict[str, Any]:
     return _jwks
 
 
-def verify_cognito_jwt(token: str) -> dict:
+def verify_cognito_jwt(token: str, *_ignored_args, **_ignored_kwargs) -> dict:
     header = jwt.get_unverified_header(token)
     kid = header.get("kid")
     jwks = _fetch_jwks()

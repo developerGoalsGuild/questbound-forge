@@ -39,6 +39,11 @@ class TokenResponse(BaseModel):
   refresh_token: Optional[str] = None
 
 
+class TokenRenewRequest(BaseModel):
+  access_token: Optional[str] = None
+  refresh_token: Optional[str] = None
+
+
 class PublicUser(BaseModel):
   user_id: str
   email: EmailStr
@@ -105,3 +110,14 @@ class ProfileUpdate(BaseModel):
   bio: Optional[str] = None
   tags: Optional[list[str]] = None
   notificationPreferences: Optional[dict] = None
+
+
+class AppSyncKeyResponse(BaseModel):
+  apiKey: str
+  issuedAt: str
+  expiresAt: str
+
+
+class AvailabilityKeyResponse(BaseModel):
+  apiKey: str
+  expiresAt: str

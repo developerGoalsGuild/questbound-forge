@@ -203,6 +203,7 @@ type Message @aws_lambda {
   id: ID!
   roomId: ID!
   senderId: ID!
+  senderNickname: String
   text: String!
   ts: AWSTimestamp!
 }
@@ -267,7 +268,7 @@ type Mutation {
   """
   Post a message to a chat room.
   """
-  sendMessage(roomId: ID!, text: String!): Message! @aws_lambda
+  sendMessage(roomId: ID!, text: String!, senderNickname: String): Message! @aws_lambda
   
   """
   Non-public mutation to create a new task associated with a goal.
@@ -284,7 +285,7 @@ type Subscription {
   """
   Subscribe to new messages for a room. Requires the same roomId as in sendMessage.
   """
-  onMessage(roomId: ID!): Message! @aws_lambda
+  onMessage(roomId: ID!): Message @aws_lambda
   @aws_subscribe(mutations: ["sendMessage"])
   
 }

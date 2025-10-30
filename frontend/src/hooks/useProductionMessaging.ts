@@ -21,7 +21,6 @@ import {
   sendMessage as apiSendMessage,
   getRoomInfo,
   getMessagingHealth,
-  getWebSocketUrl,
   joinRoom,
   leaveRoom
 } from '../lib/api/messaging';
@@ -146,6 +145,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   const subscriptionRef = useRef<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const gqlClientRef = useRef<any>(null);
+  const subscriptionClientRef = useRef<any>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const getGqlClient = useCallback(() => {
@@ -166,6 +166,26 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       });
     }
     return gqlClientRef.current;
+  }, [getAuthToken]);
+
+  const getSubscriptionClient = useCallback(() => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('NO_TOKEN');
+    }
+    if (!subscriptionClientRef.current) {
+      subscriptionClientRef.current = generateClient({
+        authMode: 'lambda',
+        authToken: () => {
+          const fresh = getAuthToken();
+          if (!fresh) {
+            throw new Error('NO_TOKEN');
+          }
+          return fresh;
+        },
+      });
+    }
+    return subscriptionClientRef.current;
   }, [getAuthToken]);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
@@ -284,22 +304,36 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       return;
     }
 
-    const client = getGqlClient();
+    const client = getSubscriptionClient();
 
-    const subscribe = async (forceRefreshKey: boolean) => {
-      const isUnauthorizedError = (err: any) => {
-        const errors = Array.isArray(err?.errors) ? err.errors : [];
-        const combinedMessage = [
-          err?.message,
-          ...errors.map((e: any) => e?.message ?? '')
-        ].join(' ').toLowerCase();
-        return combinedMessage.includes('unauthorized') || combinedMessage.includes('api key');
-      };
+    const subscribe = async () => {
+      const initialToken = getAuthToken();
+      if (!initialToken) {
+        throw new Error('NO_TOKEN');
+      }
+      const initialBearer =
+        initialToken.startsWith('Bearer ') ? initialToken : `Bearer ${initialToken}`;
 
-      const subscription = client.graphql({
-        query: ON_MESSAGE_SUBSCRIPTION,
-        variables: { roomId },
-      }).subscribe({
+      const subscription = client.graphql(
+        {
+          query: ON_MESSAGE_SUBSCRIPTION,
+          variables: { roomId },
+          authMode: 'lambda',
+          authToken: initialBearer,
+        },
+        async () => {
+          const latestToken = getAuthToken();
+          if (!latestToken) {
+            console.warn('Realtime header resolver called without auth token');
+            return {};
+          }
+          const bearer =
+            latestToken.startsWith('Bearer ') ? latestToken : `Bearer ${latestToken}`;
+          const headers = { Authorization: bearer };
+          console.debug('Realtime subscription headers', { authorizationLen: bearer.length });
+          return headers;
+        },
+      ).subscribe({
         next: ({ data }: any) => {
           const m = data?.onMessage;
           if (!m) return;
@@ -318,17 +352,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         error: async (err: any) => {
           console.error('AppSync subscription error raw:', err);
           console.error('AppSync subscription error:', err);
-          const shouldRetryWithFreshKey = !forceRefreshKey && isUnauthorizedError(err);
-          if (shouldRetryWithFreshKey) {
-            try {
-              subscriptionRef.current?.unsubscribe?.();
-              subscriptionRef.current = null;
-              await subscribe(true);
-              return;
-            } catch (refreshErr) {
-              console.error('Failed to refresh AppSync subscription key', refreshErr);
-            }
-          }
 
           try {
             if (err?.errors && err.errors.length) {
@@ -355,7 +378,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     try {
       setState(prev => ({ ...prev, connectionStatus: 'connecting' }));
       if (!subscriptionRef.current) {
-        await subscribe(false);
+        await subscribe();
       }
       setState(prev => ({
         ...prev,
@@ -377,7 +400,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         error: error instanceof Error ? error.message : 'Connection failed'
       }));
     }
-  }, [roomId, getAuthToken, getGqlClient, loadMessages, getSubscriptionApiKey]);
+  }, [roomId, getAuthToken, getSubscriptionClient, loadMessages]);
 
   const disconnect = useCallback(() => {
     if (subscriptionRef.current) {
@@ -548,6 +571,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   useEffect(() => {
     const handleAuthChange = () => {
       gqlClientRef.current = null;
+      subscriptionClientRef.current = null;
       reconnectAttempts.current = 0;
       messagesLoadedRef.current = false;
       connect();

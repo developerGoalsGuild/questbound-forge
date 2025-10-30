@@ -57,6 +57,16 @@ resource "aws_api_gateway_resource" "auth_renew" {
   parent_id   = aws_api_gateway_resource.auth.id
   path_part   = "renew"
 }
+resource "aws_api_gateway_resource" "appsync" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "appsync"
+}
+resource "aws_api_gateway_resource" "appsync_subscription_key" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.appsync.id
+  path_part   = "subscription-key"
+}
 resource "aws_api_gateway_resource" "quests" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -917,6 +927,69 @@ resource "aws_api_gateway_integration_response" "auth_renew_options_integration_
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /appsync/subscription-key (authenticated)
+resource "aws_api_gateway_method" "appsync_subscription_key_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.appsync_subscription_key.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = false
+}
+
+# OPTIONS /appsync/subscription-key (CORS)
+resource "aws_api_gateway_method" "appsync_subscription_key_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.appsync_subscription_key.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "appsync_subscription_key_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.appsync_subscription_key.id
+  http_method             = aws_api_gateway_method.appsync_subscription_key_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "appsync_subscription_key_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.appsync_subscription_key.id
+  http_method = aws_api_gateway_method.appsync_subscription_key_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "appsync_subscription_key_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.appsync_subscription_key.id
+  http_method = aws_api_gateway_method.appsync_subscription_key_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "appsync_subscription_key_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.appsync_subscription_key.id
+  http_method = aws_api_gateway_method.appsync_subscription_key_options.http_method
+  status_code = aws_api_gateway_method_response.appsync_subscription_key_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
   }
 }
@@ -4012,6 +4085,10 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.health_options,
       aws_api_gateway_method.auth_renew_post,
       aws_api_gateway_method.auth_renew_options,
+      aws_api_gateway_method.appsync_subscription_key_get,
+      aws_api_gateway_method.appsync_subscription_key_options,
+      aws_api_gateway_method_response.appsync_subscription_key_options_response,
+      aws_api_gateway_integration_response.appsync_subscription_key_options_integration_response,
       aws_api_gateway_method.quests_get,
       aws_api_gateway_method.quests_options,
       aws_api_gateway_method.quests_post,
@@ -4166,7 +4243,9 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.health_options_integration,
     aws_api_gateway_integration.auth_renew_post_integration,
     aws_api_gateway_integration.auth_renew_options_integration,
-    aws_api_gateway_integration.profile_get_integration,
+      aws_api_gateway_integration.appsync_subscription_key_get_integration,
+      aws_api_gateway_integration.appsync_subscription_key_options_integration,
+      aws_api_gateway_integration.profile_get_integration,
     aws_api_gateway_integration.profile_put_integration,
     aws_api_gateway_integration.profile_options_integration,
     aws_api_gateway_integration.quests_get_integration,

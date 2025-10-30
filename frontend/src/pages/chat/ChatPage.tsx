@@ -18,44 +18,88 @@ import {
   Database,
   Zap
 } from 'lucide-react';
+import { listRooms, getRoomInfo } from '@/lib/api/messaging';
+import { type Room } from '@/types/messaging';
 
 export default function ChatPage() {
   const { user } = useAuth();
   const [selectedRoom, setSelectedRoom] = useState<string>('ROOM-general');
   const [chatMode, setChatMode] = useState<'simple' | 'production'>('production');
+  const [chatRooms, setChatRooms] = useState<Room[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState<boolean>(false);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
 
   // Get user ID from authentication
   const userId = user?.id;
 
-  // Available chat rooms
-  const chatRooms = [
-    {
-      id: 'ROOM-general',
-      name: 'General Chat',
-      type: 'general' as const,
-      description: 'Main discussion room for all users',
-      memberCount: 12,
-      isActive: true
-    },
-    {
-      id: 'ROOM-announcements',
-      name: 'Announcements',
-      type: 'general' as const,
-      description: 'Important updates and announcements',
-      memberCount: 156,
-      isActive: true
-    },
-    {
-      id: 'ROOM-support',
-      name: 'Support',
-      type: 'general' as const,
-      description: 'Get help and support from the community',
-      memberCount: 8,
-      isActive: true
-    }
-  ];
+  // Load available chat rooms from messaging service
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setRoomsLoading(true);
+        setRoomsError(null);
+        const rooms = await listRooms();
+        if (!mounted) return;
+        if (rooms && rooms.length) {
+          // Enrich rooms with live member counts
+          const roomsWithCounts = await Promise.all(
+            rooms.map(async (r) => {
+              try {
+                const info: any = await getRoomInfo(r.id);
+                const count = (info?.memberCount ?? info?.active_connections ?? info?.activeConnections ?? 0) as number;
+                return { ...(r as Room), memberCount: count };
+              } catch {
+                return { ...(r as Room), memberCount: r.memberCount ?? 0 };
+              }
+            })
+          );
+          setChatRooms(roomsWithCounts);
+          // Keep current selection if still available, else default to first
+          const exists = roomsWithCounts.some(r => r.id === selectedRoom);
+          if (!exists) {
+            setSelectedRoom(roomsWithCounts[0].id);
+          }
+        } else {
+          // Fallback to default general room if API returns empty
+          const fallback: Room = {
+            id: 'ROOM-general',
+            name: 'General Chat',
+            type: 'general',
+            description: 'Main discussion room for all users',
+            memberCount: 0,
+            isActive: true
+          };
+          setChatRooms([fallback]);
+          setSelectedRoom('ROOM-general');
+        }
+      } catch (e: any) {
+        if (!mounted) return;
+        setRoomsError(e?.message || 'Failed to load rooms');
+      } finally {
+        if (mounted) setRoomsLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const selectedRoomData = chatRooms.find(room => room.id === selectedRoom);
+  const [activeConnections, setActiveConnections] = useState<number>(0);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!selectedRoom) return;
+        const info: any = await getRoomInfo(selectedRoom);
+        if (!mounted) return;
+        const count = (info?.memberCount ?? info?.member_count ?? info?.active_connections ?? info?.activeConnections ?? 0) as number;
+        setActiveConnections(count);
+      } catch {
+        if (mounted) setActiveConnections(0);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [selectedRoom]);
 
   if (!userId) {
     return (
@@ -127,6 +171,12 @@ export default function ChatPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-1">
+                  {roomsLoading && (
+                    <div className="p-4 text-sm text-gray-500">Loading rooms...</div>
+                  )}
+                  {roomsError && (
+                    <div className="p-4 text-sm text-red-600">{roomsError}</div>
+                  )}
                   {chatRooms.map((room) => (
                     <div
                       key={room.id}
@@ -143,7 +193,7 @@ export default function ChatPage() {
                           <p className="text-xs text-gray-500 mt-1">{room.description}</p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-400">{room.memberCount}</span>
+                          <span className="text-xs text-gray-400">{room.memberCount ?? 0}</span>
                           {room.isActive && (
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           )}
@@ -164,12 +214,12 @@ export default function ChatPage() {
                   <MessageSquare className="h-5 w-5" />
                   <span>{selectedRoomData?.name || 'Chat'}</span>
                   <Badge variant="outline" className="text-xs">
-                    {selectedRoomData?.memberCount || 0} members
+                    {activeConnections} members
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 p-0">
-                <div className="h-full">
+              <CardContent className="flex-1 p-0 min-h-0">
+                <div className="h-full min-h-0">
                   {chatMode === 'production' ? (
                     <ProductionChatInterface
                       roomId={selectedRoom}
@@ -181,6 +231,9 @@ export default function ChatPage() {
                       }}
                       onError={(error) => {
                         console.error('Production chat error:', error);
+                      }}
+                      onStatsUpdate={(_, stats) => {
+                        setActiveConnections(stats?.distinctSenders ?? 0);
                       }}
                       className="h-full"
                     />

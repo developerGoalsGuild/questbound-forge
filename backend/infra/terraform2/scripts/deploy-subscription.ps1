@@ -1,4 +1,4 @@
-﻿param(
+param(
   [ValidateSet("dev","staging","prod")] [string]$Env = "dev",
   [switch]$PlanOnly,
   [switch]$AutoApprove = $true,
@@ -8,38 +8,35 @@ $ErrorActionPreference = "Stop"
 
 # Setup logging
 $LogDir = "D:\terraformlogs"
-$LogFile = "$LogDir\tf2.log"
+$LogFile = "$LogDir\tf-subscription.log"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 
 # Set Terraform logging environment variable
-$env:TF_LOG_PATH = "D:\terraformLogs\tf4.log"
+$env:TF_LOG_PATH = "D:\terraformLogs\tf-subscription.log"
 
-# Clean up existing terraform log file
-$TerraformLogFile = "D:\terraformLogs\tf4.log"
-try {
-  $logDir = Split-Path -Parent $TerraformLogFile
+if (-not (Test-Path $env:TF_LOG_PATH)) {
+  $logDir = Split-Path -Parent $env:TF_LOG_PATH
   if ($logDir -and -not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
-  if (Test-Path $TerraformLogFile) { Clear-Content $TerraformLogFile -ErrorAction SilentlyContinue } else { New-Item -ItemType File -Path $TerraformLogFile | Out-Null }
-  $env:TF_LOG = 'DEBUG'
-  $env:TF_LOG_PATH = $TerraformLogFile
-  Write-Host "[deploy] TF_LOG=DEBUG, TF_LOG_PATH=$TerraformLogFile" -ForegroundColor DarkGray
-} catch {}
+  New-Item -ItemType File -Path $env:TF_LOG_PATH | Out-Null
+} else {
+  Clear-Content $env:TF_LOG_PATH -ErrorAction SilentlyContinue
+}
+$env:TF_LOG = 'DEBUG'
 
 function Write-Log {
   param([string]$Message, [string]$Level = "INFO")
   $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-  $LogEntry = "[$Timestamp] [$Level] [authorizer] $Message"
+  $LogEntry = "[$Timestamp] [$Level] [subscription-auth] $Message"
   Write-Host $LogEntry
   Add-Content -Path $LogFile -Value $LogEntry
 }
 
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TerraformRoot = Resolve-Path (Join-Path $ScriptRoot "..") | Select-Object -ExpandProperty Path
-$BackendRoot = Resolve-Path (Join-Path $TerraformRoot "..\..") | Select-Object -ExpandProperty Path
-$ServicePath = Resolve-Path (Join-Path $BackendRoot "services\authorizer-service") | Select-Object -ExpandProperty Path
-$StackPath = Resolve-Path (Join-Path $TerraformRoot "stacks\authorizer") | Select-Object -ExpandProperty Path
-$EnvFile = Resolve-Path (Join-Path $TerraformRoot "environments\$Env.tfvars") | Select-Object -ExpandProperty Path
-Write-Log "Starting authorizer stack deployment for environment: $Env" "INFO"
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = Resolve-Path "$Root\.." | Select-Object -ExpandProperty Path
+$ServicePath = Resolve-Path (Join-Path $Root "..\..\..\services\authorizer-service") | Select-Object -ExpandProperty Path
+$StackPath = Resolve-Path "$RepoRoot\stacks\authorizer" | Select-Object -ExpandProperty Path
+$EnvFile = Resolve-Path "$RepoRoot\environments\$Env.tfvars" | Select-Object -ExpandProperty Path
+Write-Log "Starting subscription auth deployment for environment: $Env" "INFO"
 
 function Get-TfVarValue {
   param(
@@ -57,13 +54,12 @@ function Get-TfVarValue {
 }
 
 $awsRegion = Get-TfVarValue -FilePath $EnvFile -Key "aws_region"
-$authorizerArnOverride = Get-TfVarValue -FilePath $EnvFile -Key "lambda_authorizer_arn_override"
 $subscriptionArnOverride = Get-TfVarValue -FilePath $EnvFile -Key "lambda_subscription_auth_arn_override"
 
 if (-not $PlanOnly) {
-  $buildPath = Join-Path $ServicePath "build"
-  $zipPath = Join-Path $ServicePath "authorizer.zip"
-  Write-Log "Packaging Lambda authorizer code" "INFO"
+  $buildPath = Join-Path $ServicePath "build-subscription"
+  $zipPath = Join-Path $ServicePath "subscription_auth.zip"
+  Write-Log "Packaging subscription auth Lambda code" "INFO"
 
   if (Test-Path $buildPath) { Remove-Item $buildPath -Recurse -Force }
   if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
@@ -71,9 +67,9 @@ if (-not $PlanOnly) {
   New-Item -ItemType Directory -Path $buildPath | Out-Null
 
   Write-Log "Installing Python dependencies" "INFO"
-  & python -m pip install -r (Join-Path $ServicePath "requirements.txt") -t $buildPath --upgrade
+  & python -m pip install -r (Join-Path $ServicePath "requirements-subscription.txt") -t $buildPath --upgrade
 
-  $moduleFiles = @("authorizer.py","cognito.py","security.py","ssm.py","subscription_auth.py")
+  $moduleFiles = @("subscription_auth.py","security.py","ssm.py","cognito.py")
   foreach ($module in $moduleFiles) {
     Copy-Item -Path (Join-Path $ServicePath $module) -Destination $buildPath -Force
   }
@@ -81,33 +77,12 @@ if (-not $PlanOnly) {
   Write-Log "Creating deployment archive at $zipPath" "INFO"
   Compress-Archive -Path (Join-Path $buildPath '*') -DestinationPath $zipPath -Force
 
-  $functionMap = @{
-    "dev"     = "goalsguild_authorizer_dev"
-    "staging" = "goalsguild_authorizer_staging"
-    "prod"    = "goalsguild_authorizer_prod"
-    "test"    = "goalsguild_authorizer_test"
-    "local"   = "goalsguild_authorizer_local"
-  }
-
   $subscriptionFunctionMap = @{
     "dev"     = "goalsguild_subscription_auth_dev"
     "staging" = "goalsguild_subscription_auth_staging"
     "prod"    = "goalsguild_subscription_auth_prod"
     "test"    = "goalsguild_subscription_auth_test"
     "local"   = "goalsguild_subscription_auth_local"
-  }
-
-  if ($authorizerArnOverride -and $authorizerArnOverride.Trim().Length -gt 0) {
-    $functionIdentifier = $authorizerArnOverride.Trim()
-    if (-not $awsRegion -or $awsRegion -eq "") {
-      $arnParts = $functionIdentifier.Split(":")
-      if ($arnParts.Count -ge 4) { $awsRegion = $arnParts[3] }
-    }
-  } else {
-    if (-not $functionMap.ContainsKey($Env)) {
-      throw "No Lambda function mapping defined for environment '$Env'."
-    }
-    $functionIdentifier = $functionMap[$Env]
   }
 
   if ($subscriptionArnOverride -and $subscriptionArnOverride.Trim().Length -gt 0) {
@@ -125,11 +100,18 @@ if (-not $PlanOnly) {
 
   if (-not $awsRegion -or $awsRegion -eq "") { $awsRegion = "us-east-1" }
 
-  Write-Log "Updating Lambda function code for $functionIdentifier in region $awsRegion" "INFO"
-  & aws lambda update-function-code --region $awsRegion --function-name $functionIdentifier --zip-file ("fileb://{0}" -f $zipPath) --publish | Out-Null
+  $functionExists = $false
+  try {
+    & aws lambda get-function --region $awsRegion --function-name $subscriptionFunctionIdentifier | Out-Null
+    $functionExists = $true
+  } catch {
+    Write-Log "Lambda function $subscriptionFunctionIdentifier not found. Terraform apply will create it." "WARN"
+  }
 
-  Write-Log "Updating subscription auth Lambda function for $subscriptionFunctionIdentifier" "INFO"
-  & aws lambda update-function-code --region $awsRegion --function-name $subscriptionFunctionIdentifier --zip-file ("fileb://{0}" -f $zipPath) --publish | Out-Null
+  if ($functionExists) {
+    Write-Log "Updating subscription auth Lambda function for $subscriptionFunctionIdentifier" "INFO"
+    & aws lambda update-function-code --region $awsRegion --function-name $subscriptionFunctionIdentifier --zip-file ("fileb://{0}" -f $zipPath) --publish | Out-Null
+  }
 
   if (Test-Path $buildPath) { Remove-Item $buildPath -Recurse -Force }
 }
@@ -152,9 +134,9 @@ try {
       terraform apply -var-file="$EnvFile"
     }
   }
-  Write-Log "Authorizer stack deployment completed" "INFO"
+  Write-Log "Subscription auth deployment completed" "INFO"
 } catch {
-  Write-Log "Error in authorizer stack: $($_.Exception.Message)" "ERROR"
+  Write-Log "Error deploying subscription auth Lambda: $($_.Exception.Message)" "ERROR"
   throw
 } finally {
   Pop-Location

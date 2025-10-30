@@ -1,5 +1,5 @@
 resource "aws_cognito_user_pool" "user_pool" {
-  name = "goalsguild_user_pool_${var.environment}"
+  name                     = "goalsguild_user_pool_${var.environment}"
   auto_verified_attributes = ["email"]
 
   password_policy {
@@ -17,8 +17,8 @@ resource "aws_cognito_user_pool" "user_pool" {
 }
 
 resource "aws_cognito_user_pool_client" "user_pool_client" {
-  name         = "goalsguild_user_pool_client_${var.environment}"
-  user_pool_id = aws_cognito_user_pool.user_pool.id
+  name            = "goalsguild_user_pool_client_${var.environment}"
+  user_pool_id    = aws_cognito_user_pool.user_pool.id
   generate_secret = true
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",

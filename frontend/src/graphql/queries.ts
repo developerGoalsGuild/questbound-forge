@@ -21,6 +21,17 @@ export const MY_PROFILE = /* GraphQL */ `
   }
 `;
 
+// Fetch a user by ID (for resolving nicknames in chat)
+export const GET_USER = /* GraphQL */ `
+  query GetUser($userId: ID!) {
+    user(userId: $userId) {
+      id
+      nickname
+      fullName
+    }
+  }
+`;
+
 import { gql } from '@apollo/client';
 
 export const IS_EMAIL_AVAILABLE = gql`

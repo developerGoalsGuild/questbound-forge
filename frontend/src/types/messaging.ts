@@ -6,6 +6,7 @@ export interface Message {
   id: string;
   roomId: string;
   senderId: string;
+  senderNickname?: string;
   text: string;
   ts: number;
   type?: 'message' | 'broadcast' | 'system';
@@ -45,6 +46,11 @@ export interface MessagingState {
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
   activeConnections: number;
   lastMessageTimestamp?: number;
+  hasMore: boolean;
+  nextToken: string | null;
+  typingUsers: TypingUser[];
+  rateLimitInfo: RateLimitInfo | null;
+  error: string | null;
 }
 
 export interface WebSocketMessage {
@@ -169,14 +175,16 @@ export interface UseMessagingReturn {
   errorMessage?: string;
   isConnected: boolean;
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
+  hasMore: boolean;
   
   // Actions
   sendMessage: (text: string) => Promise<MessageSendResult>;
   loadMessages: (filters?: MessageFilters) => Promise<void>;
+  loadMoreMessages: () => Promise<void>;
   connect: (roomId: string) => Promise<void>;
   disconnect: () => void;
   clearMessages: () => void;
-  retryConnection: () => void;
+  retry: () => void;
   
   // Typing indicators
   startTyping: () => void;
@@ -185,7 +193,9 @@ export interface UseMessagingReturn {
   
   // Connection info
   activeConnections: number;
-  rateLimitInfo?: RateLimitInfo;
+  rateLimitInfo?: RateLimitInfo | null;
+  currentRoom: string;
+  roomInfo: RoomInfo;
 }
 
 export interface UseWebSocketReturn {

@@ -13,17 +13,9 @@ export function request(ctx) {
 
   if (!roomId) util.error('roomId required', 'Validation');
 
-  // Determine table and key pattern based on roomId
-  let tableName, pk;
-  if (roomId.startsWith('GUILD#')) {
-    tableName = 'gg_guild';
-    pk = roomId; // Guild rooms use gg_guild table
-  } else {
-    tableName = 'gg_core';
-    // For general rooms, use roomId as-is (don't add ROOM# prefix)
-    // The messaging service stores with room_id as-is
-    pk = roomId;
-  }
+  // Determine key pattern based on roomId. Data source targets gg_core by default.
+  // For unsupported guild table on this data source, force a non-matching PK.
+  const pk = roomId.startsWith('GUILD#') ? '__UNSUPPORTED__' : roomId;
 
   const exprNames = { '#pk': 'PK', '#sk': 'SK' };
   const exprValues = util.dynamodb.toMapValues({ ':pk': pk, ':sk': 'MSG#' });
@@ -39,8 +31,6 @@ export function request(ctx) {
     limit,
   };
 
-  // Note: AppSync JS runtime uses top-level 'nextToken' handling automatically;
-  // for 'after' we keep it simple with a filter; if you need key condition, restructure SK to include ts
   if (after) {
     req.filter = {
       expression: 'ts > :after',
@@ -61,6 +51,7 @@ export function response(ctx) {
     id: item.id,
     roomId: item.roomId,
     senderId: item.senderId,
+    senderNickname: item.senderNickname,
     text: item.text,
     ts: item.ts
   }));

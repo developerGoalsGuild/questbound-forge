@@ -8,6 +8,7 @@ import boto3
 @pytest.fixture(scope='function')
 def app_client(monkeypatch):
     os.environ['AWS_DEFAULT_REGION'] = os.environ.get('AWS_DEFAULT_REGION', 'us-east-2')
+    os.environ['AWS_REGION'] = os.environ['AWS_DEFAULT_REGION']
     with mock_aws():
         # Create mock SSM params used by settings
         ssm = boto3.client('ssm')
@@ -19,7 +20,11 @@ def app_client(monkeypatch):
             'APP_BASE_URL': 'http://localhost:5050',
             'DYNAMODB_USERS_TABLE': 'goalsguild_users',
             'CORE_TABLE': 'gg_core',
-            'LOGIN_ATTEMPTS_TABLE': 'goalsguild_login_attempts'
+            'LOGIN_ATTEMPTS_TABLE': 'goalsguild_login_attempts',
+            'APPSYNC_SUBSCRIPTION_KEY': 'test-sub-key',
+            'APPSYNC_SUBSCRIPTION_KEY_EXPIRES_AT': '2099-01-01T00:00:00Z',
+            'APPSYNC_AVAILABILITY_KEY': 'test-availability-key',
+            'APPSYNC_AVAILABILITY_KEY_EXPIRES_AT': '2099-01-01T00:00:00Z'
         }
         ssm.put_parameter(Name='/goalsguild/user-service/env_vars', Type='String', Value=json.dumps(env_vars))
         ssm.put_parameter(Name='/goalsguild/user-service/JWT_SECRET', Type='SecureString', Value='secret')

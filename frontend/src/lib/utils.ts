@@ -4,8 +4,19 @@ import { generateClient } from "aws-amplify/api";
 import awsConfigDev from '@/config/aws-exports.dev';
 import awsConfigProd from '@/config/aws-exports.prod';
 import { logger } from "./logger";
+import type { AvailabilityKeyResponse, SubscriptionKeyResponse } from '@/types/appsync';
 
 
+
+const KEY_REFRESH_BUFFER_MS = 60_000;
+
+interface CachedKey {
+  value: string;
+  expiresAt: number;
+}
+
+let subscriptionKeyCache: CachedKey | null = null;
+let availabilityKeyCache: CachedKey | null = null;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -81,15 +92,48 @@ export function getUserIdFromToken(): string | null {
   );
 }
 
+
+function buildApiUrl(path: string): string {
+  const base = getApiBase().replace(/\/$/, "");
+  return base ? `${base}${path}` : path;
+}
+
+function resolveExpiryMs(value: string | null | undefined, fallbackMinutes: number): number {
+  if (value && value.trim()) {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return Date.now() + fallbackMinutes * 60_000;
+}
+
+function isCacheValid(cache: CachedKey | null): boolean {
+  return !!cache && (cache.expiresAt - KEY_REFRESH_BUFFER_MS) > Date.now();
+}
+
 export async function renewToken(): Promise<LoginResponse> {
   const base = getApiBase();
   const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
   const url = base.replace(/\/$/, '') + '/auth/renew';
-  const token = getAccessToken();
+  const currentAuth = getStoredAuth();
+  const accessToken = currentAuth?.access_token || null;
+  if (!accessToken) {
+    throw new Error('Missing access token');
+  }
   const headers: Record<string,string> = { 'content-type': 'application/json' };
   if (apiKey) headers['x-api-key'] = apiKey;
-  if (token) headers['authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { method: 'POST', headers });
+  headers['authorization'] = `Bearer ${accessToken}`;
+  const refreshToken = currentAuth?.refresh_token;
+  const payload: Record<string, string> = { access_token: accessToken };
+  if (refreshToken) {
+    payload.refresh_token = refreshToken;
+  }
+  const res = await fetch(url, { 
+    method: 'POST', 
+    headers, 
+    body: JSON.stringify(payload) 
+  });
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
   if (!res.ok) {
@@ -108,6 +152,84 @@ export async function renewToken(): Promise<LoginResponse> {
 
 
 
+export async function getSubscriptionApiKey(forceRefresh = false): Promise<string> {
+  if (!forceRefresh && isCacheValid(subscriptionKeyCache)) {
+    return subscriptionKeyCache.value;
+  }
+
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Missing access token');
+  }
+
+  const url = buildApiUrl('/appsync/subscription-key');
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+  });
+
+  const textBody = await res.text();
+  let payload: Partial<SubscriptionKeyResponse> = {};
+  try {
+    payload = textBody ? JSON.parse(textBody) : {};
+  } catch (error) {
+    logger.error('Failed to parse subscription key response', { error });
+  }
+
+  if (!res.ok) {
+    const message = (payload as any)?.detail || (payload as any)?.message || res.statusText;
+    logger.error('Subscription key fetch failed', { status: res.status, message });
+    throw new Error(typeof message === 'string' && message ? message : 'Failed to fetch subscription key');
+  }
+
+  if (!payload.apiKey) {
+    throw new Error('Subscription key unavailable');
+  }
+
+  const expiresAt = resolveExpiryMs(payload.expiresAt, 60);
+  subscriptionKeyCache = { value: payload.apiKey, expiresAt };
+  logger.debug('Subscription key refreshed', { expiresAt });
+  return subscriptionKeyCache.value;
+}
+
+export async function getAvailabilityApiKey(forceRefresh = false): Promise<string> {
+  if (!forceRefresh && isCacheValid(availabilityKeyCache)) {
+    return availabilityKeyCache.value;
+  }
+
+  const url = buildApiUrl('/appsync/availability-key');
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+  });
+
+  const textBody = await res.text();
+  let payload: Partial<AvailabilityKeyResponse> = {};
+  try {
+    payload = textBody ? JSON.parse(textBody) : {};
+  } catch (error) {
+    logger.error('Failed to parse availability key response', { error });
+  }
+
+  if (!res.ok) {
+    const message = (payload as any)?.detail || (payload as any)?.message || res.statusText;
+    logger.warn('Availability key fetch failed', { status: res.status, message });
+    throw new Error(typeof message === 'string' && message ? message : 'Failed to fetch availability key');
+  }
+
+  if (!payload.apiKey) {
+    throw new Error('Availability key unavailable');
+  }
+
+  const expiresAt = resolveExpiryMs(payload.expiresAt, 15);
+  availabilityKeyCache = { value: payload.apiKey, expiresAt };
+  logger.debug('Availability key refreshed', { expiresAt });
+  return availabilityKeyCache.value;
+}
+
 // GraphQL client with Lambda auth. The token comes from our local storage auth.
 export function graphQLClient() {
   const cfg = import.meta.env.PROD ? awsConfigProd : awsConfigDev;
@@ -116,34 +238,79 @@ export function graphQLClient() {
     logger.debug('AppSync GraphQL endpoint', { endpoint: cfg?.API?.GraphQL?.endpoint });
   } catch {}
 
-  const haveApiKey = !!(import.meta.env.VITE_APPSYNC_API_KEY as string | undefined);
-  // Use the configured Amplify instance - it will use the endpoint from awsConfig
-  const client = haveApiKey
-    ? generateClient({ authMode: 'apiKey' })
-    : generateClient({
+  let lambdaClient: ReturnType<typeof generateClient> | null = null;
+  const resolveLambdaClient = () => {
+    if (!lambdaClient) {
+      lambdaClient = generateClient({
         authMode: 'lambda',
-        authToken: (() => {
+        authToken: () => {
           const tok = getAccessToken();
           if (!tok) {
             logger.error('AuthToken missing for GraphQL client');
             throw new Error('NO_TOKEN');
           }
           return tok; // raw JWT without Bearer prefix
-        })(),
+        },
       });
-
-  const originalGraphql = client.graphql.bind(client);
-  (client as any).graphql = async (args: any) => {
-    const opName = (args?.query as any)?.definitions?.[0]?.name?.value || 'anonymous';
-    logger.debug('GraphQL request', { 
-        endpoint: cfg?.API?.GraphQL?.endpoint, 
-        operation: opName, 
-        authMode: args?.authMode || 'lambda' 
-    });
-    return originalGraphql(args);
+    }
+    return lambdaClient;
   };
 
-  return client;
+  return {
+    graphql: async (args: any) => {
+      const opName = (args?.query as any)?.definitions?.[0]?.name?.value || 'anonymous';
+      const requestedMode = args?.authMode === 'apiKey' ? 'apiKey' : 'lambda';
+
+      if (requestedMode === 'apiKey') {
+        throw new Error('API key auth is restricted; use graphqlWithApiKey helper instead.');
+      }
+
+      logger.debug('GraphQL request', {
+        endpoint: cfg?.API?.GraphQL?.endpoint,
+        operation: opName,
+        authMode: requestedMode,
+      });
+      const target = resolveLambdaClient();
+      return target.graphql(args);
+    },
+  } as any;
+}
+
+export async function graphqlWithApiKey<T = any>(query: string, variables: any = {}) {
+  const operation = 'graphqlWithApiKey';
+  const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT as string | undefined;
+  if (!endpoint || !endpoint.trim()) {
+    throw new Error('AppSync endpoint not configured');
+  }
+  const apiKey = await getAvailabilityApiKey();
+
+  logger.debug('Executing GraphQL query with API key', { operation, endpoint });
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  const json = await res.json();
+  logger.debug('GraphQL with API key response', {
+    operation,
+    status: res.status,
+    headers: Object.fromEntries(res.headers.entries()),
+    responseJson: json,
+  });
+
+  if (!res.ok || json.errors?.length) {
+    logger.error('GraphQL query with API key failed', {
+      operation,
+      status: res.status,
+      statusText: res.statusText,
+      errors: json.errors,
+      data: json.data,
+    });
+    throw Object.assign(new Error('GraphQL error'), { response: res, errors: json.errors, data: json.data });
+  }
+  return json.data as T;
 }
 
 

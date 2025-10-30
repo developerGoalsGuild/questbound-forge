@@ -12,17 +12,17 @@ data "aws_iam_policy_document" "allow_appsync_ddb" {
 # First module block removed - using the second one below
 
 resource "aws_appsync_resolver" "query_myProfile" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "myProfile"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myProfile"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/myProfile.js")
+  code        = file("${local.resolvers_path}/myProfile.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -39,35 +39,39 @@ resource "aws_appsync_resolver" "query_isEmailAvailable" {
   api_id = module.appsync.api_id
   type   = "Query"
   field  = "isEmailAvailable"
-  kind   = "UNIT"
-  data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/isEmailAvailable.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
+  kind   = "PIPELINE"
+  pipeline_config {
+    functions = [
+      aws_appsync_function.availability_key_guard.function_id,
+      aws_appsync_function.availability_is_email.function_id,
+    ]
   }
+  request_template  = "$util.toJson({})"
+  response_template = "$util.toJson($ctx.prev.result)"
 }
 
 resource "aws_appsync_resolver" "query_isNicknameAvailable" {
   api_id = module.appsync.api_id
   type   = "Query"
   field  = "isNicknameAvailable"
-  kind   = "UNIT"
-  data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/isNicknameAvailable.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
+  kind   = "PIPELINE"
+  pipeline_config {
+    functions = [
+      aws_appsync_function.availability_key_guard.function_id,
+      aws_appsync_function.availability_is_nickname.function_id,
+    ]
   }
+  request_template  = "$util.toJson({})"
+  response_template = "$util.toJson($ctx.prev.result)"
 }
 
 resource "aws_appsync_resolver" "query_isNicknameAvailableForUser" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "isNicknameAvailableForUser"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "isNicknameAvailableForUser"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/isNicknameAvailableForUser.js")
+  code        = file("${local.resolvers_path}/isNicknameAvailableForUser.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -76,17 +80,17 @@ resource "aws_appsync_resolver" "query_isNicknameAvailableForUser" {
 
 # Goals resolvers
 resource "aws_appsync_resolver" "query_myGoals" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "myGoals"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myGoals"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/myGoals.js")
+  code        = file("${local.resolvers_path}/myGoals.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -100,12 +104,12 @@ resource "aws_appsync_resolver" "query_myGoals" {
 }
 
 resource "aws_appsync_resolver" "query_myDashboardGoals" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "myDashboardGoals"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myDashboardGoals"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/myDashboardGoals.js")
+  code        = file("${local.resolvers_path}/myDashboardGoals.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -117,17 +121,17 @@ resource "aws_appsync_resolver" "query_myDashboardGoals" {
 # Quest resolvers - removed query_myQuests, now using REST API endpoints
 
 resource "aws_appsync_resolver" "query_activeGoalsCount" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "activeGoalsCount"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "activeGoalsCount"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/activeGoalsCount.js")
+  code        = file("${local.resolvers_path}/activeGoalsCount.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -142,17 +146,17 @@ resource "aws_appsync_resolver" "query_activeGoalsCount" {
 
 # Progress resolvers
 resource "aws_appsync_resolver" "query_goalProgress" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "goalProgress"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "goalProgress"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.quest_http.name
-  code   = file("${local.resolvers_path}/goalProgress.js")
+  code        = file("${local.resolvers_path}/goalProgress.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -167,17 +171,17 @@ resource "aws_appsync_resolver" "query_goalProgress" {
 }
 
 resource "aws_appsync_resolver" "query_myGoalsProgress" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "myGoalsProgress"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myGoalsProgress"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.quest_http.name
-  code   = file("${local.resolvers_path}/myGoalsProgress.js")
+  code        = file("${local.resolvers_path}/myGoalsProgress.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -197,14 +201,14 @@ resource "aws_appsync_resolver" "query_myGoalsWithTasks" {
   field  = "myGoalsWithTasks"
   kind   = "PIPELINE"
   code   = file("${local.resolvers_path}/myGoalsWithTasks.js")
-  
+
   pipeline_config {
     functions = [
       aws_appsync_function.myGoalsWithTasks_getGoals.function_id,
       aws_appsync_function.myGoalsWithTasks_getTasks.function_id,
     ]
   }
-  
+
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -217,7 +221,7 @@ resource "aws_appsync_function" "myGoalsWithTasks_getGoals" {
   data_source = aws_appsync_datasource.profile_ddb.name
   name        = "myGoalsWithTasks_getGoals"
   code        = file("${local.resolvers_path}/myGoalsWithTasks_getGoals.js")
-  
+
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -230,7 +234,7 @@ resource "aws_appsync_function" "myGoalsWithTasks_getTasks" {
   data_source = aws_appsync_datasource.profile_ddb.name
   name        = "myGoalsWithTasks_getTasks"
   code        = file("${local.resolvers_path}/myGoalsWithTasks_getTasks.js")
-  
+
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -254,11 +258,11 @@ resource "aws_appsync_datasource" "quest_http" {
   type             = "HTTP"
   service_role_arn = aws_iam_role.quest_http_role.arn
   http_config {
-    endpoint                      = data.terraform_remote_state.quest_service.outputs.lambda_function_url
+    endpoint = data.terraform_remote_state.quest_service.outputs.lambda_function_url
     authorization_config {
       authorization_type = "AWS_IAM"
       aws_iam_config {
-        signing_region      = var.aws_region
+        signing_region       = var.aws_region
         signing_service_name = "lambda"
       }
     }
@@ -271,9 +275,9 @@ resource "aws_iam_role" "quest_http_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Service = "appsync.amazonaws.com" }
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -283,8 +287,8 @@ resource "aws_iam_role_policy" "quest_http_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
-      Action = ["lambda:InvokeFunctionUrl"]
+      Effect   = "Allow"
+      Action   = ["lambda:InvokeFunctionUrl"]
       Resource = data.terraform_remote_state.quest_service.outputs.lambda_function_arn
     }]
   })
@@ -292,32 +296,32 @@ resource "aws_iam_role_policy" "quest_http_policy" {
 
 data "terraform_remote_state" "database" {
   backend = "local"
-  config = { path = "../database/terraform.tfstate" }
+  config  = { path = "../database/terraform.tfstate" }
 }
 
 data "terraform_remote_state" "authorizer" {
   backend = "local"
-  config = { path = "../authorizer/terraform.tfstate" }
+  config  = { path = "../authorizer/terraform.tfstate" }
 }
 
 data "terraform_remote_state" "quest_service" {
   backend = "local"
-  config = { path = "../services/quest-service/terraform.tfstate" }
+  config  = { path = "../services/quest-service/terraform.tfstate" }
 }
 
 # User queries
 resource "aws_appsync_resolver" "query_me" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "me"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "me"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/me.js")
+  code        = file("${local.resolvers_path}/me.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -331,17 +335,17 @@ resource "aws_appsync_resolver" "query_me" {
 }
 
 resource "aws_appsync_resolver" "query_user" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "user"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "user"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.profile_ddb.name
-  code   = file("${local.resolvers_path}/user.js")
+  code        = file("${local.resolvers_path}/user.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
   }
-  
+
   # Enable caching for better performance - conditional
   dynamic "caching_config" {
     for_each = var.enable_appsync_caching ? [1] : []
@@ -375,14 +379,115 @@ resource "aws_appsync_datasource" "messaging_ddb" {
 }
 
 # IAM role for messaging data source with permissions for both tables
+# Subscription authorization data sources and functions
+
+data "aws_lambda_function" "subscription_auth" {
+  count         = var.lambda_subscription_auth_arn_override == "" && try(data.terraform_remote_state.authorizer.outputs.subscription_auth_lambda_arn, "") == "" ? 1 : 0
+  function_name = "goalsguild_subscription_auth_${var.environment}"
+}
+
+resource "aws_iam_role" "subscription_auth_lambda_role" {
+  name = "goalsguild-${var.environment}-appsync-subscription-auth-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "appsync.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "subscription_auth_lambda_policy" {
+  role = aws_iam_role.subscription_auth_lambda_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow",
+      Action   = ["lambda:InvokeFunction"],
+      Resource = local.subscription_auth_lambda_arn
+    }]
+  })
+}
+
+resource "aws_appsync_datasource" "subscription_auth_lambda" {
+  api_id           = module.appsync.api_id
+  name             = "SubscriptionAuthLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.subscription_auth_lambda_role.arn
+  lambda_config {
+    function_arn = local.subscription_auth_lambda_arn
+  }
+}
+
+resource "aws_appsync_datasource" "none" {
+  api_id = module.appsync.api_id
+  name   = "NoneDataSource"
+  type   = "NONE"
+}
+
+resource "aws_appsync_function" "subscription_auth" {
+  api_id      = module.appsync.api_id
+  name        = "SubscriptionAuthorizer"
+  data_source = aws_appsync_datasource.subscription_auth_lambda.name
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+  code = file("${local.resolvers_path}/subscriptionAuth.js")
+}
+
+resource "aws_appsync_function" "availability_key_guard" {
+  api_id      = module.appsync.api_id
+  name        = "AvailabilityKeyGuard"
+  data_source = aws_appsync_datasource.subscription_auth_lambda.name
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+  code = file("${local.resolvers_path}/availabilityAuth.js")
+}
+
+resource "aws_appsync_function" "availability_is_email" {
+  api_id      = module.appsync.api_id
+  name        = "AvailabilityIsEmail"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+  code = file("${local.resolvers_path}/isEmailAvailable.js")
+}
+
+resource "aws_appsync_function" "availability_is_nickname" {
+  api_id      = module.appsync.api_id
+  name        = "AvailabilityIsNickname"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+  code = file("${local.resolvers_path}/isNicknameAvailable.js")
+}
+
+resource "aws_appsync_function" "subscription_on_message_payload" {
+  api_id      = module.appsync.api_id
+  name        = "SubscriptionOnMessagePayload"
+  data_source = aws_appsync_datasource.none.name
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+  code = file("${local.resolvers_path}/onMessage.subscribe.js")
+}
 resource "aws_iam_role" "messaging_ddb_role" {
   name = "goalsguild-${var.environment}-appsync-messaging-ddb-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Service = "appsync.amazonaws.com" }
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -395,7 +500,7 @@ resource "aws_iam_role_policy" "messaging_ddb_policy" {
       Effect = "Allow"
       Action = [
         "dynamodb:PutItem",
-        "dynamodb:GetItem", 
+        "dynamodb:GetItem",
         "dynamodb:Query",
         "dynamodb:UpdateItem",
         "dynamodb:TransactWriteItems"
@@ -412,12 +517,12 @@ resource "aws_iam_role_policy" "messaging_ddb_policy" {
 
 # Messaging resolvers
 resource "aws_appsync_resolver" "query_messages" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "messages"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "messages"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.messaging_ddb.name
-  code   = file("${local.resolvers_path}/messages.js")
+  code        = file("${local.resolvers_path}/messages.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -425,12 +530,12 @@ resource "aws_appsync_resolver" "query_messages" {
 }
 
 resource "aws_appsync_resolver" "mutation_sendMessage" {
-  api_id = module.appsync.api_id
-  type   = "Mutation"
-  field  = "sendMessage"
-  kind   = "UNIT"
+  api_id      = module.appsync.api_id
+  type        = "Mutation"
+  field       = "sendMessage"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.messaging_ddb.name
-  code   = file("${local.resolvers_path}/sendMessage.js")
+  code        = file("${local.resolvers_path}/sendMessage.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"
@@ -441,33 +546,139 @@ resource "aws_appsync_resolver" "subscription_onMessage" {
   api_id = module.appsync.api_id
   type   = "Subscription"
   field  = "onMessage"
-  kind   = "UNIT"
-  data_source = aws_appsync_datasource.messaging_ddb.name
-  code   = file("${local.resolvers_path}/onMessage.subscribe.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
+  kind   = "PIPELINE"
+  pipeline_config {
+    functions = [
+      aws_appsync_function.subscription_auth.function_id,
+      aws_appsync_function.subscription_on_message_payload.function_id,
+    ]
   }
+  request_template  = "$util.toJson({})"
+  response_template = "$util.toJson($ctx.prev.result)"
 }
 
 locals {
-  schema_path = "${path.module}/../../graphql/schema.graphql"
+  schema_path                  = "${path.module}/../../graphql/schema.graphql"
+  appsync_param_prefix         = "/goalsguild/${var.environment}/appsync"
+  subscription_key_expires     = timeadd(timestamp(), format("%dh", var.subscription_key_ttl_hours))
+  availability_key_expires     = timeadd(timestamp(), format("%dh", var.availability_key_ttl_hours))
+  subscription_auth_lambda_arn = var.lambda_subscription_auth_arn_override != "" ? var.lambda_subscription_auth_arn_override : try(data.terraform_remote_state.authorizer.outputs.subscription_auth_lambda_arn, data.aws_lambda_function.subscription_auth[0].arn)
 }
 
 module "appsync" {
-  source      = "../../modules/appsync"
-  name        = "goalsguild-${var.environment}-api"
-  auth_type   = var.appsync_auth_type
-  schema_path = local.schema_path
-  region      = var.aws_region
-  enable_api_key = var.enable_appsync_api_key
+  source                = "../../modules/appsync"
+  name                  = "goalsguild-${var.environment}-api"
+  auth_type             = var.appsync_auth_type
+  schema_path           = local.schema_path
+  region                = var.aws_region
+  enable_api_key        = var.enable_appsync_api_key
   lambda_authorizer_arn = data.terraform_remote_state.authorizer.outputs.lambda_authorizer_arn
-  ddb_table_name = data.terraform_remote_state.database.outputs.gg_core_table_name
-  ddb_table_arn  = data.terraform_remote_state.database.outputs.gg_core_table_arn
-  guild_table_name = data.terraform_remote_state.database.outputs.guild_table_name
-  guild_table_arn  = data.terraform_remote_state.database.outputs.guild_table_arn
+  ddb_table_name        = data.terraform_remote_state.database.outputs.gg_core_table_name
+  ddb_table_arn         = data.terraform_remote_state.database.outputs.gg_core_table_arn
+  guild_table_name      = data.terraform_remote_state.database.outputs.guild_table_name
+  guild_table_arn       = data.terraform_remote_state.database.outputs.guild_table_arn
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
   }
 }
+
+resource "aws_appsync_api_key" "subscription" {
+  api_id      = module.appsync.api_id
+  description = "GoalsGuild ${var.environment} subscription websocket key"
+  expires     = local.subscription_key_expires
+}
+
+resource "aws_appsync_api_key" "availability" {
+  api_id      = module.appsync.api_id
+  description = "GoalsGuild ${var.environment} availability lookup key"
+  expires     = local.availability_key_expires
+}
+
+resource "aws_ssm_parameter" "subscription_key" {
+  name        = "${local.appsync_param_prefix}/subscription_key"
+  description = "AppSync subscription key for ${var.environment}"
+  type        = "SecureString"
+  value       = aws_appsync_api_key.subscription.key
+  overwrite   = true
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "appsync"
+  }
+}
+
+resource "aws_ssm_parameter" "subscription_key_expires_at" {
+  name        = "${local.appsync_param_prefix}/subscription_key_expires_at"
+  description = "AppSync subscription key expiry for ${var.environment}"
+  type        = "String"
+  value       = aws_appsync_api_key.subscription.expires
+  overwrite   = true
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "appsync"
+  }
+}
+
+resource "aws_ssm_parameter" "availability_key" {
+  name        = "${local.appsync_param_prefix}/availability_key"
+  description = "AppSync availability key for ${var.environment}"
+  type        = "SecureString"
+  value       = aws_appsync_api_key.availability.key
+  overwrite   = true
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "appsync"
+  }
+}
+
+resource "aws_ssm_parameter" "availability_key_expires_at" {
+  name        = "${local.appsync_param_prefix}/availability_key_expires_at"
+  description = "AppSync availability key expiry for ${var.environment}"
+  type        = "String"
+  value       = aws_appsync_api_key.availability.expires
+  overwrite   = true
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "appsync"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "appsync_unauthorized" {
+  alarm_name          = "goalsguild-${var.environment}-appsync-unauthorized"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "4XXError"
+  namespace           = "AWS/AppSync"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = var.appsync_unauthorized_error_threshold
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Triggers when AppSync 4XX errors exceed threshold (possible unauthorized subscriptions)."
+  dimensions = {
+    GraphQLAPIId = module.appsync.api_id
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "appsync_cost_guard" {
+  provider            = aws.billing
+  alarm_name          = "goalsguild-${var.environment}-appsync-cost-guard"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 21600
+  statistic           = "Maximum"
+  threshold           = var.appsync_monthly_cost_threshold
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Estimated AppSync spend is approaching the configured threshold."
+  dimensions = {
+    Currency    = var.billing_currency
+    ServiceName = "Amazon AppSync"
+  }
+}
+
+

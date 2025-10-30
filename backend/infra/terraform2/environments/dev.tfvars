@@ -70,3 +70,7 @@ guild_avatar_bucket_cors_max_age = 3600
 
 # Guild Service Configuration
 guild_ranking_calculation_frequency = "rate(1 day)"  # On-demand for dev (daily)
+# Secrets for local user-service testing
+jwt_secret = "test-secret-key-for-development-only"
+LOCAL_APPSYNC_SUBSCRIPTION_KEY = "dev-subscription-key"
+LOCAL_APPSYNC_AVAILABILITY_KEY = "dev-availability-key"

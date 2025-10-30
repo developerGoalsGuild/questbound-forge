@@ -1,8 +1,10 @@
 from __future__ import annotations
-import os, json, time
+import os, json, time, logging
 from functools import lru_cache
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
+logger = logging.getLogger("user-service.ssm")
 _ssm = boto3.client("ssm", region_name=os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1")))
 
 @lru_cache(maxsize=128)
@@ -10,15 +12,26 @@ def get_param(name: str, decrypt: bool = True) -> str:
     try:
         resp = _ssm.get_parameter(Name=name, WithDecryption=decrypt)
         return resp["Parameter"]["Value"]
-    except Exception as e:
-        raise ValueError(f"Failed to retrieve SSM parameter '{name}': {str(e)}")
+    except (ClientError, BotoCoreError):
+        env_key = f"SSM_PARAM_{name.upper().replace('/', '_')}"
+        env_override = os.getenv(env_key)
+        if env_override is not None:
+            return env_override
+        raise
 
 class Settings:
     def __init__(self, prefix: str | None = None ):
         self.prefix = prefix or os.getenv("SETTINGS_SSM_PREFIX", "/goalsguild/user-service/")
         if not self.prefix.endswith("/"): self.prefix += "/"
 
-        raw = get_param(self._p("env_vars"), False)  # likely returns a JSON string
+        env_override = os.getenv("SETTINGS_ENV_VARS_JSON")
+        if env_override is not None:
+            raw = env_override
+        else:
+            try:
+                raw = get_param(self._p("env_vars"), False)  # likely returns a JSON string
+            except (ClientError, BotoCoreError):
+                raw = os.getenv("SETTINGS_ENV_VARS_JSON", "{}")
         self.ssmvariables = {}
         if raw:
             try:
@@ -33,106 +46,101 @@ class Settings:
     #def _returnJsonVariable(name):
     #    json(get_param(self._p("env_vars"), False))
 
+    def _get(self, key: str, *, required: bool = True, default: str | None = None) -> str | None:
+        env_val = os.getenv(key) or os.getenv(key.lower())
+        if env_val:
+            return env_val
+        value = self.ssmvariables.get(key) or self.ssmvariables.get(key.lower())
+        if value is None:
+            if required:
+                raise KeyError(f"Missing {key} in user-service env vars")
+            return default
+        return value
+
 
     @property
     def ddb_users_table(self) -> str:
-        value = self.ssmvariables["dynamodb_users_table".upper()]
-        return value
+        return self._get("DYNAMODB_USERS_TABLE")
 
     @property
     def core_table_name(self) -> str:
         # Single-table used by AppSync patterns (gg_core)
-        key = "CORE_TABLE"
-        v = self.ssmvariables.get(key)
+        v = self._get("CORE_TABLE", required=False)
         if not v:
-            # Backward compat: try explicit name
-            v = self.ssmvariables.get("GG_CORE_TABLE")
-        if not v:
-            raise KeyError("Missing CORE_TABLE in user-service env_vars SSM parameter")
+            v = self._get("GG_CORE_TABLE")
         return v
 
     @property
     def jwt_secret(self) -> str:
-        secret = get_param(self._p("JWT_SECRET"), True)
+        secret = os.getenv("JWT_SECRET")
+        if not secret:
+            secret = get_param(self._p("JWT_SECRET"), True)
         if not secret or secret.strip() == "":
             raise ValueError("JWT_SECRET is empty or None - cannot generate signed tokens")
         return secret
 
     @property
     def jwt_issuer(self) -> str:
-           #return get_param(self._p("jwt_issuer"), False)
-        value = self.ssmvariables["jwt_issuer".upper()]
-        return value
+        return self._get("JWT_ISSUER")
 
 
     @property
     def jwt_audience(self) -> str:
-        value = self.ssmvariables["jwt_audience".upper()]
-        return value
-        #return get_param(self._p("jwt_audience"), False)
+        return self._get("JWT_AUDIENCE")
 
     @property
     def cognito_region(self) -> str:
-        value = self.ssmvariables["cognito_region".upper()]
-        return value
-        #return get_param(self._p("cognito_region"), False)
+        return self._get("COGNITO_REGION")
 
     @property
     def cognito_user_pool_id(self) -> str:
-        value = self.ssmvariables["cognito_user_pool_id".upper()]
-        return value
-        #return get_param(self._p("cognito_user_pool_id"), False)
+        return self._get("COGNITO_USER_POOL_ID")
 
     @property
     def cognito_client_id(self) -> str:
-        value = self.ssmvariables["cognito_client_id".upper()]
-        return value        
-        #return get_param(self._p("cognito_client_id"), False)
+        return self._get("COGNITO_CLIENT_ID")
 
     @property
     def cognito_client_secret(self) -> str:
-        value = self.ssmvariables["cognito_client_secret".upper()]
-        return value          
-        #return get_param(self._p("cognito_client_secret"), True)
+        override = os.getenv("COGNITO_CLIENT_SECRET")
+        if override:
+            return override
+        return get_param(self._p("cognito_client_secret"), True)
 
     @property
     def cognito_domain(self) -> str:
-        value = self.ssmvariables["cognito_domain".upper()]
-        return value    
-        #return get_param(self._p("cognito_domain"), False)
+        return self._get("COGNITO_DOMAIN")
     
     @property
     def ses_sender_email(self) -> str:
         """Return SES verified sender (e.g., no-reply@domain).
         Security: value is non-secret; stored as SSM String.
         """
-        value = self.ssmvariables["ses_sender_email".upper()]
-        return value   
-        #return get_param(self._p("ses_sender_email"), False)
+        return self._get("SES_SENDER_EMAIL")
 
 
     @property
     def app_base_url(self) -> str:
         """Public base URL of the app/API used to compose confirmation links."""
-        value = self.ssmvariables["app_base_url".upper()]
-        return value   
-        #return get_param(self._p("app_base_url"), False)
+        return self._get("APP_BASE_URL")
 
     @property
     def frontend_base_url(self) -> str | None:
         """Optional separate frontend base URL for CORS (e.g., SPA origin)."""
-        return self.ssmvariables.get("FRONTEND_BASE_URL") or self.ssmvariables.get("frontend_base_url")
+        return self._get("FRONTEND_BASE_URL", required=False)
 
 
     @property
     def ddb_login_attempts_table(self) -> str:
         """ Table that logs login attempts"""
-        value = self.ssmvariables["LOGIN_ATTEMPTS_TABLE".upper()]
-        return value   
+        return self._get("LOGIN_ATTEMPTS_TABLE")
 
     @property
     def email_token_secret(self) -> str:
         """Secret used to sign short-lived email/challenge tokens (separate from jwt_secret)."""
+        override = os.getenv("EMAIL_TOKEN_SECRET")
+        if override:
+            return override
         return get_param(self._p("email_token_secret"), True)
     
     def is_development(self) -> bool:
@@ -146,5 +154,63 @@ class Settings:
     def is_staging(self) -> bool:
         """Check if running in staging environment."""
         return self.ssmvariables.get("ENVIRONMENT", "").lower() == "staging"
+
+    @property
+    def appsync_subscription_key(self) -> str:
+        param = self._get("APPSYNC_SUBSCRIPTION_KEY_PARAM", required=False)
+        if param:
+            try:
+                return get_param(param, True)
+            except Exception as exc:
+                logger.warning("Failed to read AppSync subscription key from SSM (%s). Falling back to inline env var.", param, exc_info=logger.isEnabledFor(logging.DEBUG))
+        local_override = os.getenv("LOCAL_APPSYNC_SUBSCRIPTION_KEY")
+        if local_override:
+            return local_override
+
+        value = self._get("APPSYNC_SUBSCRIPTION_KEY", required=False)
+        if not value:
+            raise KeyError("Missing APPSYNC_SUBSCRIPTION_KEY in env vars")
+        if value.startswith("/"):
+            raise KeyError("APPSYNC_SUBSCRIPTION_KEY resolves to parameter path but SSM retrieval failed.")
+        return value
+
+    @property
+    def appsync_subscription_key_expires_at(self) -> str | None:
+        param = self._get("APPSYNC_SUBSCRIPTION_KEY_EXPIRES_AT_PARAM", required=False)
+        if param:
+            try:
+                return get_param(param, False)
+            except Exception as exc:
+                logger.warning("Failed to read AppSync subscription key expiry from SSM (%s). Falling back to inline env var.", param, exc_info=logger.isEnabledFor(logging.DEBUG))
+        return self._get("APPSYNC_SUBSCRIPTION_KEY_EXPIRES_AT", required=False)
+
+    @property
+    def appsync_availability_key(self) -> str:
+        param = self._get("APPSYNC_AVAILABILITY_KEY_PARAM", required=False)
+        if param:
+            try:
+                return get_param(param, True)
+            except Exception as exc:
+                logger.warning("Failed to read AppSync availability key from SSM (%s). Falling back to inline env var.", param, exc_info=logger.isEnabledFor(logging.DEBUG))
+        local_override = os.getenv("LOCAL_APPSYNC_AVAILABILITY_KEY")
+        if local_override:
+            return local_override
+
+        value = self._get("APPSYNC_AVAILABILITY_KEY", required=False)
+        if not value:
+            raise KeyError("Missing APPSYNC_AVAILABILITY_KEY in env vars")
+        if value.startswith("/"):
+            raise KeyError("APPSYNC_AVAILABILITY_KEY resolves to parameter path but SSM retrieval failed.")
+        return value
+
+    @property
+    def appsync_availability_key_expires_at(self) -> str | None:
+        param = self._get("APPSYNC_AVAILABILITY_KEY_EXPIRES_AT_PARAM", required=False)
+        if param:
+            try:
+                return get_param(param, False)
+            except Exception as exc:
+                logger.warning("Failed to read AppSync availability key expiry from SSM (%s). Falling back to inline env var.", param, exc_info=logger.isEnabledFor(logging.DEBUG))
+        return self._get("APPSYNC_AVAILABILITY_KEY_EXPIRES_AT", required=False)
 
 settings = Settings()

@@ -7,7 +7,7 @@ mkdir build
 pip3 install -r requirements.txt -t build/
 
 # include all modules the handler imports
-cp authorizer.py cognito.py security.py ssm.py build/
+cp authorizer.py cognito.py security.py ssm.py subscription_auth.py build/
 
 cd build
 zip -r ../authorizer.zip .

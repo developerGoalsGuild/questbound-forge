@@ -5,7 +5,7 @@ resource "aws_ssm_parameter" "cognito_user_pool_id" {
   type        = "String"
   value       = aws_cognito_user_pool.user_pool.id
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -20,7 +20,7 @@ resource "aws_ssm_parameter" "cognito_client_id" {
   type        = "String"
   value       = aws_cognito_user_pool_client.user_pool_client.id
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -35,7 +35,7 @@ resource "aws_ssm_parameter" "cognito_client_secret" {
   type        = "SecureString"
   value       = aws_cognito_user_pool_client.user_pool_client.client_secret
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -50,7 +50,7 @@ resource "aws_ssm_parameter" "jwt_secret" {
   type        = "SecureString"
   value       = var.jwt_secret
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -65,7 +65,7 @@ resource "aws_ssm_parameter" "email_token_secret" {
   type        = "SecureString"
   value       = var.email_token_secret
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -80,7 +80,7 @@ resource "aws_ssm_parameter" "google_client_id" {
   type        = "SecureString"
   value       = var.google_client_id
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -95,7 +95,7 @@ resource "aws_ssm_parameter" "google_client_secret" {
   type        = "SecureString"
   value       = var.google_client_secret
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -111,7 +111,7 @@ resource "aws_ssm_parameter" "api_gateway_key" {
   type        = "SecureString"
   value       = var.api_gateway_key
   overwrite   = true
-  
+
   tags = {
     Environment = var.environment
     Service     = "goalsguild"
@@ -124,25 +124,29 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
   name        = "/goalsguild/user-service/env_vars"
   description = "JSON object of environment variables for User Service (${var.environment})"
   type        = "String"
-  value       = jsonencode({
-    COGNITO_USER_POOL_ID     = aws_cognito_user_pool.user_pool.id
-    COGNITO_CLIENT_ID        = aws_cognito_user_pool_client.user_pool_client.id
-    COGNITO_CLIENT_SECRET    = aws_cognito_user_pool_client.user_pool_client.client_secret
-    COGNITO_REGION           = var.aws_region
-    JWT_ISSUER               = "https://auth.local"
-    JWT_AUDIENCE             = "api://default"
-    COGNITO_DOMAIN           = "goalsguild.auth.us-east-2.amazoncognito.com"
-    SES_SENDER_EMAIL         = "no-reply@goalsguild.com"
-    FRONTEND_BASE_URL        = var.frontend_base_url
-    ALLOWED_ORIGINS          = var.frontend_allowed_origins
-    PASSWORD_KEY             = "your-encrypted-password-key"
-    DYNAMODB_USERS_TABLE     = "gg_core"
-    CORE_TABLE               = var.ddb_table_name
-    APP_BASE_URL             = "http://localhost:5050"
-    LOGIN_ATTEMPTS_TABLE     = "goalsguild_login_attempts"
-    ENVIRONMENT              = var.environment
+  value = jsonencode({
+    COGNITO_USER_POOL_ID                      = aws_cognito_user_pool.user_pool.id
+    COGNITO_CLIENT_ID                         = aws_cognito_user_pool_client.user_pool_client.id
+    COGNITO_CLIENT_SECRET                     = aws_cognito_user_pool_client.user_pool_client.client_secret
+    COGNITO_REGION                            = var.aws_region
+    JWT_ISSUER                                = "https://auth.local"
+    JWT_AUDIENCE                              = "api://default"
+    COGNITO_DOMAIN                            = "goalsguild.auth.us-east-2.amazoncognito.com"
+    SES_SENDER_EMAIL                          = "no-reply@goalsguild.com"
+    FRONTEND_BASE_URL                         = var.frontend_base_url
+    ALLOWED_ORIGINS                           = var.frontend_allowed_origins
+    PASSWORD_KEY                              = "your-encrypted-password-key"
+    DYNAMODB_USERS_TABLE                      = "gg_core"
+    CORE_TABLE                                = var.ddb_table_name
+    APP_BASE_URL                              = "http://localhost:5050"
+    LOGIN_ATTEMPTS_TABLE                      = "goalsguild_login_attempts"
+    ENVIRONMENT                               = var.environment
+    APPSYNC_SUBSCRIPTION_KEY_PARAM            = "/goalsguild/${var.environment}/appsync/subscription_key"
+    APPSYNC_SUBSCRIPTION_KEY_EXPIRES_AT_PARAM = "/goalsguild/${var.environment}/appsync/subscription_key_expires_at"
+    APPSYNC_AVAILABILITY_KEY_PARAM            = "/goalsguild/${var.environment}/appsync/availability_key"
+    APPSYNC_AVAILABILITY_KEY_EXPIRES_AT_PARAM = "/goalsguild/${var.environment}/appsync/availability_key_expires_at"
   })
-  overwrite   = true
+  overwrite = true
 
   tags = {
     Environment = var.environment
@@ -156,7 +160,7 @@ resource "aws_ssm_parameter" "quest_service_env_vars" {
   name        = "/goalsguild/quest-service/env_vars"
   description = "JSON object of environment variables for Quest Service (${var.environment})"
   type        = "String"
-  value       = jsonencode({
+  value = jsonencode({
     CORE_TABLE           = var.ddb_table_name
     JWT_ISSUER           = "https://auth.local"
     JWT_AUDIENCE         = "api://default"
@@ -168,7 +172,7 @@ resource "aws_ssm_parameter" "quest_service_env_vars" {
     JWT_SECRET_PARAM     = aws_ssm_parameter.jwt_secret.name
     ENVIRONMENT          = var.environment
   })
-  overwrite   = true
+  overwrite = true
 
   tags = {
     Environment = var.environment
@@ -183,36 +187,36 @@ resource "aws_ssm_parameter" "collaboration_service_env_vars" {
   name        = "/goalsguild/collaboration-service/env_vars"
   description = "JSON object of environment variables for Collaboration Service (${var.environment})"
   type        = "String"
-  value       = jsonencode({
+  value = jsonencode({
     # Core configuration
-    ENVIRONMENT              = var.environment
-    AWS_REGION              = var.aws_region
-    DYNAMODB_TABLE_NAME     = var.ddb_table_name
-    CORE_TABLE              = var.ddb_table_name
-    
+    ENVIRONMENT         = var.environment
+    AWS_REGION          = var.aws_region
+    DYNAMODB_TABLE_NAME = var.ddb_table_name
+    CORE_TABLE          = var.ddb_table_name
+
     # Cognito configuration
-    COGNITO_USER_POOL_ID    = aws_cognito_user_pool.user_pool.id
+    COGNITO_USER_POOL_ID        = aws_cognito_user_pool.user_pool.id
     COGNITO_USER_POOL_CLIENT_ID = aws_cognito_user_pool_client.user_pool_client.id
-    COGNITO_CLIENT_ID       = aws_cognito_user_pool_client.user_pool_client.id
-    COGNITO_REGION          = var.aws_region
-    
+    COGNITO_CLIENT_ID           = aws_cognito_user_pool_client.user_pool_client.id
+    COGNITO_REGION              = var.aws_region
+
     # JWT configuration
-    JWT_ISSUER              = "https://auth.local"
-    JWT_AUDIENCE            = "api://default"
-    JWT_SECRET_PARAM        = aws_ssm_parameter.jwt_secret.name
-    
+    JWT_ISSUER       = "https://auth.local"
+    JWT_AUDIENCE     = "api://default"
+    JWT_SECRET_PARAM = aws_ssm_parameter.jwt_secret.name
+
     # Frontend configuration
-    FRONTEND_BASE_URL       = var.frontend_base_url
-    ALLOWED_ORIGINS         = var.frontend_allowed_origins
-    
+    FRONTEND_BASE_URL = var.frontend_base_url
+    ALLOWED_ORIGINS   = var.frontend_allowed_origins
+
     # Service-specific configuration
-    LOG_LEVEL               = "INFO"
-    RATE_LIMIT_REQUESTS_PER_HOUR = "1000"
-    CACHE_TTL_SECONDS       = "300"
-    MAX_INVITES_PER_USER_PER_HOUR = "20"
+    LOG_LEVEL                      = "INFO"
+    RATE_LIMIT_REQUESTS_PER_HOUR   = "1000"
+    CACHE_TTL_SECONDS              = "300"
+    MAX_INVITES_PER_USER_PER_HOUR  = "20"
     MAX_COMMENTS_PER_USER_PER_HOUR = "100"
   })
-  overwrite   = true
+  overwrite = true
 
   tags = {
     Environment = var.environment
@@ -229,30 +233,30 @@ resource "aws_ssm_parameter" "guild_service_config" {
   value = jsonencode({
     # Environment
     ENVIRONMENT = var.environment
-    
+
     # Database configuration
     GUILD_TABLE_NAME = var.guild_table_name
-    
+
     # S3 configuration
     AVATAR_S3_BUCKET = var.avatar_s3_bucket
-    
+
     # Authentication configuration
-    JWT_ISSUER              = "https://auth.local"
-    JWT_AUDIENCE            = "api://default"
-    JWT_SECRET_PARAM        = aws_ssm_parameter.jwt_secret.name
-    
+    JWT_ISSUER       = "https://auth.local"
+    JWT_AUDIENCE     = "api://default"
+    JWT_SECRET_PARAM = aws_ssm_parameter.jwt_secret.name
+
     # Frontend configuration
-    FRONTEND_BASE_URL       = var.frontend_base_url
-    ALLOWED_ORIGINS         = var.frontend_allowed_origins
-    
+    FRONTEND_BASE_URL = var.frontend_base_url
+    ALLOWED_ORIGINS   = var.frontend_allowed_origins
+
     # Service-specific configuration
-    LOG_LEVEL               = "INFO"
-    RATE_LIMIT_REQUESTS_PER_HOUR = "1000"
-    AVATAR_MAX_SIZE_MB      = "5"
-    AVATAR_ALLOWED_TYPES    = "image/jpeg,image/png,image/webp"
+    LOG_LEVEL                     = "INFO"
+    RATE_LIMIT_REQUESTS_PER_HOUR  = "1000"
+    AVATAR_MAX_SIZE_MB            = "5"
+    AVATAR_ALLOWED_TYPES          = "image/jpeg,image/png,image/webp"
     RANKING_CALCULATION_FREQUENCY = "rate(1 hour)"
   })
-  overwrite   = true
+  overwrite = true
 
   tags = {
     Environment = var.environment

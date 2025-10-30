@@ -2,6 +2,8 @@ locals {
   lambda_role_name = var.existing_lambda_exec_role_name != "" ? var.existing_lambda_exec_role_name : "goalsguild_lambda_exec_role_${var.environment}"
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_iam_role" "existing_lambda_exec" {
   count = var.existing_lambda_exec_role_name != "" ? 1 : 0
   name  = var.existing_lambda_exec_role_name
@@ -13,9 +15,9 @@ resource "aws_iam_role" "lambda_exec_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "lambda.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
   tags = merge(var.tags, {
@@ -34,13 +36,20 @@ resource "aws_iam_role_policy" "lambda_ssm_read" {
   role = var.existing_lambda_exec_role_name != "" ? data.aws_iam_role.existing_lambda_exec[0].id : aws_iam_role.lambda_exec_role[0].id
   policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Action = ["ssm:GetParameter","ssm:GetParameters","ssm:GetParametersByPath"],
-      Resource = [
-        "arn:aws:ssm:${var.aws_region}:*:parameter/goalsguild/*"
-      ]
-    }]
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:*:parameter/goalsguild/*"
+        ]
+      },
+      {
+        Effect   = "Allow",
+        Action   = ["kms:Decrypt"],
+        Resource = "arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/ssm"
+      }
+    ]
   })
 }
 
@@ -99,9 +108,9 @@ resource "aws_iam_role" "collaboration_service_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "lambda.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
   tags = merge(var.tags, {
@@ -122,7 +131,7 @@ resource "aws_iam_role_policy" "collaboration_service_ssm_read" {
     Version = "2012-10-17",
     Statement = [{
       Effect = "Allow",
-      Action = ["ssm:GetParameter","ssm:GetParameters","ssm:GetParametersByPath"],
+      Action = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
       Resource = [
         "arn:aws:ssm:${var.aws_region}:*:parameter/goalsguild/*"
       ]

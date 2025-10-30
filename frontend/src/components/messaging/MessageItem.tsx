@@ -107,7 +107,7 @@ export function MessageItem({
       {showAvatar && !isOwn && (
         <Avatar className="w-6 h-6 flex-shrink-0">
           <AvatarFallback className="text-xs">
-            {message.senderId.charAt(0).toUpperCase()}
+            {(message.senderNickname || message.senderId).charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
       )}

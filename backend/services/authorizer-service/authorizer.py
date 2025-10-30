@@ -1,9 +1,7 @@
 # authorizer.py
 from __future__ import annotations
-import os, json, logging, time
+import os, json, logging, time, base64
 from typing import Any, Dict
-
-import jwt  # only used to peek unverified header for debug
 
 # ABSOLUTE imports (no leading dots)
 import security
@@ -35,10 +33,17 @@ logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
 
 def _peek_jwt_header(token: str) -> Dict[str, Any]:
     try:
-        h = jwt.get_unverified_header(token)
-        return {"kid": h.get("kid"), "alg": h.get("alg")}
+        header_segment = token.split(".", 1)[0]
+        if not header_segment:
+            return {}
+        padded = header_segment + ("=" * ((4 - len(header_segment) % 4) % 4))
+        raw = base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8")
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return {"kid": data.get("kid"), "alg": data.get("alg")}
     except Exception:
-        return {}
+        pass
+    return {}
 
 
 def _dbg(event_name: str, **fields: Any) -> None:
@@ -60,6 +65,30 @@ def _dbg(event_name: str, **fields: Any) -> None:
 
 def _extract_token(event: dict) -> str:
     _dbg("extract_token_start", event_keys=list(event.keys()))
+    
+    def _first_str(value: Any) -> str | None:
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (list, tuple)) and value:
+            first = value[0]
+            return first if isinstance(first, str) else None
+        return None
+
+    def _decode_b64(value: Any) -> dict | None:
+        raw_val = _first_str(value)
+        if not raw_val:
+            return None
+        try:
+            padded = raw_val + ("=" * ((4 - len(raw_val) % 4) % 4))
+            raw_bytes = base64.urlsafe_b64decode(padded.encode("utf-8"))
+            raw = raw_bytes.decode("utf-8")
+            if not raw:
+                return None
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception as exc:
+            _dbg("decode_b64_failed", error_type=type(exc).__name__, error=str(exc))
+            return None
     
     def _normalize_bearer(raw: str) -> str:
         if not isinstance(raw, str):
@@ -89,6 +118,55 @@ def _extract_token(event: dict) -> str:
             parts = str(raw).split()
             _dbg("token_extracted", source="HEADER", header_key=k, token=token, raw_length=len(str(raw)), parts_count=len(parts))
             return token
+
+    multi_headers = event.get("multiValueHeaders") or {}
+    if multi_headers:
+        _dbg("extract_token_multi_headers", header_keys=list(multi_headers.keys()))
+        for k in ("authorization", "Authorization"):
+            if k in multi_headers:
+                raw_values = multi_headers[k]
+                if raw_values:
+                    raw = raw_values[0]
+                    token = _normalize_bearer(raw)
+                    parts = str(raw).split()
+                    _dbg("token_extracted", source="MULTI_HEADER", header_key=k, token=token, raw_length=len(str(raw)), parts_count=len(parts))
+                    return token
+
+    # AppSync real-time connections pass headers as base64-encoded query params
+    qs = event.get("queryStringParameters") or event.get("multiValueQueryStringParameters") or {}
+    header_param = qs.get("header") or qs.get("Header")
+    if header_param:
+        header_map = _decode_b64(header_param)
+        if header_map:
+            _dbg("qs_header_decoded", keys=list(header_map.keys()))
+            for k in ("authorization", "Authorization"):
+                raw = header_map.get(k)
+                if raw:
+                    token = _normalize_bearer(raw)
+                    parts = str(raw).split()
+                    _dbg("token_extracted", source="QS_HEADER", header_key=k, token=token, raw_length=len(str(raw)), parts_count=len(parts))
+                    return token
+
+    payload_param = qs.get("payload") or qs.get("Payload")
+    if payload_param:
+        payload = _decode_b64(payload_param)
+        if isinstance(payload, dict):
+            _dbg("qs_payload_decoded", keys=list(payload.keys()))
+            candidate_maps = [
+                payload,
+                payload.get("headers") if isinstance(payload.get("headers"), dict) else None,
+                payload.get("data") if isinstance(payload.get("data"), dict) else None,
+            ]
+            for candidate in candidate_maps:
+                if not candidate:
+                    continue
+                for k in ("authorization", "Authorization"):
+                    raw = candidate.get(k)
+                    if raw:
+                        token = _normalize_bearer(raw)
+                        parts = str(raw).split()
+                        _dbg("token_extracted", source="QS_PAYLOAD", token=token, raw_length=len(str(raw)), parts_count=len(parts))
+                        return token
 
     _dbg("token_missing", available_keys=list(event.keys()), headers_available=bool(headers))
     raise Unauthorized("No token provided")

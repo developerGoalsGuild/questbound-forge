@@ -423,17 +423,22 @@ async def list_rooms(request: Request, token: dict = Depends(verify_token)):
     
     # In a real implementation, this would query DynamoDB for user's rooms
     # For now, return mock data
-    rooms = [
-        {
-            "id": "ROOM-general",
-            "name": "General Chat",
-            "type": "general",
-            "description": "General discussion room",
-            "member_count": len(manager.get_room_connections("ROOM-general")),
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
-        }
-    ]
+    def count_members(room_id: str) -> int:
+        # Prefer HTTP presence (user_rooms) to avoid WS dependency
+        try:
+            return sum(1 for uid, rooms in manager.user_rooms.items() if room_id in rooms)
+        except Exception:
+            return len(manager.get_room_connections(room_id))
+
+    rooms = [{
+        "id": "ROOM-general",
+        "name": "General Chat",
+        "type": "general",
+        "description": "General discussion room",
+        "member_count": count_members("ROOM-general"),
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat()
+    }]
     
     return {"rooms": rooms}
 
@@ -466,12 +471,17 @@ async def get_room(room_id: str, request: Request, token: dict = Depends(verify_
     
     # In a real implementation, this would query DynamoDB
     # For now, return mock data
+    try:
+        member_count = sum(1 for uid, rooms in manager.user_rooms.items() if room_id in rooms)
+    except Exception:
+        member_count = len(manager.get_room_connections(room_id))
+
     room_info = {
         "id": room_id,
         "name": room_id.replace("ROOM-", "").replace("-", " ").title(),
         "type": "general",
         "description": f"Room {room_id}",
-        "member_count": len(manager.get_room_connections(room_id)),
+        "member_count": member_count,
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat()
     }
@@ -566,7 +576,14 @@ async def join_room(room_id: str, request: Request, token: dict = Depends(verify
     """Join a room"""
     user_id = token.get("sub")
     
-    # In a real implementation, this would update DynamoDB membership
+    # Track HTTP presence to support active member counts without WS
+    try:
+        if user_id not in manager.user_rooms:
+            manager.user_rooms[user_id] = []
+        if room_id not in manager.user_rooms[user_id]:
+            manager.user_rooms[user_id].append(room_id)
+    except Exception:
+        pass
     logger.info(f"User {user_id} joined room {room_id}")
     
     return {"status": "joined", "room_id": room_id, "user_id": user_id}
@@ -576,13 +593,14 @@ async def leave_room(room_id: str, request: Request, token: dict = Depends(verif
     """Leave a room"""
     user_id = token.get("sub")
     
-    # Disconnect user from room
-    user_connections = manager.get_user_connections(user_id)
-    for connection in user_connections:
-        if connection in manager.get_room_connections(room_id):
-            manager.disconnect(connection)
-    
-    # In a real implementation, this would update DynamoDB membership
+    # Update HTTP presence
+    try:
+        if user_id in manager.user_rooms:
+            manager.user_rooms[user_id] = [r for r in manager.user_rooms[user_id] if r != room_id]
+            if not manager.user_rooms[user_id]:
+                del manager.user_rooms[user_id]
+    except Exception:
+        pass
     logger.info(f"User {user_id} left room {room_id}")
     
     return {"status": "left", "room_id": room_id, "user_id": user_id}

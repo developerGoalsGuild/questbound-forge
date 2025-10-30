@@ -1,14 +1,51 @@
 data "terraform_remote_state" "security" {
   backend = "local"
-  config = { path = "../security/terraform.tfstate" }
+  config  = { path = "../security/terraform.tfstate" }
 }
 
-# Import existing Lambda function
+data "aws_caller_identity" "current" {}
+
+locals {
+  authorizer_function_name   = "goalsguild_authorizer_${var.environment}"
+  subscription_function_name = "goalsguild_subscription_auth"
+  lambda_exec_role_arn = coalesce(
+    try(data.terraform_remote_state.security.outputs.lambda_exec_role_arn, null),
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/goalsguild_lambda_exec_role_${var.environment}"
+  )
+}
+
 data "aws_lambda_function" "existing_authorizer" {
-  function_name = "goalsguild_authorizer_dev"
+  function_name = local.authorizer_function_name
 }
 
-# Import existing CloudWatch Log Group
-data "aws_cloudwatch_log_group" "existing_logs" {
-  name = "/aws/lambda/goalsguild_authorizer_dev"
+module "subscription_auth_lambda" {
+  count             = var.lambda_subscription_auth_arn_override == "" ? 1 : 0
+  source            = "../../modules/lambda_zip"
+  function_name     = local.subscription_function_name
+  environment       = var.environment
+  role_arn          = local.lambda_exec_role_arn
+  handler           = "subscription_auth.handler"
+  src_dir           = "../../../../services/authorizer-service"
+  timeout           = 10
+  memory_size       = 256
+  requirements_file = "requirements-subscription.txt"
+  exclude_globs = [
+    ".git/**",
+    ".venv/**",
+    "__pycache__/**",
+    "tests/**",
+    "*.ps1",
+    "*.sh",
+    "build/**",
+    "dist/**",
+    "authorizer.zip",
+    "package.sh",
+    "docs/**",
+    ".pytest_cache/**"
+  ]
+  environment_variables = {
+    ENVIRONMENT         = var.environment
+    SETTINGS_SSM_PREFIX = "/goalsguild/user-service/"
+    AUTH_LOG_ENABLED    = "1"
+  }
 }

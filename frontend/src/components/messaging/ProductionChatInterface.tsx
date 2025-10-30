@@ -25,6 +25,7 @@ interface ProductionChatInterfaceProps {
   className?: string;
   onMessageSent?: (message: Message) => void;
   onError?: (error: string) => void;
+  onStatsUpdate?: (roomId: string, stats: { messageCount: number; distinctSenders: number }) => void;
 }
 
 export function ProductionChatInterface({
@@ -34,9 +35,23 @@ export function ProductionChatInterface({
   roomType = 'general',
   className = '',
   onMessageSent,
-  onError
+  onError,
+  onStatsUpdate
 }: ProductionChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+
+  const scrollToBottom = (smooth: boolean = true) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const targetTop = container.scrollHeight - container.clientHeight;
+    if ((container as any).scrollTo) {
+      container.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'auto' });
+    } else {
+      container.scrollTop = targetTop;
+    }
+  };
 
   const {
     messages,
@@ -58,10 +73,18 @@ export function ProductionChatInterface({
     roomInfo
   } = useProductionMessaging(roomId);
 
+  // Report message count changes up to parent for UI badges
+  useEffect(() => {
+    try {
+      const distinct = new Set(messages.map(m => m.senderId)).size;
+      onStatsUpdate?.(roomId, { messageCount: messages.length, distinctSenders: distinct });
+    } catch {}
+  }, [messages, roomId, onStatsUpdate]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (stickToBottomRef.current) {
+      scrollToBottom(false);
     }
   }, [messages]);
 
@@ -79,10 +102,14 @@ export function ProductionChatInterface({
     try {
       const result: MessageSendResult = await sendMessage(content, 'text');
       
-      if (result.success && result.message) {
-        if (onMessageSent) {
-          onMessageSent(result.message);
-        }
+      if (result.success) {
+        // Message was successfully sent; scroll to bottom after DOM updates
+        console.log('Message sent successfully:', result.messageId);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollToBottom(false);
+          });
+        });
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -105,8 +132,21 @@ export function ProductionChatInterface({
   };
 
   // Handle load more messages
-  const handleLoadMore = () => {
-    loadMoreMessages();
+  const handleLoadMore = async () => {
+    const container = scrollContainerRef.current;
+    const previousHeight = container?.scrollHeight ?? 0;
+    const previousScrollTop = container?.scrollTop ?? 0;
+
+    try {
+      await loadMoreMessages();
+    } finally {
+      requestAnimationFrame(() => {
+        const updatedContainer = scrollContainerRef.current;
+        if (!updatedContainer) return;
+        const heightDelta = updatedContainer.scrollHeight - previousHeight;
+        updatedContainer.scrollTop = previousScrollTop + heightDelta;
+      });
+    }
   };
 
   // Render loading state
@@ -152,7 +192,22 @@ export function ProductionChatInterface({
         )}
 
         {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div 
+          className="flex-1 overflow-y-auto p-4" 
+          style={{ 
+            minHeight: 0, 
+            overflowY: 'auto',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#9ca3af #f3f4f6'
+          }}
+          ref={scrollContainerRef}
+          onScroll={(event) => {
+            const target = event.currentTarget;
+            const threshold = 120;
+            const distanceFromBottom = target.scrollHeight - (target.scrollTop + target.clientHeight);
+            stickToBottomRef.current = distanceFromBottom <= threshold;
+          }}
+        >
           {hasMore && (
             <div className="flex justify-center mb-4">
               <Button
@@ -174,7 +229,7 @@ export function ProductionChatInterface({
 
           <MessageList
             messages={messages}
-            userId={userId}
+            currentUserId={userId}
             isLoading={isLoading}
             onLoadMore={handleLoadMore}
             hasMore={hasMore}

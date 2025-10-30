@@ -1,4 +1,5 @@
 import { util } from '@aws-appsync/utils';
+import { get } from '@aws-appsync/utils/dynamodb';
 
 /**
  * Query resolver for user(userId: ID!)
@@ -11,13 +12,13 @@ export function request(ctx) {
     util.error('userId is required', 'VALIDATION_ERROR');
   }
 
-  return {
-    operation: 'GetItem',
+  // Use helper to build proper DynamoDB request shape
+  return get({
     key: {
       PK: `USER#${userId}`,
       SK: 'PROFILE'
     }
-  };
+  });
 }
 
 export function response(ctx) {

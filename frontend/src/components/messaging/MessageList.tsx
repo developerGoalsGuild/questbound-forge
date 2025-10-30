@@ -3,7 +3,7 @@
  * Displays messages with grouping, timestamps, and user information
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Message } from '../../types/messaging';
 import { MessageItem } from './MessageItem';
 import { MessageGroup } from './MessageGroup';
@@ -131,7 +131,7 @@ export function MessageList({
   }
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col h-full ${className}`}>
       {/* Load more button */}
       {showLoadMore && (
         <div className="flex justify-center mb-4">
@@ -204,6 +204,28 @@ function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: Me
   const firstMessage = messages[0];
   const lastMessage = messages[messages.length - 1];
   const isOwnGroup = isOwnMessage(firstMessage, currentUserId);
+  const [resolvedName] = React.useState<string>('');
+  const nickname = useMemo(() => {
+    try {
+      // Primary source: auth cache
+      const authRaw = localStorage.getItem('auth');
+      const auth = authRaw ? JSON.parse(authRaw) : null;
+      const authNickname = auth?.user?.nickname || auth?.user?.fullName;
+      if (auth?.user?.id && auth.user.id === firstMessage.senderId && authNickname) {
+        return authNickname;
+      }
+
+      // Secondary source: persisted profile
+      const profileRaw = localStorage.getItem('profile');
+      const profile = profileRaw ? JSON.parse(profileRaw) : null;
+      if (profile?.id === firstMessage.senderId) {
+        return profile.nickname || profile.fullName || `User ${firstMessage.senderId.slice(-4)}`;
+      }
+    } catch {}
+    return resolvedName || `User ${firstMessage.senderId.slice(-4)}`;
+  }, [firstMessage.senderId, resolvedName]);
+
+  // No remote lookups; rely solely on senderNickname field or local cache
 
   return (
     <div className={`flex ${isOwnGroup ? 'justify-end' : 'justify-start'}`}>
@@ -212,10 +234,10 @@ function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: Me
         {!isOwnGroup && (
           <div className="flex items-center space-x-2 mb-1">
             <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-medium">
-              {firstMessage.senderId.charAt(0).toUpperCase()}
+              {(firstMessage.senderNickname || firstMessage.senderId).charAt(0).toUpperCase()}
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              User {firstMessage.senderId.slice(-4)}
+              {firstMessage.senderNickname || nickname}
             </span>
           </div>
         )}

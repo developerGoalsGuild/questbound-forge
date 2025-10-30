@@ -4,6 +4,8 @@ import os
 import sys
 import time
 import uuid
+from collections import defaultdict, deque
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -33,9 +35,12 @@ from .models import (
     SignupGoogle,
     LoginLocal,
     TokenResponse,
+    TokenRenewRequest,
     PublicUser,
     UserProfile,
     ProfileUpdate,
+    AppSyncKeyResponse,
+    AvailabilityKeyResponse,
 )
 from .ssm import settings
 from .security import (
@@ -79,6 +84,9 @@ dynamodb_client = boto3_session.client('dynamodb', config=AWS_CONFIG)
 CONFIRM_TTL = 60 * 60 * 24   # 24h
 CHANGE_CHALLENGE_TTL = 60 * 10  # 10m
 BLOCK_THRESHOLD = 3
+AVAILABILITY_RATE_LIMIT = 30  # requests per window per IP
+AVAILABILITY_RATE_WINDOW_SECONDS = 60  # window seconds
+_availability_hits: dict[str, deque[float]] = defaultdict(deque)
 
 # -------------------------
 # Logging
@@ -117,6 +125,24 @@ def _safe_event(event: str, **kwargs):
         kwargs["refresh_token"] = "<redacted>"
     log_event(logger, event, **kwargs)
 
+
+def _enforce_availability_rate_limit(request: Request) -> None:
+    host = request.client.host if request.client else "unknown"
+    now = time.time()
+    dq = _availability_hits[host]
+    # Drop stale timestamps
+    while dq and now - dq[0] > AVAILABILITY_RATE_WINDOW_SECONDS:
+        dq.popleft()
+    if len(dq) >= AVAILABILITY_RATE_LIMIT:
+        _safe_event("availability.rate_limited", client=host, hits=len(dq))
+        raise HTTPException(status_code=429, detail="Too many availability checks. Please wait and try again.")
+    dq.append(now)
+
+
+def _resolve_expiry(value: str | None, fallback_minutes: int) -> str:
+    if value and value.strip():
+        return value
+    return (datetime.now(timezone.utc) + timedelta(minutes=fallback_minutes)).isoformat()
 
 def _detect_conflict(email: Optional[str] = None, nickname: Optional[str] = None) -> dict | None:
     """Return a structured conflict descriptor if email/nickname locks exist.
@@ -996,18 +1022,55 @@ def login(body: LoginLocal, request: Request):
         or item.get("user_type")
         or "user"
     )
-    token = issue_local_jwt(item["id"], email, ttl_seconds=3600, role=user_role,nickname=item.get("nickname"))
+    token = issue_local_jwt(item["id"], email, ttl_seconds=3600, role=user_role, nickname=item.get("nickname"))
     record_attempt(email, success=True, ip=client_ip, ua=ua, reason="OK")
     _safe_event("login.success", cid=cid, email=_mask_email(email), ip=client_ip, ua=ua)
-    return TokenResponse(**token).model_dump()  
+    return TokenResponse(**token).model_dump()
+
+
+# --- TOKEN RENEWAL ---
+@app.post("/auth/renew", response_model=TokenResponse)
+def renew_token(
+    body: TokenRenewRequest,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+
+    supplied_token = (body.access_token or "").strip() if body else ""
+    if not supplied_token and authorization:
+        parts = authorization.strip().split(" ", 1)
+        supplied_token = parts[1] if len(parts) == 2 else parts[0]
+        supplied_token = supplied_token.strip()
+
+    if not supplied_token:
+        raise HTTPException(status_code=400, detail="Provide access_token for renewal")
+
+    claims: Dict[str, Any] | None = None
+    provider = "local"
+    try:
+        claims = verify_local_jwt(supplied_token)
+    except Exception as e_local:
+        try:
+            claims = verify_cognito_jwt(supplied_token)
+            provider = "cognito"
+        except Exception as e_cognito:
+            _safe_event("renew.invalid_token", cid=cid, local_error=str(e_local), cognito_error=str(e_cognito))
+            raise HTTPException(status_code=401, detail="Invalid or expired token") from e_cognito
+
+    if not isinstance(claims, dict):
+        _safe_event("renew.invalid_claims", cid=cid, provider=provider)
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user_id = claims.get("sub")
-    email = (claims.get("email") or "").lower()
+    email_claim = claims.get("email") or claims.get("username") or claims.get("cognito:username")
+    email = (email_claim or "").lower()
     role = (claims.get("role") or claims.get("user_type") or "user")
     if not user_id or not email:
-        raise HTTPException(status_code=400, detail="Malformed token")
+        # We'll attempt to enrich from persistence shortly; keep note that we need the user id.
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Malformed token")
 
-    # Optionally verify user still exists/active
     try:
         r = core.get_item(Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"})
         item = r.get("Item")
@@ -1023,9 +1086,63 @@ def login(body: LoginLocal, request: Request):
         logger.error("renew.ddb_error", exc_info=True)
         raise HTTPException(status_code=500, detail="Unable to renew token")
 
-    new_tok = issue_local_jwt(user_id, email, ttl_seconds=3600, role=role, nickname=item.get("nickname"))
-    _safe_event("renew.success", cid=cid, email=_mask_email(email))
+    if not email:
+        email = (item.get("email") or "").lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email address missing for renewal")
+
+    new_tok = issue_local_jwt(
+        user_id,
+        email,
+        ttl_seconds=3600,
+        role=role,
+        nickname=item.get("nickname"),
+    )
+    _safe_event("renew.success", cid=cid, email=_mask_email(email), provider=provider)
     return TokenResponse(**new_tok).model_dump()
+
+# --- APPSYNC KEY DISTRIBUTION ---
+
+@app.get("/appsync/subscription-key", response_model=AppSyncKeyResponse)
+async def get_subscription_key_endpoint(
+    request: Request,
+    auth: AuthContext = Depends(authenticate),
+) -> AppSyncKeyResponse:
+    issued_at = datetime.now(timezone.utc).isoformat()
+    try:
+        expires_at = _resolve_expiry(settings.appsync_subscription_key_expires_at, fallback_minutes=60)
+        api_key = settings.appsync_subscription_key
+    except Exception as exc:
+        logger.error("appsync.subscription_key_missing", extra={"user_id": auth.user_id}, exc_info=True)
+        raise HTTPException(status_code=503, detail="AppSync subscription key unavailable. Ensure backend has access to the key (SSM or LOCAL_APPSYNC_SUBSCRIPTION_KEY).") from exc
+
+    _safe_event(
+        "appsync.subscription_key_issued",
+        user_id=auth.user_id,
+        client=request.client.host if request.client else None,
+    )
+    return AppSyncKeyResponse(
+        apiKey=api_key,
+        issuedAt=issued_at,
+        expiresAt=expires_at,
+    )
+
+
+@app.get("/appsync/availability-key", response_model=AvailabilityKeyResponse)
+async def get_availability_key_endpoint(request: Request) -> AvailabilityKeyResponse:
+    _enforce_availability_rate_limit(request)
+    try:
+        expires_at = _resolve_expiry(settings.appsync_availability_key_expires_at, fallback_minutes=15)
+        api_key = settings.appsync_availability_key
+    except Exception as exc:
+        logger.error("appsync.availability_key_missing", extra={"client": request.client.host if request.client else None}, exc_info=True)
+        raise HTTPException(status_code=503, detail="AppSync availability key unavailable. Ensure backend has access to the key (SSM or LOCAL_APPSYNC_AVAILABILITY_KEY).") from exc
+    client_host = request.client.host if request.client else None
+    _safe_event("appsync.availability_key_issued", client=client_host)
+    return AvailabilityKeyResponse(
+        apiKey=api_key,
+        expiresAt=expires_at,
+    )
 
 # --- TEMP PASSWORD FOR BLOCKED USERS ---
 @app.post("/password/temp", response_model=None)

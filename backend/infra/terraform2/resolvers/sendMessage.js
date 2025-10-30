@@ -10,6 +10,7 @@ export function request(ctx) {
   const args = ctx.args || {};
   const roomId = args.roomId;
   const text = args.text;
+  const senderNickname = args.senderNickname;
   if (!roomId) util.error('roomId required', 'Validation');
   if (!text) util.error('text required', 'Validation');
 
@@ -39,9 +40,19 @@ export function request(ctx) {
     id: id,
     roomId: roomId,
     senderId: senderId,
+    senderNickname: senderNickname,
     text: text,
     ts: ts,
     roomType: roomType
+  };
+
+  ctx.stash.newMessage = {
+    id,
+    roomId,
+    senderId,
+    senderNickname,
+    text,
+    ts
   };
 
   return put({
@@ -56,12 +67,9 @@ export function request(ctx) {
 
 export function response(ctx) {
   if (ctx.error) util.error(ctx.error.message, ctx.error.type);
-  const a = (ctx.result && ctx.result.attributes) ? ctx.result.attributes : ctx.result;
-  return {
-    id: a.id,
-    roomId: a.roomId,
-    senderId: a.senderId,
-    text: a.text,
-    ts: a.ts
-  };
+  const message = ctx.stash.newMessage;
+  if (!message) {
+    util.error('Failed to deliver message payload', 'InternalFailure');
+  }
+  return message;
 }
