@@ -3,7 +3,7 @@
  * Displays a single message with proper styling and interactions
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Message } from '../../types/messaging';
 import { formatMessageTimestamp, isOwnMessage } from '../../lib/api/messaging';
 import { Button } from '../ui/button';
@@ -57,6 +57,27 @@ export function MessageItem({
   const [isHovered, setIsHovered] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const isOwn = isOwnMessage(message, currentUserId);
+  const sanitizedText = useMemo(() => {
+    try {
+      let value = message.text ?? '';
+      value = value.replace(/\r\n?/g, '\n');
+      value = value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u2028\u2029]/g, '');
+      value = value.replace(/[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/g, '');
+      value = value.replace(/\n+/g, ' ');
+      return value;
+    } catch {
+      return message.text ?? '';
+    }
+  }, [message.text]);
+
+  useEffect(() => {
+    try {
+      if (isOwn) {
+        const codes = Array.from(sanitizedText).map(char => char.charCodeAt(0));
+        console.debug('Chat message debug', sanitizedText, codes.join(','));
+      }
+    } catch {}
+  }, [sanitizedText, isOwn]);
 
   const handleCopy = async () => {
     try {
@@ -113,11 +134,15 @@ export function MessageItem({
       )}
 
       {/* Message content */}
-      <div className={`flex flex-col max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div
+        className={`flex flex-col min-w-0 ${
+          isOwn ? 'items-end ml-auto w-fit max-w-full' : 'items-start max-w-[70%]'
+        }`}
+      >
         {/* Message bubble */}
         <div
           className={`
-            relative px-3 py-2 rounded-2xl max-w-full break-words
+            relative inline-flex flex-col px-3 py-2 rounded-2xl max-w-full flex-none
             ${isOwn 
               ? 'bg-blue-500 text-white rounded-br-md' 
               : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
@@ -127,9 +152,11 @@ export function MessageItem({
             ${isGrouped ? 'mt-1' : ''}
           `}
         >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {message.text}
-          </p>
+          <span
+            className={`block text-sm leading-relaxed whitespace-normal text-left ${isOwn ? 'bubble-text-own' : 'bubble-text-other'}`}
+          >
+            {sanitizedText}
+          </span>
 
           {/* Message actions */}
           {isHovered && (

@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+.bubble-text-own {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+.bubble-text-other {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
 /* Medieval-inspired design system for goal collaboration platform
 All colors MUST be HSL format for proper theming
 */

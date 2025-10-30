@@ -117,15 +117,21 @@ export async function renewToken(): Promise<LoginResponse> {
   const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
   const url = base.replace(/\/$/, '') + '/auth/renew';
   const currentAuth = getStoredAuth();
-  const accessToken = currentAuth?.access_token || null;
-  if (!accessToken) {
-    throw new Error('Missing access token');
+  const tokenForRenew =
+    currentAuth?.access_token ||
+    currentAuth?.id_token ||
+    (currentAuth as any)?.token ||
+    null;
+
+  if (!tokenForRenew) {
+    throw new Error('Missing token for renewal');
   }
-  const headers: Record<string,string> = { 'content-type': 'application/json' };
+
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (apiKey) headers['x-api-key'] = apiKey;
-  headers['authorization'] = `Bearer ${accessToken}`;
+  headers['Authorization'] = `Bearer ${tokenForRenew}`;
   const refreshToken = currentAuth?.refresh_token;
-  const payload: Record<string, string> = { access_token: accessToken };
+  const payload: Record<string, string> = { access_token: tokenForRenew };
   if (refreshToken) {
     payload.refresh_token = refreshToken;
   }
@@ -140,8 +146,16 @@ export async function renewToken(): Promise<LoginResponse> {
     const msg = body?.detail || body?.message || text || 'Renew failed';
     throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
   }
-  try { localStorage.setItem('auth', JSON.stringify(body)); window.dispatchEvent(new CustomEvent('auth:change')); } catch {}
-  return body as LoginResponse;
+  const mergedBody: LoginResponse = {
+    ...(currentAuth || {}),
+    ...body,
+    refresh_token: body?.refresh_token || currentAuth?.refresh_token,
+  };
+  try {
+    localStorage.setItem('auth', JSON.stringify(mergedBody));
+    window.dispatchEvent(new CustomEvent('auth:change'));
+  } catch {}
+  return mergedBody;
 }
 
 
