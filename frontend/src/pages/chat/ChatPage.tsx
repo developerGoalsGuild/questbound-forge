@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { AppSyncChatInterface } from '@/components/messaging/AppSyncChatInterface';
 import { SimpleChatInterface } from '@/components/messaging/SimpleChatInterface';
 import { ProductionChatInterface } from '@/components/messaging/ProductionChatInterface';
+import { RoomMembersDialog } from '@/components/messaging/RoomMembersDialog';
+import { RoomSettingsDialog } from '@/components/messaging/RoomSettingsDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,8 @@ export default function ChatPage() {
   const [chatRooms, setChatRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState<boolean>(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   // Get user ID from authentication
   const userId = user?.id;
@@ -42,13 +46,21 @@ export default function ChatPage() {
         const rooms = await listRooms();
         if (!mounted) return;
         if (rooms && rooms.length) {
-          // Enrich rooms with live member counts
+          // Enrich rooms with live member counts and updated name/description from database
           const roomsWithCounts = await Promise.all(
             rooms.map(async (r) => {
               try {
                 const info: any = await getRoomInfo(r.id);
                 const count = (info?.memberCount ?? info?.active_connections ?? info?.activeConnections ?? 0) as number;
-                return { ...(r as Room), memberCount: count };
+                // Use name and description from getRoomInfo (database) instead of listRooms
+                const roomName = info?.roomName || info?.guildName || info?.name || r.name;
+                const roomDescription = info?.description || r.description || '';
+                return { 
+                  ...(r as Room), 
+                  name: roomName,
+                  description: roomDescription,
+                  memberCount: count 
+                };
               } catch {
                 return { ...(r as Room), memberCount: r.memberCount ?? 0 };
               }
@@ -132,7 +144,7 @@ export default function ChatPage() {
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              <Badge variant="outline" className="flex items-center space-x-1">
+              <Badge variant="outline" className="flex items-center space-x-1 hidden">
                 <Users className="h-3 w-3" />
                 <span>Live</span>
               </Badge>
@@ -140,7 +152,7 @@ export default function ChatPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setChatMode(chatMode === 'production' ? 'simple' : 'production')}
-                className="flex items-center space-x-1"
+                className="flex items-center space-x-1 hidden"
               >
                 {chatMode === 'production' ? (
                   <>
@@ -235,6 +247,8 @@ export default function ChatPage() {
                       onStatsUpdate={(_, stats) => {
                         setActiveConnections(stats?.distinctSenders ?? 0);
                       }}
+                      onSettings={() => setShowSettingsDialog(true)}
+                      onMembers={() => setShowMembersDialog(true)}
                       className="h-full"
                     />
                   ) : (
@@ -249,6 +263,8 @@ export default function ChatPage() {
                       onError={(error) => {
                         console.error('Simple chat error:', error);
                       }}
+                      onSettings={() => setShowSettingsDialog(true)}
+                      onMembers={() => setShowMembersDialog(true)}
                       className="h-full"
                     />
                   )}
@@ -259,6 +275,56 @@ export default function ChatPage() {
         </div>
 
       </div>
+
+      {/* Room Members Dialog */}
+      <RoomMembersDialog
+        roomId={selectedRoom}
+        roomName={selectedRoomData?.name}
+        roomType={selectedRoomData?.type}
+        isOpen={showMembersDialog}
+        onClose={() => setShowMembersDialog(false)}
+        currentUserId={userId}
+      />
+
+      {/* Room Settings Dialog */}
+      <RoomSettingsDialog
+        roomId={selectedRoom}
+        roomName={selectedRoomData?.name}
+        roomType={selectedRoomData?.type}
+        isOpen={showSettingsDialog}
+        onClose={() => setShowSettingsDialog(false)}
+        onSettingsUpdated={async () => {
+          // Refresh room data after settings are updated
+          try {
+            const rooms = await listRooms();
+            if (rooms && rooms.length) {
+              const roomsWithCounts = await Promise.all(
+                rooms.map(async (r) => {
+                  try {
+                    const info: any = await getRoomInfo(r.id);
+                    const count = (info?.memberCount ?? info?.active_connections ?? info?.activeConnections ?? 0) as number;
+                    return { ...(r as Room), memberCount: count };
+                  } catch {
+                    return { ...(r as Room), memberCount: r.memberCount ?? 0 };
+                  }
+                })
+              );
+              setChatRooms(roomsWithCounts);
+              
+              // Update selected room if it still exists
+              const exists = roomsWithCounts.some(r => r.id === selectedRoom);
+              if (exists && selectedRoomData) {
+                const updatedRoom = roomsWithCounts.find(r => r.id === selectedRoom);
+                if (updatedRoom) {
+                  // Room data refreshed
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error refreshing room data after settings update:', error);
+          }
+        }}
+      />
     </div>
   );
 }

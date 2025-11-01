@@ -45,16 +45,31 @@ export function response(ctx) {
   if (ctx.error) util.error(ctx.error.message, ctx.error.type);
   
   const items = ctx.result?.items || [];
+  const identity = ctx.identity || {};
+  const userId = identity.sub || (identity.resolverContext && identity.resolverContext.sub);
   
   // Transform DynamoDB items to Message format
-  const messages = items.map(item => ({
+  const messages = items.map(item => {
+    const message = {
     id: item.id,
     roomId: item.roomId,
     senderId: item.senderId,
     senderNickname: item.senderNickname,
     text: item.text,
     ts: item.ts
-  }));
+    };
+    
+    // Include replyToId if present
+    if (item.replyToId) {
+      message.replyToId = item.replyToId;
+    }
+    
+    // Don't include reactions here - the field resolver will handle it
+    // Including empty array causes AppSync to still call the field resolver
+    // Leaving it out means reactions are only fetched if explicitly requested
+    
+    return message;
+  });
 
   return messages;
 }

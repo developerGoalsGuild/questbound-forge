@@ -16,7 +16,8 @@ import {
   Trash2, 
   Check, 
   CheckCheck,
-  Clock
+  Clock,
+  CornerDownLeft
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -40,6 +41,7 @@ interface MessageItemProps {
   onEdit?: (message: Message) => void;
   onDelete?: (message: Message) => void;
   className?: string;
+  allowReactions?: boolean; // Whether reactions are allowed in this room
 }
 
 export function MessageItem({
@@ -53,7 +55,8 @@ export function MessageItem({
   onReply,
   onEdit,
   onDelete,
-  className = ''
+  className = '',
+  allowReactions = true
 }: MessageItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -118,6 +121,48 @@ export function MessageItem({
 
   const status = getMessageStatus();
   const StatusIcon = status.icon;
+  const replyPreview = message.replyTo ?? null;
+  const replyIsFallback = !!replyPreview?.isFallback;
+  const rawReplySender = (replyPreview?.senderNickname || '').trim();
+  const replySender = rawReplySender || 'Unknown user';
+  const showReplySender = Boolean(rawReplySender);
+  const replyText = (replyPreview?.text || '').replace(/\s+/g, ' ').trim();
+  const replyBodyText = replyText || (replyIsFallback ? 'Original message unavailable' : 'No message content');
+  const replyContainerClass = isOwn
+    ? replyIsFallback
+      ? 'border-white/20 border-l-amber-200/70 bg-white/10 text-white/80'
+      : 'border-white/20 border-l-blue-200/70 bg-white/10 text-white/80'
+    : replyIsFallback
+      ? 'border-amber-200/70 border-l-amber-500/60 bg-amber-50/80 text-amber-900 dark:border-amber-900/40 dark:border-l-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100'
+      : 'border-blue-200/70 border-l-blue-500/60 bg-blue-50/80 text-blue-900 dark:border-blue-900/50 dark:border-l-blue-500/40 dark:bg-blue-900/20 dark:text-blue-100';
+  const replyTitleClass = isOwn
+    ? replyIsFallback
+      ? 'text-white/75'
+      : 'text-white/80'
+    : replyIsFallback
+      ? 'text-amber-800 dark:text-amber-200'
+      : 'text-blue-700 dark:text-blue-200';
+  const replySenderClass = replyIsFallback
+    ? isOwn
+      ? 'text-white/70'
+      : 'text-amber-800/80 dark:text-amber-200/85'
+    : isOwn
+      ? 'text-white font-semibold'
+      : 'text-blue-900 dark:text-blue-100 font-semibold';
+  const replyBodyClass = replyIsFallback
+    ? isOwn
+      ? 'mt-1 text-xs italic text-white/75'
+      : 'mt-1 text-xs italic text-amber-900/90 dark:text-amber-100/85'
+    : isOwn
+      ? 'mt-1 text-xs leading-relaxed text-white/80 line-clamp-2'
+      : 'mt-1 text-xs leading-relaxed text-blue-900/90 dark:text-blue-100/90 line-clamp-2';
+  const replyIconClass = replyIsFallback
+    ? isOwn
+      ? 'text-white/70'
+      : 'text-amber-500 dark:text-amber-200'
+    : isOwn
+      ? 'text-white/70'
+      : 'text-blue-600 dark:text-blue-200';
 
   return (
     <div
@@ -141,42 +186,67 @@ export function MessageItem({
         }`}
       >
         {/* Message bubble with reactions inline */}
-        <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
           {/* Message bubble */}
           <div
             className={`
-              relative inline-flex flex-col px-3 py-2 rounded-2xl max-w-full flex-none
+              relative inline-flex flex-col max-w-full flex-none
+              transition-all duration-200 ease-out
               ${isOwn 
-                ? 'bg-blue-500 text-white rounded-br-md' 
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-sm shadow-lg shadow-blue-500/20' 
+                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl rounded-bl-sm shadow-md shadow-gray-200/50 dark:shadow-gray-900/50 border border-gray-100 dark:border-gray-700'
               }
               ${isFirstInGroup ? '' : isOwn ? 'rounded-tr-md' : 'rounded-tl-md'}
               ${isLastInGroup ? '' : isOwn ? 'rounded-br-md' : 'rounded-bl-md'}
-              ${isGrouped ? 'mt-1' : ''}
+              ${isGrouped ? 'mt-1.5' : 'mt-2'}
+              ${isOwn ? 'px-4 py-2.5' : 'px-4 py-2.5'}
             `}
           >
+            {/* Reply preview */}
+            {replyPreview && (
+              <div
+                className={`mb-2 rounded-lg border px-3 py-2 text-xs shadow-sm border-l-4 ${replyContainerClass}`}
+              >
+                <div
+                  className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide ${replyTitleClass} whitespace-nowrap min-w-0`}
+                >
+                  <CornerDownLeft className={`h-3.5 w-3.5 flex-shrink-0 ${replyIconClass}`} />
+                  <span className="flex-shrink-0">Replying to</span>
+                  {showReplySender && (
+                    <span className={`${replySenderClass} truncate ml-1 min-w-0`}>
+                      {replySender}
+                    </span>
+                  )}
+                </div>
+                <div className={replyBodyClass}>
+                  {replyBodyText}
+                </div>
+              </div>
+            )}
+
             <span
-              className={`block text-sm leading-relaxed whitespace-normal text-left ${isOwn ? 'bubble-text-own' : 'bubble-text-other'}`}
+              className={`block text-sm leading-relaxed whitespace-normal text-left font-normal ${isOwn ? 'bubble-text-own' : 'bubble-text-other'}`}
+              style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
             >
               {sanitizedText}
             </span>
 
             {/* Message actions */}
             {isHovered && (
-              <div className="absolute -top-8 right-0 flex items-center space-x-1 bg-gray-800 text-white rounded-lg px-2 py-1 shadow-lg">
+              <div className="absolute -top-10 right-0 flex items-center space-x-1 bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-sm text-white rounded-xl px-2 py-1.5 shadow-xl border border-gray-700/50 transition-all duration-200">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-6 w-6 p-0 text-white hover:bg-gray-700"
+                        className="h-7 w-7 p-0 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                         onClick={handleCopy}
                       >
                         {isCopied ? (
-                          <Check className="h-3 w-3" />
+                          <Check className="h-3.5 w-3.5" />
                         ) : (
-                          <Copy className="h-3 w-3" />
+                          <Copy className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     </TooltipTrigger>
@@ -193,10 +263,10 @@ export function MessageItem({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-6 w-6 p-0 text-white hover:bg-gray-700"
+                          className="h-7 w-7 p-0 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                           onClick={handleReply}
                         >
-                          <Reply className="h-3 w-3" />
+                          <Reply className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -212,9 +282,9 @@ export function MessageItem({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-6 w-6 p-0 text-white hover:bg-gray-700"
+                        className="h-7 w-7 p-0 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                       >
-                        <MoreHorizontal className="h-3 w-3" />
+                        <MoreHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
@@ -242,13 +312,17 @@ export function MessageItem({
           </div>
 
           {/* Reactions - positioned beside the message */}
-          <ReactionsBar 
-            messageId={message.id} 
-            initialReactions={message.reactions}
-            className="items-end self-end"
-            showAddButton={isHovered}
-            isOwnMessage={isOwn}
-          />
+          {/* Only show if reactions are allowed in this room */}
+          {/* Use !== false to allow true and undefined (default), but block false */}
+          {allowReactions !== false && (
+            <ReactionsBar
+              messageId={message.id}
+              initialReactions={message.reactions}
+              className="items-end self-end"
+              showAddButton={isHovered}
+              isOwnMessage={isOwn}
+            />
+          )}
         </div>
 
         {/* Message status and timestamp */}

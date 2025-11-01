@@ -23,6 +23,14 @@ export interface ReactionResponse {
   removed?: boolean;
 }
 
+export interface MessageReplyContext {
+  id: string;
+  text?: string;
+  senderId?: string;
+  senderNickname?: string;
+  isFallback?: boolean;
+}
+
 export interface Message {
   id: string;
   roomId: string;
@@ -36,6 +44,8 @@ export interface Message {
   updatedAt?: string;
   emojiMetadata?: EmojiMetadata;
   reactions?: Reaction[];
+  replyToId?: string;
+  replyTo?: MessageReplyContext | null;
 }
 
 export interface MessageInput {
@@ -150,6 +160,9 @@ export interface GeneralRoomInfo {
   description?: string;
   isPublic: boolean;
   memberCount: number;
+  allowFileUploads?: boolean;
+  allowReactions?: boolean;
+  maxMessageLength?: number;
 }
 
 export type RoomInfo = GuildRoomInfo | GeneralRoomInfo;
@@ -201,7 +214,7 @@ export interface UseMessagingReturn {
   hasMore: boolean;
   
   // Actions
-  sendMessage: (text: string) => Promise<MessageSendResult>;
+  sendMessage: (text: string, replyToId?: string) => Promise<MessageSendResult>;
   loadMessages: (filters?: MessageFilters) => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   connect: (roomId: string) => Promise<void>;

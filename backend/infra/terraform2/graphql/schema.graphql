@@ -207,6 +207,9 @@ type Message @aws_lambda {
   text: String!
   ts: AWSTimestamp!
   emojiMetadata: EmojiMetadata
+  replyToId: ID
+  replyTo: Message
+  reactions: [Reaction!]!
 }
 
 type EmojiMetadata {
@@ -291,7 +294,7 @@ type Mutation {
   """
   Post a message to a chat room.
   """
-  sendMessage(roomId: ID!, text: String!, senderNickname: String): Message! @aws_lambda
+  sendMessage(roomId: ID!, text: String!, senderNickname: String, replyToId: ID): Message! @aws_lambda
   
   """
   Add a reaction to a message (idempotent per user/emoji).

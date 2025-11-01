@@ -20,6 +20,8 @@ interface MessageListProps {
   isLoading?: boolean;
   className?: string;
   disableAutoScroll?: boolean; // Allow parent to control scrolling
+  onReply?: (message: Message) => void;
+  allowReactions?: boolean; // Whether reactions are allowed in this room
 }
 
 export function MessageList({
@@ -29,7 +31,9 @@ export function MessageList({
   hasMore = false,
   isLoading = false,
   className = '',
-  disableAutoScroll = false
+  disableAutoScroll = false,
+  onReply,
+  allowReactions = true // Default to true for backward compatibility
 }: MessageListProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showLoadMore, setShowLoadMore] = useState(false);
@@ -195,6 +199,8 @@ export function MessageList({
               currentUserId={currentUserId}
               isFirstGroup={groupIndex === 0}
               isLastGroup={groupIndex === groupedMessages.length - 1}
+              onReply={onReply}
+              allowReactions={allowReactions}
             />
           ))
         )}
@@ -209,9 +215,17 @@ interface MessageGroupProps {
   currentUserId: string;
   isFirstGroup: boolean;
   isLastGroup: boolean;
+  onReply?: (message: Message) => void;
+  allowReactions?: boolean;
 }
 
-function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: MessageGroupProps) {
+function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup, onReply, allowReactions }: MessageGroupProps) {
+  // Debug: log allowReactions value (only once per group render)
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      console.log('MessageGroup - allowReactions prop:', allowReactions, 'type:', typeof allowReactions);
+    }
+  }, [allowReactions, messages.length]);
   const firstMessage = messages[0];
   const isOwnGroup = isOwnMessage(firstMessage, currentUserId);
   const [resolvedName] = React.useState<string>('');
@@ -238,15 +252,15 @@ function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: Me
   // No remote lookups; rely solely on senderNickname field or local cache
 
   return (
-    <div className={`flex ${isOwnGroup ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isOwnGroup ? 'justify-end' : 'justify-start'} mb-3`}>
       <div className={`flex flex-col max-w-[70%] ${isOwnGroup ? 'items-end' : 'items-start'}`}>
         {/* User info for first message in group */}
         {!isOwnGroup && (
-          <div className="flex items-center space-x-2 mb-1">
-            <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-medium">
+          <div className="flex items-center space-x-2 mb-1.5">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-xs font-semibold shadow-sm">
               {(firstMessage.senderNickname || firstMessage.senderId).charAt(0).toUpperCase()}
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
               {firstMessage.senderNickname || nickname}
             </span>
           </div>
@@ -264,6 +278,8 @@ function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: Me
               isGrouped={messages.length > 1}
               isFirstInGroup={index === 0}
               isLastInGroup={index === messages.length - 1}
+              onReply={onReply}
+              allowReactions={allowReactions}
             />
           ))}
         </div>

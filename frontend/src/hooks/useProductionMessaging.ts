@@ -14,7 +14,8 @@ import {
   TypingUser,
   RateLimitInfo,
   MessageSendResult,
-  RoomInfo
+  RoomInfo,
+  MessageReplyContext
 } from '../types/messaging';
 import { 
   fetchMessages, 
@@ -36,20 +37,22 @@ const ON_MESSAGE_SUBSCRIPTION = `
       senderId
       senderNickname
       ts
+      replyToId
     }
   }
 `;
 
 // GraphQL mutation for sending messages
 const SEND_MESSAGE_MUTATION = `
-  mutation SendMessage($roomId: ID!, $text: String!, $senderNickname: String) {
-    sendMessage(roomId: $roomId, text: $text, senderNickname: $senderNickname) {
+  mutation SendMessage($roomId: ID!, $text: String!, $senderNickname: String, $replyToId: ID) {
+    sendMessage(roomId: $roomId, text: $text, senderNickname: $senderNickname, replyToId: $replyToId) {
       id
       text
       roomId
       senderId
       senderNickname
       ts
+      replyToId
     }
   }
 `;
@@ -64,9 +67,140 @@ const GET_MESSAGES_QUERY = `
       senderId
       senderNickname
       ts
+      replyToId
+      reactions {
+        shortcode
+        unicode
+        count
+        viewerHasReacted
+      }
     }
   }
 `;
+
+const coerceTimestamp = (value: any): number => {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    if (!Number.isNaN(numeric)) {
+      return numeric;
+    }
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return Date.now();
+};
+
+const DEFAULT_REPLY_PLACEHOLDER = 'Original message unavailable';
+
+const normalizeMessageRecord = (raw: any, roomId: string): Message => {
+  const timestamp = coerceTimestamp(raw?.ts);
+  const rawSenderId = raw?.senderId ?? raw?.userId ?? raw?.sender_id ?? raw?.senderID;
+  const senderId = rawSenderId ? String(rawSenderId) : 'UNKNOWN';
+  const senderNickname =
+    raw?.senderNickname ??
+    raw?.sender_nickname ??
+    raw?.senderName ??
+    raw?.sender_name ??
+    undefined;
+  const replyToRaw = raw?.replyToId ?? raw?.reply_to_id ?? raw?.reply_to ?? undefined;
+
+  const message: Message = {
+    id: String(raw?.id ?? crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)),
+    roomId: raw?.roomId ? String(raw.roomId) : roomId,
+    senderId,
+    senderNickname: senderNickname ? String(senderNickname) : undefined,
+    text: typeof raw?.text === 'string' ? raw.text : '',
+    ts: timestamp,
+    type: raw?.type === 'broadcast' || raw?.type === 'system' ? raw.type : 'message',
+    roomType: roomId.startsWith('GUILD#') ? 'guild' : 'general',
+    createdAt: new Date(timestamp).toISOString(),
+    updatedAt: raw?.updatedAt ?? raw?.updated_at ?? undefined,
+    emojiMetadata: raw?.emojiMetadata,
+    reactions: raw?.reactions,
+    replyToId: replyToRaw ? String(replyToRaw) : undefined,
+    replyTo: null,
+  };
+
+  return message;
+};
+
+const enrichMessageWithReply = (
+  message: Message,
+  lookup: Map<string, Message>
+): Message => {
+  if (!message.replyToId) {
+    if (message.replyTo == null) {
+      return { ...message, replyTo: null };
+    }
+    return message;
+  }
+
+  const parent = lookup.get(message.replyToId);
+  if (parent) {
+    const reply: MessageReplyContext = {
+      id: parent.id,
+      text: parent.text,
+      senderId: parent.senderId,
+      senderNickname: parent.senderNickname,
+    };
+
+    const existing = message.replyTo;
+    if (
+      existing &&
+      !existing.isFallback &&
+      existing.id === reply.id &&
+      existing.text === reply.text &&
+      existing.senderId === reply.senderId &&
+      existing.senderNickname === reply.senderNickname
+    ) {
+      return message;
+    }
+
+    return { ...message, replyTo: reply };
+  }
+
+  // Preserve any reply info already populated (e.g., server-provided preview)
+  if (message.replyTo && !message.replyTo.isFallback) {
+    return message;
+  }
+
+  const fallback: MessageReplyContext = {
+    id: message.replyToId,
+    text: message.replyTo?.text || DEFAULT_REPLY_PLACEHOLDER,
+    senderId: message.replyTo?.senderId,
+    senderNickname: message.replyTo?.senderNickname,
+    isFallback: true,
+  };
+
+  if (
+    message.replyTo?.isFallback &&
+    message.replyTo.text === fallback.text &&
+    message.replyTo.senderNickname === fallback.senderNickname
+  ) {
+    return message;
+  }
+
+  return { ...message, replyTo: fallback };
+};
+
+const enrichMessagesWithReply = (
+  messages: Message[],
+  existing: Message[] = []
+): Message[] => {
+  const lookup = new Map<string, Message>();
+  existing.forEach(msg => lookup.set(msg.id, msg));
+
+  return messages.map(msg => {
+    const enriched = enrichMessageWithReply(msg, lookup);
+    lookup.set(enriched.id, enriched);
+    return enriched;
+  });
+};
 
 export function useProductionMessaging(roomId: string): UseMessagingReturn {
   const [state, setState] = useState<MessagingState>({
@@ -82,6 +216,10 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     hasError: false,
     activeConnections: 0
   });
+  
+  // Room info state
+  const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
+  const [roomInfoLoading, setRoomInfoLoading] = useState(true);
 
   // Helper to get auth token
   const getAuthToken = useCallback(() => {
@@ -261,21 +399,19 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       const messages = result.data?.messages || [];
       console.log('Messages count:', Array.isArray(messages) ? messages.length : 0);
 
-      const transformedMessages = messages.map((msg: any) => ({
-        ...msg,
-        type: 'message' as const,
-        roomType: roomId.startsWith('GUILD#') ? 'guild' as const : 'general' as const,
-        createdAt: new Date(msg.ts).toISOString()
-      }));
+      const normalized = messages.map((msg: any) => normalizeMessageRecord(msg, roomId)).reverse();
 
-      setState(prev => ({
-        ...prev,
-        messages: transformedMessages.reverse(),
-        isLoading: false,
-        hasMore: messages.length === limit,
-        nextToken: messages.length > 0 ? messages[messages.length - 1].ts.toString() : null,
-        error: null
-      }));
+      setState(prev => {
+        const enriched = enrichMessagesWithReply(normalized, prev.messages);
+        return {
+          ...prev,
+          messages: enriched,
+          isLoading: false,
+          hasMore: messages.length === limit,
+          nextToken: messages.length > 0 ? messages[messages.length - 1].ts.toString() : null,
+          error: null
+        };
+      });
     } catch (error: any) {
       console.error('Failed to load messages:', error);
       console.error('Error data:', error?.data);
@@ -328,16 +464,12 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         next: ({ data }: any) => {
           const m = data?.onMessage;
           if (!m) return;
-          const transformed = {
-            ...m,
-            type: 'message' as const,
-            roomType: roomId.startsWith('GUILD#') ? 'guild' as const : 'general' as const,
-            createdAt: new Date(m.ts).toISOString()
-          };
+          const normalized = normalizeMessageRecord(m, roomId);
           setState(prev => {
-            const exists = prev.messages.some(msg => msg.id === transformed.id);
+            const exists = prev.messages.some(msg => msg.id === normalized.id);
             if (exists) return prev;
-            return { ...prev, messages: [...prev.messages, transformed] };
+            const [enriched] = enrichMessagesWithReply([normalized], prev.messages);
+            return { ...prev, messages: [...prev.messages, enriched] };
           });
         },
         error: async (err: any) => {
@@ -471,7 +603,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   }, [loadMessages, connect, disconnect]);
 
   // Send message via AppSync
-  const sendMessage = useCallback(async (content: string, messageType: string = 'text'): Promise<MessageSendResult> => {
+  const sendMessage = useCallback(async (content: string, messageType: string = 'text', replyToId?: string): Promise<MessageSendResult> => {
     try {
       console.log('Sending message via AppSync:', { roomId, content, messageType });
       
@@ -496,7 +628,8 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         variables: {
           roomId,
           text: content,
-          senderNickname: deriveSenderNickname()
+          senderNickname: deriveSenderNickname(),
+          replyToId: replyToId || null
         }
       };
       try {
@@ -518,7 +651,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         token = getAuthToken();
         const retrySendPayload = {
           query: SEND_MESSAGE_MUTATION,
-          variables: { roomId, text: content, senderNickname: deriveSenderNickname() }
+          variables: { roomId, text: content, senderNickname: deriveSenderNickname(), replyToId: replyToId || null }
         };
         try {
           console.log('GraphQL sendMessage RETRY headers:', { authorizationBearerLen: token ? String(token).length : 0 });
@@ -537,23 +670,19 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
 
       const message = result.data?.sendMessage;
       if (message) {
-        // Transform message to include required fields
-        const transformedMessage = {
-          ...message,
-          type: 'message' as const,
-          roomType: roomId.startsWith('GUILD#') ? 'guild' as const : 'general' as const,
-          createdAt: new Date(message.ts).toISOString()
-        };
-        
-        // Add message to local state immediately so it appears in the UI
-        setState(prev => ({
-          ...prev,
-          messages: [...prev.messages, transformedMessage]
-        }));
-        
+        const normalized = normalizeMessageRecord(message, roomId);
+
+        setState(prev => {
+          const [enriched] = enrichMessagesWithReply([normalized], prev.messages);
+          return {
+            ...prev,
+            messages: [...prev.messages, enriched]
+          };
+        });
+
         return {
           success: true,
-          messageId: transformedMessage.id,
+          messageId: normalized.id,
           rateLimitInfo: null
         };
       } else {
@@ -655,6 +784,74 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.isConnected]); // Only depend on isConnected, not loadMessages to prevent infinite loops
 
+  // Function to refresh room info (can be called externally)
+  const refreshRoomInfoRef = useRef<(() => Promise<void>) | null>(null);
+  
+  // Fetch room info when roomId changes
+  useEffect(() => {
+    let cancelled = false;
+    setRoomInfoLoading(true);
+    
+    const fetchRoomInfo = async () => {
+      try {
+        const info = await getRoomInfo(roomId);
+        console.log('useProductionMessaging - Fetched roomInfo:', info);
+        console.log('useProductionMessaging - roomInfo has roomName?', 'roomName' in info);
+        if ('roomName' in info) {
+          console.log('useProductionMessaging - roomInfo.roomName value:', info.roomName);
+        }
+        if ('allowReactions' in info) {
+          console.log('useProductionMessaging - roomInfo.allowReactions:', info.allowReactions, 'type:', typeof info.allowReactions);
+        }
+        if (!cancelled) {
+          setRoomInfo(info);
+          setRoomInfoLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch room info:', error);
+        if (!cancelled) {
+          // Set default room info on error
+          setRoomInfo(roomId.startsWith('GUILD#') ? {
+            guildId: roomId,
+            guildName: roomId.replace('GUILD#', ''),
+            memberCount: 0,
+            isMember: true,
+            permissions: []
+          } : {
+            roomId: roomId,
+            roomName: roomId.replace('ROOM-', '').replace(/-/g, ' '),
+            description: '',
+            isPublic: true,
+            allowReactions: true,
+            memberCount: 0
+          } as RoomInfo);
+          setRoomInfoLoading(false);
+        }
+      }
+    };
+    
+    fetchRoomInfo();
+    refreshRoomInfoRef.current = fetchRoomInfo;
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+  
+  // Listen for room settings update events to refresh room info
+  useEffect(() => {
+    const handleRoomSettingsUpdated = async () => {
+      if (refreshRoomInfoRef.current) {
+        await refreshRoomInfoRef.current();
+      }
+    };
+    
+    window.addEventListener('room:settingsUpdated', handleRoomSettingsUpdated);
+    return () => {
+      window.removeEventListener('room:settingsUpdated', handleRoomSettingsUpdated);
+    };
+  }, []);
+
   // Cleanup on unmount only
   useEffect(() => {
     return () => {
@@ -694,8 +891,8 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     activeConnections: 0, // TODO: Implement connection counting
 
     // Actions
-    sendMessage: async (text: string) => {
-      const result = await sendMessage(text, 'text');
+    sendMessage: async (text: string, replyToId?: string) => {
+      const result = await sendMessage(text, 'text', replyToId);
       return {
         success: result.success,
         messageId: result.messageId,
@@ -718,7 +915,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
 
         // Room info
         currentRoom: roomId,
-        roomInfo: (roomId.startsWith('GUILD#') ? {
+        roomInfo: roomInfo || (roomId.startsWith('GUILD#') ? {
           guildId: roomId,
           guildName: roomId.replace('GUILD#', ''),
           memberCount: 0,
@@ -726,7 +923,8 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           permissions: []
         } : {
           roomId: roomId,
-          roomName: roomId.replace('ROOM-', ''),
+          roomName: roomId.replace('ROOM-', '').replace(/-/g, ' '),
+          description: '',
           isPublic: true,
           memberCount: 0
         }) as RoomInfo

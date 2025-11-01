@@ -3,9 +3,9 @@
  * Uses database persistence for real-time messaging
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useProductionMessaging } from '../../hooks/useProductionMessaging';
-import { Message, MessageSendResult } from '../../types/messaging';
+import { Message, MessageSendResult, MessageReplyContext } from '../../types/messaging';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { ChatHeader } from './ChatHeader';
@@ -26,6 +26,8 @@ interface ProductionChatInterfaceProps {
   onMessageSent?: (message: Message) => void;
   onError?: (error: string) => void;
   onStatsUpdate?: (roomId: string, stats: { messageCount: number; distinctSenders: number }) => void;
+  onSettings?: () => void;
+  onMembers?: () => void;
 }
 
 export function ProductionChatInterface({
@@ -36,12 +38,15 @@ export function ProductionChatInterface({
   className = '',
   onMessageSent,
   onError,
-  onStatsUpdate
+  onStatsUpdate,
+  onSettings,
+  onMembers
 }: ProductionChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const hasInitiallyScrolledRef = useRef(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
 
   const scrollToBottom = (smooth: boolean = true) => {
     const container = scrollContainerRef.current;
@@ -68,7 +73,8 @@ export function ProductionChatInterface({
     messages,
     isLoading,
     isConnected,
-    error,
+    hasError,
+    errorMessage,
     hasMore,
     typingUsers,
     rateLimitInfo,
@@ -83,6 +89,72 @@ export function ProductionChatInterface({
     currentRoom,
     roomInfo
   } = useProductionMessaging(roomId);
+
+  // Debug: Log room info to see what we're getting
+  useEffect(() => {
+    if (roomInfo) {
+      console.log('ProductionChatInterface - roomInfo:', roomInfo);
+      console.log('ProductionChatInterface - roomName prop:', roomName);
+      if ('roomName' in roomInfo) {
+        console.log('ProductionChatInterface - roomInfo.roomName:', roomInfo.roomName);
+      }
+      if ('guildName' in roomInfo) {
+        console.log('ProductionChatInterface - roomInfo.guildName:', roomInfo.guildName);
+      }
+      if ('allowReactions' in roomInfo) {
+        console.log('ProductionChatInterface - roomInfo.allowReactions:', roomInfo.allowReactions, 'type:', typeof roomInfo.allowReactions);
+      } else {
+        console.log('ProductionChatInterface - roomInfo does not have allowReactions property');
+      }
+    }
+  }, [roomInfo, roomName]);
+
+  // Resolve replyTo for messages that have replyToId but no replyTo
+  const messagesWithReplies = useMemo(() => {
+    // Debug: Check for messages with replyToId
+    const messagesWithReplyToId = messages.filter(m => m.replyToId);
+    if (messagesWithReplyToId.length > 0) {
+      console.log('Messages with replyToId:', messagesWithReplyToId.map(m => ({ id: m.id, replyToId: m.replyToId, hasReplyTo: !!m.replyTo })));
+    }
+
+    // Create a lookup map of message IDs
+    const messageMap = new Map<string, Message>();
+    messages.forEach(msg => messageMap.set(msg.id, msg));
+
+    // Enrich messages with replyTo context
+    return messages.map(msg => {
+      // If replyTo is already populated, use it
+      if (msg.replyTo) {
+        return msg;
+      }
+
+      // If replyToId exists, try to find the parent message
+      if (msg.replyToId) {
+        const parentMessage = messageMap.get(msg.replyToId);
+        if (parentMessage) {
+          const replyContext: MessageReplyContext = {
+            id: parentMessage.id,
+            text: parentMessage.text,
+            senderId: parentMessage.senderId,
+            senderNickname: parentMessage.senderNickname
+          };
+          console.log('Resolved reply for message', msg.id, '->', replyContext);
+          return { ...msg, replyTo: replyContext };
+        } else {
+          // Create a fallback reply context if parent not found
+          const fallbackContext: MessageReplyContext = {
+            id: msg.replyToId,
+            text: 'Original message unavailable',
+            isFallback: true
+          };
+          console.log('Reply parent not found for message', msg.id, 'replyToId:', msg.replyToId);
+          return { ...msg, replyTo: fallbackContext };
+        }
+      }
+
+      return msg;
+    });
+  }, [messages]);
 
   // Report message count changes up to parent for UI badges
   useEffect(() => {
@@ -206,19 +278,42 @@ export function ProductionChatInterface({
 
   // Handle error reporting
   useEffect(() => {
-    if (error && onError) {
-      onError(error);
+    if (hasError && errorMessage && onError) {
+      onError(errorMessage);
     }
-  }, [error, onError]);
+  }, [hasError, errorMessage, onError]);
+
+  // Handle reply to message
+  const handleReply = (message: Message) => {
+    console.log('Reply button clicked for message:', message);
+    setReplyTo(message);
+    // Focus the input after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea[placeholder*="Type a message"], textarea[placeholder*="Connecting"], textarea[placeholder*="Rate limited"]') as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.focus();
+        console.log('Focused textarea for reply');
+      } else {
+        console.warn('Could not find textarea to focus');
+      }
+    }, 100);
+  };
+
+  // Handle cancel reply
+  const handleCancelReply = () => {
+    setReplyTo(null);
+  };
 
   // Handle message sending
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, replyToId?: string) => {
     if (!content.trim() || !isConnected) return;
 
     try {
-      const result: MessageSendResult = await sendMessage(content, 'text');
+      const result: MessageSendResult = await sendMessage(content, replyToId);
       
       if (result.success) {
+        // Clear reply context
+        setReplyTo(null);
         // Message was successfully sent; scroll to bottom after DOM updates
         console.log('Message sent successfully:', result.messageId);
         requestAnimationFrame(() => {
@@ -296,18 +391,42 @@ export function ProductionChatInterface({
         {/* Chat Header */}
         <ChatHeader
           roomId={roomId}
-          roomName={roomName || roomInfo.name}
+          roomName={
+            (() => {
+              // Prioritize roomInfo from API over prop (prop might be stale/fallback data)
+              // Try roomInfo.roomName first (from API)
+              if ('roomName' in roomInfo && roomInfo.roomName?.trim()) {
+                console.log('ChatHeader - Using roomInfo.roomName:', roomInfo.roomName);
+                return roomInfo.roomName.trim();
+              }
+              // Try roomInfo.guildName for guild rooms
+              if ('guildName' in roomInfo && roomInfo.guildName?.trim()) {
+                console.log('ChatHeader - Using roomInfo.guildName:', roomInfo.guildName);
+                return roomInfo.guildName.trim();
+              }
+              // Fallback to roomName prop if roomInfo doesn't have it
+              if (roomName?.trim()) {
+                console.log('ChatHeader - Using roomName prop (fallback):', roomName);
+                return roomName.trim();
+              }
+              console.log('ChatHeader - No roomName found, will use fallback');
+              return undefined;
+            })()
+          }
+          roomDescription={('description' in roomInfo && roomInfo.description?.trim()) ? roomInfo.description : undefined}
           roomType={roomType}
           isConnected={isConnected}
           activeConnections={roomInfo.memberCount}
           onRetry={handleRetry}
+          onSettings={onSettings}
+          onMembers={onMembers}
         />
 
         {/* Connection Status */}
         <ConnectionStatus
           status={connectionStatus}
-          hasError={!!error}
-          errorMessage={error}
+          hasError={hasError}
+          errorMessage={errorMessage}
           onRetry={handleRetry}
         />
 
@@ -318,12 +437,12 @@ export function ProductionChatInterface({
 
         {/* Messages List */}
         <div 
-          className="flex-1 overflow-y-auto p-4" 
+          className="flex-1 overflow-y-auto px-4 py-6 bg-gradient-to-b from-gray-50/50 to-transparent dark:from-gray-900/20 dark:to-transparent" 
           style={{ 
             minHeight: 0, 
             overflowY: 'auto',
             scrollbarWidth: 'thin',
-            scrollbarColor: '#9ca3af #f3f4f6'
+            scrollbarColor: '#d1d5db #f9fafb'
           }}
           ref={scrollContainerRef}
           onScroll={(event) => {
@@ -353,23 +472,54 @@ export function ProductionChatInterface({
           )}
 
           <MessageList
-            messages={messages}
+            messages={messagesWithReplies}
             currentUserId={userId}
             isLoading={isLoading}
             onLoadMore={handleLoadMore}
             hasMore={hasMore}
             disableAutoScroll={true}
+            onReply={handleReply}
+            allowReactions={(() => {
+              // Check if allowReactions property exists and its value
+              // Default to true if not set, but respect explicit false
+              const hasProperty = 'allowReactions' in roomInfo;
+              let value: any = hasProperty ? roomInfo.allowReactions : undefined;
+              
+              // Normalize the value: convert string "false"/"true" to boolean, handle undefined
+              if (value === "false") {
+                value = false;
+              } else if (value === "true") {
+                value = true;
+              } else if (value === false) {
+                value = false; // Already false
+              } else if (value === true) {
+                value = true; // Already true
+              } else {
+                // undefined or null - means not set, so default to true (allow reactions)
+                value = true;
+              }
+              
+              console.log('ProductionChatInterface - allowReactions check:', { 
+                hasProperty, 
+                rawValue: hasProperty ? roomInfo.allowReactions : undefined,
+                rawType: typeof (hasProperty ? roomInfo.allowReactions : undefined),
+                normalizedValue: value,
+                normalizedType: typeof value,
+                final: value
+              });
+              return value;
+            })()}
           />
           
           {/* Scroll anchor - used to scroll to bottom */}
           <div ref={messagesEndRef} style={{ height: 1 }} />
 
           {/* Error Display */}
-          {error && (
+          {hasError && errorMessage && (
             <Alert className="mt-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {error}
+                {errorMessage}
                 <Button
                   variant="outline"
                   size="sm"
@@ -396,7 +546,7 @@ export function ProductionChatInterface({
         </div>
 
         {/* Message Input */}
-        <div className="border-t p-4">
+        <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-4 shadow-sm">
           <MessageInput
             onSendMessage={handleSendMessage}
             disabled={!isConnected || !!rateLimitInfo}
@@ -407,7 +557,14 @@ export function ProductionChatInterface({
                   ? "Rate limited. Please wait..." 
                   : "Type a message..."
             }
+            maxLength={('maxMessageLength' in roomInfo) ? (roomInfo.maxMessageLength || 2000) : 2000}
             rateLimitInfo={rateLimitInfo}
+            replyTo={replyTo ? {
+              messageId: replyTo.id,
+              senderNickname: replyTo.senderNickname,
+              text: replyTo.text
+            } : null}
+            onCancelReply={handleCancelReply}
           />
         </div>
       </div>

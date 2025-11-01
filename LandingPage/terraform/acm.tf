@@ -113,3 +113,20 @@ resource "local_file" "dns_validation_instructions" {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

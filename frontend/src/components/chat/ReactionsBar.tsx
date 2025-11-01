@@ -22,7 +22,7 @@ interface ReactionsBarProps {
 
 export function ReactionsBar({ 
   messageId, 
-  initialReactions = [], 
+  initialReactions, 
   className,
   onError,
   showAddButton = false,
@@ -30,7 +30,7 @@ export function ReactionsBar({
 }: ReactionsBarProps) {
   const { reactions, toggleReaction, isLoading } = useReactions({
     messageId,
-    initialReactions,
+    initialReactions: initialReactions, // Pass as-is (undefined if not included, array if included)
     onError
   });
 
@@ -57,7 +57,8 @@ export function ReactionsBar({
   };
 
   // Don't render if loading and no initial reactions - but show if we have reactions or are not loading
-  if (isLoading && reactions.length === 0 && (!initialReactions || initialReactions.length === 0)) {
+  // If initialReactions is undefined, reactions weren't included in the query, so we're fetching them
+  if (isLoading && reactions.length === 0 && initialReactions === undefined) {
     return null;
   }
 
@@ -81,10 +82,12 @@ export function ReactionsBar({
                 variant="ghost"
                 size="sm"
                 disabled={!canAddReaction}
-                className="h-7 w-7 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-opacity flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-8 w-8 p-0 rounded-full bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900/50 hover:from-blue-50 hover:to-white dark:hover:from-blue-950/30 dark:hover:to-gray-800 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-100 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md hover:shadow-blue-200/30 dark:hover:shadow-blue-900/20"
                 aria-label={canAddReaction ? "Add reaction" : "Maximum reactions reached"}
               >
-                <span className="text-base leading-none">➕</span>
+                <span className="text-lg leading-none opacity-70 hover:opacity-100 transition-all duration-300 hover:rotate-90" style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))' }}>
+                  ➕
+                </span>
               </Button>
             </EmojiPicker>
           </div>
@@ -97,7 +100,7 @@ export function ReactionsBar({
   ) : null;
 
   return (
-    <div className={cn("flex items-end gap-1 flex-nowrap", className)} role="group" aria-label="Message reactions">
+    <div className={cn("flex items-end gap-1.5 flex-nowrap", className)} role="group" aria-label="Message reactions">
       {/* For own messages (right side): add button first, then reactions */}
       {isOwnMessage && addButtonElement}
       
@@ -112,17 +115,49 @@ export function ReactionsBar({
                 size="sm"
                 onClick={() => handleReactionClick(reaction)}
                 className={cn(
-                  "h-7 px-2 text-xs rounded-full flex items-center gap-1 flex-shrink-0",
-                  reaction.viewerHasReacted && "bg-primary/20 border-primary",
-                  "hover:bg-primary/10 transition-colors"
+                  "h-8 px-3 text-xs rounded-full flex items-center gap-2 flex-shrink-0",
+                  "transition-all duration-300 ease-out",
+                  "hover:scale-110 active:scale-100",
+                  "relative overflow-hidden",
+                  reaction.viewerHasReacted 
+                    ? "bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/30 border-2 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-200 shadow-lg shadow-blue-300/40 dark:shadow-blue-500/30 ring-2 ring-blue-200/50 dark:ring-blue-500/30" 
+                    : "bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900/50 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gradient-to-br hover:from-blue-50 hover:to-white dark:hover:from-blue-950/20 dark:hover:to-gray-800 hover:shadow-md hover:shadow-blue-200/30 dark:hover:shadow-blue-900/20",
+                  "font-medium backdrop-blur-sm"
                 )}
                 aria-label={`${reaction.count} ${reaction.shortcode} reaction${reaction.count !== 1 ? 's' : ''}${reaction.viewerHasReacted ? ', you reacted' : ''}`}
                 aria-pressed={reaction.viewerHasReacted}
               >
-                <span className="text-base leading-none" role="img" aria-label={reaction.shortcode}>
+                <span 
+                  className={cn(
+                    "text-lg leading-none select-none transition-transform duration-300",
+                    "inline-block",
+                    reaction.viewerHasReacted && "scale-110 drop-shadow-sm",
+                    "hover:scale-125"
+                  )} 
+                  role="img" 
+                  aria-label={reaction.shortcode}
+                  style={{
+                    filter: reaction.viewerHasReacted 
+                      ? 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))' 
+                      : 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))',
+                    textShadow: reaction.viewerHasReacted 
+                      ? '0 0 8px rgba(59, 130, 246, 0.2)' 
+                      : 'none'
+                  }}
+                >
                   {reaction.unicode}
                 </span>
-                <span className="font-medium">{reaction.count}</span>
+                <span className={cn(
+                  "font-bold text-[12px] leading-tight min-w-[16px] text-center",
+                  reaction.viewerHasReacted 
+                    ? "text-blue-800 dark:text-blue-200" 
+                    : "text-gray-600 dark:text-gray-400"
+                )}>
+                  {reaction.count}
+                </span>
+                {reaction.viewerHasReacted && (
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400/20 to-transparent animate-pulse" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -140,8 +175,8 @@ export function ReactionsBar({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="h-7 px-2 text-xs rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 flex-shrink-0">
-                <span className="font-medium">+{remainingCount}</span>
+              <div className="h-8 px-3 text-xs rounded-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800/70 dark:to-gray-900/50 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700 flex-shrink-0 hover:bg-gradient-to-br hover:from-gray-200 hover:to-gray-100 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200 hover:shadow-md hover:scale-105">
+                <span className="font-bold text-[12px] leading-tight">+{remainingCount}</span>
               </div>
             </TooltipTrigger>
             <TooltipContent>

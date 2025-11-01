@@ -13,7 +13,9 @@ This document outlines the messaging service endpoints that have been added to t
 - `POST /messaging/rooms` - Create a new room
 - `GET /messaging/rooms/{room_id}` - Get room details
 - `PUT /messaging/rooms/{room_id}` - Update room
+- `PATCH /messaging/rooms/{room_id}` - Update room settings (partial update)
 - `DELETE /messaging/rooms/{room_id}` - Delete room
+- `GET /messaging/rooms/{room_id}/members` - Get room members
 
 #### **Message Management**
 - `GET /messaging/rooms/{room_id}/messages` - Get room messages
@@ -53,7 +55,10 @@ This document outlines the messaging service endpoints that have been added to t
 │   └── /{room_id}
 │       ├── GET (get room)
 │       ├── PUT (update room)
+│       ├── PATCH (update room settings)
 │       ├── DELETE (delete room)
+│       ├── /members
+│       │   └── GET (get room members)
 │       ├── /messages
 │       │   ├── GET (get messages)
 │       │   └── POST (send message)

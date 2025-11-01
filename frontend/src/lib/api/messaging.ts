@@ -14,8 +14,16 @@ export const MESSAGING_QUERIES = {
         id
         roomId
         senderId
+        senderNickname
         text
         ts
+        replyToId
+        reactions {
+          shortcode
+          unicode
+          count
+          viewerHasReacted
+        }
       }
     }
   `,
@@ -26,8 +34,10 @@ export const MESSAGING_QUERIES = {
         id
         roomId
         senderId
+        senderNickname
         text
         ts
+        replyToId
       }
     }
   `,
@@ -38,11 +48,19 @@ export const MESSAGING_QUERIES = {
         id
         roomId
         senderId
+        senderNickname
         text
         ts
+        replyToId
         emojiMetadata {
           shortcodes
           unicodeCount
+        }
+        reactions {
+          shortcode
+          unicode
+          count
+          viewerHasReacted
         }
       }
     }
@@ -282,7 +300,55 @@ export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
     try {
       const response = await fetch(url, { method: 'GET', headers: getAuthHeaders() });
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        
+        // Normalize the response to match RoomInfo type
+        // Backend returns snake_case, frontend expects camelCase
+        console.log('Raw API response:', data); // Debug log
+        console.log('Raw API response data.name:', data.name); // Debug log
+        console.log('Raw API response data.roomName:', data.roomName); // Debug log
+        if (data.id && !data.guildId) {
+          // General room
+          // Handle empty strings - only use if truthy and not empty
+          // Backend returns 'name' field, check both 'name' and 'roomName'
+          const nameValue = (data.name && String(data.name).trim()) || (data.roomName && String(data.roomName).trim());
+          console.log('Extracted nameValue:', nameValue); // Debug log
+          const normalized = {
+            roomId: data.id,
+            roomName: nameValue || data.id.replace('ROOM-', '').replace(/-/g, ' '),
+            description: data.description || '', // Ensure description is always present
+            isPublic: data.is_public !== undefined ? data.is_public : (data.isPublic !== undefined ? data.isPublic : true),
+            memberCount: data.member_count || data.memberCount || 0,
+            // Include additional settings fields
+            allowFileUploads: data.allow_file_uploads !== undefined ? data.allow_file_uploads : (data.allowFileUploads !== undefined ? data.allowFileUploads : false),
+            allowReactions: (() => {
+              // Check both snake_case and camelCase, default to true if not set
+              const value = data.allow_reactions !== undefined ? data.allow_reactions : (data.allowReactions !== undefined ? data.allowReactions : true);
+              console.log('Normalizing allowReactions:', { 
+                allow_reactions: data.allow_reactions, 
+                allowReactions: data.allowReactions, 
+                normalized: value,
+                type: typeof value 
+              });
+              return value;
+            })(),
+            maxMessageLength: data.max_message_length || data.maxMessageLength || 2000,
+          };
+          console.log('Normalized room info:', normalized); // Debug log
+          return normalized as any;
+        } else if (data.guildId || roomId.startsWith('GUILD#')) {
+          // Guild room
+          return {
+            guildId: data.guildId || roomId.replace('GUILD#', ''),
+            guildName: data.guildName || data.name || '',
+            memberCount: data.member_count || data.memberCount || 0,
+            isMember: data.isMember !== undefined ? data.isMember : true,
+            permissions: data.permissions || [],
+          };
+        }
+        
+        // Return as-is if structure doesn't match
+        return data;
       }
       lastError = new Error(`Failed to get room info from ${url}: ${response.status} ${response.statusText}`);
     } catch (e) {
@@ -656,3 +722,122 @@ export function shouldGroupWithPrevious(
   return isSameSender && isWithinTimeWindow;
 }
 
+/**
+ * Get room members
+ */
+export interface RoomMember {
+  userId: string;
+  username: string;
+  avatarUrl?: string | null;
+  isOnline?: boolean;
+  joinedAt?: string;
+  role?: 'owner' | 'moderator' | 'member';
+}
+
+export async function getRoomMembers(roomId: string): Promise<RoomMember[]> {
+  try {
+    // Try multiple endpoints for getting room members
+    const tryEndpoints = [
+      `${API_GATEWAY_URL}/messaging/rooms/${roomId}/members`,
+      `${API_GATEWAY_URL}/messaging/rooms/${roomId}/users`,
+    ];
+    
+    let lastError: any = null;
+    for (const url of tryEndpoints) {
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Handle different response formats
+          if (Array.isArray(data)) {
+            return data;
+          } else if (data.members && Array.isArray(data.members)) {
+            return data.members;
+          } else if (data.users && Array.isArray(data.users)) {
+            return data.users;
+          }
+          return [];
+        }
+        
+        // If 404, try next endpoint; otherwise throw
+        if (response.status === 404) {
+          continue;
+        }
+        
+        lastError = new Error(`Failed to get room members from ${url}: ${response.status} ${response.statusText}`);
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    
+    // If all endpoints failed, try to get members from room info
+    try {
+      const roomInfo = await getRoomInfo(roomId);
+      if ('memberCount' in roomInfo && roomInfo.memberCount > 0) {
+        // Return empty array if we can't get detailed member info
+        // In a real implementation, this would fetch from the guild service for guild rooms
+        console.warn('Room member details not available, but room has members');
+        return [];
+      }
+    } catch (e) {
+      // Ignore room info errors
+    }
+    
+    // If no specific member endpoint works, return empty array (no error)
+    console.warn('Room members endpoint not available, returning empty list');
+    return [];
+  } catch (error) {
+    console.error('Error getting room members:', error);
+    // Return empty array instead of throwing to allow UI to still render
+    return [];
+  }
+}
+
+/**
+ * Update room settings
+ */
+export interface RoomSettingsUpdate {
+  name?: string;
+  description?: string;
+  isPublic?: boolean;
+  allowFileUploads?: boolean;
+  allowReactions?: boolean;
+  maxMessageLength?: number;
+}
+
+export async function updateRoomSettings(
+  roomId: string,
+  settings: RoomSettingsUpdate
+): Promise<void> {
+  try {
+    const response = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${roomId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settings)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to update room settings';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: `${API_GATEWAY_URL}/messaging/rooms/${roomId}`,
+        input: { roomId, settings },
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    // Settings updated successfully
+    return;
+  } catch (error) {
+    console.error('Error updating room settings:', error);
+    throw error;
+  }
+}

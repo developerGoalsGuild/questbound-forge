@@ -242,6 +242,26 @@ class RoomCreateRequest(BaseModel):
 class RoomUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    is_public: Optional[bool] = None
+    allow_file_uploads: Optional[bool] = None
+    allow_reactions: Optional[bool] = None
+    max_message_length: Optional[int] = None
+
+class RoomSettingsUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isPublic: Optional[bool] = None
+    allowFileUploads: Optional[bool] = None
+    allowReactions: Optional[bool] = None
+    maxMessageLength: Optional[int] = None
+
+class RoomMember(BaseModel):
+    userId: str
+    username: str
+    avatarUrl: Optional[str] = None
+    isOnline: bool = False
+    joinedAt: Optional[str] = None
+    role: Optional[str] = None  # 'owner', 'moderator', 'member'
 
 class MessageRequest(BaseModel):
     text: str
@@ -511,22 +531,51 @@ async def get_room(room_id: str, request: Request, token: dict = Depends(verify_
     """Get room details"""
     user_id = token.get("sub")
     
-    # In a real implementation, this would query DynamoDB
-    # For now, return mock data
+    # Try to get from DynamoDB first
+    db_room = await get_room_from_db(room_id)
+    
+    # Get member count from active connections
     try:
         member_count = sum(1 for uid, rooms in manager.user_rooms.items() if room_id in rooms)
     except Exception:
         member_count = len(manager.get_room_connections(room_id))
-
-    room_info = {
-        "id": room_id,
-        "name": room_id.replace("ROOM-", "").replace("-", " ").title(),
-        "type": "general",
-        "description": f"Room {room_id}",
-        "member_count": member_count,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
-    }
+    
+    if db_room:
+        # Return room from database with updated member count
+        # DynamoDB stores fields with the keys we saved them with
+        logger.info(f"Returning room from DB: name={db_room.get('name')}, description={db_room.get('description')}")
+        room_info = {
+            "id": room_id,
+            "name": db_room.get("name") or room_id.replace("ROOM-", "").replace("-", " ").title(),
+            "type": db_room.get("type", "general"),
+            "description": db_room.get("description") if db_room.get("description") is not None else "",  # Return empty string instead of default if not set
+            "member_count": member_count,
+            "is_public": db_room.get("is_public") if "is_public" in db_room else (db_room.get("isPublic") if "isPublic" in db_room else True),
+            "allow_file_uploads": db_room.get("allow_file_uploads") if "allow_file_uploads" in db_room else (db_room.get("allowFileUploads") if "allowFileUploads" in db_room else False),
+            "allow_reactions": db_room.get("allow_reactions") if "allow_reactions" in db_room else (db_room.get("allowReactions") if "allowReactions" in db_room else True),
+            # Log for debugging
+            "allowReactions": db_room.get("allow_reactions") if "allow_reactions" in db_room else (db_room.get("allowReactions") if "allowReactions" in db_room else True),
+            "max_message_length": db_room.get("max_message_length") or db_room.get("maxMessageLength") or 2000,
+            "created_at": db_room.get("createdAt") or db_room.get("created_at") or datetime.now().isoformat(),
+            "updated_at": db_room.get("updatedAt") or db_room.get("updated_at") or datetime.now().isoformat()
+        }
+        logger.info(f"Room info prepared: {json.dumps(room_info, default=str)}")
+    else:
+        # Fallback to mock data if room doesn't exist in DB
+        logger.info(f"Room {room_id} not found in DB, returning default data")
+        room_info = {
+            "id": room_id,
+            "name": room_id.replace("ROOM-", "").replace("-", " ").title(),
+            "type": "general",
+            "description": "",  # Empty string for new rooms
+            "member_count": member_count,
+            "is_public": True,
+            "allow_file_uploads": False,
+            "allow_reactions": True,
+            "max_message_length": 2000,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
     
     return room_info
 
@@ -547,6 +596,93 @@ async def update_room(room_id: str, room_data: RoomUpdateRequest, request: Reque
     }
     
     logger.info(f"Room updated: {room_id} by user {user_id}")
+    return room_info
+
+@app.patch("/messaging/rooms/{room_id}")
+async def update_room_settings(room_id: str, settings: RoomSettingsUpdate, request: Request, token: dict = Depends(verify_token)):
+    """Update room settings (partial update)"""
+    user_id = token.get("sub")
+    
+    # Get current room from DB or create default
+    existing_room = await get_room_from_db(room_id)
+    
+    # Prepare update data - only include fields that were provided
+    update_data = {}
+    if settings.name is not None:
+        update_data["name"] = settings.name
+    if settings.description is not None:
+        update_data["description"] = settings.description
+    if settings.isPublic is not None:
+        update_data["is_public"] = settings.isPublic
+        update_data["isPublic"] = settings.isPublic  # Keep both for compatibility
+    if settings.allowFileUploads is not None:
+        update_data["allow_file_uploads"] = settings.allowFileUploads
+        update_data["allowFileUploads"] = settings.allowFileUploads
+    if settings.allowReactions is not None:
+        # Explicitly set both snake_case and camelCase, ensure boolean type
+        update_data["allow_reactions"] = bool(settings.allowReactions)
+        update_data["allowReactions"] = bool(settings.allowReactions)
+        logger.info(f"Updating allowReactions to: {settings.allowReactions} (converted to bool: {bool(settings.allowReactions)})")
+    if settings.maxMessageLength is not None:
+        update_data["max_message_length"] = settings.maxMessageLength
+        update_data["maxMessageLength"] = settings.maxMessageLength
+    
+    # Merge with existing room data or defaults
+    if existing_room:
+        # Preserve existing fields that weren't updated
+        room_data = {
+            "name": existing_room.get("name", room_id.replace("ROOM-", "").replace("-", " ").title()),
+            "type": existing_room.get("type", "general"),
+            "description": existing_room.get("description", f"Room {room_id}"),
+            "is_public": existing_room.get("is_public", existing_room.get("isPublic", True)),
+            "allow_file_uploads": existing_room.get("allow_file_uploads", existing_room.get("allowFileUploads", False)),
+            "allow_reactions": existing_room.get("allow_reactions", existing_room.get("allowReactions", True)),
+            "max_message_length": existing_room.get("max_message_length", existing_room.get("maxMessageLength", 2000)),
+            "createdAt": existing_room.get("createdAt", datetime.now().isoformat()),
+        }
+        room_data.update(update_data)
+    else:
+        # Create new room with provided settings or defaults
+        room_data = {
+            "name": settings.name or room_id.replace("ROOM-", "").replace("-", " ").title(),
+            "type": "general",
+            "description": settings.description or f"Room {room_id}",
+            "is_public": settings.isPublic if settings.isPublic is not None else True,
+            "allow_file_uploads": settings.allowFileUploads if settings.allowFileUploads is not None else False,
+            "allow_reactions": settings.allowReactions if settings.allowReactions is not None else True,
+            "max_message_length": settings.maxMessageLength if settings.maxMessageLength is not None else 2000,
+            "createdAt": datetime.now().isoformat(),
+        }
+        room_data.update(update_data)
+    
+    # Save to DynamoDB
+    saved = await save_room_to_db(room_id, room_data)
+    
+    if not saved:
+        logger.warning(f"Failed to save room settings to DynamoDB for {room_id}, but continuing with response")
+    
+    # Get member count for response
+    try:
+        member_count = sum(1 for uid, rooms in manager.user_rooms.items() if room_id in rooms)
+    except Exception:
+        member_count = len(manager.get_room_connections(room_id))
+    
+    # Return updated room info
+    room_info = {
+        "id": room_id,
+        "name": room_data.get("name", room_id.replace("ROOM-", "").replace("-", " ").title()),
+        "type": room_data.get("type", "general"),
+        "description": room_data.get("description", f"Room {room_id}"),
+        "member_count": member_count,
+        "is_public": room_data.get("is_public", room_data.get("isPublic", True)),
+        "allow_file_uploads": room_data.get("allow_file_uploads", room_data.get("allowFileUploads", False)),
+        "allow_reactions": room_data.get("allow_reactions", room_data.get("allowReactions", True)),
+        "max_message_length": room_data.get("max_message_length", room_data.get("maxMessageLength", 2000)),
+        "created_at": room_data.get("createdAt", datetime.now().isoformat()),
+        "updated_at": room_data.get("updatedAt", datetime.now().isoformat())
+    }
+    
+    logger.info(f"Room settings updated: {room_id} by user {user_id}")
     return room_info
 
 @app.delete("/messaging/rooms/{room_id}")
@@ -592,6 +728,16 @@ async def send_message_to_room(room_id: str, message_data: MessageRequest, reque
     # Rate limiting
     if not rate_limiter.is_allowed(user_id):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    
+    # Get room settings to validate message length
+    existing_room = await get_room_from_db(room_id)
+    if existing_room:
+        max_length = existing_room.get("max_message_length") or existing_room.get("maxMessageLength") or 2000
+        if len(message_data.text) > max_length:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Message exceeds maximum length of {max_length} characters. Current length: {len(message_data.text)}"
+            )
     
     rate_limiter.record_message(user_id)
     
@@ -653,6 +799,192 @@ async def leave_room(room_id: str, request: Request, token: dict = Depends(verif
     logger.info(f"User {user_id} left room {room_id}")
     
     return {"status": "left", "room_id": room_id, "user_id": user_id}
+
+def get_jwt_secret() -> str:
+    """Get JWT secret from SSM Parameter Store or environment variable"""
+    try:
+        parameter_name = os.getenv("JWT_SECRET_PARAMETER_NAME", "/goalsguild/user-service/JWT_SECRET")
+        ssm_client = boto3.client('ssm')
+        response = ssm_client.get_parameter(Name=parameter_name, WithDecryption=True)
+        return response['Parameter']['Value']
+    except Exception as e:
+        logger.warning(f"Failed to get JWT secret from SSM, using env var: {e}")
+        return os.getenv("JWT_SECRET", "fallback-secret-key")
+
+def get_dynamodb_table():
+    """Get DynamoDB table instance"""
+    dynamodb = boto3.resource('dynamodb')
+    table_name = os.getenv("DYNAMODB_TABLE_NAME", "gg_core")
+    return dynamodb.Table(table_name)
+
+def _get_room_from_db_sync(room_id: str) -> Optional[dict]:
+    """Get room from DynamoDB (synchronous)"""
+    try:
+        table = get_dynamodb_table()
+        response = table.get_item(
+            Key={
+                "PK": f"ROOM#{room_id}",
+                "SK": f"ROOM#{room_id}"
+            }
+        )
+        
+        if "Item" in response:
+            item = response["Item"]
+            logger.info(f"Room found in DynamoDB for {room_id}: {item.get('name', 'N/A')}")
+            return item
+        else:
+            logger.info(f"Room not found in DynamoDB for {room_id}")
+    except Exception as e:
+        logger.warning(f"Failed to get room from DynamoDB for {room_id}: {e}")
+    
+    return None
+
+async def get_room_from_db(room_id: str) -> Optional[dict]:
+    """Get room from DynamoDB (async wrapper)"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _get_room_from_db_sync, room_id)
+
+def _save_room_to_db_sync(room_id: str, room_data: dict) -> bool:
+    """Save or update room in DynamoDB (synchronous)"""
+    try:
+        table = get_dynamodb_table()
+        
+        # Prepare item - ensure None values are not included (DynamoDB doesn't allow None)
+        item = {
+            "PK": f"ROOM#{room_id}",
+            "SK": f"ROOM#{room_id}",
+            "type": "Room",
+            "id": room_id,
+            "roomId": room_id,
+            "updatedAt": datetime.now().isoformat(),
+        }
+        
+        # Add room_data fields, filtering out None values
+        for key, value in room_data.items():
+            if value is not None:
+                item[key] = value
+        
+        # Add createdAt if this is a new room
+        if "createdAt" not in item:
+            item["createdAt"] = datetime.now().isoformat()
+        
+        # Ensure description exists (even if empty string)
+        if "description" not in item:
+            item["description"] = ""
+        
+        logger.info(f"Saving room to DynamoDB: {room_id}, item keys: {list(item.keys())}, name: {item.get('name')}, description: {item.get('description')}")
+        logger.info(f"Saving room allow_reactions: {item.get('allow_reactions')}, allowReactions: {item.get('allowReactions')}, type: {type(item.get('allow_reactions'))}")
+        
+        # Save to DynamoDB
+        table.put_item(Item=item)
+        logger.info(f"Room saved to DynamoDB: {room_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save room to DynamoDB for {room_id}: {e}")
+        return False
+
+async def save_room_to_db(room_id: str, room_data: dict) -> bool:
+    """Save or update room in DynamoDB (async wrapper)"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _save_room_to_db_sync, room_id, room_data)
+
+async def get_user_profile(user_id: str) -> Optional[dict]:
+    """Get user profile from DynamoDB or user service"""
+    try:
+        # Try to get from DynamoDB directly (core table)
+        dynamodb = boto3.resource('dynamodb')
+        table_name = os.getenv("DYNAMODB_TABLE_NAME", "gg_core")
+        table = dynamodb.Table(table_name)
+        
+        response = table.get_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"PROFILE#{user_id}"
+            }
+        )
+        
+        if "Item" in response:
+            item = response["Item"]
+            return {
+                "userId": user_id,
+                "username": item.get("nickname") or item.get("fullName") or item.get("email", "Unknown"),
+                "avatarUrl": item.get("avatarUrl"),
+                "email": item.get("email"),
+                "fullName": item.get("fullName")
+            }
+    except Exception as e:
+        logger.warning(f"Failed to get user profile from DynamoDB for {user_id}: {e}")
+    
+    # Fallback: return minimal user info
+    return {
+        "userId": user_id,
+        "username": f"User {user_id[:8]}",
+        "avatarUrl": None
+    }
+
+@app.get("/messaging/rooms/{room_id}/members", response_model=List[RoomMember])
+async def get_room_members(room_id: str, request: Request, token: dict = Depends(verify_token)):
+    """Get list of members in a room"""
+    user_id = token.get("sub")
+    
+    members = []
+    
+    # Get all users who have joined this room (via HTTP presence or WebSocket)
+    user_ids_in_room = set()
+    
+    # From HTTP presence tracking
+    for uid, rooms in manager.user_rooms.items():
+        if room_id in rooms:
+            user_ids_in_room.add(uid)
+    
+    # From WebSocket connections
+    connections = manager.get_room_connections(room_id)
+    for connection in connections:
+        if connection in manager.connection_users:
+            user_ids_in_room.add(manager.connection_users[connection])
+    
+    # Enrich with user profile information
+    for member_user_id in user_ids_in_room:
+        try:
+            profile = await get_user_profile(member_user_id)
+            if profile:
+                # Check if user is online (has active WebSocket connection)
+                is_online = any(
+                    conn in manager.get_room_connections(room_id) 
+                    and manager.connection_users.get(conn) == member_user_id
+                    for conn in manager.get_room_connections(room_id)
+                ) or (member_user_id in manager.user_rooms and room_id in manager.user_rooms[member_user_id])
+                
+                # Determine role (in a real implementation, this would check room/guild permissions)
+                role = "member"
+                if room_id.startswith("GUILD#"):
+                    # For guild rooms, check guild membership role
+                    # This would typically query the guild service
+                    role = "member"  # Default to member
+                
+                member = RoomMember(
+                    userId=member_user_id,
+                    username=profile.get("username", f"User {member_user_id[:8]}"),
+                    avatarUrl=profile.get("avatarUrl"),
+                    isOnline=is_online,
+                    joinedAt=datetime.now().isoformat(),  # In real implementation, get from DB
+                    role=role
+                )
+                members.append(member)
+        except Exception as e:
+            logger.error(f"Error getting profile for user {member_user_id}: {e}")
+            # Still add member with minimal info
+            is_online = member_user_id in manager.user_rooms and room_id in manager.user_rooms.get(member_user_id, [])
+            members.append(RoomMember(
+                userId=member_user_id,
+                username=f"User {member_user_id[:8]}",
+                avatarUrl=None,
+                isOnline=is_online,
+                role="member"
+            ))
+    
+    logger.info(f"Retrieved {len(members)} members for room {room_id}")
+    return members
 
 if __name__ == "__main__":
     import uvicorn

@@ -25,8 +25,16 @@ export function request(ctx) {
   const roomId = args.roomId;
   const text = args.text;
   const senderNickname = args.senderNickname;
+  const replyToId = args.replyToId;
   if (!roomId) util.error('roomId required', 'Validation');
   if (!text) util.error('text required', 'Validation');
+  
+  // Validate message length (basic check - room settings would require querying room first)
+  // For now, enforce a reasonable maximum to prevent abuse
+  const MAX_MESSAGE_LENGTH = 10000; // Absolute maximum, room-specific limit should be checked in frontend
+  if (text.length > MAX_MESSAGE_LENGTH) {
+    util.error(`Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters`, 'Validation');
+  }
 
   const ts = util.time.nowEpochMilliSeconds();
   const id = util.autoId();
@@ -64,6 +72,11 @@ export function request(ctx) {
     emojiMetadata: emojiMetadata
   };
 
+  // Add replyToId if provided
+  if (replyToId) {
+    item.replyToId = replyToId;
+  }
+
   ctx.stash.newMessage = {
     id,
     roomId,
@@ -73,6 +86,11 @@ export function request(ctx) {
     ts,
     emojiMetadata: emojiMetadata
   };
+
+  // Add replyToId to response if provided
+  if (replyToId) {
+    ctx.stash.newMessage.replyToId = replyToId;
+  }
 
   return put({
     key: {

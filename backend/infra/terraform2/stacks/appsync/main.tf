@@ -1,5 +1,6 @@
 locals {
   resolvers_path = "../../resolvers"
+  lambdas_path   = "../../lambdas"
 }
 
 data "aws_iam_policy_document" "allow_appsync_ddb" {
@@ -309,6 +310,8 @@ data "terraform_remote_state" "quest_service" {
   config  = { path = "../services/quest-service/terraform.tfstate" }
 }
 
+data "aws_caller_identity" "current" {}
+
 # User queries
 resource "aws_appsync_resolver" "query_me" {
   api_id      = module.appsync.api_id
@@ -528,14 +531,117 @@ resource "aws_iam_role_policy" "messaging_ddb_policy" {
   })
 }
 
-# Messaging resolvers
+# Lambda function for batch fetching messages with reactions
+# Use existing lambda exec role from variables or fallback to constructed ARN
+locals {
+  # Use var.existing_lambda_exec_role_name if provided, otherwise construct ARN
+  # Fallback to the standard lambda exec role name pattern
+  messages_batch_lambda_role_arn = var.existing_lambda_exec_role_name != "" ? "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.existing_lambda_exec_role_name}" : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/goalsguild_lambda_exec_role_${var.environment}"
+}
+
+module "messages_batch_lambda" {
+  source            = "../../modules/lambda_zip"
+  function_name     = "goalsguild_appsync_messages_batch"
+  environment       = var.environment
+  role_arn          = local.messages_batch_lambda_role_arn
+  handler           = "lambda_function.handler"
+  src_dir           = "${local.lambdas_path}/appsync_messages_batch"
+  timeout           = 10
+  memory_size       = 256
+  requirements_file = "requirements.txt"
+  exclude_globs = [
+    ".git/**",
+    ".venv/**",
+    "__pycache__/**",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd"
+  ]
+  environment_variables = {
+    DYNAMODB_TABLE_NAME = var.core_table_name
+    ENVIRONMENT         = var.environment
+  }
+}
+
+# IAM role for AppSync to invoke the Lambda
+resource "aws_iam_role" "messages_batch_lambda_invoke_role" {
+  name = "goalsguild-${var.environment}-appsync-messages-batch-invoke-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "appsync.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "messages_batch_lambda_invoke_policy" {
+  role = aws_iam_role.messages_batch_lambda_invoke_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow",
+      Action   = ["lambda:InvokeFunction"],
+      Resource = module.messages_batch_lambda.lambda_arn
+    }]
+  })
+}
+
+# AppSync data source for messages batch Lambda
+resource "aws_appsync_datasource" "messages_batch_lambda" {
+  api_id           = module.appsync.api_id
+  name             = "MessagesBatchLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.messages_batch_lambda_invoke_role.arn
+  lambda_config {
+    function_arn = module.messages_batch_lambda.lambda_arn
+  }
+}
+
+# Messaging resolvers - Using Lambda for batch fetching messages with reactions
 resource "aws_appsync_resolver" "query_messages" {
   api_id      = module.appsync.api_id
   type        = "Query"
   field       = "messages"
   kind        = "UNIT"
+  data_source = aws_appsync_datasource.messages_batch_lambda.name
+  
+  # Lambda resolver uses request/response templates
+  request_template = <<-TEMPLATE
+    {
+      "version": "2018-05-29",
+      "operation": "Invoke",
+      "payload": {
+        "arguments": $util.toJson($context.arguments),
+        "identity": $util.toJson($context.identity),
+        "resolverContext": $util.toJson($context.resolverContext)
+      }
+    }
+  TEMPLATE
+  
+  response_template = <<-TEMPLATE
+    #if($ctx.error)
+      $util.error($ctx.error.message, $ctx.error.type)
+    #end
+    #if($ctx.result)
+      $util.toJson($ctx.result)
+    #else
+      []
+    #end
+  TEMPLATE
+}
+
+# Resolver for Message.reactions field - kept as fallback but should not be needed
+# since Lambda resolver returns reactions with messages. This is only used if reactions
+# are queried separately (not included in messages query).
+resource "aws_appsync_resolver" "message_reactions" {
+  api_id      = module.appsync.api_id
+  type        = "Message"
+  field       = "reactions"
+  kind        = "UNIT"
   data_source = aws_appsync_datasource.messaging_ddb.name
-  code        = file("${local.resolvers_path}/messages.js")
+  code        = file("${local.resolvers_path}/messageReactions.js")
   runtime {
     name            = "APPSYNC_JS"
     runtime_version = "1.0.0"

@@ -216,15 +216,31 @@ export function useReactions({
   }, [refreshReactions]);
 
   useEffect(() => {
-    if (messageId && (!initialReactions || initialReactions.length === 0)) {
+    // Only fetch reactions if initialReactions is undefined (not included in messages query)
+    // If initialReactions is defined (even if empty array), reactions came from the batch query
+    if (messageId && initialReactions === undefined) {
       refreshReactionsRef.current();
+    } else if (initialReactions !== undefined) {
+      // Use initial reactions if provided (e.g., from message query)
+      // This includes empty arrays [] which means "no reactions" from the batch query
+      setReactions(initialReactions);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageId]); // Only depend on messageId to prevent loops
+  }, [messageId, initialReactions]); // Include initialReactions to update when they change
 
   const lastMessageIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!messageId) {
+      return;
+    }
+
+    // Skip subscription if reactions are already loaded from batch query
+    // If initialReactions is defined (even if empty array), it means reactions came from the messages query
+    // Only subscribe if initialReactions is undefined/null (meaning reactions weren't included in the query)
+    // This prevents rate limiting when loading many messages with reactions
+    if (initialReactions !== undefined && initialReactions !== null) {
+      // Reactions already loaded from messages query (even if empty) - skip subscription to avoid rate limits
+      // We'll still get updates via the message subscription if needed
       return;
     }
 
@@ -303,7 +319,7 @@ export function useReactions({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageId]); // Only depend on messageId - use refs for callbacks
+  }, [messageId, initialReactions]); // Include initialReactions to skip subscription when reactions are pre-loaded
 
   const toggleReaction = useCallback(async (shortcode: string, unicode: string) => {
     if (!messageId) return;

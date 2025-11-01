@@ -64,6 +64,12 @@ const GET_MESSAGES_QUERY = `
       type
       roomType
       createdAt
+      reactions {
+        shortcode
+        unicode
+        count
+        viewerHasReacted
+      }
     }
   }
 `;

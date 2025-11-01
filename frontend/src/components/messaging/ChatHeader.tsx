@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 interface ChatHeaderProps {
   roomId: string;
   roomName?: string;
+  roomDescription?: string;
   roomType?: 'general' | 'guild';
   isConnected: boolean;
   activeConnections: number;
@@ -40,6 +41,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   roomId,
   roomName,
+  roomDescription,
   roomType = 'general',
   isConnected,
   activeConnections,
@@ -56,7 +58,8 @@ export function ChatHeader({
   };
 
   const getRoomDisplayName = () => {
-    if (roomName) return roomName;
+    // Prioritize passed roomName, but also handle empty strings
+    if (roomName && roomName.trim()) return roomName;
     if (roomType === 'guild') {
       return roomId.replace('GUILD#', 'Guild: ');
     }
@@ -66,12 +69,19 @@ export function ChatHeader({
   return (
     <div className={`flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 ${className}`}>
       {/* Room info */}
-      <div className="flex items-center space-x-3">
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-3 flex-1 min-w-0">
+        <div className="flex items-center space-x-2 min-w-0 flex-1">
           {getRoomIcon()}
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {getRoomDisplayName()}
-          </h2>
+          <div className="flex flex-col min-w-0 flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+              {getRoomDisplayName()}
+            </h2>
+            {roomDescription && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {roomDescription}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Room type badge */}
@@ -93,22 +103,7 @@ export function ChatHeader({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center space-x-2">
-        {/* Active connections */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-                <Users className="h-4 w-4" />
-                <span>{activeConnections}</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Active connections</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
+      <div className="flex items-center space-x-2 ml-6">
         {/* Retry connection */}
         {!isConnected && onRetry && (
           <TooltipProvider>

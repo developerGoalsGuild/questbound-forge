@@ -14,13 +14,21 @@ import {
   Mic, 
   MicOff, 
   AlertCircle,
-  Clock
+  Clock,
+  Reply,
+  X
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { EmojiPicker } from '../chat/EmojiPicker';
 
+interface ReplyContext {
+  messageId: string;
+  senderNickname?: string;
+  text: string;
+}
+
 interface MessageInputProps {
-  onSendMessage: (text: string) => Promise<void>;
+  onSendMessage: (text: string, replyToId?: string) => Promise<void>;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
   disabled?: boolean;
@@ -28,6 +36,8 @@ interface MessageInputProps {
   maxLength?: number;
   rateLimitInfo?: RateLimitInfo;
   className?: string;
+  replyTo?: ReplyContext | null;
+  onCancelReply?: () => void;
 }
 
 export function MessageInput({
@@ -38,7 +48,9 @@ export function MessageInput({
   placeholder = "Type a message...",
   maxLength = 2000,
   rateLimitInfo,
-  className = ''
+  className = '',
+  replyTo,
+  onCancelReply
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isComposing, setIsComposing] = useState(false);
@@ -106,8 +118,9 @@ export function MessageInput({
     setIsSending(true);
     
     try {
-      await onSendMessage(trimmedMessage);
+      await onSendMessage(trimmedMessage, replyTo?.messageId);
       setMessage('');
+      onCancelReply?.(); // Clear reply context after sending
       
       // Stop typing indicator
       onTypingStop?.();
@@ -133,7 +146,7 @@ export function MessageInput({
     } finally {
       setIsSending(false);
     }
-  }, [message, disabled, isSending, onSendMessage, onTypingStop]);
+  }, [message, disabled, isSending, onSendMessage, onTypingStop, replyTo, onCancelReply]);
 
   // Handle key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -211,6 +224,31 @@ export function MessageInput({
         </Alert>
       )}
 
+      {/* Reply preview */}
+      {replyTo && (
+        <div className="flex items-start gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 rounded-md">
+          <Reply className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-1">
+              Replying to {replyTo.senderNickname || 'user'}
+            </div>
+            <div className="text-sm text-blue-700 dark:text-blue-300 line-clamp-2 truncate">
+              {replyTo.text}
+            </div>
+          </div>
+          {onCancelReply && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onCancelReply}
+              className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Input area */}
       <div className="flex items-end space-x-2 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
         {/* Attachment button */}
@@ -220,7 +258,7 @@ export function MessageInput({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hidden"
                 disabled={disabled}
               >
                 <Paperclip className="h-4 w-4" />
@@ -268,7 +306,7 @@ export function MessageInput({
               <Button
                 size="sm"
                 variant="ghost"
-                className={`h-8 w-8 p-0 ${
+                className={`h-8 w-8 p-0 hidden ${
                   isRecording 
                     ? 'text-red-500 hover:text-red-700' 
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'

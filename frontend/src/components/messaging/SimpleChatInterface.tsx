@@ -25,6 +25,8 @@ interface SimpleChatInterfaceProps {
   className?: string;
   onMessageSent?: (message: Message) => void;
   onError?: (error: string) => void;
+  onSettings?: () => void;
+  onMembers?: () => void;
 }
 
 export function SimpleChatInterface({
@@ -34,7 +36,9 @@ export function SimpleChatInterface({
   roomType = 'general',
   className = '',
   onMessageSent,
-  onError
+  onError,
+  onSettings,
+  onMembers
 }: SimpleChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -137,6 +141,8 @@ export function SimpleChatInterface({
           isConnected={isConnected}
           activeConnections={roomInfo.memberCount}
           onRetry={handleRetry}
+          onSettings={onSettings}
+          onMembers={onMembers}
         />
 
         {/* Connection Status */}
