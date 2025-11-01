@@ -480,6 +480,18 @@ resource "aws_appsync_function" "subscription_on_message_payload" {
   }
   code = file("${local.resolvers_path}/onMessage.subscribe.js")
 }
+
+resource "aws_appsync_function" "subscription_on_reaction_payload" {
+  api_id      = module.appsync.api_id
+  name        = "SubscriptionOnReactionPayload"
+  data_source = aws_appsync_datasource.none.name
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+  code = file("${local.resolvers_path}/onReaction.subscribe.js")
+}
+
 resource "aws_iam_role" "messaging_ddb_role" {
   name = "goalsguild-${var.environment}-appsync-messaging-ddb-role"
   assume_role_policy = jsonencode({
@@ -503,6 +515,7 @@ resource "aws_iam_role_policy" "messaging_ddb_policy" {
         "dynamodb:GetItem",
         "dynamodb:Query",
         "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
         "dynamodb:TransactWriteItems"
       ]
       Resource = [
@@ -542,6 +555,106 @@ resource "aws_appsync_resolver" "mutation_sendMessage" {
   }
 }
 
+# Reactions resolvers
+resource "aws_appsync_resolver" "query_reactions" {
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "reactions"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  code        = file("${local.resolvers_path}/reactions.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_function" "addReaction_put" {
+  api_id      = module.appsync.api_id
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  name        = "addReaction_put"
+  code        = file("${local.resolvers_path}/addReaction_put.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_function" "addReaction_updateSummary" {
+  api_id      = module.appsync.api_id
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  name        = "addReaction_updateSummary"
+  code        = file("${local.resolvers_path}/reaction_updateSummary.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_function" "addReaction_fetchSummary" {
+  api_id      = module.appsync.api_id
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  name        = "addReaction_fetchSummary"
+  code        = file("${local.resolvers_path}/reaction_fetchSummary.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_function" "removeReaction_delete" {
+  api_id      = module.appsync.api_id
+  data_source = aws_appsync_datasource.messaging_ddb.name
+  name        = "removeReaction_delete"
+  code        = file("${local.resolvers_path}/removeReaction_delete.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "mutation_addReaction" {
+  api_id = module.appsync.api_id
+  type   = "Mutation"
+  field  = "addReaction"
+  kind   = "PIPELINE"
+  code   = file("${local.resolvers_path}/addReaction.js")
+
+  pipeline_config {
+    functions = [
+      aws_appsync_function.addReaction_put.function_id,
+      aws_appsync_function.addReaction_updateSummary.function_id,
+      aws_appsync_function.addReaction_fetchSummary.function_id,
+    ]
+  }
+
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "mutation_removeReaction" {
+  api_id = module.appsync.api_id
+  type   = "Mutation"
+  field  = "removeReaction"
+  kind   = "PIPELINE"
+  code   = file("${local.resolvers_path}/removeReaction.js")
+
+  pipeline_config {
+    functions = [
+      aws_appsync_function.removeReaction_delete.function_id,
+      aws_appsync_function.addReaction_updateSummary.function_id,
+      aws_appsync_function.addReaction_fetchSummary.function_id,
+    ]
+  }
+
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
 resource "aws_appsync_resolver" "subscription_onMessage" {
   api_id = module.appsync.api_id
   type   = "Subscription"
@@ -551,6 +664,21 @@ resource "aws_appsync_resolver" "subscription_onMessage" {
     functions = [
       aws_appsync_function.subscription_auth.function_id,
       aws_appsync_function.subscription_on_message_payload.function_id,
+    ]
+  }
+  request_template  = "$util.toJson({})"
+  response_template = "$util.toJson($ctx.prev.result)"
+}
+
+resource "aws_appsync_resolver" "subscription_onReaction" {
+  api_id = module.appsync.api_id
+  type   = "Subscription"
+  field  = "onReaction"
+  kind   = "PIPELINE"
+  pipeline_config {
+    functions = [
+      aws_appsync_function.subscription_auth.function_id,
+      aws_appsync_function.subscription_on_reaction_payload.function_id,
     ]
   }
   request_template  = "$util.toJson({})"

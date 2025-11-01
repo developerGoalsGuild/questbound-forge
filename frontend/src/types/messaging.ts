@@ -2,6 +2,27 @@
  * TypeScript types for the messaging system
  */
 
+export interface EmojiMetadata {
+  shortcodes: string[];
+  unicodeCount: number;
+}
+
+export interface Reaction {
+  shortcode: string;
+  unicode: string;
+  count: number;
+  viewerHasReacted: boolean;
+}
+
+export interface ReactionResponse {
+  messageId: string;
+  shortcode: string;
+  unicode: string;
+  count: number;
+  added?: boolean;
+  removed?: boolean;
+}
+
 export interface Message {
   id: string;
   roomId: string;
@@ -13,6 +34,8 @@ export interface Message {
   roomType?: 'general' | 'guild';
   createdAt?: string;
   updatedAt?: string;
+  emojiMetadata?: EmojiMetadata;
+  reactions?: Reaction[];
 }
 
 export interface MessageInput {

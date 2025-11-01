@@ -154,15 +154,9 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       throw new Error('NO_TOKEN');
     }
     if (!gqlClientRef.current) {
+      // Create client without authToken in config - we'll pass it per request
       gqlClientRef.current = generateClient({
-        authMode: 'lambda',
-        authToken: () => {
-          const fresh = getAuthToken();
-          if (!fresh) {
-            throw new Error('NO_TOKEN');
-          }
-          return fresh;
-        }
+        authMode: 'lambda'
       });
     }
     return gqlClientRef.current;
@@ -174,15 +168,9 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       throw new Error('NO_TOKEN');
     }
     if (!subscriptionClientRef.current) {
+      // Create client without authToken in config - we'll pass it per request
       subscriptionClientRef.current = generateClient({
-        authMode: 'lambda',
-        authToken: () => {
-          const fresh = getAuthToken();
-          if (!fresh) {
-            throw new Error('NO_TOKEN');
-          }
-          return fresh;
-        },
+        authMode: 'lambda'
       });
     }
     return subscriptionClientRef.current;
@@ -191,6 +179,9 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const messagesLoadedRef = useRef(false);
+  const loadMessagesRef = useRef<(limit?: number, after?: string) => Promise<void>>();
+  const connectRef = useRef<() => Promise<void>>();
+  const disconnectRef = useRef<() => void>();
 
   // Load messages from database
   const loadMessages = useCallback(async (limit: number = 50, after?: string) => {
@@ -362,24 +353,74 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
             console.error('AppSync subscription error details (raw):', err);
           }
 
+          // Clean up failed subscription
+          if (subscriptionRef.current) {
+            try {
+              subscriptionRef.current.unsubscribe();
+            } catch (e) {
+              console.warn('Error unsubscribing from failed subscription:', e);
+            }
+            subscriptionRef.current = null;
+          }
+
+          // Fallback to polling if subscription fails
           if (!pollRef.current) {
             pollRef.current = setInterval(() => {
-              loadMessages(50);
+              loadMessagesRef.current?.(50);
             }, 5000);
           }
-          setState(prev => ({ ...prev, connectionStatus: 'connected' }));
+          
+          // Set error state, not connected!
+          setState(prev => ({ 
+            ...prev, 
+            isConnected: false,
+            connectionStatus: 'error',
+            error: err?.message || err?.errors?.[0]?.message || 'Subscription error'
+          }));
+          
+          // Attempt reconnection after delay
+          if (reconnectAttempts.current < maxReconnectAttempts) {
+            reconnectAttempts.current++;
+            const delay = Math.min(Math.pow(2, reconnectAttempts.current) * 1000, 30000); // Max 30s delay
+            reconnectTimeoutRef.current = setTimeout(() => {
+              reconnectAttempts.current = 0; // Reset on successful reconnect
+              connectRef.current?.();
+            }, delay);
+          }
         },
-        complete: () => {}
+        complete: () => {
+          console.log('AppSync subscription completed');
+          subscriptionRef.current = null;
+          setState(prev => ({ 
+            ...prev, 
+            isConnected: false,
+            connectionStatus: 'disconnected'
+          }));
+          
+          // Attempt reconnection if not intentional disconnect
+          if (reconnectAttempts.current < maxReconnectAttempts) {
+            reconnectAttempts.current++;
+            const delay = Math.min(Math.pow(2, reconnectAttempts.current) * 1000, 30000);
+            reconnectTimeoutRef.current = setTimeout(() => {
+              reconnectAttempts.current = 0;
+              connectRef.current?.();
+            }, delay);
+          }
+        }
       });
 
       subscriptionRef.current = subscription;
     };
 
     try {
-      setState(prev => ({ ...prev, connectionStatus: 'connecting' }));
-      if (!subscriptionRef.current) {
-        await subscribe();
+      // Prevent duplicate connections
+      if (subscriptionRef.current) {
+        console.log('Subscription already exists, skipping connect');
+        return;
       }
+      
+      setState(prev => ({ ...prev, connectionStatus: 'connecting' }));
+      await subscribe();
       setState(prev => ({
         ...prev,
         isConnected: true,
@@ -390,7 +431,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       console.error('Failed to connect to AppSync:', error);
       if (!pollRef.current) {
         pollRef.current = setInterval(() => {
-          loadMessages(50);
+          loadMessagesRef.current?.(50);
         }, 5000);
       }
       setState(prev => ({
@@ -400,7 +441,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         error: error instanceof Error ? error.message : 'Connection failed'
       }));
     }
-  }, [roomId, getAuthToken, getSubscriptionClient, loadMessages]);
+  }, [roomId, getAuthToken, getSubscriptionClient]); // Removed loadMessages to prevent circular dependency
 
   const disconnect = useCallback(() => {
     if (subscriptionRef.current) {
@@ -421,6 +462,13 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       connectionStatus: 'disconnected'
     }));
   }, []);
+
+  // Keep refs in sync with latest functions to avoid dependency issues
+  useEffect(() => {
+    loadMessagesRef.current = loadMessages;
+    connectRef.current = connect;
+    disconnectRef.current = disconnect;
+  }, [loadMessages, connect, disconnect]);
 
   // Send message via AppSync
   const sendMessage = useCallback(async (content: string, messageType: string = 'text'): Promise<MessageSendResult> => {
@@ -553,19 +601,30 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   }, [connect, disconnect]);
 
   // Auto-connect on mount
+  const connectingRef = useRef(false);
+  const lastRoomIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (roomId) {
+    // Only connect if roomId actually changed
+    if (roomId && roomId !== lastRoomIdRef.current && !connectingRef.current && connectRef.current) {
+      lastRoomIdRef.current = roomId;
+      connectingRef.current = true;
       messagesLoadedRef.current = false; // Reset when room changes
-      connect();
+      connectRef.current().finally(() => {
+        connectingRef.current = false;
+      });
       // Notify presence via HTTP
       joinRoom(roomId);
     }
 
     return () => {
-      leaveRoom(roomId);
-      disconnect();
+      connectingRef.current = false;
+      if (roomId) {
+        leaveRoom(roomId);
+      }
+      disconnectRef.current?.();
     };
-  }, [roomId, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]); // Only depend on roomId to prevent infinite loops
 
   // Reinitialize subscriptions when auth changes
   useEffect(() => {
@@ -574,28 +633,52 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       subscriptionClientRef.current = null;
       reconnectAttempts.current = 0;
       messagesLoadedRef.current = false;
-      connect();
+      connectRef.current?.();
     };
     window.addEventListener('auth:change', handleAuthChange);
     return () => {
       window.removeEventListener('auth:change', handleAuthChange);
     };
-  }, [connect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once
 
   // Load messages once when connected
+  const loadingMessagesRef = useRef(false);
   useEffect(() => {
-    if (state.isConnected && !messagesLoadedRef.current) {
+    if (state.isConnected && !messagesLoadedRef.current && !loadingMessagesRef.current && loadMessagesRef.current) {
       messagesLoadedRef.current = true;
-      loadMessages();
+      loadingMessagesRef.current = true;
+      loadMessagesRef.current().finally(() => {
+        loadingMessagesRef.current = false;
+      });
     }
-  }, [state.isConnected, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isConnected]); // Only depend on isConnected, not loadMessages to prevent infinite loops
 
-  // Cleanup on unmount
+  // Cleanup on unmount only
   useEffect(() => {
     return () => {
-      disconnect();
+      // Only cleanup on component unmount, not on every render
+      if (subscriptionRef.current) {
+        try {
+          subscriptionRef.current.unsubscribe();
+        } catch (e) {
+          console.warn('Error unsubscribing on cleanup:', e);
+        }
+        subscriptionRef.current = null;
+      }
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      // Don't set state on cleanup - component is unmounting anyway
     };
-  }, [disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run cleanup on unmount - don't disconnect on every render
 
   return {
     // State

@@ -3,7 +3,7 @@
  * Handles GraphQL queries/mutations and REST API calls
  */
 
-import { Message, MessageFilters, PaginationInfo, RoomInfo, ConnectionStats, RateLimitInfo } from '../../types/messaging';
+import { Message, MessageFilters, PaginationInfo, RoomInfo, ConnectionStats, RateLimitInfo, Reaction, ReactionResponse } from '../../types/messaging';
 import { getApiBase } from '@/lib/utils';
 
 // GraphQL queries and mutations
@@ -40,6 +40,60 @@ export const MESSAGING_QUERIES = {
         senderId
         text
         ts
+        emojiMetadata {
+          shortcodes
+          unicodeCount
+        }
+      }
+    }
+  `,
+  
+  GET_REACTIONS: `
+    query GetReactions($messageId: ID!) {
+      reactions(messageId: $messageId) {
+        shortcode
+        unicode
+        count
+        viewerHasReacted
+      }
+    }
+  `,
+  
+  ADD_REACTION: `
+    mutation AddReaction($messageId: ID!, $shortcode: String!, $unicode: String!) {
+      addReaction(messageId: $messageId, shortcode: $shortcode, unicode: $unicode) {
+        messageId
+        shortcode
+        unicode
+        count
+        added
+        removed
+      }
+    }
+  `,
+  
+  REMOVE_REACTION: `
+    mutation RemoveReaction($messageId: ID!, $shortcode: String!) {
+      removeReaction(messageId: $messageId, shortcode: $shortcode) {
+        messageId
+        shortcode
+        unicode
+        count
+        added
+        removed
+      }
+    }
+  `,
+
+  SUBSCRIBE_REACTIONS: `
+    subscription OnReaction($messageId: ID!) {
+      onReaction(messageId: $messageId) {
+        messageId
+        shortcode
+        unicode
+        count
+        added
+        removed
       }
     }
   `
@@ -51,6 +105,10 @@ const API_GATEWAY_URL = import.meta.env.DEV
   ? getApiBase() // dev proxy to avoid CORS
   : (import.meta.env.VITE_API_GATEWAY_URL || 'https://api.goalsguild.com');
 const API_GATEWAY_KEY = import.meta.env.VITE_API_GATEWAY_KEY || '';
+
+// AppSync GraphQL endpoint
+const APPSYNC_ENDPOINT = import.meta.env.VITE_APPSYNC_ENDPOINT || 
+  'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql';
 
 /**
  * Get authentication headers for API requests
@@ -72,6 +130,24 @@ function getAuthHeaders(): HeadersInit {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
     'x-api-key': API_GATEWAY_KEY,
+  };
+}
+
+function getAppSyncHeaders(): HeadersInit {
+  let token: string | null = null;
+  try {
+    const raw = localStorage.getItem('auth');
+    if (raw) {
+      const auth = JSON.parse(raw);
+      token = auth?.access_token || auth?.id_token || null;
+    }
+  } catch {}
+  if (!token) {
+    token = localStorage.getItem('authToken');
+  }
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token ?? ''}`
   };
 }
 
@@ -401,6 +477,141 @@ export function getRoomDisplayName(roomId: string): string {
   return `Room: ${roomId}`;
 }
 
+export async function getReactions(messageId: string): Promise<Reaction[]> {
+  try {
+    const response = await fetch(APPSYNC_ENDPOINT, {
+      method: 'POST',
+      headers: getAppSyncHeaders(),
+      body: JSON.stringify({
+        query: MESSAGING_QUERIES.GET_REACTIONS,
+        variables: { messageId }
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to fetch reactions';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: APPSYNC_ENDPOINT,
+        input: { messageId },
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    if (data.errors?.length) {
+      throw new Error(data.errors[0].message);
+    }
+
+    return data.data?.reactions ?? [];
+  } catch (error) {
+    console.error('Error fetching reactions:', error);
+    throw error;
+  }
+}
+
+export async function addReaction(messageId: string, shortcode: string, unicode: string): Promise<ReactionResponse> {
+  try {
+    const response = await fetch(APPSYNC_ENDPOINT, {
+      method: 'POST',
+      headers: getAppSyncHeaders(),
+      body: JSON.stringify({
+        query: MESSAGING_QUERIES.ADD_REACTION,
+        variables: { messageId, shortcode, unicode }
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to add reaction';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: APPSYNC_ENDPOINT,
+        input: { messageId, shortcode, unicode },
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    if (data.errors?.length) {
+      throw new Error(data.errors[0].message);
+    }
+
+    const payload = data.data?.addReaction;
+    if (!payload) {
+      throw new Error('Missing addReaction payload');
+    }
+
+    return {
+      messageId: payload.messageId ?? messageId,
+      shortcode: payload.shortcode,
+      unicode: payload.unicode,
+      count: payload.count,
+      added: payload.added,
+      removed: payload.removed
+    };
+  } catch (error) {
+    console.error('Error adding reaction:', error);
+    throw error;
+  }
+}
+
+export async function removeReaction(messageId: string, shortcode: string): Promise<ReactionResponse> {
+  try {
+    const response = await fetch(APPSYNC_ENDPOINT, {
+      method: 'POST',
+      headers: getAppSyncHeaders(),
+      body: JSON.stringify({
+        query: MESSAGING_QUERIES.REMOVE_REACTION,
+        variables: { messageId, shortcode }
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to remove reaction';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: APPSYNC_ENDPOINT,
+        input: { messageId, shortcode },
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    const data = await response.json();
+    if (data.errors?.length) {
+      throw new Error(data.errors[0].message);
+    }
+
+    const payload = data.data?.removeReaction;
+    if (!payload) {
+      throw new Error('Missing removeReaction payload');
+    }
+
+    return {
+      messageId: payload.messageId ?? messageId,
+      shortcode: payload.shortcode,
+      unicode: payload.unicode,
+      count: payload.count,
+      added: payload.added,
+      removed: payload.removed
+    };
+  } catch (error) {
+    console.error('Error removing reaction:', error);
+    throw error;
+  }
+}
+
 /**
  * Utility function to format message timestamp
  */
@@ -444,3 +655,4 @@ export function shouldGroupWithPrevious(
   
   return isSameSender && isWithinTimeWindow;
 }
+

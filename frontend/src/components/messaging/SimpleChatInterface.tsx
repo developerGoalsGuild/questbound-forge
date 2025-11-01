@@ -175,10 +175,11 @@ export function SimpleChatInterface({
 
           <MessageList
             messages={messages}
-            userId={userId}
+            currentUserId={userId}
             isLoading={isLoading}
             onLoadMore={handleLoadMore}
             hasMore={hasMore}
+            disableAutoScroll={true}
           />
 
           {/* Error Display */}

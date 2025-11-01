@@ -2,6 +2,20 @@
 import { util } from '@aws-appsync/utils';
 import { put } from '@aws-appsync/utils/dynamodb';
 
+/**
+ * Extract emoji metadata from text
+ * Note: AppSync JavaScript runtime has severe limitations (no for loops, no ++, etc.)
+ * Full emoji extraction should be done client-side or via Lambda
+ */
+function extractEmojiMetadata(text) {
+  // Return empty metadata - extraction requires loops which aren't supported
+  // Client-side or Lambda can extract full emoji metadata if needed
+  if (!text || typeof text !== 'string') {
+    return { shortcodes: [], unicodeCount: 0 };
+  }
+  return { shortcodes: [], unicodeCount: 0 };
+}
+
 export function request(ctx) {
   const identity = ctx.identity || {};
   const senderId = identity.sub || (identity.resolverContext && identity.resolverContext.sub);
@@ -33,6 +47,9 @@ export function request(ctx) {
     roomType = 'general';
   }
 
+  // Extract emoji metadata from text (simplified for AppSync compatibility)
+  const emojiMetadata = extractEmojiMetadata(text);
+
   const item = {
     PK: pk,
     SK: 'MSG#' + ts + '#' + id,
@@ -43,7 +60,8 @@ export function request(ctx) {
     senderNickname: senderNickname,
     text: text,
     ts: ts,
-    roomType: roomType
+    roomType: roomType,
+    emojiMetadata: emojiMetadata
   };
 
   ctx.stash.newMessage = {
@@ -52,13 +70,14 @@ export function request(ctx) {
     senderId,
     senderNickname,
     text,
-    ts
+    ts,
+    emojiMetadata: emojiMetadata
   };
 
   return put({
     key: {
       PK: pk,
-      SK: `MSG#${ts}#${id}`
+      SK: 'MSG#' + ts + '#' + id
     },
     item: item,
     tableName: tableName

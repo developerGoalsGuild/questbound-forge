@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { ReactionsBar } from '../chat/ReactionsBar';
 
 interface MessageItemProps {
   message: Message;
@@ -139,51 +140,30 @@ export function MessageItem({
           isOwn ? 'items-end ml-auto w-fit max-w-full' : 'items-start max-w-[70%]'
         }`}
       >
-        {/* Message bubble */}
-        <div
-          className={`
-            relative inline-flex flex-col px-3 py-2 rounded-2xl max-w-full flex-none
-            ${isOwn 
-              ? 'bg-blue-500 text-white rounded-br-md' 
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
-            }
-            ${isFirstInGroup ? '' : isOwn ? 'rounded-tr-md' : 'rounded-tl-md'}
-            ${isLastInGroup ? '' : isOwn ? 'rounded-br-md' : 'rounded-bl-md'}
-            ${isGrouped ? 'mt-1' : ''}
-          `}
-        >
-          <span
-            className={`block text-sm leading-relaxed whitespace-normal text-left ${isOwn ? 'bubble-text-own' : 'bubble-text-other'}`}
+        {/* Message bubble with reactions inline */}
+        <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+          {/* Message bubble */}
+          <div
+            className={`
+              relative inline-flex flex-col px-3 py-2 rounded-2xl max-w-full flex-none
+              ${isOwn 
+                ? 'bg-blue-500 text-white rounded-br-md' 
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
+              }
+              ${isFirstInGroup ? '' : isOwn ? 'rounded-tr-md' : 'rounded-tl-md'}
+              ${isLastInGroup ? '' : isOwn ? 'rounded-br-md' : 'rounded-bl-md'}
+              ${isGrouped ? 'mt-1' : ''}
+            `}
           >
-            {sanitizedText}
-          </span>
+            <span
+              className={`block text-sm leading-relaxed whitespace-normal text-left ${isOwn ? 'bubble-text-own' : 'bubble-text-other'}`}
+            >
+              {sanitizedText}
+            </span>
 
-          {/* Message actions */}
-          {isHovered && (
-            <div className="absolute -top-8 right-0 flex items-center space-x-1 bg-gray-800 text-white rounded-lg px-2 py-1 shadow-lg">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-white hover:bg-gray-700"
-                      onClick={handleCopy}
-                    >
-                      {isCopied ? (
-                        <Check className="h-3 w-3" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{isCopied ? 'Copied!' : 'Copy message'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              {!isOwn && (
+            {/* Message actions */}
+            {isHovered && (
+              <div className="absolute -top-8 right-0 flex items-center space-x-1 bg-gray-800 text-white rounded-lg px-2 py-1 shadow-lg">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -191,51 +171,84 @@ export function MessageItem({
                         size="sm"
                         variant="ghost"
                         className="h-6 w-6 p-0 text-white hover:bg-gray-700"
-                        onClick={handleReply}
+                        onClick={handleCopy}
                       >
-                        <Reply className="h-3 w-3" />
+                        {isCopied ? (
+                          <Check className="h-3 w-3" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Reply</p>
+                      <p>{isCopied ? 'Copied!' : 'Copy message'}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-              )}
 
-              {isOwn && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-white hover:bg-gray-700"
-                    >
-                      <MoreHorizontal className="h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={handleEdit}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit message
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleReply}>
-                      <Reply className="h-4 w-4 mr-2" />
-                      Reply
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={handleDelete}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete message
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          )}
+                {!isOwn && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-white hover:bg-gray-700"
+                          onClick={handleReply}
+                        >
+                          <Reply className="h-3 w-3" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Reply</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                {isOwn && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-white hover:bg-gray-700"
+                      >
+                        <MoreHorizontal className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={handleEdit}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit message
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleReply}>
+                        <Reply className="h-4 w-4 mr-2" />
+                        Reply
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={handleDelete}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete message
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Reactions - positioned beside the message */}
+          <ReactionsBar 
+            messageId={message.id} 
+            initialReactions={message.reactions}
+            className="items-end self-end"
+            showAddButton={isHovered}
+            isOwnMessage={isOwn}
+          />
         </div>
 
         {/* Message status and timestamp */}

@@ -206,6 +206,28 @@ type Message @aws_lambda {
   senderNickname: String
   text: String!
   ts: AWSTimestamp!
+  emojiMetadata: EmojiMetadata
+}
+
+type EmojiMetadata {
+  shortcodes: [String!]!
+  unicodeCount: Int!
+}
+
+type Reaction {
+  shortcode: String!
+  unicode: String!
+  count: Int!
+  viewerHasReacted: Boolean!
+}
+
+type ReactionResponse {
+  messageId: ID!
+  shortcode: String!
+  unicode: String!
+  count: Int!
+  added: Boolean
+  removed: Boolean
 }
 
 type Offer {
@@ -231,6 +253,7 @@ type Query {
   myTasks(goalId: ID!): [Task!]!
   tasks(goalId: ID!): [Task!]!
   messages(roomId: ID!, after: AWSTimestamp, limit: Int = 50): [Message!]! @aws_lambda
+  reactions(messageId: ID!): [Reaction!]! @aws_lambda
   offers(tags: [String!], limit: Int = 20): [Offer!]!
   
   # Progress queries
@@ -271,6 +294,16 @@ type Mutation {
   sendMessage(roomId: ID!, text: String!, senderNickname: String): Message! @aws_lambda
   
   """
+  Add a reaction to a message (idempotent per user/emoji).
+  """
+  addReaction(messageId: ID!, shortcode: String!, unicode: String!): ReactionResponse! @aws_lambda
+  
+  """
+  Remove current user's reaction for a given emoji (idempotent).
+  """
+  removeReaction(messageId: ID!, shortcode: String!): ReactionResponse! @aws_lambda
+  
+  """
   Non-public mutation to create a new task associated with a goal.
   Requires authentication.
   """
@@ -287,7 +320,12 @@ type Subscription {
   """
   onMessage(roomId: ID!): Message @aws_lambda
   @aws_subscribe(mutations: ["sendMessage"])
-  
+
+  """
+  Subscribe to reaction updates for a specific message.
+  """
+  onReaction(messageId: ID!): ReactionResponse
+    @aws_subscribe(mutations: ["addReaction", "removeReaction"])
 }
 
 # ----------------

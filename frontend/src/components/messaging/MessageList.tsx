@@ -19,6 +19,7 @@ interface MessageListProps {
   hasMore?: boolean;
   isLoading?: boolean;
   className?: string;
+  disableAutoScroll?: boolean; // Allow parent to control scrolling
 }
 
 export function MessageList({
@@ -27,7 +28,8 @@ export function MessageList({
   onLoadMore,
   hasMore = false,
   isLoading = false,
-  className = ''
+  className = '',
+  disableAutoScroll = false
 }: MessageListProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showLoadMore, setShowLoadMore] = useState(false);
@@ -82,17 +84,21 @@ export function MessageList({
     }
   };
 
-  // Restore scroll position after loading more messages
+  // Restore scroll position after loading more messages (only if auto-scroll is enabled)
   useEffect(() => {
-    if (isLoadingMore && listRef.current && previousScrollHeight.current > 0) {
-      const newScrollHeight = listRef.current.scrollHeight;
-      const scrollDiff = newScrollHeight - previousScrollHeight.current;
-      
-      if (scrollDiff > 0) {
-        listRef.current.scrollTop = scrollDiff;
-      }
+    if (disableAutoScroll || isLoadingMore || !listRef.current || previousScrollHeight.current === 0) return;
+    
+    const newScrollHeight = listRef.current.scrollHeight;
+    const scrollDiff = newScrollHeight - previousScrollHeight.current;
+    
+    if (scrollDiff > 0) {
+      requestAnimationFrame(() => {
+        if (listRef.current) {
+          listRef.current.scrollTop = scrollDiff;
+        }
+      });
     }
-  }, [isLoadingMore, messages]);
+  }, [isLoadingMore, messages, disableAutoScroll]);
 
   // Show load more button when scrolling to top
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -100,17 +106,22 @@ export function MessageList({
     setShowLoadMore(scrollTop < 100 && hasMore && !isLoadingMore);
   };
 
-  // Auto-scroll to bottom for new messages
+  // Auto-scroll to bottom for new messages (only if auto-scroll is enabled)
   useEffect(() => {
-    if (listRef.current && !isLoadingMore) {
-      const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      
-      if (isNearBottom) {
-        listRef.current.scrollTop = listRef.current.scrollHeight;
-      }
+    if (disableAutoScroll || isLoadingMore || !listRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    if (isNearBottom) {
+      // Use requestAnimationFrame to prevent flickering
+      requestAnimationFrame(() => {
+        if (listRef.current) {
+          listRef.current.scrollTop = listRef.current.scrollHeight;
+        }
+      });
     }
-  }, [messages, isLoadingMore]);
+  }, [messages, isLoadingMore, disableAutoScroll]);
 
   if (messages.length === 0 && !isLoading) {
     return (
@@ -159,9 +170,9 @@ export function MessageList({
 
       {/* Messages list */}
       <div
-        ref={listRef}
+        ref={disableAutoScroll ? undefined : listRef}
         className="space-y-4"
-        onScroll={handleScroll}
+        onScroll={disableAutoScroll ? undefined : handleScroll}
       >
         {isLoading && messages.length === 0 ? (
           <div className="space-y-4">
@@ -202,7 +213,6 @@ interface MessageGroupProps {
 
 function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: MessageGroupProps) {
   const firstMessage = messages[0];
-  const lastMessage = messages[messages.length - 1];
   const isOwnGroup = isOwnMessage(firstMessage, currentUserId);
   const [resolvedName] = React.useState<string>('');
   const nickname = useMemo(() => {
@@ -258,12 +268,6 @@ function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup }: Me
           ))}
         </div>
 
-        {/* Timestamp for last message in group */}
-        {isOwnGroup && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {formatMessageTimestamp(lastMessage.ts)}
-          </div>
-        )}
       </div>
     </div>
   );

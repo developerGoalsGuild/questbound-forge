@@ -9,7 +9,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 import json
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 import logging
 from pydantic import BaseModel
@@ -135,6 +135,44 @@ class RateLimiter:
         self.user_limits[user_id].append(datetime.now())
 
 rate_limiter = RateLimiter()
+
+# -----------------------------------------------------------------------------
+# Emoji parsing utilities
+# -----------------------------------------------------------------------------
+
+# Simple, dependency-free emoji detector: treat extended grapheme clusters that
+# include characters in common emoji ranges as emoji. This is a pragmatic
+# heuristic; production should use a full emoji library.
+_EMOJI_RANGES: List[Tuple[int, int]] = [
+    (0x1F300, 0x1F5FF),  # Misc Symbols and Pictographs
+    (0x1F600, 0x1F64F),  # Emoticons
+    (0x1F680, 0x1F6FF),  # Transport and Map
+    (0x1F700, 0x1F77F),  # Alchemical Symbols
+    (0x1F780, 0x1F7FF),
+    (0x1F800, 0x1F8FF),
+    (0x1F900, 0x1F9FF),  # Supplemental Symbols and Pictographs
+    (0x1FA70, 0x1FAFF),  # Symbols and Pictographs Extended-A
+    (0x2600, 0x26FF),    # Misc symbols
+    (0x2700, 0x27BF),    # Dingbats
+]
+
+def _is_emoji_char(ch: str) -> bool:
+    cp = ord(ch)
+    for start, end in _EMOJI_RANGES:
+        if start <= cp <= end:
+            return True
+    return False
+
+def extract_emojis(text: str) -> List[str]:
+    """Extract emoji characters from text."""
+    if not text:
+        return []
+    return [ch for ch in text if _is_emoji_char(ch)]
+
+def unicode_to_shortcode(emoji_char: str) -> str:
+    """Convert Unicode emoji to canonical shortcode format."""
+    codepoints = '-'.join(f"{ord(c):x}" for c in emoji_char)
+    return f":u{codepoints}:"
 
 # JWT token validation - For Lambda authorizer, tokens are already validated by API Gateway
 def verify_token(request: Request) -> dict:
@@ -407,7 +445,11 @@ async def broadcast_message(
         "sender_id": user_id,
         "text": message_data.text,
         "timestamp": datetime.now().isoformat(),
-        "type": "broadcast"
+        "type": "broadcast",
+        "emojiMetadata": {
+            "shortcodes": [unicode_to_shortcode(e) for e in extract_emojis(message_data.text)],
+            "unicodeCount": len(extract_emojis(message_data.text))
+        }
     }
     
     # Broadcast to room
@@ -535,7 +577,8 @@ async def get_messages(room_id: str, request: Request, token: dict = Depends(ver
             "sender_id": user_id,
             "text": f"Welcome to {room_id}!",
             "ts": int(datetime.now().timestamp()),
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
+            "emojiMetadata": {"shortcodes": [], "unicodeCount": 0}
         }
     ]
     
@@ -553,13 +596,19 @@ async def send_message_to_room(room_id: str, message_data: MessageRequest, reque
     rate_limiter.record_message(user_id)
     
     # Create message
+    # Extract emoji metadata
+    found = extract_emojis(message_data.text)
     message = {
         "id": f"msg_{int(datetime.now().timestamp())}",
         "room_id": room_id,
         "sender_id": user_id,
         "text": message_data.text,
         "ts": int(datetime.now().timestamp()),
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
+        "emojiMetadata": {
+            "shortcodes": [unicode_to_shortcode(e) for e in found],
+            "unicodeCount": len(found)
+        }
     }
     
     # Broadcast to room connections

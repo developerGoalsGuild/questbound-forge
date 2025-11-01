@@ -180,6 +180,7 @@ export function ChatInterface({
                 currentUserId={userId}
                 onLoadMore={handleScrollToTop}
                 hasMore={messages.length >= 50}
+                disableAutoScroll={true}
               />
               
               {/* Typing Indicator */}

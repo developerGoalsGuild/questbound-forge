@@ -10,7 +10,6 @@ import { Textarea } from '../ui/textarea';
 import { Alert, AlertDescription } from '../ui/alert';
 import { 
   Send, 
-  Smile, 
   Paperclip, 
   Mic, 
   MicOff, 
@@ -18,6 +17,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { EmojiPicker } from '../chat/EmojiPicker';
 
 interface MessageInputProps {
   onSendMessage: (text: string) => Promise<void>;
@@ -49,6 +49,27 @@ export function MessageInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const rateLimitTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Handle emoji selection - insert at cursor position
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const text = message;
+    
+    const newText = text.slice(0, start) + emoji + text.slice(end);
+    setMessage(newText);
+    
+    // Restore cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + emoji.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      handleMessageChange(newText);
+    }, 0);
+  }, [message]);
 
   // Handle message change
   const handleMessageChange = (value: string) => {
@@ -234,24 +255,11 @@ export function MessageInput({
           )}
         </div>
 
-        {/* Emoji button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                disabled={disabled}
-              >
-                <Smile className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Add emoji</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* Emoji picker */}
+        <EmojiPicker 
+          onSelect={handleEmojiSelect}
+          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        />
 
         {/* Voice recording button */}
         <TooltipProvider>
