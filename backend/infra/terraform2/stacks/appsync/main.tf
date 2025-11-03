@@ -370,7 +370,7 @@ resource "aws_appsync_resolver" "query_user" {
 
 # Removed createTask mutation resolver - already exists in AppSync API
 
-# Messaging data source with permissions for both tables
+# Messaging data source for core table (general rooms)
 resource "aws_appsync_datasource" "messaging_ddb" {
   api_id           = module.appsync.api_id
   name             = "MessagingDDB"
@@ -378,6 +378,17 @@ resource "aws_appsync_datasource" "messaging_ddb" {
   service_role_arn = aws_iam_role.messaging_ddb_role.arn
   dynamodb_config {
     table_name = var.core_table_name
+  }
+}
+
+# Messaging data source for guild table (guild rooms)
+resource "aws_appsync_datasource" "messaging_guild_ddb" {
+  api_id           = module.appsync.api_id
+  name             = "MessagingGuildDDB"
+  type             = "AMAZON_DYNAMODB"
+  service_role_arn = aws_iam_role.messaging_ddb_role.arn
+  dynamodb_config {
+    table_name = data.terraform_remote_state.database.outputs.guild_table_name
   }
 }
 
@@ -559,6 +570,33 @@ module "messages_batch_lambda" {
   ]
   environment_variables = {
     DYNAMODB_TABLE_NAME = var.core_table_name
+    GUILD_TABLE_NAME     = data.terraform_remote_state.database.outputs.guild_table_name
+    ENVIRONMENT         = var.environment
+  }
+}
+
+# Lambda function for sending messages (supports both tables)
+module "send_message_lambda" {
+  source            = "../../modules/lambda_zip"
+  function_name     = "goalsguild_appsync_send_message"
+  environment       = var.environment
+  role_arn          = local.messages_batch_lambda_role_arn
+  handler           = "lambda_function.handler"
+  src_dir           = "${local.lambdas_path}/appsync_send_message"
+  timeout           = 10
+  memory_size       = 256
+  requirements_file = "requirements.txt"
+  exclude_globs = [
+    ".git/**",
+    ".venv/**",
+    "__pycache__/**",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd"
+  ]
+  environment_variables = {
+    DYNAMODB_TABLE_NAME = var.core_table_name
+    GUILD_TABLE_NAME     = data.terraform_remote_state.database.outputs.guild_table_name
     ENVIRONMENT         = var.environment
   }
 }
@@ -583,7 +621,10 @@ resource "aws_iam_role_policy" "messages_batch_lambda_invoke_policy" {
     Statement = [{
       Effect   = "Allow",
       Action   = ["lambda:InvokeFunction"],
-      Resource = module.messages_batch_lambda.lambda_arn
+      Resource = [
+        module.messages_batch_lambda.lambda_arn,
+        module.send_message_lambda.lambda_arn
+      ]
     }]
   })
 }
@@ -596,6 +637,17 @@ resource "aws_appsync_datasource" "messages_batch_lambda" {
   service_role_arn = aws_iam_role.messages_batch_lambda_invoke_role.arn
   lambda_config {
     function_arn = module.messages_batch_lambda.lambda_arn
+  }
+}
+
+# AppSync data source for sendMessage Lambda
+resource "aws_appsync_datasource" "send_message_lambda" {
+  api_id           = module.appsync.api_id
+  name             = "SendMessageLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.messages_batch_lambda_invoke_role.arn
+  lambda_config {
+    function_arn = module.send_message_lambda.lambda_arn
   }
 }
 
@@ -653,12 +705,31 @@ resource "aws_appsync_resolver" "mutation_sendMessage" {
   type        = "Mutation"
   field       = "sendMessage"
   kind        = "UNIT"
-  data_source = aws_appsync_datasource.messaging_ddb.name
-  code        = file("${local.resolvers_path}/sendMessage.js")
-  runtime {
-    name            = "APPSYNC_JS"
-    runtime_version = "1.0.0"
-  }
+  data_source = aws_appsync_datasource.send_message_lambda.name
+  
+  # Lambda resolver uses request/response templates
+  request_template = <<-TEMPLATE
+    {
+      "version": "2018-05-29",
+      "operation": "Invoke",
+      "payload": {
+        "arguments": $util.toJson($context.arguments),
+        "identity": $util.toJson($context.identity),
+        "resolverContext": $util.toJson($context.resolverContext)
+      }
+    }
+  TEMPLATE
+  
+  response_template = <<-TEMPLATE
+    #if($ctx.error)
+      $util.error($ctx.error.message, $ctx.error.type)
+    #end
+    #if($ctx.result)
+      $util.toJson($ctx.result)
+    #else
+      $util.error("Failed to send message", "InternalFailure")
+    #end
+  TEMPLATE
 }
 
 # Reactions resolvers

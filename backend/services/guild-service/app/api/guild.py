@@ -15,7 +15,14 @@ from ..models.guild import (
     GuildCreatePayload, 
     GuildUpdatePayload,
     GuildType,
-    GuildSettings
+    GuildSettings,
+    GuildQuestCreatePayload,
+    GuildQuestUpdatePayload,
+    GuildQuestResponse,
+    GuildQuestListResponse,
+    GuildQuestCompletionPayload,
+    GuildQuestCompletionResponse,
+    GuildQuestProgressResponse
 )
 from ..models.join_request import (
     GuildJoinRequestResponse,
@@ -32,6 +39,18 @@ from ..db.guild_db import (
     join_guild,
     leave_guild,
     remove_user_from_guild,
+    get_guild_rankings,
+    create_guild_quest,
+    get_guild_quest,
+    list_guild_quests,
+    update_guild_quest,
+    delete_guild_quest,
+    activate_guild_quest,
+    finish_guild_quest,
+    complete_guild_quest,
+    get_guild_quest_completions,
+    get_guild_quest_progress,
+    get_guild_activities,
     GuildDBError,
     GuildNotFoundError,
     GuildPermissionError,
@@ -80,6 +99,26 @@ async def create_guild_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create guild"
+        )
+
+@router.get("/rankings")
+async def get_guild_rankings_endpoint(
+    limit: int = Query(50, description="Maximum number of rankings to return"),
+    auth: AuthContext = Depends(authenticate)
+):
+    """Get guild rankings."""
+    try:
+        rankings = await get_guild_rankings(limit=limit)
+        return {"rankings": rankings}
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get guild rankings"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
         )
 
 @router.get("/{guild_id}", response_model=GuildResponse)
@@ -245,7 +284,15 @@ async def join_guild_endpoint(
 ):
     """Join a guild."""
     try:
-        await join_guild(guild_id=guild_id, user_id=auth.user_id)
+        # Extract username/nickname from JWT claims
+        username = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            'Unknown'
+        )
+        await join_guild(guild_id=guild_id, user_id=auth.user_id, username=username, nickname=username)
     except GuildNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -275,7 +322,15 @@ async def leave_guild_endpoint(
 ):
     """Leave a guild."""
     try:
-        await leave_guild(guild_id=guild_id, user_id=auth.user_id)
+        # Extract username/nickname from JWT claims
+        username = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            'Unknown'
+        )
+        await leave_guild(guild_id=guild_id, user_id=auth.user_id, username=username, nickname=username)
     except GuildNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -320,5 +375,434 @@ async def remove_user_from_guild_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to remove user from guild"
+        )
+
+
+# ============================================================================
+# GUILD QUEST ENDPOINTS (Exclusive to guilds - quantitative and percentual only)
+# ============================================================================
+
+@router.post("/{guild_id}/quests", response_model=GuildQuestResponse, status_code=status.HTTP_201_CREATED)
+@rate_limit(requests_per_hour=20)
+async def create_guild_quest_endpoint(
+    guild_id: str,
+    payload: GuildQuestCreatePayload,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Create a new guild quest (owner/moderator only)."""
+    try:
+        # Extract nickname from JWT claims (prefer nickname, fallback to other username fields)
+        creator_nickname = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            None  # Will fallback to member lookup if None
+        )
+        
+        quest = await create_guild_quest(
+            guild_id=guild_id,
+            payload=payload,
+            created_by=auth.user_id,
+            created_by_nickname=creator_nickname
+        )
+        return quest
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create guild quest"
+        )
+
+
+@router.get("/{guild_id}/quests", response_model=GuildQuestListResponse)
+async def list_guild_quests_endpoint(
+    guild_id: str,
+    status: Optional[str] = Query(None, description="Filter by status (active, draft, archived)"),
+    limit: int = Query(20, ge=1, le=100, description="Number of quests to return"),
+    offset: int = Query(0, ge=0, description="Number of quests to skip"),
+    auth: Optional[AuthContext] = Depends(authenticate)
+):
+    """List guild quests."""
+    try:
+        user_id = auth.user_id if auth else None
+        result = await list_guild_quests(
+            guild_id=guild_id,
+            status=status,
+            limit=limit,
+            offset=offset,
+            user_id=user_id
+        )
+        return result
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild not found"
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list guild quests"
+        )
+
+
+@router.get("/{guild_id}/quests/{quest_id}", response_model=GuildQuestResponse)
+async def get_guild_quest_endpoint(
+    guild_id: str,
+    quest_id: str,
+    auth: Optional[AuthContext] = Depends(authenticate)
+):
+    """Get a specific guild quest with user progress."""
+    try:
+        user_id = auth.user_id if auth else None
+        quest = await get_guild_quest(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            user_id=user_id
+        )
+        return quest
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get guild quest"
+        )
+
+
+@router.put("/{guild_id}/quests/{quest_id}", response_model=GuildQuestResponse)
+@rate_limit(requests_per_hour=30)
+async def update_guild_quest_endpoint(
+    guild_id: str,
+    quest_id: str,
+    payload: GuildQuestUpdatePayload,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Update a guild quest (owner/moderator only, draft quests only)."""
+    try:
+        # Extract nickname from JWT claims (prefer nickname, fallback to other username fields)
+        updater_nickname = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            None  # Will fallback to member lookup if None
+        )
+        
+        quest = await update_guild_quest(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            payload=payload,
+            updated_by=auth.user_id,
+            updated_by_nickname=updater_nickname
+        )
+        return quest
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update guild quest"
+        )
+
+
+@router.delete("/{guild_id}/quests/{quest_id}", status_code=status.HTTP_204_NO_CONTENT)
+@rate_limit(requests_per_hour=10)
+async def delete_guild_quest_endpoint(
+    guild_id: str,
+    quest_id: str,
+    action: str = Query("delete", description="Action: delete or archive"),
+    auth: AuthContext = Depends(authenticate)
+):
+    """Delete or archive a guild quest (owner/moderator only)."""
+    try:
+        await delete_guild_quest(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            deleted_by=auth.user_id,
+            action=action
+        )
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete guild quest"
+        )
+
+
+@router.post("/{guild_id}/quests/{quest_id}/activate", response_model=GuildQuestResponse)
+@rate_limit(requests_per_hour=30)
+async def activate_guild_quest_endpoint(
+    guild_id: str,
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Activate a guild quest (owner/moderator only, draft quests only)."""
+    try:
+        # Extract nickname from JWT claims (prefer nickname, fallback to other username fields)
+        activator_nickname = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            None  # Will fallback to member lookup if None
+        )
+        
+        quest = await activate_guild_quest(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            activated_by=auth.user_id,
+            activated_by_nickname=activator_nickname
+        )
+        return quest
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to activate guild quest"
+        )
+
+
+@router.post("/{guild_id}/quests/{quest_id}/finish", response_model=GuildQuestResponse)
+@rate_limit(requests_per_hour=30)
+async def finish_guild_quest_endpoint(
+    guild_id: str,
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Finish a guild quest (owner/moderator only, active quests only). Sets status to completed or failed based on goals."""
+    try:
+        # Extract nickname from JWT claims (prefer nickname, fallback to other username fields)
+        finisher_nickname = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            None  # Will fallback to member lookup if None
+        )
+        
+        quest = await finish_guild_quest(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            finished_by=auth.user_id,
+            finished_by_nickname=finisher_nickname
+        )
+        return quest
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to finish guild quest"
+        )
+
+
+@router.post("/{guild_id}/quests/{quest_id}/complete", response_model=GuildQuestCompletionResponse)
+@rate_limit(requests_per_hour=50)
+async def complete_guild_quest_endpoint(
+    guild_id: str,
+    quest_id: str,
+    payload: Optional[GuildQuestCompletionPayload] = None,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Complete a guild quest (member action)."""
+    try:
+        # Extract nickname from JWT claims (prefer nickname, fallback to other username fields)
+        user_nickname = (
+            auth.claims.get('nickname') or
+            auth.claims.get('name') or
+            auth.claims.get('preferred_username') or
+            auth.claims.get('username') or
+            None  # Will fallback to member lookup if None
+        )
+        
+        completion = await complete_guild_quest(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            user_id=auth.user_id,
+            payload=payload,
+            user_nickname=user_nickname
+        )
+        return completion
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except GuildConflictError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to complete guild quest"
+        )
+
+
+@router.get("/{guild_id}/quests/{quest_id}/completions")
+async def get_guild_quest_completions_endpoint(
+    guild_id: str,
+    quest_id: str,
+    auth: Optional[AuthContext] = Depends(authenticate)
+):
+    """Get quest completion list (members see their own, owners/moderators see all)."""
+    try:
+        user_id = auth.user_id if auth else None
+        result = await get_guild_quest_completions(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            user_id=user_id
+        )
+        return result
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get quest completions"
+        )
+
+
+@router.get("/{guild_id}/quests/{quest_id}/progress", response_model=GuildQuestProgressResponse)
+async def get_guild_quest_progress_endpoint(
+    guild_id: str,
+    quest_id: str,
+    auth: AuthContext = Depends(authenticate)
+):
+    """Get user's progress on a guild quest."""
+    try:
+        progress = await get_guild_quest_progress(
+            guild_id=guild_id,
+            quest_id=quest_id,
+            user_id=auth.user_id
+        )
+        return progress
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild quest not found"
+        )
+    except GuildPermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get quest progress"
+        )
+
+
+@router.get("/{guild_id}/activities")
+async def get_guild_activities_endpoint(
+    guild_id: str,
+    limit: int = Query(50, ge=1, le=100, description="Number of activities to return"),
+    auth: Optional[AuthContext] = Depends(authenticate)
+):
+    """Get recent guild activities (quest created, member joined/left, quest completed)."""
+    try:
+        activities = await get_guild_activities(guild_id=guild_id, limit=limit)
+        return {"activities": activities, "total": len(activities)}
+    except GuildNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Guild not found"
+        )
+    except GuildDBError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get guild activities"
         )
 

@@ -378,11 +378,46 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, token: str = No
 async def validate_guild_membership(user_id: str, guild_room_id: str) -> bool:
     """
     Validate if user is a member of the guild.
-    In a real implementation, this would query the guild service.
+    Extracts guild_id from room_id (GUILD#{guild_id}) and queries gg_guild table.
     """
-    # For now, return True - implement proper guild membership validation
-    logger.info(f"Validating guild membership for user {user_id} in guild {guild_room_id}")
-    return True
+    try:
+        # Extract guild_id from room_id (format: GUILD#{guild_id})
+        if not guild_room_id.startswith("GUILD#"):
+            logger.warning(f"Invalid guild room ID format: {guild_room_id}")
+            return False
+        
+        guild_id = guild_room_id.replace("GUILD#", "")
+        if not guild_id:
+            logger.warning(f"Empty guild_id extracted from room_id: {guild_room_id}")
+            return False
+        
+        # Query gg_guild table to check membership
+        dynamodb = boto3.resource('dynamodb')
+        guild_table_name = os.getenv("GUILD_TABLE_NAME", "gg_guild")
+        table = dynamodb.Table(guild_table_name)
+        
+        # Check if user is a member (MEMBER#{user_id} under GUILD#{guild_id})
+        response = table.get_item(
+            Key={
+                "PK": f"GUILD#{guild_id}",
+                "SK": f"MEMBER#{user_id}"
+            }
+        )
+        
+        if "Item" in response:
+            item = response["Item"]
+            # Check if member is active (not removed)
+            status = item.get("status", "active")
+            logger.info(f"User {user_id} is a member of guild {guild_id} with status {status}")
+            return status == "active"
+        
+        logger.warning(f"User {user_id} is not a member of guild {guild_id}")
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error validating guild membership for user {user_id} in guild {guild_room_id}: {e}")
+        # Fail closed - deny access if validation fails
+        return False
 
 async def process_message(room_id: str, user_id: str, message_data: dict, websocket: WebSocket):
     """

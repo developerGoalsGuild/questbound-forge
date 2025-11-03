@@ -40,12 +40,33 @@ def _resolve_core_table_name() -> str:
         raise UnauthorizedError("Configuration missing") from exc
 
 
+@lru_cache(maxsize=1)
+def _resolve_guild_table_name() -> str:
+    for env_key in ("GUILD_TABLE_NAME", "GG_GUILD_TABLE", "GUILD_TABLE"):
+        val = os.getenv(env_key)
+        if val:
+            return val
+    # Default to gg_guild if not configured
+    return "gg_guild"
+
+
 def _get_core_table():
     global _core_table
     if _core_table is None:
         table_name = _resolve_core_table_name()
         _core_table = _dynamodb.Table(table_name)
     return _core_table
+
+
+_guild_table = None  # Lazily initialised so local tests do not hit SSM
+
+
+def _get_guild_table():
+    global _guild_table
+    if _guild_table is None:
+        table_name = _resolve_guild_table_name()
+        _guild_table = _dynamodb.Table(table_name)
+    return _guild_table
 
 
 def _decode_b64_dict(value: str | None) -> Dict[str, Any]:
@@ -108,19 +129,35 @@ def _extract_api_key(headers: Dict[str, Any]) -> str:
 def _is_guild_member(room_id: str, user_id: str) -> bool:
     if not room_id or not room_id.startswith('GUILD#'):
         return True
+    
+    # Extract guild_id from room_id (format: GUILD#{guild_id})
+    guild_id = room_id.replace('GUILD#', '')
+    if not guild_id:
+        logger.warning('Empty guild_id extracted from room_id', extra={'room_id': room_id})
+        return False
+    
     try:
-        table = _get_core_table()
+        # Query gg_guild table (not gg_core) with correct keys
+        table = _get_guild_table()
         resp = table.get_item(
-            Key={'PK': room_id, 'SK': f'MEMBER#{user_id}'},
+            Key={'PK': f'GUILD#{guild_id}', 'SK': f'MEMBER#{user_id}'},
             ConsistentRead=True,
         )
     except (ClientError, BotoCoreError) as exc:
-        logger.error('guild membership lookup failed', extra={'room_id': room_id, 'user_id': user_id}, exc_info=True)
+        logger.error('guild membership lookup failed', extra={'room_id': room_id, 'guild_id': guild_id, 'user_id': user_id}, exc_info=True)
         raise UnauthorizedError('Unable to verify guild membership') from exc
 
     if 'Item' not in resp:
-        logger.info('Guild membership check failed', extra={'room_id': room_id, 'user_id': user_id})
+        logger.info('Guild membership check failed', extra={'room_id': room_id, 'guild_id': guild_id, 'user_id': user_id})
         return False
+    
+    # Check if member is active (not removed)
+    item = resp['Item']
+    status = item.get('status', 'active')
+    if status != 'active':
+        logger.info('Guild member is not active', extra={'room_id': room_id, 'guild_id': guild_id, 'user_id': user_id, 'status': status})
+        return False
+    
     return True
 
 

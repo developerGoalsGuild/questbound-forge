@@ -47,6 +47,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { guildAPI, Guild, GuildMember } from '@/lib/api/guild';
 import { getGuildTranslations } from '@/i18n/guild';
+import { useTranslation } from '@/hooks/useTranslation';
 import { GuildAnalyticsCard } from './GuildAnalyticsCard';
 import { GuildComments } from './GuildComments';
 import { GuildJoinRequests } from './GuildJoinRequests';
@@ -54,8 +55,11 @@ import { GuildJoinRequestForm } from './GuildJoinRequestForm';
 import { GuildModeration } from './GuildModeration';
 import { GuildOwnershipTransfer } from './GuildOwnershipTransfer';
 import { GuildAvatar } from './GuildAvatar';
+import { GuildQuestsTab } from './GuildQuestsTab';
+import { GuildRecentActivities } from './GuildRecentActivities';
 import { useGuildAnalytics } from '@/hooks/useGuildAnalytics';
 import { toast } from 'sonner';
+import { ProductionChatInterface } from '@/components/messaging/ProductionChatInterface';
 
 interface GuildDetailsProps {
   guildId: string;
@@ -67,7 +71,7 @@ interface GuildDetailsProps {
   className?: string;
 }
 
-type TabType = 'overview' | 'members' | 'goals' | 'quests' | 'analytics' | 'comments' | 'joinRequests' | 'moderation';
+type TabType = 'overview' | 'members' | 'quests' | 'analytics' | 'comments' | 'joinRequests' | 'moderation' | 'chat';
 
 export const GuildDetails: React.FC<GuildDetailsProps> = ({
   guildId,
@@ -84,7 +88,17 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
   const [showJoinRequestForm, setShowJoinRequestForm] = useState(false);
 
   const queryClient = useQueryClient();
-  const translations = getGuildTranslations('en'); // TODO: Use actual language
+  const { language: contextLanguage, isLanguageLoading } = useTranslation();
+  // If language is still loading, default to 'en' to avoid showing wrong language
+  // Otherwise, ensure we're using a valid language code, default to 'en'
+  const language = isLanguageLoading ? 'en' : ((contextLanguage === 'en' || contextLanguage === 'es' || contextLanguage === 'fr') ? contextLanguage : 'en');
+  const translations = getGuildTranslations(language);
+  // Get messaging translations for "Guild Hall" localization
+  const messagingTranslations = {
+    en: { guild: 'Guild Hall' },
+    es: { guild: 'Salón del Gremio' },
+    fr: { guild: 'Salle de Guilde' }
+  }[language] || { guild: 'Guild Hall' };
 
   // Fetch guild analytics
   const {
@@ -516,15 +530,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">Activity feed coming soon...</p>
-        </CardContent>
-      </Card>
+      {/* Recent Activities */}
+      <GuildRecentActivities guildId={guildId} limit={10} language={language} />
 
       {/* Guild Rules/Info */}
       <Card>
@@ -682,37 +689,24 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
     </Card>
   );
 
-  const renderGoalsTab = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-5 w-5" />
-          Goals ({guild.goal_count})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-600 text-center py-8">
-          Guild goals will be displayed here. This feature is coming soon.
-        </p>
-      </CardContent>
-    </Card>
-  );
 
-  const renderQuestsTab = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5" />
-          Quests ({guild.quest_count})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-600 text-center py-8">
-          Guild quests will be displayed here. This feature is coming soon.
-        </p>
-      </CardContent>
-    </Card>
-  );
+  const renderQuestsTab = () => {
+    if (!guild) return null;
+    
+    const isMember = guild.members?.some(member => member.user_id === currentUserId) || false;
+    const currentUserMember = guild.members?.find(member => member.user_id === currentUserId);
+    const userRole = currentUserMember?.role;
+    const canManage = userRole === 'owner' || userRole === 'moderator';
+
+    return (
+      <GuildQuestsTab
+        guildId={guildId}
+        currentUserId={currentUserId}
+        canManage={canManage}
+        language={language}
+      />
+    );
+  };
 
   const renderAnalyticsTab = () => {
     if (analyticsLoading) {
@@ -842,6 +836,44 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
     );
   };
 
+  const renderChatTab = () => {
+    if (!isMember || !currentUserId) {
+      return (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Lock className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600">
+              {translations.comments?.memberOnly || 'You must be a member to access guild chat.'}
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    const roomId = `GUILD#${guildId}`;
+    // Format as "Guild Name - Guild Hall"
+    const guildHallName = messagingTranslations.guild || 'Guild Hall';
+    const roomName = guild.name ? `${guild.name} - ${guildHallName}` : guildHallName;
+
+    return (
+      <Card className="h-[600px] flex flex-col">
+        <CardContent className="flex-1 p-0">
+          <ProductionChatInterface
+            roomId={roomId}
+            userId={currentUserId}
+            roomName={roomName}
+            roomType="guild"
+            className="h-full"
+            onError={(error) => {
+              console.error('Chat error:', error);
+              toast.error(error || 'Failed to connect to chat');
+            }}
+          />
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className={cn('space-y-6', className)}>
       {renderGuildHeader()}
@@ -850,20 +882,20 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
         <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="overview">{translations.details.tabs.overview}</TabsTrigger>
           <TabsTrigger value="members">{translations.details.tabs.members}</TabsTrigger>
-          <TabsTrigger value="goals">{translations.details.tabs.goals}</TabsTrigger>
           <TabsTrigger value="quests">{translations.details.tabs.quests}</TabsTrigger>
           <TabsTrigger value="analytics">{translations.details.tabs.analytics}</TabsTrigger>
           <TabsTrigger value="comments">{translations.details.tabs.comments}</TabsTrigger>
+          <TabsTrigger value="chat">{translations.details.tabs.chat || 'Chat'}</TabsTrigger>
           {canModerate && (
             <TabsTrigger value="joinRequests">
               <Shield className="h-4 w-4 mr-1" />
-              Requests
+              {translations.details.tabs.joinRequests || 'Petitions'}
             </TabsTrigger>
           )}
           {canModerate && (
             <TabsTrigger value="moderation">
               <Shield className="h-4 w-4 mr-1" />
-              Moderation
+              {translations.details.tabs.moderation || 'Stewardship'}
             </TabsTrigger>
           )}
         </TabsList>
@@ -876,10 +908,6 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           {renderMembersTab()}
         </TabsContent>
 
-        <TabsContent value="goals" className="mt-6">
-          {renderGoalsTab()}
-        </TabsContent>
-
         <TabsContent value="quests" className="mt-6">
           {renderQuestsTab()}
         </TabsContent>
@@ -890,6 +918,10 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
 
         <TabsContent value="comments" className="mt-6">
           {renderCommentsTab()}
+        </TabsContent>
+
+        <TabsContent value="chat" className="mt-6">
+          {renderChatTab()}
         </TabsContent>
 
         {canModerate && (

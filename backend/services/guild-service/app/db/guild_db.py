@@ -14,9 +14,12 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from ..models.guild import GuildResponse, GuildListResponse, GuildType, GuildSettings, GuildMemberResponse
+from ..models.guild import (
+    GuildResponse, GuildListResponse, GuildType, GuildSettings, GuildMemberResponse,
+    GuildQuestCreatePayload, GuildQuestUpdatePayload, GuildQuestResponse, GuildQuestListResponse,
+    GuildQuestCompletionPayload, GuildQuestCompletionResponse, GuildQuestProgressResponse
+)
 from ..models.analytics import GuildAnalyticsResponse, MemberLeaderboardItem
-from ..models.join_request import GuildJoinRequestResponse, JoinRequestStatus
 from ..models.join_request import GuildJoinRequestResponse, JoinRequestStatus
 from ..models.comment import GuildCommentResponse
 
@@ -268,24 +271,60 @@ async def get_guild(
                 ProjectionExpression='user_id, username, nickname, email, avatar_url, #r, joined_at, last_seen_at, invited_by, is_blocked, blocked_at, blocked_by, can_comment',
                 ExpressionAttributeNames={'#r': 'role'}
             )
-            members = [
-                GuildMemberResponse(
-                    user_id=item['user_id'],
-                    username=item.get('username', item.get('nickname', 'Unknown')),
-                    nickname=item.get('nickname'),
-                    email=item.get('email'),
-                    avatar_url=item.get('avatar_url'),
-                    role=item['role'],
-                    joined_at=datetime.fromisoformat(item['joined_at']),
-                    last_seen_at=datetime.fromisoformat(item['last_seen_at']) if item.get('last_seen_at') else None,
-                    invited_by=item.get('invited_by'),
-                    is_blocked=item.get('is_blocked', False),
-                    blocked_at=datetime.fromisoformat(item['blocked_at']) if item.get('blocked_at') else None,
-                    blocked_by=item.get('blocked_by'),
-                    can_comment=item.get('can_comment', True)
-                )
-                for item in members_response['Items']
-            ]
+            members = []
+            for item in members_response['Items']:
+                try:
+                    # Parse joined_at safely
+                    joined_at_str = item.get('joined_at')
+                    if joined_at_str:
+                        if isinstance(joined_at_str, str):
+                            # Handle ISO format strings, with or without timezone
+                            joined_at = datetime.fromisoformat(joined_at_str.replace('Z', '+00:00') if joined_at_str.endswith('Z') else joined_at_str)
+                        else:
+                            # If it's already a datetime object
+                            joined_at = joined_at_str
+                    else:
+                        # Default to current time if missing
+                        joined_at = datetime.utcnow()
+                    
+                    # Parse last_seen_at safely
+                    last_seen_at = None
+                    last_seen_at_str = item.get('last_seen_at')
+                    if last_seen_at_str:
+                        if isinstance(last_seen_at_str, str):
+                            last_seen_at = datetime.fromisoformat(last_seen_at_str.replace('Z', '+00:00') if last_seen_at_str.endswith('Z') else last_seen_at_str)
+                        else:
+                            last_seen_at = last_seen_at_str
+                    
+                    # Parse blocked_at safely
+                    blocked_at = None
+                    blocked_at_str = item.get('blocked_at')
+                    if blocked_at_str:
+                        if isinstance(blocked_at_str, str):
+                            blocked_at = datetime.fromisoformat(blocked_at_str.replace('Z', '+00:00') if blocked_at_str.endswith('Z') else blocked_at_str)
+                        else:
+                            blocked_at = blocked_at_str
+                    
+                    member = GuildMemberResponse(
+                        user_id=item['user_id'],
+                        username=item.get('username', item.get('nickname', 'Unknown')),
+                        nickname=item.get('nickname'),
+                        email=item.get('email'),
+                        avatar_url=item.get('avatar_url'),
+                        role=item.get('role', 'member'),  # Default to 'member' if missing
+                        joined_at=joined_at,
+                        last_seen_at=last_seen_at,
+                        invited_by=item.get('invited_by'),
+                        is_blocked=item.get('is_blocked', False),
+                        blocked_at=blocked_at,
+                        blocked_by=item.get('blocked_by'),
+                        can_comment=item.get('can_comment', True)
+                    )
+                    members.append(member)
+                except Exception as e:
+                    logger.error(f"Error parsing member {item.get('user_id', 'unknown')}: {str(e)}", exc_info=True)
+                    # Skip this member but continue processing others
+                    continue
         
         # Get goals if requested (placeholder - would need integration with goals service)
         goals = None
@@ -965,10 +1004,13 @@ async def join_guild(guild_id: str, user_id: str, username: Optional[str] = None
             ExpressionAttributeValues={':inc': 1}
         )
         
+        # Record activity
+        await record_member_joined_activity(guild_id, user_id, username or 'Unknown', nickname=nickname or username)
+        
     except ClientError as e:
         raise GuildDBError(f"Failed to join guild: {str(e)}")
 
-async def leave_guild(guild_id: str, user_id: str) -> None:
+async def leave_guild(guild_id: str, user_id: str, username: Optional[str] = None, nickname: Optional[str] = None) -> None:
     """Leave a guild."""
     try:
         # Check if user is a member
@@ -985,6 +1027,10 @@ async def leave_guild(guild_id: str, user_id: str) -> None:
         member_role = member_response['Item']['role']
         if member_role == 'owner':
             raise GuildPermissionError("Guild owner cannot leave the guild")
+        
+        # Use provided username/nickname or get from member record
+        member_username = username or member_response['Item'].get('username', 'Unknown')
+        member_nickname = nickname or member_response['Item'].get('nickname') or member_username
         
         # Remove member
         table.delete_item(
@@ -1003,6 +1049,9 @@ async def leave_guild(guild_id: str, user_id: str) -> None:
             UpdateExpression='SET member_count = member_count - :dec',
             ExpressionAttributeValues={':dec': 1}
         )
+        
+        # Record activity
+        await record_member_left_activity(guild_id, user_id, member_username, nickname=member_nickname)
         
     except ClientError as e:
         raise GuildDBError(f"Failed to leave guild: {str(e)}")
@@ -1691,6 +1740,28 @@ async def _get_guild_goals_completed_score(guild_id: str, since_date: datetime) 
         return 0
 
 
+async def _get_guild_quests_completed_score(guild_id: str, since_date: datetime) -> int:
+    """Get the number of guild quests with status 'completed' (not 'failed') finished since the given date."""
+    try:
+        # Convert since_date to timestamp for comparison
+        since_timestamp = int(since_date.timestamp() * 1000)
+        
+        # Query for completed quests (status='completed', not 'failed') finished since the cutoff date
+        quests_response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('QUEST#'),
+            FilterExpression=Attr('status').eq('completed') & Attr('finishedAt').gte(since_timestamp)
+        )
+        
+        completed_quests_count = len(quests_response.get('Items', []))
+        
+        # Return score: 50 points per completed quest (higher than goals because quests are guild-level achievements)
+        return completed_quests_count * 50
+        
+    except Exception as e:
+        logger.error(f"Failed to get guild quests completed score: {str(e)}")
+        return 0
+
+
 async def _get_guild_social_engagement_score(guild_id: str, since_date: datetime) -> int:
     """Get social engagement score from comments and likes in the last 30 days."""
     try:
@@ -1760,11 +1831,14 @@ async def get_guild_rankings(limit: int = 50) -> List[Dict[str, Any]]:
             # Get goals completed in the last 30 days for this guild
             goals_completed_score = await _get_guild_goals_completed_score(guild['guild_id'], thirty_days_ago)
             
+            # Get quests completed (not failed) in the last 30 days for this guild
+            quests_completed_score = await _get_guild_quests_completed_score(guild['guild_id'], thirty_days_ago)
+            
             # Get social engagement score from comments and likes
             social_engagement_score = await _get_guild_social_engagement_score(guild['guild_id'], thirty_days_ago)
             
             # Total score
-            total_score = activity_score + growth_bonus + goals_completed_score + social_engagement_score
+            total_score = activity_score + growth_bonus + goals_completed_score + quests_completed_score + social_engagement_score
             
             # Generate signed S3 URL for avatar if it exists
             avatar_key = guild.get('avatar_key')
@@ -1779,6 +1853,7 @@ async def get_guild_rankings(limit: int = 50) -> List[Dict[str, Any]]:
                 'activity_score': activity_score,
                 'growth_rate': growth_bonus,
                 'goals_completed_score': goals_completed_score,
+                'quests_completed_score': quests_completed_score,
                 'social_engagement_score': social_engagement_score,
                 'member_count': member_count,
                 'badges': [],
@@ -1806,23 +1881,82 @@ async def get_guild_analytics(guild_id: str) -> GuildAnalyticsResponse:
 
     now = datetime.utcnow()
     
-    # Get member count and calculate active members (simplified: 70-90% of total)
+    # Get member count and calculate active members (based on last_seen_at within 7 days)
     total_members = guild.member_count or 0
-    active_members = max(0, int(total_members * (0.7 + (0.2 * (total_members / 50)))))
+    members = guild.members or []
+    active_members = 0
+    if members:
+        seven_days_ago = now - timedelta(days=7)
+        for member in members:
+            if member.last_seen_at:
+                last_seen = member.last_seen_at
+                if isinstance(last_seen, str):
+                    last_seen = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
+                if last_seen.replace(tzinfo=None) >= seven_days_ago:
+                    active_members += 1
     
-    # Get goals and quests counts
-    total_goals = guild.goal_count or 0
+    # Count goals completed by members AFTER they joined the guild
+    from .settings import Settings
+    settings = Settings()
+    core_table = dynamodb.Table(settings.core_table_name)
+    
+    completed_goals = 0
+    for member in members:
+        joined_at = member.joined_at
+        if isinstance(joined_at, str):
+            joined_at = datetime.fromisoformat(joined_at.replace('Z', '+00:00'))
+        joined_at_ms = int(joined_at.timestamp() * 1000) if isinstance(joined_at, datetime) else None
+        
+        try:
+            # Query completed goals from gg_core, only those completed after joining
+            response = core_table.query(
+                KeyConditionExpression=Key('PK').eq(f'USER#{member.user_id}') & Key('SK').begins_with('GOAL#'),
+                FilterExpression=Attr('status').eq('completed')
+            )
+            
+            for item in response.get('Items', []):
+                updated_at = item.get('updatedAt', 0)
+                # Only count goals completed after member joined
+                if not joined_at_ms or updated_at >= joined_at_ms:
+                    completed_goals += 1
+        except Exception as e:
+            logger.warning(f"Failed to query goals for member {member.user_id}: {str(e)}")
+            continue
+    
+    # Get guild quests count (only active quests count toward total)
     total_quests = guild.quest_count or 0
     
-    # Calculate completion rates (simplified: 60-85% completion rate)
-    goal_completion_rate = min(85.0, max(60.0, (total_goals * 0.75))) if total_goals > 0 else 0.0
-    quest_completion_rate = min(85.0, max(60.0, (total_quests * 0.8))) if total_quests > 0 else 0.0
+    # Count completed guild quests (from completion records)
+    completed_quests = 0
+    try:
+        # Count quests with status 'completed' (not 'failed')
+        quests_response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('QUEST#'),
+            FilterExpression=Attr('status').eq('completed')
+        )
+        # Count number of completed quests (not member completions)
+        completed_quests = len(quests_response.get('Items', []))
+    except Exception:
+        pass
     
-    completed_goals = int(total_goals * (goal_completion_rate / 100))
-    completed_quests = int(total_quests * (quest_completion_rate / 100))
+    # Calculate goal completion rate (not applicable - we track personal goals, not guild goals)
+    goal_completion_rate = 0.0  # No longer tracking guild-level goals
+    
+    # Calculate quest completion rate
+    quest_completion_rate = (completed_quests / total_quests * 100) if total_quests > 0 else 0.0
     
     # Calculate member growth rate (simplified: 5-25% growth)
     member_growth_rate = min(25.0, max(5.0, (total_members * 0.15))) if total_members > 0 else 0.0
+    
+    # Calculate member activity rate (weighted score: login 30% + completions 40% + chat 30%)
+    # For now, use simplified calculation
+    login_score = (active_members / total_members * 100) if total_members > 0 else 0
+    completion_score = min(100.0, (completed_goals * 2.0) + (completed_quests * 5.0))  # Weighted scoring
+    # Chat participation would come from messaging service - placeholder for now
+    chat_score = active_members * 2  # Simplified placeholder
+    
+    member_activity_rate = (login_score * 0.3) + (min(100.0, completion_score) * 0.4) + (min(100.0, chat_score) * 0.3)
+    member_activity_rate = min(100.0, max(0.0, member_activity_rate))
     
     # Calculate activity score (0-100 based on member count and engagement)
     activity_score = min(100.0, max(0.0, (total_members * 2.5) + (completed_goals * 1.5) + (completed_quests * 2.0)))
@@ -1883,8 +2017,8 @@ async def get_guild_analytics(guild_id: str) -> GuildAnalyticsResponse:
         guild_id=guild_id,
         total_members=total_members,
         active_members=active_members,
-        total_goals=total_goals,
-        completed_goals=completed_goals,
+        total_goals=0,  # No longer tracking guild-level goals
+        completed_goals=completed_goals,  # Personal goals completed by members after joining
         total_quests=total_quests,
         completed_quests=completed_quests,
         total_comments=total_comments,
@@ -1892,6 +2026,7 @@ async def get_guild_analytics(guild_id: str) -> GuildAnalyticsResponse:
         goal_completion_rate=goal_completion_rate,
         quest_completion_rate=quest_completion_rate,
         activity_score=activity_score,
+        member_activity_rate=member_activity_rate,
         last_updated=now,
         guild_name=guild.name,
         guild_type=guild.guild_type.value if guild.guild_type else 'public',
@@ -2041,4 +2176,1436 @@ async def has_pending_join_request(guild_id: str, user_id: str) -> bool:
         raise GuildDBError(f"Failed to check pending join request: {str(e)}")
     except Exception as e:
         raise GuildDBError(f"Failed to check pending join request: {str(e)}")
+
+
+# ============================================================================
+# GUILD QUEST OPERATIONS (Exclusive to gg_guild table)
+# ============================================================================
+
+async def create_guild_quest(guild_id: str, payload: GuildQuestCreatePayload, created_by: str, created_by_nickname: Optional[str] = None) -> GuildQuestResponse:
+    """Create a new guild quest (quantitative or percentual only)."""
+    try:
+        # Verify guild exists and user has permission (owner/moderator)
+        # Include members to check permissions
+        guild = await get_guild(guild_id, include_members=True)
+        if not guild:
+            raise GuildNotFoundError("Guild not found")
+        
+        # Verify creator is owner or moderator
+        members = guild.members or []
+        creator_member = next((m for m in members if m.user_id == created_by), None)
+        if not creator_member or creator_member.role not in ['owner', 'moderator']:
+            raise GuildPermissionError("Only owners and moderators can create guild quests")
+        
+        # Get creator's nickname for denormalization
+        # Prefer provided nickname (from JWT), then member's nickname, then username, then fallback
+        if created_by_nickname:
+            creator_nickname = created_by_nickname
+        else:
+            creator_nickname = creator_member.nickname or creator_member.username or 'Unknown'
+        
+        # Validate quest type and required fields
+        if payload.kind == "quantitative":
+            if not payload.targetCount or payload.targetCount < 1:
+                raise GuildValidationError("Quantitative quests require targetCount >= 1")
+            if not payload.countScope or payload.countScope not in ["goals", "tasks", "guild_quest"]:
+                raise GuildValidationError("Quantitative quests require countScope: goals, tasks, or guild_quest")
+            if payload.countScope == "guild_quest" and not payload.targetQuestId:
+                raise GuildValidationError("Guild quest count scope requires targetQuestId")
+        
+        elif payload.kind == "percentual":
+            if not payload.percentualType:
+                raise GuildValidationError("Percentual quests require percentualType")
+            if payload.targetPercentage is None or payload.targetPercentage < 0 or payload.targetPercentage > 100:
+                raise GuildValidationError("Percentual quests require targetPercentage between 0 and 100")
+            if payload.percentualType == "goal_task_completion":
+                if not payload.linkedGoalIds and not payload.linkedTaskIds:
+                    raise GuildValidationError("Goal/task completion quests require at least one linked goal or task")
+                if not payload.percentualCountScope:
+                    raise GuildValidationError("Goal/task completion quests require percentualCountScope")
+        
+        else:
+            raise GuildValidationError(f"Invalid quest kind: {payload.kind}. Only 'quantitative' and 'percentual' are allowed.")
+        
+        # Calculate reward XP automatically
+        from ..utils.reward_calculator import calculate_guild_quest_reward
+        
+        # Get member total for member_completion percentual quests
+        member_total = None
+        if payload.kind == "percentual" and payload.percentualType == "member_completion":
+            member_total = len(members)
+        
+        calculated_reward = calculate_guild_quest_reward(
+            kind=payload.kind,
+            linked_goal_ids=payload.linkedGoalIds,
+            linked_task_ids=payload.linkedTaskIds,
+            target_count=payload.targetCount,
+            count_scope=payload.countScope,
+            period_days=payload.periodDays,
+            percentual_type=payload.percentualType,
+            member_total=member_total,
+            percentual_count_scope=payload.percentualCountScope
+        )
+        
+        quest_id = str(uuid4())
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        
+        # Build quest item
+        quest_item = {
+            'PK': f'GUILD#{guild_id}',
+            'SK': f'QUEST#{quest_id}',
+            'type': 'GuildQuest',
+            'questId': quest_id,
+            'guildId': guild_id,
+            'title': payload.title,
+            'description': payload.description,
+            'difficulty': payload.difficulty,
+            'rewardXp': calculated_reward,
+            'status': 'draft',
+            'category': payload.category,
+            'tags': payload.tags or [],
+            'createdBy': created_by,
+            'createdByNickname': creator_nickname,
+            'createdAt': now_ms,
+            'updatedAt': now_ms,
+            'updatedByNickname': creator_nickname,  # Initially same as creator
+            'kind': payload.kind,
+            'totalCompletions': 0,
+            'completedByCount': 0,
+        }
+        
+        if payload.deadline:
+            quest_item['deadline'] = payload.deadline
+        
+        # Add quantitative fields
+        if payload.kind == "quantitative":
+            quest_item['targetCount'] = payload.targetCount
+            quest_item['countScope'] = payload.countScope
+            quest_item['currentCount'] = 0
+            if payload.targetQuestId:
+                quest_item['targetQuestId'] = payload.targetQuestId
+            if payload.periodDays:
+                quest_item['periodDays'] = payload.periodDays
+        
+        # Add percentual fields
+        elif payload.kind == "percentual":
+            quest_item['percentualType'] = payload.percentualType
+            quest_item['targetPercentage'] = payload.targetPercentage
+            if payload.linkedGoalIds:
+                quest_item['linkedGoalIds'] = payload.linkedGoalIds
+            if payload.linkedTaskIds:
+                quest_item['linkedTaskIds'] = payload.linkedTaskIds
+            if payload.percentualCountScope:
+                quest_item['percentualCountScope'] = payload.percentualCountScope
+            if payload.percentualType == "member_completion":
+                # Get current member count for denormalization
+                member_count = len(members)
+                quest_item['memberTotal'] = member_count
+                quest_item['membersCompletedCount'] = 0
+        
+        # Store in DynamoDB
+        table.put_item(Item=quest_item)
+        
+        # Increment quest_count in guild metadata
+        table.update_item(
+            Key={'PK': f'GUILD#{guild_id}', 'SK': 'METADATA'},
+            UpdateExpression='ADD quest_count :inc',
+            ExpressionAttributeValues={':inc': 1}
+        )
+        
+        # Create activity record
+        await _create_guild_activity(guild_id, "quest_created", created_by, {
+            'questId': quest_id,
+            'questTitle': payload.title
+        }, actor_nickname=creator_nickname)
+        
+        return _build_guild_quest_response(quest_item, None, None)
+        
+    except (GuildNotFoundError, GuildPermissionError, GuildValidationError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to create guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error creating guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to create guild quest: {str(e)}")
+
+
+async def get_guild_quest(guild_id: str, quest_id: str, user_id: Optional[str] = None) -> GuildQuestResponse:
+    """Get a specific guild quest with optional user progress."""
+    try:
+        response = table.get_item(
+            Key={
+                'PK': f'GUILD#{guild_id}',
+                'SK': f'QUEST#{quest_id}'
+            }
+        )
+        
+        if 'Item' not in response:
+            raise GuildNotFoundError("Guild quest not found")
+        
+        quest_item = response['Item']
+        
+        # Get user completion if provided
+        user_completion = None
+        user_progress = None
+        if user_id:
+            user_completion = await _get_user_quest_completion(guild_id, quest_id, user_id)
+            user_progress = await _get_user_quest_progress(guild_id, quest_id, user_id, quest_item)
+        
+        return _build_guild_quest_response(quest_item, user_completion, user_progress)
+        
+    except GuildNotFoundError:
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to get guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error getting guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to get guild quest: {str(e)}")
+
+
+async def list_guild_quests(
+    guild_id: str,
+    status: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    user_id: Optional[str] = None
+) -> GuildQuestListResponse:
+    """List guild quests with optional filtering."""
+    try:
+        # Build query
+        key_condition = Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('QUEST#')
+        
+        query_params = {
+            'KeyConditionExpression': key_condition,
+            'Limit': limit + offset,
+        }
+        
+        # Filter by status if provided
+        if status:
+            query_params['FilterExpression'] = Attr('status').eq(status)
+        
+        response = table.query(**query_params)
+        
+        quest_items = response.get('Items', [])[offset:offset + limit]
+        
+        # Build responses with user progress if user_id provided
+        quests = []
+        for item in quest_items:
+            user_completion = None
+            user_progress = None
+            if user_id:
+                user_completion = await _get_user_quest_completion(guild_id, item['questId'], user_id)
+                user_progress = await _get_user_quest_progress(guild_id, item['questId'], user_id, item)
+            quests.append(_build_guild_quest_response(item, user_completion, user_progress))
+        
+        # Get total count (separate query for accurate count)
+        count_response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('QUEST#'),
+            Select='COUNT'
+        )
+        total = count_response.get('Count', 0)
+        
+        return GuildQuestListResponse(
+            quests=quests,
+            total=total,
+            limit=limit,
+            offset=offset
+        )
+        
+    except ClientError as e:
+        raise GuildDBError(f"Failed to list guild quests: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error listing guild quests: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to list guild quests: {str(e)}")
+
+
+async def update_guild_quest(
+    guild_id: str,
+    quest_id: str,
+    payload: GuildQuestUpdatePayload,
+    updated_by: str,
+    updated_by_nickname: Optional[str] = None
+) -> GuildQuestResponse:
+    """Update a guild quest (only draft quests can be updated)."""
+    try:
+        # Get existing quest
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        # Verify user has permission - include members to check permissions
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        updater = next((m for m in members if m.user_id == updated_by), None)
+        if not updater or updater.role not in ['owner', 'moderator']:
+            raise GuildPermissionError("Only owners and moderators can update quests")
+        
+        # Get updater's nickname for denormalization
+        # Prefer provided nickname (from JWT), then member's nickname, then username, then fallback
+        if updated_by_nickname:
+            updater_nickname = updated_by_nickname
+        else:
+            updater_nickname = updater.nickname or updater.username or 'Unknown'
+        
+        # Only draft quests can be updated - active/completed/failed quests cannot be changed
+        if quest.status != 'draft':
+            raise GuildValidationError(f"Cannot update quest with status '{quest.status}'. Only draft quests can be updated.")
+        
+        # Build update expression
+        update_expr_parts = []
+        expr_attr_values = {}
+        expr_attr_names = {}
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        
+        # Core fields
+        if payload.title is not None:
+            update_expr_parts.append('#title = :title')
+            expr_attr_names['#title'] = 'title'
+            expr_attr_values[':title'] = payload.title
+        
+        if payload.description is not None:
+            update_expr_parts.append('description = :description')
+            expr_attr_values[':description'] = payload.description
+        
+        if payload.difficulty is not None:
+            update_expr_parts.append('difficulty = :difficulty')
+            expr_attr_values[':difficulty'] = payload.difficulty
+        
+        # Note: rewardXp is auto-calculated and cannot be manually updated
+        
+        if payload.category is not None:
+            update_expr_parts.append('category = :category')
+            expr_attr_values[':category'] = payload.category
+        
+        if payload.tags is not None:
+            update_expr_parts.append('#tags = :tags')
+            expr_attr_names['#tags'] = 'tags'
+            expr_attr_values[':tags'] = payload.tags
+        
+        if payload.deadline is not None:
+            update_expr_parts.append('deadline = :deadline')
+            expr_attr_values[':deadline'] = payload.deadline
+        
+        # Quantitative fields
+        if quest.kind == "quantitative":
+            if payload.targetCount is not None:
+                update_expr_parts.append('targetCount = :targetCount')
+                expr_attr_values[':targetCount'] = payload.targetCount
+            if payload.countScope is not None:
+                update_expr_parts.append('countScope = :countScope')
+                expr_attr_values[':countScope'] = payload.countScope
+            if payload.targetQuestId is not None:
+                update_expr_parts.append('targetQuestId = :targetQuestId')
+                expr_attr_values[':targetQuestId'] = payload.targetQuestId
+            if payload.periodDays is not None:
+                update_expr_parts.append('periodDays = :periodDays')
+                expr_attr_values[':periodDays'] = payload.periodDays
+        
+        # Percentual fields
+        elif quest.kind == "percentual":
+            if payload.percentualType is not None:
+                update_expr_parts.append('percentualType = :percentualType')
+                expr_attr_values[':percentualType'] = payload.percentualType
+            if payload.targetPercentage is not None:
+                update_expr_parts.append('targetPercentage = :targetPercentage')
+                expr_attr_values[':targetPercentage'] = payload.targetPercentage
+            if payload.linkedGoalIds is not None:
+                update_expr_parts.append('linkedGoalIds = :linkedGoalIds')
+                expr_attr_values[':linkedGoalIds'] = payload.linkedGoalIds
+            if payload.linkedTaskIds is not None:
+                update_expr_parts.append('linkedTaskIds = :linkedTaskIds')
+                expr_attr_values[':linkedTaskIds'] = payload.linkedTaskIds
+            if payload.percentualCountScope is not None:
+                update_expr_parts.append('percentualCountScope = :percentualCountScope')
+                expr_attr_values[':percentualCountScope'] = payload.percentualCountScope
+        
+        # Status change (draft -> active or active -> archived)
+        if payload.status is not None:
+            if payload.status == 'active' and quest.status == 'draft':
+                update_expr_parts.append('status = :status')
+                update_expr_parts.append('startedAt = :startedAt')
+                expr_attr_values[':status'] = payload.status
+                expr_attr_values[':startedAt'] = now_ms
+                
+                # If quantitative with period, set period start
+                if quest.kind == "quantitative" and hasattr(quest, 'periodDays') and quest.periodDays:
+                    update_expr_parts.append('periodStartAt = :periodStartAt')
+                    expr_attr_values[':periodStartAt'] = now_ms
+            
+            elif payload.status == 'archived' and quest.status == 'active':
+                update_expr_parts.append('status = :status')
+                update_expr_parts.append('archivedAt = :archivedAt')
+                expr_attr_values[':status'] = payload.status
+                expr_attr_values[':archivedAt'] = now_ms
+            
+            elif payload.status == 'cancelled':
+                update_expr_parts.append('status = :status')
+                expr_attr_values[':status'] = payload.status
+        
+        # Recalculate reward if fields that affect reward have changed
+        needs_reward_recalc = False
+        if payload.targetCount is not None or payload.periodDays is not None or \
+           payload.linkedGoalIds is not None or payload.linkedTaskIds is not None or \
+           payload.percentualCountScope is not None:
+            needs_reward_recalc = True
+        
+        if needs_reward_recalc:
+            from ..utils.reward_calculator import calculate_guild_quest_reward
+            
+            # Get updated values (use payload if provided, else use existing quest values)
+            updated_target_count = payload.targetCount if payload.targetCount is not None else quest.targetCount
+            updated_period_days = payload.periodDays if payload.periodDays is not None else quest.periodDays
+            updated_linked_goal_ids = payload.linkedGoalIds if payload.linkedGoalIds is not None else quest.linkedGoalIds
+            updated_linked_task_ids = payload.linkedTaskIds if payload.linkedTaskIds is not None else quest.linkedTaskIds
+            updated_percentual_count_scope = payload.percentualCountScope if payload.percentualCountScope is not None else quest.percentualCountScope
+            
+            # Get member total for member_completion (re-fetch if needed)
+            updated_member_total = quest.memberTotal
+            if quest.kind == "percentual" and quest.percentualType == "member_completion":
+                guild = await get_guild(guild_id, include_members=True)
+                updated_member_total = len(guild.members or [])
+            
+            recalculated_reward = calculate_guild_quest_reward(
+                kind=quest.kind,
+                linked_goal_ids=updated_linked_goal_ids,
+                linked_task_ids=updated_linked_task_ids,
+                target_count=updated_target_count,
+                count_scope=quest.countScope,  # countScope doesn't change in updates
+                period_days=updated_period_days,
+                percentual_type=quest.percentualType,  # percentualType doesn't change in updates
+                member_total=updated_member_total,
+                percentual_count_scope=updated_percentual_count_scope
+            )
+            
+            update_expr_parts.append('rewardXp = :rewardXp')
+            expr_attr_values[':rewardXp'] = recalculated_reward
+        
+        if not update_expr_parts:
+            # No updates, return current quest
+            return quest
+        
+        update_expr_parts.append('updatedAt = :updatedAt')
+        expr_attr_values[':updatedAt'] = now_ms
+        
+        # Update updater nickname
+        update_expr_parts.append('updatedByNickname = :updatedByNickname')
+        expr_attr_values[':updatedByNickname'] = updater_nickname
+        
+        # Add condition expression value
+        expr_attr_values[':currentStatus'] = 'draft'
+        
+        # Add status to ExpressionAttributeNames since it's a reserved keyword
+        expr_attr_names['#status'] = 'status'
+        
+        # Execute update
+        update_expression = 'SET ' + ', '.join(update_expr_parts)
+        
+        update_kwargs = {
+            'Key': {'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+            'UpdateExpression': update_expression,
+            'ExpressionAttributeValues': expr_attr_values,
+            'ExpressionAttributeNames': expr_attr_names,
+            'ConditionExpression': 'attribute_exists(PK) AND #status = :currentStatus'
+        }
+        
+        table.update_item(**update_kwargs)
+        
+        # Refresh quest data
+        return await get_guild_quest(guild_id, quest_id, updated_by)
+        
+    except (GuildNotFoundError, GuildPermissionError, GuildValidationError):
+        raise
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', '') if hasattr(e, 'response') else ''
+        if 'ConditionalCheckFailedException' in str(e) or error_code == 'ConditionalCheckFailedException':
+            raise GuildValidationError("Only draft quests can be updated")
+        logger.error(f"DynamoDB error updating guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to update guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error updating guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to update guild quest: {str(e)}")
+
+
+async def delete_guild_quest(guild_id: str, quest_id: str, deleted_by: str, action: str = "delete") -> None:
+    """Delete or archive a guild quest."""
+    try:
+        # Verify permission - include members to check permissions
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        deleter = next((m for m in members if m.user_id == deleted_by), None)
+        if not deleter or deleter.role not in ['owner', 'moderator']:
+            raise GuildPermissionError("Only owners and moderators can delete quests")
+        
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        if action == "delete":
+            # Only draft quests can be deleted
+            if quest.status != 'draft':
+                raise GuildValidationError("Only draft quests can be deleted")
+            
+            # Delete quest
+            table.delete_item(
+                Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'}
+            )
+            
+            # Delete all completion records
+            completions_response = table.query(
+                KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('MEMBER#')
+            )
+            for item in completions_response.get('Items', []):
+                sk = item.get('SK', '')
+                if f'QUEST#{quest_id}' in sk and item.get('type') == 'GuildQuestCompletion':
+                    table.delete_item(Key={'PK': item['PK'], 'SK': item['SK']})
+            
+            # Decrement quest_count
+            table.update_item(
+                Key={'PK': f'GUILD#{guild_id}', 'SK': 'METADATA'},
+                UpdateExpression='ADD quest_count :dec',
+                ExpressionAttributeValues={':dec': -1}
+            )
+        
+        elif action == "archive":
+            # Archive active quests
+            now_ms = int(datetime.utcnow().timestamp() * 1000)
+            table.update_item(
+                Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+                UpdateExpression='SET #status = :status, archivedAt = :archivedAt, updatedAt = :updatedAt',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={
+                    ':status': 'archived',
+                    ':archivedAt': now_ms,
+                    ':updatedAt': now_ms
+                }
+            )
+        
+    except (GuildNotFoundError, GuildPermissionError, GuildValidationError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to delete guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error deleting guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to delete guild quest: {str(e)}")
+
+
+async def activate_guild_quest(
+    guild_id: str,
+    quest_id: str,
+    activated_by: str,
+    activated_by_nickname: Optional[str] = None
+) -> GuildQuestResponse:
+    """Activate a guild quest (change status from draft to active)."""
+    try:
+        # Get existing quest
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        # Verify quest is in draft status
+        if quest.status != 'draft':
+            raise GuildValidationError(f"Cannot activate quest with status '{quest.status}'. Only draft quests can be activated.")
+        
+        # Verify user has permission - include members to check permissions
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        logger.info(f"DEBUG: activate_guild_quest - guild_id={guild_id}, activated_by={activated_by}, members_count={len(members)}")
+        
+        activator = next((m for m in members if m.user_id == activated_by), None)
+        
+        if not activator:
+            logger.warning(f"DEBUG: activate_guild_quest - User {activated_by} not found in guild {guild_id} members. Members: {[m.user_id for m in members]}")
+            raise GuildPermissionError("User is not a member of this guild or does not have permission to activate quests")
+        
+        logger.info(f"DEBUG: activate_guild_quest - activator found: user_id={activator.user_id}, role={activator.role}")
+        
+        if activator.role not in ['owner', 'moderator']:
+            logger.warning(f"DEBUG: activate_guild_quest - User {activated_by} has role '{activator.role}', required: owner or moderator")
+            raise GuildPermissionError(f"Only owners and moderators can activate quests. Current role: {activator.role}")
+        
+        # Get activator's nickname for denormalization
+        if activated_by_nickname:
+            activator_nickname = activated_by_nickname
+        else:
+            activator_nickname = activator.nickname or activator.username or 'Unknown'
+        
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        
+        # Update quest status to active and set startedAt
+        update_expr = 'SET #status = :status, startedAt = :startedAt, updatedAt = :updatedAt, updatedByNickname = :updatedByNickname'
+        expr_attr_values = {
+            ':status': 'active',
+            ':startedAt': now_ms,
+            ':updatedAt': now_ms,
+            ':updatedByNickname': activator_nickname
+        }
+        expr_attr_names = {'#status': 'status'}
+        
+        # If quantitative with period, set period start
+        if quest.kind == "quantitative" and quest.periodDays:
+            update_expr += ', periodStartAt = :periodStartAt'
+            expr_attr_values[':periodStartAt'] = now_ms
+        
+        # Add current status to expression values for condition
+        expr_attr_values[':currentStatus'] = 'draft'
+        
+        table.update_item(
+            Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_attr_names,
+            ExpressionAttributeValues=expr_attr_values,
+            ConditionExpression='attribute_exists(PK) AND #status = :currentStatus'
+        )
+        
+        # Create activity record
+        await _create_guild_activity(guild_id, "quest_activated", activated_by, {
+            'questId': quest_id,
+            'questTitle': quest.title
+        }, actor_nickname=activator_nickname)
+        
+        # Refresh and return updated quest
+        return await get_guild_quest(guild_id, quest_id)
+        
+    except (GuildNotFoundError, GuildPermissionError, GuildValidationError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to activate guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error activating guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to activate guild quest: {str(e)}")
+
+
+async def finish_guild_quest(
+    guild_id: str,
+    quest_id: str,
+    finished_by: str,
+    finished_by_nickname: Optional[str] = None
+) -> GuildQuestResponse:
+    """Finish a guild quest - sets status to completed (if goals reached) or failed (if not)."""
+    try:
+        # Get existing quest
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        # Verify quest is active
+        if quest.status != 'active':
+            raise GuildValidationError(f"Cannot finish quest with status '{quest.status}'. Only active quests can be finished.")
+        
+        # Verify user has permission - include members to check permissions
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        logger.info(f"DEBUG: finish_guild_quest - guild_id={guild_id}, finished_by={finished_by}, members_count={len(members)}")
+        
+        finisher = next((m for m in members if m.user_id == finished_by), None)
+        
+        if not finisher:
+            logger.warning(f"DEBUG: finish_guild_quest - User {finished_by} not found in guild {guild_id} members. Members: {[m.user_id for m in members]}")
+            raise GuildPermissionError("User is not a member of this guild or does not have permission to finish quests")
+        
+        logger.info(f"DEBUG: finish_guild_quest - finisher found: user_id={finisher.user_id}, role={finisher.role}")
+        
+        if finisher.role not in ['owner', 'moderator']:
+            logger.warning(f"DEBUG: finish_guild_quest - User {finished_by} has role '{finisher.role}', required: owner or moderator")
+            raise GuildPermissionError(f"Only owners and moderators can finish quests. Current role: {finisher.role}")
+        
+        # Get finisher's nickname for denormalization
+        if finished_by_nickname:
+            finisher_nickname = finished_by_nickname
+        else:
+            finisher_nickname = finisher.nickname or finisher.username or 'Unknown'
+        
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        
+        # Check if goals are reached
+        goals_reached = False
+        
+        logger.info(f"DEBUG: finish_guild_quest - Checking objectives for quest {quest_id}, kind={quest.kind}, title={quest.title}")
+        
+        if quest.kind == "quantitative":
+            # Check if currentCount >= targetCount
+            current_count = quest.currentCount or 0
+            target_count = quest.targetCount or 0
+            goals_reached = current_count >= target_count
+            logger.info(f"DEBUG: finish_guild_quest - Quantitative check: currentCount={current_count}, targetCount={target_count}, goals_reached={goals_reached}")
+        elif quest.kind == "percentual":
+            if quest.percentualType == "goal_task_completion":
+                # For goal_task_completion, check if any member has reached the target percentage
+                # Check all members' progress to see if at least one has reached targetPercentage
+                goals_reached = False
+                if guild.members:
+                    for member in guild.members:
+                        try:
+                            # Calculate this member's completion percentage
+                            progress_data = await _calculate_goal_task_completion_percentage(
+                                guild_id, quest_id, member.user_id, quest, None
+                            )
+                            member_percentage = progress_data.get('percentage', 0)
+                            if member_percentage >= (quest.targetPercentage or 0):
+                                goals_reached = True
+                                logger.info(f"Member {member.user_id} reached target percentage: {member_percentage}% >= {quest.targetPercentage}%")
+                                break
+                        except Exception as e:
+                            logger.warning(f"Error calculating progress for member {member.user_id}: {str(e)}")
+                            continue
+                # Fallback: if we couldn't check all members, use completedByCount as proxy
+                if not goals_reached:
+                    logger.info(f"Goal task completion check: No member reached {quest.targetPercentage}%, checking completedByCount as fallback")
+                    goals_reached = (quest.completedByCount or 0) > 0
+            elif quest.percentualType == "member_completion":
+                # Check if percentage of members who completed >= targetPercentage
+                members_completed = quest.membersCompletedCount or 0
+                member_total = quest.memberTotal or 1
+                completion_percentage = (members_completed / member_total) * 100
+                target_percentage = quest.targetPercentage or 0
+                goals_reached = completion_percentage >= target_percentage
+                logger.info(f"DEBUG: finish_guild_quest - Member completion check: {members_completed}/{member_total} ({completion_percentage:.2f}%) >= {target_percentage}%, goals_reached={goals_reached}")
+        
+        # Set status based on goals
+        final_status = 'completed' if goals_reached else 'failed'
+        logger.info(f"DEBUG: finish_guild_quest - Final status: {final_status} (goals_reached={goals_reached})")
+        
+        # Update quest status
+        update_expr = 'SET #status = :status, finishedAt = :finishedAt, updatedAt = :updatedAt, updatedByNickname = :updatedByNickname'
+        expr_attr_values = {
+            ':status': final_status,
+            ':finishedAt': now_ms,
+            ':updatedAt': now_ms,
+            ':updatedByNickname': finisher_nickname
+        }
+        expr_attr_names = {'#status': 'status'}
+        
+        # If completed (goals reached), award points and count toward ranking
+        # Note: Points and ranking calculation should be handled separately in ranking logic
+        # Here we just mark it as completed so ranking logic can count it
+        
+        # Add current status to expression values for condition
+        expr_attr_values[':currentStatus'] = 'active'
+        
+        table.update_item(
+            Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_attr_names,
+            ExpressionAttributeValues=expr_attr_values,
+            ConditionExpression='attribute_exists(PK) AND #status = :currentStatus'
+        )
+        
+        # Create activity record
+        activity_type = "quest_completed" if goals_reached else "quest_failed"
+        await _create_guild_activity(guild_id, activity_type, finished_by, {
+            'questId': quest_id,
+            'questTitle': quest.title,
+            'goalsReached': goals_reached
+        }, actor_nickname=finisher_nickname)
+        
+        # Refresh and return updated quest
+        return await get_guild_quest(guild_id, quest_id)
+        
+    except (GuildNotFoundError, GuildPermissionError, GuildValidationError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to finish guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error finishing guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to finish guild quest: {str(e)}")
+
+
+async def complete_guild_quest(
+    guild_id: str,
+    quest_id: str,
+    user_id: str,
+    payload: Optional[GuildQuestCompletionPayload] = None,
+    user_nickname: Optional[str] = None
+) -> GuildQuestCompletionResponse:
+    """Complete a guild quest (member action)."""
+    try:
+        # Verify member - include members to check membership
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        logger.info(f"DEBUG: complete_guild_quest - guild_id={guild_id}, user_id={user_id}, members_count={len(members)}")
+        
+        member = next((m for m in members if m.user_id == user_id), None)
+        
+        if not member:
+            logger.warning(f"DEBUG: complete_guild_quest - User {user_id} not found in guild {guild_id} members. Members: {[m.user_id for m in members]}")
+            raise GuildPermissionError("Only guild members can complete quests")
+        
+        logger.info(f"DEBUG: complete_guild_quest - member found: user_id={member.user_id}, role={member.role}")
+        
+        # Get quest
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        # Verify quest is active
+        if quest.status != 'active':
+            raise GuildValidationError("Only active quests can be completed")
+        
+        # Check if already completed
+        existing_completion = await _get_user_quest_completion(guild_id, quest_id, user_id)
+        if existing_completion:
+            raise GuildConflictError("Quest already completed by this member")
+        
+        # Validate completion based on quest type
+        if quest.kind == "quantitative":
+            # For quantitative, verify guild has reached target (or allow individual completion)
+            # This depends on design - for now, allow members to complete when they contribute
+            pass
+        
+        elif quest.kind == "percentual":
+            if quest.percentualType == "goal_task_completion":
+                # Calculate user's percentage
+                progress = await _get_user_quest_progress(guild_id, quest_id, user_id, None)
+                if progress and progress.progress.get('percentage', 0) < quest.targetPercentage:
+                    raise GuildValidationError(f"Completion percentage not reached. Current: {progress.progress.get('percentage', 0)}%, Required: {quest.targetPercentage}%")
+            
+            elif quest.percentualType == "member_completion":
+                # Check if guild threshold reached
+                current_percentage = (quest.membersCompletedCount or 0) / (quest.memberTotal or 1) * 100
+                if current_percentage < quest.targetPercentage:
+                    raise GuildValidationError(f"Guild completion percentage not reached. Current: {current_percentage:.1f}%, Required: {quest.targetPercentage}%")
+        
+        # Create completion record
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        username = member.username or member.nickname or f"User_{user_id[:8]}"
+        
+        completion_item = {
+            'PK': f'GUILD#{guild_id}',
+            'SK': f'MEMBER#{user_id}#QUEST#{quest_id}',
+            'type': 'GuildQuestCompletion',
+            'questId': quest_id,
+            'userId': user_id,
+            'guildId': guild_id,
+            'username': username,
+            'completedAt': now_ms,
+            'rewardXp': quest.rewardXp,
+            'completionMethod': payload.completionMethod if payload else 'auto'
+        }
+        
+        if payload and payload.notes:
+            completion_item['notes'] = payload.notes
+        
+        if payload and payload.linkedGoalIds:
+            completion_item['linkedGoalIds'] = payload.linkedGoalIds
+        if payload and payload.linkedTaskIds:
+            completion_item['linkedTaskIds'] = payload.linkedTaskIds
+        
+        table.put_item(Item=completion_item)
+        
+        # Update quest stats
+        table.update_item(
+            Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+            UpdateExpression='ADD totalCompletions :inc, completedByCount :inc SET lastCompletedAt = :lastCompleted',
+            ExpressionAttributeValues={
+                ':inc': 1,
+                ':lastCompleted': now_ms
+            }
+        )
+        
+        # Update percentual member_completion count if applicable
+        if quest.kind == "percentual" and quest.percentualType == "member_completion":
+            table.update_item(
+                Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+                UpdateExpression='ADD membersCompletedCount :inc',
+                ExpressionAttributeValues={':inc': 1}
+            )
+        
+        # After recording completion, check if quest objectives are now reached
+        # and automatically change status to "completed" if they are
+        # First, refresh quest data to get updated counts
+        updated_quest = await get_guild_quest(guild_id, quest_id)
+        
+        goals_reached = False
+        
+        if updated_quest.kind == "quantitative":
+            # Check if currentCount >= targetCount
+            current_count = updated_quest.currentCount or 0
+            target_count = updated_quest.targetCount or 0
+            goals_reached = current_count >= target_count
+        elif updated_quest.kind == "percentual":
+            if updated_quest.percentualType == "goal_task_completion":
+                # For goal_task_completion, check if any member has reached the percentage
+                # If at least one member completed, goals are reached
+                goals_reached = (updated_quest.completedByCount or 0) > 0
+            elif updated_quest.percentualType == "member_completion":
+                # Check if percentage of members who completed >= targetPercentage
+                members_completed = updated_quest.membersCompletedCount or 0
+                member_total = updated_quest.memberTotal or 1
+                completion_percentage = (members_completed / member_total) * 100
+                goals_reached = completion_percentage >= (updated_quest.targetPercentage or 0)
+        
+        # If objectives are reached, automatically change quest status to "completed"
+        if goals_reached and updated_quest.status == 'active':
+            now_ms_finish = int(datetime.utcnow().timestamp() * 1000)
+            logger.info(f"DEBUG: complete_guild_quest - Quest objectives reached, auto-completing quest {quest_id}")
+            
+            table.update_item(
+                Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+                UpdateExpression='SET #status = :status, finishedAt = :finishedAt, updatedAt = :updatedAt',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={
+                    ':status': 'completed',
+                    ':finishedAt': now_ms_finish,
+                    ':updatedAt': now_ms_finish,
+                    ':currentStatus': 'active'
+                },
+                ConditionExpression='attribute_exists(PK) AND #status = :currentStatus'
+            )
+            
+            # Create activity record for auto-completion
+            # Use provided nickname or fallback to member's nickname/username
+            activity_nickname = user_nickname or member.nickname or member.username
+            await _create_guild_activity(guild_id, "quest_completed", user_id, {
+                'questId': quest_id,
+                'questTitle': quest.title,
+                'goalsReached': True,
+                'autoCompleted': True
+            }, actor_nickname=activity_nickname)
+        else:
+            # Create activity record for member completion (quest not auto-completed)
+            # Use provided nickname or fallback to member's nickname/username
+            activity_nickname = user_nickname or member.nickname or member.username
+            await _create_guild_activity(guild_id, "quest_completed", user_id, {
+                'questId': quest_id,
+                'questTitle': quest.title
+            }, actor_nickname=activity_nickname)
+        
+        return GuildQuestCompletionResponse(
+            questId=quest_id,
+            userId=user_id,
+            username=username,
+            completedAt=now_ms,
+            rewardXp=quest.rewardXp,
+            completionMethod=payload.completionMethod if payload else 'auto',
+            linkedGoalIds=payload.linkedGoalIds if payload else None,
+            linkedTaskIds=payload.linkedTaskIds if payload else None,
+            notes=payload.notes if payload else None
+        )
+        
+    except (GuildNotFoundError, GuildPermissionError, GuildValidationError, GuildConflictError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to complete guild quest: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error completing guild quest: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to complete guild quest: {str(e)}")
+
+
+async def get_guild_quest_completions(
+    guild_id: str,
+    quest_id: str,
+    user_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """Get quest completion list (members see their own, owners/moderators see all)."""
+    try:
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        # Check permissions - include members to check permissions
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        requester = next((m for m in members if m.user_id == user_id), None) if user_id else None
+        
+        # Query completions - need to scan for completion records
+        # Completion records: SK = MEMBER#{userId}#QUEST#{questId}
+        # We need to scan for all members, then filter by quest
+        completions_response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('MEMBER#')
+        )
+        
+        # Filter for quest completions
+        quest_completions = []
+        for item in completions_response.get('Items', []):
+            sk = item.get('SK', '')
+            if f'QUEST#{quest_id}' in sk and item.get('type') == 'GuildQuestCompletion':
+                quest_completions.append(item)
+        
+        completions = []
+        user_completion = None
+        
+        for item in quest_completions:
+            completion = GuildQuestCompletionResponse(
+                questId=item['questId'],
+                userId=item['userId'],
+                username=item.get('username', 'Unknown'),
+                completedAt=item['completedAt'],
+                rewardXp=item.get('rewardXp', 0),
+                completionMethod=item.get('completionMethod', 'auto'),
+                linkedGoalIds=item.get('linkedGoalIds'),
+                linkedTaskIds=item.get('linkedTaskIds'),
+                notes=item.get('notes')
+            )
+            completions.append(completion)
+            
+            if user_id and item['userId'] == user_id:
+                user_completion = completion
+        
+        # Filter for regular members (only their own)
+        if requester and requester.role == 'member':
+            completions = [c for c in completions if c.userId == user_id]
+        
+        # Calculate stats
+        stats = {
+            'totalCompletions': quest.totalCompletions,
+            'completedByCount': quest.completedByCount,
+            'lastCompletedAt': quest.lastCompletedAt
+        }
+        
+        if quest.kind == "percentual" and quest.percentualType == "member_completion":
+            stats['memberCompletionPercentage'] = (
+                (quest.membersCompletedCount or 0) / (quest.memberTotal or 1) * 100
+                if quest.memberTotal else 0
+            )
+        
+        return {
+            'userCompletion': user_completion if user_id else None,
+            'allCompletions': completions if (requester and requester.role in ['owner', 'moderator']) else None,
+            'stats': stats
+        }
+        
+    except (GuildNotFoundError, GuildPermissionError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to get quest completions: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error getting quest completions: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to get quest completions: {str(e)}")
+
+
+async def get_guild_quest_progress(
+    guild_id: str,
+    quest_id: str,
+    user_id: str
+) -> GuildQuestProgressResponse:
+    """Get user's progress on a guild quest."""
+    try:
+        quest = await get_guild_quest(guild_id, quest_id, user_id)
+        user_progress = quest.userProgress
+        
+        if user_progress:
+            return user_progress
+        
+        # Build progress from quest data
+        progress_data = {
+            'isCompleted': False,
+            'currentPercentage': 0
+        }
+        
+        if quest.kind == "quantitative":
+            progress_data['currentCount'] = quest.currentCount or 0
+            progress_data['targetCount'] = quest.targetCount or 0
+            if quest.targetCount:
+                progress_data['currentPercentage'] = (progress_data['currentCount'] / progress_data['targetCount']) * 100
+        
+        elif quest.kind == "percentual":
+            if quest.percentualType == "goal_task_completion":
+                # Calculate user's personal percentage
+                progress_data.update(await _calculate_goal_task_completion_percentage(
+                    guild_id, quest_id, user_id, quest
+                ))
+            elif quest.percentualType == "member_completion":
+                # Show guild-wide percentage
+                if quest.memberTotal:
+                    progress_data['currentPercentage'] = (
+                        (quest.membersCompletedCount or 0) / quest.memberTotal * 100
+                    )
+                    progress_data['membersCompleted'] = quest.membersCompletedCount or 0
+                    progress_data['memberTotal'] = quest.memberTotal
+        
+        return GuildQuestProgressResponse(
+            questId=quest_id,
+            userId=user_id,
+            isCompleted=user_progress.isCompleted if user_progress else False,
+            completedAt=user_progress.completedAt if user_progress else None,
+            progress=progress_data
+        )
+        
+    except (GuildNotFoundError, GuildPermissionError):
+        raise
+    except ClientError as e:
+        raise GuildDBError(f"Failed to get quest progress: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error getting quest progress: {str(e)}", exc_info=True)
+        raise GuildDBError(f"Failed to get quest progress: {str(e)}")
+
+
+# ============================================================================
+# HELPER FUNCTIONS FOR GUILD QUESTS
+# ============================================================================
+
+def _build_guild_quest_response(
+    item: Dict[str, Any],
+    user_completion: Optional[GuildQuestCompletionResponse],
+    user_progress: Optional[GuildQuestProgressResponse]
+) -> GuildQuestResponse:
+    """Build GuildQuestResponse from DynamoDB item."""
+    return GuildQuestResponse(
+        questId=item['questId'],
+        guildId=item['guildId'],
+        title=item['title'],
+        description=item.get('description'),
+        difficulty=item.get('difficulty', 'medium'),
+        rewardXp=item.get('rewardXp', 50),
+        status=item.get('status', 'draft'),
+        category=item.get('category', 'Other'),
+        tags=item.get('tags', []),
+        createdBy=item['createdBy'],
+        createdByNickname=item.get('createdByNickname'),
+        createdAt=item['createdAt'],
+        updatedAt=item.get('updatedAt', item['createdAt']),
+        updatedByNickname=item.get('updatedByNickname'),
+        deadline=item.get('deadline'),
+        startedAt=item.get('startedAt'),
+        finishedAt=item.get('finishedAt'),
+        kind=item['kind'],
+        # Quantitative fields
+        targetCount=item.get('targetCount'),
+        countScope=item.get('countScope'),
+        targetQuestId=item.get('targetQuestId'),
+        currentCount=item.get('currentCount', 0),
+        periodDays=item.get('periodDays'),
+        periodStartAt=item.get('periodStartAt'),
+        # Percentual fields
+        percentualType=item.get('percentualType'),
+        targetPercentage=item.get('targetPercentage'),
+        linkedGoalIds=item.get('linkedGoalIds'),
+        linkedTaskIds=item.get('linkedTaskIds'),
+        percentualCountScope=item.get('percentualCountScope'),
+        memberTotal=item.get('memberTotal'),
+        membersCompletedCount=item.get('membersCompletedCount', 0),
+        # Stats
+        totalCompletions=item.get('totalCompletions', 0),
+        completedByCount=item.get('completedByCount', 0),
+        lastCompletedAt=item.get('lastCompletedAt'),
+        # User-specific
+        userCompletion=user_completion,
+        userProgress=user_progress
+    )
+
+
+async def _get_user_quest_completion(
+    guild_id: str,
+    quest_id: str,
+    user_id: str
+) -> Optional[GuildQuestCompletionResponse]:
+    """Get user's completion record for a quest."""
+    try:
+        response = table.get_item(
+            Key={
+                'PK': f'GUILD#{guild_id}',
+                'SK': f'MEMBER#{user_id}#QUEST#{quest_id}'
+            }
+        )
+        
+        if 'Item' not in response:
+            return None
+        
+        item = response['Item']
+        return GuildQuestCompletionResponse(
+            questId=item['questId'],
+            userId=item['userId'],
+            username=item.get('username', 'Unknown'),
+            completedAt=item['completedAt'],
+            rewardXp=item.get('rewardXp', 0),
+            completionMethod=item.get('completionMethod', 'auto'),
+            linkedGoalIds=item.get('linkedGoalIds'),
+            linkedTaskIds=item.get('linkedTaskIds'),
+            notes=item.get('notes')
+        )
+    except Exception:
+        return None
+
+
+async def _get_user_quest_progress(
+    guild_id: str,
+    quest_id: str,
+    user_id: str,
+    quest_item: Optional[Dict[str, Any]]
+) -> Optional[GuildQuestProgressResponse]:
+    """Calculate and return user's progress on a quest."""
+    try:
+        if not quest_item:
+            quest = await get_guild_quest(guild_id, quest_id)
+            quest_item = None  # Will use quest object instead
+        
+        # Check if completed
+        completion = await _get_user_quest_completion(guild_id, quest_id, user_id)
+        is_completed = completion is not None
+        
+        progress_data = {}
+        
+        if quest_item:
+            quest_kind = quest_item.get('kind')
+        else:
+            quest = await get_guild_quest(guild_id, quest_id)
+            quest_kind = quest.kind
+        
+        if quest_kind == "quantitative":
+            # For quantitative, progress is guild-wide, but we can show user's contribution
+            # This would require counting user's goal/task completions
+            progress_data = {
+                'guildCurrentCount': quest_item.get('currentCount', 0) if quest_item else (quest.currentCount or 0),
+                'targetCount': quest_item.get('targetCount', 0) if quest_item else (quest.targetCount or 0),
+            }
+        
+        elif quest_kind == "percentual":
+            if quest_item:
+                percentual_type = quest_item.get('percentualType')
+            else:
+                percentual_type = quest.percentualType
+            
+            if percentual_type == "goal_task_completion":
+                # Calculate percentage
+                if quest_item:
+                    progress_data = await _calculate_goal_task_completion_percentage(
+                        guild_id, quest_id, user_id, None, quest_item
+                    )
+                else:
+                    progress_data = await _calculate_goal_task_completion_percentage(
+                        guild_id, quest_id, user_id, quest, None
+                    )
+            elif percentual_type == "member_completion":
+                progress_data = {
+                    'guildCompletionPercentage': (
+                        (quest_item.get('membersCompletedCount', 0) / quest_item.get('memberTotal', 1) * 100)
+                        if quest_item else
+                        ((quest.membersCompletedCount or 0) / (quest.memberTotal or 1) * 100)
+                    ),
+                    'membersCompleted': quest_item.get('membersCompletedCount', 0) if quest_item else (quest.membersCompletedCount or 0),
+                    'memberTotal': quest_item.get('memberTotal', 0) if quest_item else (quest.memberTotal or 0)
+                }
+        
+        return GuildQuestProgressResponse(
+            questId=quest_id,
+            userId=user_id,
+            isCompleted=is_completed,
+            completedAt=completion.completedAt if completion else None,
+            progress=progress_data
+        )
+    except Exception as e:
+        logger.error(f"Error calculating user quest progress: {str(e)}", exc_info=True)
+        return None
+
+
+async def _calculate_goal_task_completion_percentage(
+    guild_id: str,
+    quest_id: str,
+    user_id: str,
+    quest: Optional[GuildQuestResponse] = None,
+    quest_item: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Calculate percentage of linked goals/tasks completed by user."""
+    try:
+        if not quest and not quest_item:
+            quest = await get_guild_quest(guild_id, quest_id)
+        
+        if quest:
+            linked_goal_ids = quest.linkedGoalIds or []
+            linked_task_ids = quest.linkedTaskIds or []
+            count_scope = quest.percentualCountScope
+        else:
+            linked_goal_ids = quest_item.get('linkedGoalIds', [])
+            linked_task_ids = quest_item.get('linkedTaskIds', [])
+            count_scope = quest_item.get('percentualCountScope')
+        
+        # Get member's join date - include members to get member data
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        member = next((m for m in members if m.user_id == user_id), None)
+        if not member:
+            return {'percentage': 0, 'completed': 0, 'total': 0}
+        
+        joined_at = member.joined_at
+        joined_at_ms = int(joined_at.timestamp() * 1000) if isinstance(joined_at, datetime) else None
+        
+        # Query gg_core for completed goals/tasks
+        from .settings import Settings
+        settings = Settings()
+        core_table = dynamodb.Table(settings.core_table_name)
+        
+        completed_count = 0
+        total_count = 0
+        
+        # Count goals if applicable
+        if count_scope in ["goals", "both"] and linked_goal_ids:
+            total_count += len(linked_goal_ids)
+            for goal_id in linked_goal_ids:
+                try:
+                    response = core_table.get_item(
+                        Key={
+                            'PK': f'USER#{user_id}',
+                            'SK': f'GOAL#{goal_id}'
+                        }
+                    )
+                    if 'Item' in response:
+                        item = response['Item']
+                        if item.get('status') == 'completed':
+                            # Check if completed after joining
+                            updated_at = item.get('updatedAt', 0)
+                            if not joined_at_ms or updated_at >= joined_at_ms:
+                                completed_count += 1
+                except Exception:
+                    continue
+        
+        # Count tasks if applicable (tasks are under goals in gg_core)
+        if count_scope in ["tasks", "both"] and linked_task_ids:
+            total_count += len(linked_task_ids)
+            # Tasks are stored with goal as PK, need to query differently
+            # This is simplified - actual task query would need goal context
+            for task_id in linked_task_ids:
+                # Would need goal_id context to query properly
+                # For now, assume tasks can be queried directly
+                pass
+        
+        percentage = (completed_count / total_count * 100) if total_count > 0 else 0
+        
+        return {
+            'percentage': round(percentage, 2),
+            'completed': completed_count,
+            'total': total_count
+        }
+    except Exception as e:
+        logger.error(f"Error calculating completion percentage: {str(e)}", exc_info=True)
+        return {'percentage': 0, 'completed': 0, 'total': 0}
+
+
+async def _update_quantitative_quest_count(guild_id: str, quest_id: str) -> None:
+    """Update currentCount for quantitative quests by counting goals/tasks from gg_core."""
+    try:
+        quest = await get_guild_quest(guild_id, quest_id)
+        
+        if quest.kind != "quantitative":
+            return
+        
+        if quest.countScope not in ["goals", "tasks"]:
+            # For guild_quest scope, count is handled differently
+            return
+        
+        # Get all guild members - include members to iterate through them
+        guild = await get_guild(guild_id, include_members=True)
+        members = guild.members or []
+        
+        # Query gg_core for completed items
+        from .settings import Settings
+        settings = Settings()
+        core_table = dynamodb.Table(settings.core_table_name)
+        
+        total_count = 0
+        
+        for member in members:
+            joined_at = member.joined_at
+            joined_at_ms = int(joined_at.timestamp() * 1000) if isinstance(joined_at, datetime) else None
+            
+            if quest.countScope == "goals":
+                # Query completed goals
+                try:
+                    response = core_table.query(
+                        KeyConditionExpression=Key('PK').eq(f'USER#{member.user_id}') & Key('SK').begins_with('GOAL#'),
+                        FilterExpression=Attr('status').eq('completed')
+                    )
+                    for item in response.get('Items', []):
+                        updated_at = item.get('updatedAt', 0)
+                        if not joined_at_ms or updated_at >= joined_at_ms:
+                            total_count += 1
+                except Exception:
+                    continue
+            
+            elif quest.countScope == "tasks":
+                # Tasks are stored differently, would need goal context
+                # This is a simplified version
+                pass
+        
+        # Update quest count
+        table.update_item(
+            Key={'PK': f'GUILD#{guild_id}', 'SK': f'QUEST#{quest_id}'},
+            UpdateExpression='SET currentCount = :count',
+            ExpressionAttributeValues={':count': total_count}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error updating quantitative quest count: {str(e)}", exc_info=True)
+
+
+async def _create_guild_activity(
+    guild_id: str,
+    activity_type: str,
+    actor_id: str,
+    details: Dict[str, Any],
+    actor_nickname: Optional[str] = None
+) -> None:
+    """Create a guild activity record."""
+    try:
+        activity_id = str(uuid4())
+        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        
+        # Get actor name - prefer provided nickname (from JWT), then member data, then fallback
+        if actor_nickname:
+            actor_name = actor_nickname
+        else:
+            # Fallback to member lookup if nickname not provided
+            guild = await get_guild(guild_id, include_members=True)
+            members = guild.members or []
+            actor = next((m for m in members if m.user_id == actor_id), None)
+            # Prefer nickname over username, fallback to username, then user ID fragment
+            if actor:
+                actor_name = actor.nickname or actor.username or f"User_{actor_id[:8]}"
+            else:
+                actor_name = f"User_{actor_id[:8]}"
+        
+        activity_item = {
+            'PK': f'GUILD#{guild_id}',
+            'SK': f'ACTIVITY#{now_ms}#{activity_id}',
+            'type': 'GuildActivity',
+            'activityId': activity_id,
+            'guildId': guild_id,
+            'activityType': activity_type,
+            'actorId': actor_id,
+            'actorName': actor_name,
+            'timestamp': now_ms,
+            'details': details
+        }
+        
+        table.put_item(Item=activity_item)
+        
+    except Exception as e:
+        logger.error(f"Error creating guild activity: {str(e)}", exc_info=True)
+        # Don't fail quest operations if activity creation fails
+
+
+async def get_guild_activities(guild_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Get recent guild activities."""
+    try:
+        # Query activities sorted by timestamp descending
+        response = table.query(
+            KeyConditionExpression=Key('PK').eq(f'GUILD#{guild_id}') & Key('SK').begins_with('ACTIVITY#'),
+            ScanIndexForward=False,  # Descending order
+            Limit=limit
+        )
+        
+        activities = []
+        for item in response.get('Items', []):
+            activities.append({
+                'activityId': item.get('activityId'),
+                'activityType': item.get('activityType'),
+                'actorId': item.get('actorId'),
+                'actorName': item.get('actorName'),
+                'timestamp': item.get('timestamp'),
+                'details': item.get('details', {})
+            })
+        
+        return activities
+        
+    except ClientError as e:
+        logger.error(f"Failed to get guild activities: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error getting guild activities: {str(e)}", exc_info=True)
+        return []
+
+
+async def record_member_joined_activity(guild_id: str, user_id: str, username: str, nickname: Optional[str] = None) -> None:
+    """Record member joined activity."""
+    actor_nickname = nickname or username
+    await _create_guild_activity(guild_id, "member_joined", user_id, {
+        'userId': user_id,
+        'username': username
+    }, actor_nickname=actor_nickname)
+
+
+async def record_member_left_activity(guild_id: str, user_id: str, username: str, nickname: Optional[str] = None) -> None:
+    """Record member left activity."""
+    actor_nickname = nickname or username
+    await _create_guild_activity(guild_id, "member_left", user_id, {
+        'userId': user_id,
+        'username': username
+    }, actor_nickname=actor_nickname)
 

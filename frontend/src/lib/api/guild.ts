@@ -128,6 +128,108 @@ export interface Quest {
   addedBy: string;
 }
 
+// Guild Quest Interfaces (Exclusive to guilds - quantitative and percentual only)
+export interface GuildQuest {
+  questId: string;
+  guildId: string;
+  title: string;
+  description?: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  rewardXp: number;
+  status: 'draft' | 'active' | 'completed' | 'failed' | 'archived' | 'cancelled';
+  category: string;
+  tags: string[];
+  createdBy: string;
+  createdByNickname?: string;
+  createdAt: number;
+  updatedAt: number;
+  updatedByNickname?: string;
+  deadline?: number;
+  startedAt?: number;
+  finishedAt?: number;
+  kind: 'quantitative' | 'percentual';
+  // Quantitative fields
+  targetCount?: number;
+  countScope?: 'goals' | 'tasks' | 'guild_quest';
+  targetQuestId?: string;
+  currentCount?: number;
+  periodDays?: number;
+  periodStartAt?: number;
+  // Percentual fields
+  percentualType?: 'goal_task_completion' | 'member_completion';
+  targetPercentage?: number;
+  linkedGoalIds?: string[];
+  linkedTaskIds?: string[];
+  percentualCountScope?: 'goals' | 'tasks' | 'both';
+  memberTotal?: number;
+  membersCompletedCount?: number;
+  // Stats
+  totalCompletions: number;
+  completedByCount: number;
+  lastCompletedAt?: number;
+  // User-specific
+  userCompletion?: GuildQuestCompletion;
+  userProgress?: GuildQuestProgress;
+}
+
+export interface GuildQuestCreateInput {
+  title: string;
+  description?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  // Note: rewardXp is now auto-calculated by backend (not part of input)
+  category: string;
+  tags?: string[];
+  deadline?: number;
+  kind: 'quantitative' | 'percentual';
+  // Quantitative fields
+  targetCount?: number;
+  countScope?: 'goals' | 'tasks' | 'guild_quest';
+  targetQuestId?: string;
+  periodDays?: number;
+  // Percentual fields
+  percentualType?: 'goal_task_completion' | 'member_completion';
+  targetPercentage?: number;
+  linkedGoalIds?: string[];
+  linkedTaskIds?: string[];
+  percentualCountScope?: 'goals' | 'tasks' | 'both';
+}
+
+export interface GuildQuestCompletion {
+  questId: string;
+  userId: string;
+  username: string;
+  completedAt: number;
+  rewardXp: number;
+  completionMethod: 'auto' | 'manual';
+  linkedGoalIds?: string[];
+  linkedTaskIds?: string[];
+  notes?: string;
+}
+
+export interface GuildQuestProgress {
+  questId: string;
+  userId: string;
+  isCompleted: boolean;
+  completedAt?: number;
+  progress: Record<string, any>;
+}
+
+export interface GuildQuestListResponse {
+  quests: GuildQuest[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface GuildActivity {
+  activityId: string;
+  activityType: 'quest_created' | 'quest_activated' | 'quest_completed' | 'quest_failed' | 'member_joined' | 'member_left';
+  actorId: string;
+  actorName: string;
+  timestamp: number;
+  details: Record<string, any>;
+}
+
 export interface GuildListResponse {
   guilds: Guild[];
   total: number;
@@ -1562,6 +1664,9 @@ export const guildAPI = {
       goalsCreatedThisWeek: 0, // Not available in current backend
       questsCompletedThisWeek: 0, // Not available in current backend
       
+      // Member activity rate (weighted: login 30% + completions 40% + chat 30%)
+      memberActivityRate: data.member_activity_rate || undefined,
+      
       // Time-based data
       createdAt: data.created_at || data.last_updated || new Date().toISOString(),
       lastActivityAt: data.last_activity_at || data.last_updated || new Date().toISOString(),
@@ -1864,5 +1969,314 @@ export const guildAPI = {
 
     const data = await response.json();
     return data.hasPendingRequest || false;
+  },
+
+  // Guild Quest Methods (Exclusive to guilds)
+  createGuildQuest: async (guild_id: string, data: GuildQuestCreateInput): Promise<GuildQuest> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to create guild quest';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: `${getApiBase()}/guilds/${guild_id}/quests`,
+        input: data,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  listGuildQuests: async (
+    guild_id: string,
+    status?: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<GuildQuestListResponse> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests?${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to list guild quests';
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  getGuildQuest: async (guild_id: string, quest_id: string): Promise<GuildQuest> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to get guild quest';
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  updateGuildQuest: async (
+    guild_id: string,
+    quest_id: string,
+    data: Partial<GuildQuestCreateInput>
+  ): Promise<GuildQuest> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to update guild quest';
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  activateGuildQuest: async (guild_id: string, quest_id: string): Promise<GuildQuest> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}/activate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to activate guild quest';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: `/guilds/${guild_id}/quests/${quest_id}/activate`,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  finishGuildQuest: async (guild_id: string, quest_id: string): Promise<GuildQuest> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}/finish`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to finish guild quest';
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url: `/guilds/${guild_id}/quests/${quest_id}/finish`,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  deleteGuildQuest: async (guild_id: string, quest_id: string, action: 'delete' | 'archive' = 'delete'): Promise<void> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}?action=${action}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to delete guild quest';
+      throw new Error(message);
+    }
+  },
+
+  completeGuildQuest: async (
+    guild_id: string,
+    quest_id: string,
+    data?: { linkedGoalIds?: string[]; linkedTaskIds?: string[]; notes?: string }
+  ): Promise<GuildQuestCompletion> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+      body: JSON.stringify(data || {}),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to complete guild quest';
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  getGuildQuestCompletions: async (
+    guild_id: string,
+    quest_id: string
+  ): Promise<{ userCompletion?: GuildQuestCompletion; allCompletions?: GuildQuestCompletion[]; stats: any }> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}/completions`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to get quest completions';
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  getGuildQuestProgress: async (guild_id: string, quest_id: string): Promise<GuildQuestProgress> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/quests/${quest_id}/progress`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to get quest progress';
+      throw new Error(message);
+    }
+
+    return await response.json();
+  },
+
+  getGuildActivities: async (guild_id: string, limit: number = 50): Promise<{ activities: GuildActivity[]; total: number }> => {
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const response = await fetch(`${getApiBase()}/guilds/${guild_id}/activities?limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to get guild activities';
+      throw new Error(message);
+    }
+
+    return await response.json();
   },
 };

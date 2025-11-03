@@ -215,34 +215,44 @@ export function useReactions({
     refreshReactionsRef.current = refreshReactions;
   }, [refreshReactions]);
 
+  // Track the last messageId to detect when it changes (used for both initialization and subscription)
+  const lastMessageIdRef = useRef<string | null>(null);
+  const hasInitializedRef = useRef<boolean>(false);
+
   useEffect(() => {
+    // Only initialize reactions when messageId changes, not when initialReactions prop changes
+    // This prevents infinite loops when the parent updates message.reactions after we've already
+    // updated reactions state internally (e.g., from toggleReaction or subscription)
+    const messageIdChanged = lastMessageIdRef.current !== messageId;
+    
+    if (messageIdChanged && messageId) {
+      lastMessageIdRef.current = messageId;
+      hasInitializedRef.current = false;
+    }
+
     // Only fetch reactions if initialReactions is undefined (not included in messages query)
     // If initialReactions is defined (even if empty array), reactions came from the batch query
-    if (messageId && initialReactions === undefined) {
+    if (messageId && initialReactions === undefined && messageIdChanged && !hasInitializedRef.current) {
+      // Only fetch if we haven't initialized yet and messageId changed
       refreshReactionsRef.current();
-    } else if (initialReactions !== undefined) {
+      hasInitializedRef.current = true;
+    } else if (initialReactions !== undefined && messageIdChanged && !hasInitializedRef.current && messageId) {
       // Use initial reactions if provided (e.g., from message query)
       // This includes empty arrays [] which means "no reactions" from the batch query
+      // Only set once when messageId changes, not every time initialReactions prop changes
       setReactions(initialReactions);
+      hasInitializedRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageId, initialReactions]); // Include initialReactions to update when they change
-
-  const lastMessageIdRef = useRef<string | null>(null);
+  }, [messageId]); // Only depend on messageId - don't react to initialReactions changes
   useEffect(() => {
     if (!messageId) {
       return;
     }
 
-    // Skip subscription if reactions are already loaded from batch query
-    // If initialReactions is defined (even if empty array), it means reactions came from the messages query
-    // Only subscribe if initialReactions is undefined/null (meaning reactions weren't included in the query)
-    // This prevents rate limiting when loading many messages with reactions
-    if (initialReactions !== undefined && initialReactions !== null) {
-      // Reactions already loaded from messages query (even if empty) - skip subscription to avoid rate limits
-      // We'll still get updates via the message subscription if needed
-      return;
-    }
+    // Always set up subscription for real-time reaction updates across chat instances
+    // Even if initialReactions is provided, we need to subscribe to get updates when other users react
+    // The subscription is per-message, so it's efficient and necessary for real-time sync
 
     // Only set up subscription if messageId changed
     if (messageId === lastMessageIdRef.current && subscriptionRef.current) {
@@ -319,7 +329,7 @@ export function useReactions({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageId, initialReactions]); // Include initialReactions to skip subscription when reactions are pre-loaded
+  }, [messageId]); // Only depend on messageId - always subscribe for real-time updates
 
   const toggleReaction = useCallback(async (shortcode: string, unicode: string) => {
     if (!messageId) return;

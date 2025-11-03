@@ -20,18 +20,26 @@ dynamodb_config = Config(
 dynamodb = boto3.resource('dynamodb', config=dynamodb_config)
 dynamodb_client = boto3.client('dynamodb', config=dynamodb_config)
 
-# Get table name from environment
-TABLE_NAME = os.getenv('DYNAMODB_TABLE_NAME', 'gg_core')
-table = dynamodb.Table(TABLE_NAME)
+# Get table names from environment
+CORE_TABLE_NAME = os.getenv('DYNAMODB_TABLE_NAME', 'gg_core')
+GUILD_TABLE_NAME = os.getenv('GUILD_TABLE_NAME', 'gg_guild')
+print(f"Lambda initialized with CORE_TABLE_NAME={CORE_TABLE_NAME}, GUILD_TABLE_NAME={GUILD_TABLE_NAME}")
+core_table = dynamodb.Table(CORE_TABLE_NAME)
+guild_table = dynamodb.Table(GUILD_TABLE_NAME)
+print(f"Lambda tables initialized: core_table.name={core_table.name}, guild_table.name={guild_table.name}")
 
 
-def fetch_single_message_reactions_sync(message_id: str) -> tuple:
+def fetch_single_message_reactions_sync(message_id: str, table_to_use=None) -> tuple:
     """Fetch reactions for a single message (synchronous)"""
     try:
+        # Use provided table or default to core_table
+        if table_to_use is None:
+            table_to_use = core_table
+        
         pk = f'MSG#{message_id}'
         
         # Query reaction summaries
-        response = table.query(
+        response = table_to_use.query(
             KeyConditionExpression='PK = :pk AND begins_with(SK, :sk)',
             ExpressionAttributeValues={
                 ':pk': pk,
@@ -64,7 +72,7 @@ def fetch_single_message_reactions_sync(message_id: str) -> tuple:
         return (message_id, [])
 
 
-async def fetch_reactions_parallel(message_ids: List[str], user_id: str) -> Dict[str, List[Dict[str, Any]]]:
+async def fetch_reactions_parallel(message_ids: List[str], user_id: str, table_to_use=None) -> Dict[str, List[Dict[str, Any]]]:
     """
     Batch fetch reactions for multiple messages in parallel using asyncio and ThreadPoolExecutor.
     Returns dict mapping message_id to list of reactions.
@@ -77,7 +85,7 @@ async def fetch_reactions_parallel(message_ids: List[str], user_id: str) -> Dict
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Create tasks for parallel execution
         tasks = [
-            loop.run_in_executor(executor, fetch_single_message_reactions_sync, msg_id)
+            loop.run_in_executor(executor, fetch_single_message_reactions_sync, msg_id, table_to_use)
             for msg_id in message_ids if msg_id
         ]
         
@@ -155,8 +163,15 @@ def handler(event: Dict[str, Any], context: Any) -> List[Dict[str, Any]]:
         after = args.get('after')
         limit = min(args.get('limit', 50), 100)  # Cap at 100 messages
         
-        # Determine partition key
-        pk = room_id if not room_id.startswith('GUILD#') else '__UNSUPPORTED__'
+        # Determine table and partition key based on roomId
+        if room_id.startswith('GUILD#'):
+            # Guild chat - use gg_guild table with roomId as PK
+            table_to_query = guild_table
+            pk = room_id  # Use the actual roomId (GUILD#guild_id)
+        else:
+            # General room - use gg_core table
+            table_to_query = core_table
+            pk = room_id
         
         # Query messages from DynamoDB
         # Note: boto3 uses KeyConditionExpression (not query.expression like AppSync JS)
@@ -175,9 +190,10 @@ def handler(event: Dict[str, Any], context: Any) -> List[Dict[str, Any]]:
             query_params['FilterExpression'] = 'ts > :after'
             query_params['ExpressionAttributeValues'][':after'] = after
         
-        print(f"Querying DynamoDB with params: {json.dumps(query_params, default=str)}")
-        response = table.query(**query_params)
-        print(f"DynamoDB response: {json.dumps({'Count': len(response.get('Items', [])), 'ScannedCount': response.get('ScannedCount', 0)}, default=str)}")
+        print(f"Querying DynamoDB table {table_to_query.name} with params: {json.dumps(query_params, default=str)}")
+        print(f"Using PK: {pk}, room_id: {room_id}, table: {table_to_query.name}")
+        response = table_to_query.query(**query_params)
+        print(f"DynamoDB response: {json.dumps({'Count': len(response.get('Items', [])), 'ScannedCount': response.get('ScannedCount', 0), 'Items': response.get('Items', [])[:2] if response.get('Items') else []}, default=str)}")
         items = response.get('Items', [])
         
         # Transform messages
@@ -208,7 +224,7 @@ def handler(event: Dict[str, Any], context: Any) -> List[Dict[str, Any]]:
             asyncio.set_event_loop(loop)
             try:
                 reactions_by_message = loop.run_until_complete(
-                    fetch_reactions_parallel(message_ids, user_id)
+                    fetch_reactions_parallel(message_ids, user_id, table_to_query)
                 )
             finally:
                 loop.close()

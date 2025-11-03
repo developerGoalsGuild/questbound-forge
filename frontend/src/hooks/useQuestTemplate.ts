@@ -180,7 +180,7 @@ export const useQuestTemplates = (options: QuestTemplateOperationOptions = {}) =
         description: input.description,
         category: input.category,
         difficulty: input.difficulty,
-        rewardXp: input.rewardXp,
+        rewardXp: 0, // Will be set by backend response (auto-calculated)
         tags: input.tags,
         privacy: input.privacy,
         kind: input.kind,

@@ -11,6 +11,8 @@ import { MessageInput } from './MessageInput';
 import { ChatHeader } from './ChatHeader';
 import { ConnectionStatus } from './ConnectionStatus';
 import { TypingIndicator } from './TypingIndicator';
+import { RoomSettingsDialog } from './RoomSettingsDialog';
+import { RoomMembersDialog } from './RoomMembersDialog';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { Skeleton } from '../ui/skeleton';
 import { Button } from '../ui/button';
@@ -42,11 +44,21 @@ export function ProductionChatInterface({
   onSettings,
   onMembers
 }: ProductionChatInterfaceProps) {
+  // Debug: Log the props we receive
+  console.log('ProductionChatInterface props:', {
+    roomId,
+    roomName,
+    roomType,
+    userId: userId?.substring(0, 10) + '...'
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const hasInitiallyScrolledRef = useRef(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [membersDialogOpen, setMembersDialogOpen] = useState(false);
 
   const scrollToBottom = (smooth: boolean = true) => {
     const container = scrollContainerRef.current;
@@ -337,6 +349,29 @@ export function ProductionChatInterface({
     retry();
   };
 
+  const handleOpenSettings = () => {
+    if (onSettings) {
+      onSettings();
+    } else {
+      setSettingsDialogOpen(true);
+    }
+  };
+
+  const handleOpenMembers = () => {
+    if (onMembers) {
+      onMembers();
+    } else {
+      setMembersDialogOpen(true);
+    }
+  };
+
+  const handleSettingsUpdated = () => {
+    // Reload room info when settings are updated
+    if (currentRoom && loadMessages) {
+      loadMessages();
+    }
+  };
+
   // Handle clear messages
   const handleClearMessages = () => {
     clearMessages();
@@ -393,20 +428,69 @@ export function ProductionChatInterface({
           roomId={roomId}
           roomName={
             (() => {
-              // Prioritize roomInfo from API over prop (prop might be stale/fallback data)
+              // For guild rooms, format as "Guild Name - Guild Hall"
+              const guildHallName = 'Guild Hall'; // TODO: Localize this
+              
+              // For guild rooms, prioritize the roomName prop (it's already formatted from GuildDetails)
+              // This ensures we use the actual guild name from the guild data, not the API which might return IDs
+              if (roomType === 'guild' && roomName?.trim()) {
+                console.log('ChatHeader - Using roomName prop (guild room, prioritized):', roomName);
+                // If it's already formatted, use as-is
+                if (roomName.includes(' - ')) {
+                  return roomName.trim();
+                }
+                // Otherwise, format it
+                return `${roomName.trim()} - ${guildHallName}`;
+              }
+              
+              // For non-guild rooms or when roomName prop is not available, try roomInfo from API
               // Try roomInfo.roomName first (from API)
               if ('roomName' in roomInfo && roomInfo.roomName?.trim()) {
                 console.log('ChatHeader - Using roomInfo.roomName:', roomInfo.roomName);
+                // If it's already formatted (contains " - Guild Hall"), use as-is
+                if (roomInfo.roomName.includes(' - ')) {
+                  return roomInfo.roomName.trim();
+                }
+                // Otherwise, format it for guild rooms
+                if (roomType === 'guild') {
+                  return `${roomInfo.roomName.trim()} - ${guildHallName}`;
+                }
                 return roomInfo.roomName.trim();
               }
-              // Try roomInfo.guildName for guild rooms
+              // Try roomInfo.guildName for guild rooms (only if roomName prop was not available above)
               if ('guildName' in roomInfo && roomInfo.guildName?.trim()) {
-                console.log('ChatHeader - Using roomInfo.guildName:', roomInfo.guildName);
-                return roomInfo.guildName.trim();
+                console.log('ChatHeader - Checking roomInfo.guildName:', roomInfo.guildName);
+                // Only use if it doesn't look like a UUID or ID
+                const guildName = roomInfo.guildName.trim();
+                // Check if it's not just an ID - match various ID formats:
+                // - UUID format: 69a9d417-361d-4b05-9964-585f9883ee72
+                // - Guild ID format: guild_69a9d417-361d-4b05-9964-585f9883ee72
+                // - Guild# format: GUILD#guild_69a9d417-361d-4b05-9964-585f9883ee72
+                const isId = 
+                  guildName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ||
+                  guildName.toLowerCase().match(/^(guild_|guild#)[0-9a-f-]+$/i) ||
+                  guildName.toLowerCase().startsWith('guild_') ||
+                  guildName.toLowerCase().startsWith('guild#');
+                
+                if (!isId && guildName.length > 2) {
+                  // It's a real name, format as "Guild Name - Guild Hall"
+                  console.log('ChatHeader - Using roomInfo.guildName (valid name):', guildName);
+                  return `${guildName} - ${guildHallName}`;
+                }
+                // If it's an ID, skip it and fall through to roomName prop
+                console.log('ChatHeader - Skipping roomInfo.guildName (looks like ID):', guildName);
               }
-              // Fallback to roomName prop if roomInfo doesn't have it
+              // Fallback to roomName prop if roomInfo doesn't have a valid name
               if (roomName?.trim()) {
                 console.log('ChatHeader - Using roomName prop (fallback):', roomName);
+                // If it's already formatted, use as-is
+                if (roomName.includes(' - ')) {
+                  return roomName.trim();
+                }
+                // Otherwise, format it for guild rooms
+                if (roomType === 'guild') {
+                  return `${roomName.trim()} - ${guildHallName}`;
+                }
                 return roomName.trim();
               }
               console.log('ChatHeader - No roomName found, will use fallback');
@@ -418,8 +502,8 @@ export function ProductionChatInterface({
           isConnected={isConnected}
           activeConnections={roomInfo.memberCount}
           onRetry={handleRetry}
-          onSettings={onSettings}
-          onMembers={onMembers}
+          onSettings={handleOpenSettings}
+          onMembers={handleOpenMembers}
         />
 
         {/* Connection Status */}
@@ -567,6 +651,26 @@ export function ProductionChatInterface({
             onCancelReply={handleCancelReply}
           />
         </div>
+
+        {/* Room Settings Dialog */}
+        <RoomSettingsDialog
+          roomId={roomId}
+          roomName={roomName}
+          roomType={roomType}
+          isOpen={settingsDialogOpen}
+          onClose={() => setSettingsDialogOpen(false)}
+          onSettingsUpdated={handleSettingsUpdated}
+        />
+
+        {/* Room Members Dialog */}
+        <RoomMembersDialog
+          roomId={roomId}
+          roomName={roomName}
+          roomType={roomType}
+          isOpen={membersDialogOpen}
+          onClose={() => setMembersDialogOpen(false)}
+          currentUserId={userId}
+        />
       </div>
     </ErrorBoundary>
   );

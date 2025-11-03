@@ -30,7 +30,7 @@ export function MessagingExample({ userId, className = '' }: MessagingExamplePro
     },
     {
       id: 'GUILD#guild-123',
-      name: 'Guild Chat',
+      name: 'Guild Hall',
       type: 'guild' as const,
       description: 'Guild members only',
       memberCount: 8,

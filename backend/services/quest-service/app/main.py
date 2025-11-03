@@ -1797,11 +1797,11 @@ async def create_quest_endpoint(
     
     try:
         # Validate and sanitize input data
+        # Note: rewardXp is now auto-calculated and not part of input
         validated_payload = QuestCreatePayload(
             title=validate_quest_title(payload.title),
             description=validate_quest_description(payload.description),
             difficulty=validate_difficulty(payload.difficulty),
-            rewardXp=validate_reward_xp(payload.rewardXp),
             category=validate_category(payload.category),
             tags=validate_tags(payload.tags) if payload.tags else [],
             privacy=validate_privacy(payload.privacy),

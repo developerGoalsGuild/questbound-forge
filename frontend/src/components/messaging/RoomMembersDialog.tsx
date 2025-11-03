@@ -17,6 +17,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Users, AlertCircle, Crown, Shield, Hash } from 'lucide-react';
 import { getRoomMembers, type RoomMember } from '@/lib/api/messaging';
+import { getGuildMembers, type GuildMember } from '@/lib/api/guild';
 
 interface RoomMembersDialogProps {
   roomId: string;
@@ -49,7 +50,33 @@ export function RoomMembersDialog({
       setError(null);
       
       try {
-        const roomMembers = await getRoomMembers(roomId);
+        let roomMembers: RoomMember[] = [];
+        
+        // For guild rooms, fetch from guild API
+        if (roomType === 'guild' && roomId.startsWith('GUILD#')) {
+          // Extract guild ID: GUILD#guild_xxx -> guild_xxx
+          const guildId = roomId.replace('GUILD#', '');
+          try {
+            const guildMembersResponse = await getGuildMembers(guildId, 100);
+            // Transform GuildMember to RoomMember
+            roomMembers = (guildMembersResponse.members || []).map((gm: GuildMember): RoomMember => ({
+              userId: gm.user_id,
+              username: gm.username,
+              avatarUrl: gm.avatar_url || undefined,
+              isOnline: false, // Guild API doesn't provide online status
+              joinedAt: gm.joined_at,
+              role: gm.role
+            }));
+          } catch (guildErr) {
+            console.warn('Failed to fetch guild members, falling back to room members API:', guildErr);
+            // Fallback to room members API
+            roomMembers = await getRoomMembers(roomId);
+          }
+        } else {
+          // For general rooms, use room members API
+          roomMembers = await getRoomMembers(roomId);
+        }
+        
         if (!mounted) return;
         setMembers(roomMembers);
       } catch (err) {
@@ -66,7 +93,7 @@ export function RoomMembersDialog({
     return () => {
       mounted = false;
     };
-  }, [isOpen, roomId]);
+  }, [isOpen, roomId, roomType]);
 
   const getUserInitials = (username: string): string => {
     if (!username) return '?';

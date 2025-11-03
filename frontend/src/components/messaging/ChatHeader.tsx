@@ -61,7 +61,8 @@ export function ChatHeader({
     // Prioritize passed roomName, but also handle empty strings
     if (roomName && roomName.trim()) return roomName;
     if (roomType === 'guild') {
-      return roomId.replace('GUILD#', 'Guild: ');
+      // For guild rooms, show "Guild Hall" instead of the raw roomId
+      return 'Guild Hall'; // TODO: Localize this
     }
     return `Room: ${roomId}`;
   };

@@ -1,0 +1,9 @@
+{
+  "TableName": "gg_guild",
+  "KeyConditionExpression": "PK = :pk",
+  "ExpressionAttributeValues": {
+    ":pk": {"S": "GUILD#guild_69a9d417-361d-4b05-9964-585f9883ee72"}
+  },
+  "Limit": 10
+}
+

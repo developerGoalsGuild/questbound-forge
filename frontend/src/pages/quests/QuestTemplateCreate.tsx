@@ -594,22 +594,8 @@ const QuestTemplateCreate: React.FC = () => {
     setFormData(prev => {
       const newData = { ...prev, ...data };
       
-      // Auto-calculate reward XP based on difficulty (same logic as quest creation)
-      if (data.difficulty && (data.difficulty as string) !== '') {
-        switch (data.difficulty) {
-          case 'easy':
-            newData.rewardXp = 50;
-            break;
-          case 'medium':
-            newData.rewardXp = 100;
-            break;
-          case 'hard':
-            newData.rewardXp = 200;
-            break;
-          default:
-            newData.rewardXp = 100;
-        }
-      }
+      // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
+      // No need to calculate it here
       
       return newData;
     });

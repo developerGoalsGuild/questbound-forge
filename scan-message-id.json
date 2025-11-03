@@ -1,0 +1,9 @@
+{
+  "TableName": "gg_guild",
+  "FilterExpression": "contains(SK, :msgId)",
+  "ExpressionAttributeValues": {
+    ":msgId": {"S": "fdfb7330-d41d-42eb-8e8d-1355eb75ec46"}
+  },
+  "Limit": 5
+}
+

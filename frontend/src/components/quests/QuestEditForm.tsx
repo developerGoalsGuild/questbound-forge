@@ -948,19 +948,8 @@ const ReviewStep: React.FC<StepProps> = ({
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
 
-  // Calculate reward XP based on current difficulty selection
-  const calculateRewardXp = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 50;
-      case 'medium': return 100;
-      case 'hard': return 200;
-      case 'very_hard': return 400;
-      case 'legendary': return 800;
-      default: return 100;
-    }
-  };
-
-  const displayRewardXp = calculateRewardXp(formData.difficulty);
+  // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
+  const displayRewardXp = 'Auto-calculated';
 
   const getPrivacyIcon = (privacy: string) => {
     switch (privacy) {
@@ -1418,18 +1407,7 @@ export const QuestEditForm: React.FC<QuestEditFormProps> = ({
     e.preventDefault();
     
     try {
-      // Calculate reward XP based on difficulty
-      const calculateRewardXp = (difficulty: string) => {
-        switch (difficulty) {
-          case 'easy': return 50;
-          case 'medium': return 100;
-          case 'hard': return 200;
-          case 'very_hard': return 400;
-          case 'legendary': return 800;
-          default: return 100;
-        }
-      };
-
+      // Note: rewardXp is now auto-calculated by backend
       // Build quest data, only including fields that have values
       const questData: QuestUpdateInput = {
         title: formData.title,
@@ -1440,7 +1418,7 @@ export const QuestEditForm: React.FC<QuestEditFormProps> = ({
         kind: formData.kind,
         tags: formData.tags,
         deadline: formData.deadline,
-        rewardXp: calculateRewardXp(formData.difficulty), // Add calculated reward XP
+        // rewardXp is auto-calculated by backend based on scope, period, and difficulty
       };
 
       // Add quantitative quest fields if applicable

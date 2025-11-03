@@ -1,0 +1,2 @@
+# No external dependencies needed - uses boto3 (provided by AWS Lambda runtime)
+

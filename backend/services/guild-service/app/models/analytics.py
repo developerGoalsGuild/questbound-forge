@@ -28,6 +28,7 @@ class GuildAnalyticsResponse(BaseModel):
     goal_completion_rate: float = Field(..., description="Goal completion rate")
     quest_completion_rate: float = Field(..., description="Quest completion rate")
     activity_score: float = Field(..., description="Overall activity score")
+    member_activity_rate: float = Field(..., description="Member activity rate (weighted score: login 30% + completions 40% + chat 30%)")
     last_updated: datetime = Field(..., description="Last update timestamp")
     # Additional fields for frontend compatibility
     guild_name: Optional[str] = Field(None, description="Guild name")

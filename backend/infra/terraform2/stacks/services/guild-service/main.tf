@@ -10,7 +10,7 @@ data "terraform_remote_state" "s3" {
 
 # Use existing ECR image directly (temporarily)
 locals {
-  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_guild_service:v139"
+  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_guild_service:v165"
 }
 
 module "guild_lambda" {
@@ -72,6 +72,32 @@ resource "aws_lambda_permission" "guild_service_eventbridge" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.guild_ranking_calculation.arn
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

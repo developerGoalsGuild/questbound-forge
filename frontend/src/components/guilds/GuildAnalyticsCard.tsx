@@ -59,6 +59,9 @@ export interface GuildAnalyticsData {
   goalsCreatedThisWeek: number;
   questsCompletedThisWeek: number;
   
+  // Member activity rate (weighted: login 30% + completions 40% + chat 30%)
+  memberActivityRate?: number;
+  
   // Time-based data
   createdAt: string;
   lastActivityAt: string;
@@ -328,13 +331,17 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
     newMembersThisWeek: data?.newMembersThisWeek || 0,
     goalsCreatedThisWeek: data?.goalsCreatedThisWeek || 0,
     questsCompletedThisWeek: data?.questsCompletedThisWeek || 0,
+    memberActivityRate: data?.memberActivityRate,
     createdAt: data?.createdAt || new Date().toISOString(),
     lastActivityAt: data?.lastActivityAt || new Date().toISOString(),
     memberLeaderboard: data?.memberLeaderboard || [],
   };
   
   // Calculate derived metrics with safety checks
-  const memberActivityRate = (safeData.totalMembers > 0) 
+  // Use memberActivityRate from API if available, otherwise calculate from activeMembers
+  const memberActivityRate = safeData.memberActivityRate !== undefined
+    ? Math.round(safeData.memberActivityRate)
+    : (safeData.totalMembers > 0) 
     ? Math.round((safeData.activeMembers / safeData.totalMembers) * 100) 
     : 0;
   

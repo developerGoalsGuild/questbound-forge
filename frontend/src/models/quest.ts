@@ -300,7 +300,7 @@ const QuestCreateInputSchema = z.object({
   category: QuestCategorySchema,
   difficulty: QuestDifficultySchema.default('medium'),
   description: QuestDescriptionSchema,
-  rewardXp: QuestRewardXpSchema,
+  // Note: rewardXp is now auto-calculated by backend (not part of input)
   tags: QuestTagsSchema,
   deadline: QuestDeadlineSchema,
   privacy: QuestPrivacySchema.default('private'),

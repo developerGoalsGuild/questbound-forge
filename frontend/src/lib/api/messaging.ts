@@ -187,7 +187,9 @@ export function getWebSocketUrl(roomId: string): string {
   }
   
   const messagingServiceUrl = import.meta.env.VITE_MESSAGING_SERVICE_URL || 'ws://localhost:8000';
-  return `${messagingServiceUrl}/ws/rooms/${roomId}?token=${token}`;
+  // URL-encode the roomId to handle special characters like # (GUILD#guild_id format)
+  const encodedRoomId = encodeURIComponent(roomId);
+  return `${messagingServiceUrl}/ws/rooms/${encodedRoomId}?token=${token}`;
 }
 
 /**
@@ -198,9 +200,10 @@ export async function fetchMessages(
   filters: MessageFilters = {}
 ): Promise<{ messages: Message[]; pagination: PaginationInfo }> {
   try {
-    const response = await fetch(`${API_GATEWAY_URL}/graphql`, {
+    // Use AppSync endpoint directly (not API Gateway) for GraphQL queries
+    const response = await fetch(APPSYNC_ENDPOINT, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getAppSyncHeaders(),
       body: JSON.stringify({
         query: MESSAGING_QUERIES.GET_MESSAGES,
         variables: {
@@ -218,7 +221,7 @@ export async function fetchMessages(
         status: response.status,
         statusText: response.statusText,
         errorBody,
-        url: `${API_GATEWAY_URL}/graphql`,
+        url: APPSYNC_ENDPOINT,
         input: { roomId, filters },
         timestamp: new Date().toISOString()
       });
@@ -249,9 +252,10 @@ export async function fetchMessages(
  */
 export async function sendMessage(roomId: string, text: string): Promise<Message> {
   try {
-    const response = await fetch(`${API_GATEWAY_URL}/graphql`, {
+    // Use AppSync endpoint directly (not API Gateway) for GraphQL mutations
+    const response = await fetch(APPSYNC_ENDPOINT, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: getAppSyncHeaders(),
       body: JSON.stringify({
         query: MESSAGING_QUERIES.SEND_MESSAGE,
         variables: { roomId, text }
@@ -265,7 +269,7 @@ export async function sendMessage(roomId: string, text: string): Promise<Message
         status: response.status,
         statusText: response.statusText,
         errorBody,
-        url: `${API_GATEWAY_URL}/graphql`,
+        url: APPSYNC_ENDPOINT,
         input: { roomId, text },
         timestamp: new Date().toISOString()
       });
@@ -290,10 +294,12 @@ export async function sendMessage(roomId: string, text: string): Promise<Message
  */
 export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
   // Prefer API Gateway (CORS-enabled) endpoints
+  // URL-encode the roomId to handle special characters like # (GUILD#guild_id format)
+  const encodedRoomId = encodeURIComponent(roomId);
   // Try /messaging/rooms/{roomId} first, then fallback to /rooms/{roomId}/connections
   const tryEndpoints = [
-    `${API_GATEWAY_URL}/messaging/rooms/${roomId}`,
-    `${API_GATEWAY_URL}/messaging/rooms/${roomId}/connections`,
+    `${API_GATEWAY_URL}/messaging/rooms/${encodedRoomId}`,
+    `${API_GATEWAY_URL}/messaging/rooms/${encodedRoomId}/connections`,
   ];
   let lastError: any = null;
   for (const url of tryEndpoints) {
@@ -387,7 +393,9 @@ export async function listRooms(): Promise<Array<{ id: string; name: string; typ
  */
 export async function joinRoom(roomId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${roomId}/join`, {
+    // URL-encode the roomId to handle special characters like # (GUILD#guild_id format)
+    const encodedRoomId = encodeURIComponent(roomId);
+    const res = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${encodedRoomId}/join`, {
       method: 'POST',
       headers: getAuthHeaders()
     });
@@ -403,7 +411,9 @@ export async function joinRoom(roomId: string): Promise<boolean> {
  */
 export async function leaveRoom(roomId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${roomId}/leave`, {
+    // URL-encode the roomId to handle special characters like # (GUILD#guild_id format)
+    const encodedRoomId = encodeURIComponent(roomId);
+    const res = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${encodedRoomId}/leave`, {
       method: 'POST',
       headers: getAuthHeaders()
     });
@@ -814,7 +824,9 @@ export async function updateRoomSettings(
   settings: RoomSettingsUpdate
 ): Promise<void> {
   try {
-    const response = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${roomId}`, {
+    // URL encode the roomId to handle special characters like #
+    const encodedRoomId = encodeURIComponent(roomId);
+    const response = await fetch(`${API_GATEWAY_URL}/messaging/rooms/${encodedRoomId}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
       body: JSON.stringify(settings)

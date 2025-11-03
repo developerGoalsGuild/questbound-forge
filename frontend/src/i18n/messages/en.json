@@ -73,7 +73,7 @@
     },
     "rooms": {
       "general": "General Room",
-      "guild": "Guild Chat",
+      "guild": "Guild Hall",
       "private": "Private Room",
       "public": "Public Room"
     },

@@ -53,6 +53,16 @@ const SEND_MESSAGE_MUTATION = `
       senderNickname
       ts
       replyToId
+      reactions {
+        shortcode
+        unicode
+        count
+        viewerHasReacted
+      }
+      emojiMetadata {
+        shortcodes
+        unicodeCount
+      }
     }
   }
 `;
@@ -667,6 +677,23 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       
       const result: any = await response.json();
       console.log('GraphQL result:', result);
+      
+      // Log detailed error information
+      if (result.errors && result.errors.length > 0) {
+        console.error('GraphQL errors:', result.errors);
+        result.errors.forEach((error: any, index: number) => {
+          console.error(`Error ${index + 1}:`, {
+            message: error.message,
+            errorType: error.errorType,
+            errorInfo: error.errorInfo,
+            locations: error.locations,
+            path: error.path,
+            extensions: error.extensions
+          });
+        });
+        const errorMessage = result.errors.map((e: any) => e.message).join('; ');
+        throw new Error(errorMessage);
+      }
 
       const message = result.data?.sendMessage;
       if (message) {
@@ -771,10 +798,16 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once
 
-  // Load messages once when connected
+  // Load messages immediately when roomId changes (don't wait for connection)
+  // Messages are loaded via GraphQL query, not subscription, so connection status doesn't matter
   const loadingMessagesRef = useRef(false);
   useEffect(() => {
-    if (state.isConnected && !messagesLoadedRef.current && !loadingMessagesRef.current && loadMessagesRef.current) {
+    // Load messages if:
+    // 1. We have a valid auth token (required for GraphQL query)
+    // 2. Messages haven't been loaded yet for this room
+    // 3. We're not currently loading
+    const token = getAuthToken();
+    if (token && !messagesLoadedRef.current && !loadingMessagesRef.current && loadMessagesRef.current) {
       messagesLoadedRef.current = true;
       loadingMessagesRef.current = true;
       loadMessagesRef.current().finally(() => {
@@ -782,7 +815,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.isConnected]); // Only depend on isConnected, not loadMessages to prevent infinite loops
+  }, [roomId, state.isConnected]); // Depend on roomId to reload when room changes, and isConnected as fallback
 
   // Function to refresh room info (can be called externally)
   const refreshRoomInfoRef = useRef<(() => Promise<void>) | null>(null);

@@ -40,16 +40,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
   const questTranslations = (t as any)?.quest;
 
   // Calculate reward XP based on difficulty
-  const calculateRewardXp = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 50;
-      case 'medium': return 100;
-      case 'hard': return 200;
-      default: return 100;
-    }
-  };
-
-  const calculatedRewardXp = calculateRewardXp(formData.difficulty);
+  // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
+  const calculatedRewardXp = 'Auto-calculated';
 
   const getPrivacyIcon = (privacy: string) => {
     switch (privacy) {

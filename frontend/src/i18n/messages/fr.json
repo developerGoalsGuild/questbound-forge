@@ -73,7 +73,7 @@
     },
     "rooms": {
       "general": "Salle Générale",
-      "guild": "Chat de Guilde",
+      "guild": "Salle de Guilde",
       "private": "Salle Privée",
       "public": "Salle Publique"
     },

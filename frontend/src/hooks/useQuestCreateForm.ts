@@ -24,7 +24,7 @@ export interface QuestCreateFormData {
   description: string;
   category: string;
   difficulty: QuestDifficulty;
-  rewardXp: number;
+  // Note: rewardXp is now auto-calculated by backend (not part of form data)
   privacy: QuestPrivacy;
   kind: QuestKind;
   tags: string[];
@@ -72,7 +72,7 @@ export const useQuestCreateForm = ({
     dependsOnQuestIds: [],
     countScope: 'completed_tasks',
     periodDays: 1,
-    rewardXp: 100,
+    // Note: rewardXp is now auto-calculated by backend
     ...initialData
   });
   
@@ -92,23 +92,8 @@ export const useQuestCreateForm = ({
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Auto-calculate reward XP based on difficulty
-      if (field === 'difficulty') {
-        const difficulty = value as QuestDifficulty;
-        switch (difficulty) {
-          case 'easy':
-            newData.rewardXp = 50;
-            break;
-          case 'medium':
-            newData.rewardXp = 100;
-            break;
-          case 'hard':
-            newData.rewardXp = 200;
-            break;
-          default:
-            newData.rewardXp = 100;
-        }
-      }
+      // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
+      // No need to calculate it here
       
       return newData;
     });
@@ -228,7 +213,7 @@ export const useQuestCreateForm = ({
         description: formData.description,
         category: formData.category,
         difficulty: formData.difficulty,
-        rewardXp: formData.rewardXp,
+        // rewardXp is auto-calculated by backend
         privacy: formData.privacy,
         kind: formData.kind,
         // Only include arrays if they have content to avoid API errors

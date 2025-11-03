@@ -45,6 +45,7 @@ from .api.avatar import router as avatar_router
 from .api.comments import router as comments_router
 from .api.members import router as members_router
 from .api.moderation import router as moderation_router
+from .api.guild import router as guild_router
 from common.logging import log_event
 # TODO: Implement these modules
 # from .db.guild_member_db import (
@@ -516,6 +517,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(guild_router)
 app.include_router(avatar_router)
 app.include_router(comments_router)
 app.include_router(members_router)

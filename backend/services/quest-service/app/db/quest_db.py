@@ -109,8 +109,21 @@ def _build_quest_item(user_id: str, payload: QuestCreatePayload) -> Dict[str, An
     Returns:
         DynamoDB item dictionary
     """
+    from ..utils.reward_calculator import calculate_quest_reward
+    
     now_ms = int(time.time() * 1000)
     quest_id = str(uuid4())
+    
+    # Calculate reward XP automatically
+    calculated_reward = calculate_quest_reward(
+        kind=payload.kind,
+        linked_goal_ids=payload.linkedGoalIds,
+        linked_task_ids=payload.linkedTaskIds,
+        target_count=payload.targetCount,
+        count_scope=payload.countScope,
+        period_days=payload.periodDays,
+        is_guild_quest=False
+    )
     
     # Build base item
     item = {
@@ -121,7 +134,7 @@ def _build_quest_item(user_id: str, payload: QuestCreatePayload) -> Dict[str, An
         "userId": user_id,
         "title": payload.title,
         "difficulty": payload.difficulty,
-        "rewardXp": payload.rewardXp,
+        "rewardXp": calculated_reward,
         "status": "draft",  # Always create as draft
         "category": payload.category,
         "tags": payload.tags or [],
@@ -671,12 +684,41 @@ def update_quest(user_id: str, quest_id: str, payload: QuestUpdatePayload,
             ":current_version": current_version
         }
         
-        # Add fields to update
+        # Add fields to update (excluding rewardXp which is auto-calculated)
         update_fields = []
         for field, value in payload.model_dump(exclude_unset=True).items():
-            if value is not None:
+            if value is not None and field != 'rewardXp':  # Skip rewardXp - it's auto-calculated
                 update_fields.append(f"{field} = :{field}")
                 expression_attribute_values[f":{field}"] = value
+        
+        # Recalculate reward if fields that affect reward have changed
+        needs_reward_recalc = False
+        if payload.linkedGoalIds is not None or payload.linkedTaskIds is not None or \
+           payload.targetCount is not None or payload.periodDays is not None:
+            needs_reward_recalc = True
+        
+        if needs_reward_recalc:
+            from ..utils.reward_calculator import calculate_quest_reward
+            
+            # Get updated values (use payload if provided, else use existing quest values)
+            updated_linked_goal_ids = payload.linkedGoalIds if payload.linkedGoalIds is not None else current_quest.linkedGoalIds
+            updated_linked_task_ids = payload.linkedTaskIds if payload.linkedTaskIds is not None else current_quest.linkedTaskIds
+            updated_target_count = payload.targetCount if payload.targetCount is not None else current_quest.targetCount
+            updated_period_days = payload.periodDays if payload.periodDays is not None else current_quest.periodDays
+            updated_count_scope = payload.countScope if payload.countScope is not None else current_quest.countScope
+            
+            recalculated_reward = calculate_quest_reward(
+                kind=current_quest.kind,
+                linked_goal_ids=updated_linked_goal_ids,
+                linked_task_ids=updated_linked_task_ids,
+                target_count=updated_target_count,
+                count_scope=updated_count_scope,
+                period_days=updated_period_days,
+                is_guild_quest=False
+            )
+            
+            update_fields.append("rewardXp = :rewardXp")
+            expression_attribute_values[":rewardXp"] = recalculated_reward
         
         if update_fields:
             update_expression += ", " + ", ".join(update_fields)

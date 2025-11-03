@@ -286,7 +286,7 @@ export const useQuests = (options: UseQuestsOptions = {}) => {
         tags: input.tags ?? [],
         privacy: input.privacy ?? 'private',
         kind: input.kind ?? 'linked',
-        rewardXp: input.rewardXp ?? 0,
+        rewardXp: 0, // Will be set by backend response (auto-calculated)
         difficulty: input.difficulty ?? 'easy',
       };
       setQuests(prev => [...prev, optimisticQuest]);

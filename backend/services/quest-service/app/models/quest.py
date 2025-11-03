@@ -110,12 +110,7 @@ class QuestCreatePayload(BaseModel):
         max_length=MAX_DESCRIPTION_LENGTH,
         description="Quest description (max 500 characters)"
     )
-    rewardXp: int = Field(
-        default=DEFAULT_REWARD_XP,
-        ge=MIN_REWARD_XP,
-        le=MAX_REWARD_XP,
-        description="Reward XP (0-1000, default 50)"
-    )
+    # Note: rewardXp is now auto-calculated and not part of input
     tags: List[str] = Field(
         default_factory=list,
         max_length=MAX_TAGS_COUNT,
@@ -349,12 +344,7 @@ class QuestUpdatePayload(BaseModel):
         None,
         description="Quest difficulty level"
     )
-    rewardXp: Optional[int] = Field(
-        None,
-        ge=MIN_REWARD_XP,
-        le=MAX_REWARD_XP,
-        description="Reward XP (0-1000)"
-    )
+    # Note: rewardXp is now auto-calculated and not part of input
     tags: Optional[List[str]] = Field(
         None,
         max_length=MAX_TAGS_COUNT,

@@ -125,6 +125,9 @@ export interface GuildTranslations {
       quests: string;
       analytics: string;
       comments: string;
+      chat: string;
+      joinRequests: string;
+      moderation: string;
     };
     avatar: {
       title: string;
@@ -299,34 +302,175 @@ export interface GuildTranslations {
       };
     };
   };
-  comments: {
-    post: string;
-    reply: string;
-    edit: string;
-    delete: string;
-    like: string;
-    unlike: string;
-    placeholder: string;
-    replyPlaceholder: string;
-    noComments: string;
-    loading: string;
-    error: string;
-    membersOnly: {
-      title: string;
-      message: string;
-      joinButton: string;
-    };
-    blocked: {
-      title: string;
-      message: string;
-      contactModerator: string;
-    };
-    commentingDisabled: {
-      title: string;
-      message: string;
-      contactModerator: string;
-    };
-  };
+      comments: {
+        post: string;
+        reply: string;
+        edit: string;
+        delete: string;
+        like: string;
+        unlike: string;
+        placeholder: string;
+        replyPlaceholder: string;
+        noComments: string;
+        loading: string;
+        error: string;
+        membersOnly: {
+          title: string;
+          message: string;
+          joinButton: string;
+        };
+        blocked: {
+          title: string;
+          message: string;
+          contactModerator: string;
+        };
+        commentingDisabled: {
+          title: string;
+          message: string;
+          contactModerator: string;
+        };
+      };
+      quests: {
+        title: string;
+        subtitle: string;
+        create: string;
+        createTitle: string;
+        createDescription: string;
+        noQuests: string;
+        noQuestsDescription: string;
+        noQuestsDescriptionMember: string;
+        loading: string;
+        error: string;
+        status: {
+          all: string;
+          active: string;
+          draft: string;
+          archived: string;
+          cancelled: string;
+        };
+        types: {
+          quantitative: string;
+          percentual: string;
+        };
+        difficulty: {
+          easy: string;
+          medium: string;
+          hard: string;
+        };
+        form: {
+          title: string;
+          titlePlaceholder: string;
+          description: string;
+          descriptionPlaceholder: string;
+          category: string;
+          difficulty: string;
+          rewardXp: string;
+          questType: string;
+          tags: string;
+          tagsPlaceholder: string;
+          tagsHelp: string;
+          deadline: string;
+          quantitative: {
+            title: string;
+            targetCount: string;
+            targetCountPlaceholder: string;
+            countScope: string;
+            countScopeGoals: string;
+            countScopeTasks: string;
+            countScopeGuildQuest: string;
+            targetQuestId: string;
+            targetQuestIdPlaceholder: string;
+            periodDays: string;
+            periodDaysPlaceholder: string;
+          };
+          percentual: {
+            title: string;
+            percentualType: string;
+            goalTaskCompletion: string;
+            memberCompletion: string;
+            targetPercentage: string;
+            targetPercentagePlaceholder: string;
+            linkedGoalIds: string;
+            linkedGoalIdsPlaceholder: string;
+            linkedTaskIds: string;
+            linkedTaskIdsPlaceholder: string;
+            percentualCountScope: string;
+            percentualCountScopeGoals: string;
+            percentualCountScopeTasks: string;
+            percentualCountScopeBoth: string;
+          };
+          validation: {
+            titleRequired: string;
+            titleTooShort: string;
+            categoryRequired: string;
+            targetCountRequired: string;
+            targetCountInvalid: string;
+            countScopeRequired: string;
+            targetQuestIdRequired: string;
+            percentualTypeRequired: string;
+            targetPercentageRequired: string;
+            targetPercentageInvalid: string;
+            linkedGoalTaskRequired: string;
+            percentualCountScopeRequired: string;
+          };
+        };
+        actions: {
+          create: string;
+          creating: string;
+          edit: string;
+          delete: string;
+          archive: string;
+          complete: string;
+          completing: string;
+          completed: string;
+          viewProgress: string;
+        };
+        messages: {
+          createSuccess: string;
+          updateSuccess: string;
+          deleteSuccess: string;
+          archiveSuccess: string;
+          completeSuccess: string;
+          alreadyCompleted: string;
+          onlyActiveComplete: string;
+          onlyDraftEdit: string;
+          onlyDraftDelete: string;
+          onlyActiveArchive: string;
+        };
+        progress: {
+          goalsCompleted: string;
+          tasksCompleted: string;
+          guildQuestsCompleted: string;
+          completionPercentage: string;
+          membersCompleted: string;
+          targetPercentage: string;
+        };
+        metadata: {
+          rewardXp: string;
+          category: string;
+          deadline: string;
+          completedBy: string;
+        };
+      };
+      activities: {
+        title: string;
+        loading: string;
+        error: string;
+        empty: string;
+        emptyDescription: string;
+        types: {
+          questCreated: string;
+          memberJoined: string;
+          memberLeft: string;
+          questCompleted: string;
+        };
+        messages: {
+          questCreated: string;
+          memberJoined: string;
+          memberLeft: string;
+          questCompleted: string;
+        };
+      };
   edit: {
     title: string;
     subtitle: string;
@@ -531,12 +675,15 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       notFound: 'Guild not found',
       notMember: 'You are not a member of this guild',
         tabs: {
-          overview: 'Overview',
-          members: 'Members',
+          overview: 'Chronicle',
+          members: 'Roster',
           goals: 'Goals',
           quests: 'Quests',
-          analytics: 'Analytics',
-          comments: 'Comments',
+          analytics: 'Ledger',
+          comments: 'Scrolls',
+          chat: 'Guild Hall',
+          joinRequests: 'Petitions',
+          moderation: 'Stewardship',
         },
         avatar: {
           title: 'Guild Avatar',
@@ -744,6 +891,147 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         contactModerator: 'Contact a guild moderator if you believe this is an error.',
       },
     },
+    quests: {
+      title: 'Guild Quests',
+      subtitle: 'Manage and complete guild quests',
+      create: 'Create Quest',
+      createTitle: 'Create New Guild Quest',
+      createDescription: 'Create a quantitative or percentual quest for your guild members',
+      noQuests: 'No quests yet',
+      noQuestsDescription: 'Create your first guild quest to engage your members',
+      noQuestsDescriptionMember: 'No quests have been created for this guild yet',
+      loading: 'Loading quests...',
+      error: 'Failed to load quests',
+      status: {
+        all: 'All',
+        active: 'Active',
+        draft: 'Draft',
+        archived: 'Archived',
+        cancelled: 'Cancelled',
+      },
+      types: {
+        quantitative: 'Quantitative',
+        percentual: 'Percentual',
+      },
+      difficulty: {
+        easy: 'Easy',
+        medium: 'Medium',
+        hard: 'Hard',
+      },
+      form: {
+        title: 'Title',
+        titlePlaceholder: 'Quest title',
+        description: 'Description',
+        descriptionPlaceholder: 'Quest description (optional)',
+        category: 'Category',
+        difficulty: 'Difficulty',
+        rewardXp: 'Reward XP',
+        questType: 'Quest Type',
+        tags: 'Tags',
+        tagsPlaceholder: 'Add tag',
+        tagsHelp: 'Optional, max 10 tags',
+        deadline: 'Deadline',
+        quantitative: {
+          title: 'Quantitative Quest Settings',
+          targetCount: 'Target Count',
+          targetCountPlaceholder: 'e.g., 10',
+          countScope: 'Count Scope',
+          countScopeGoals: 'Goals',
+          countScopeTasks: 'Tasks',
+          countScopeGuildQuest: 'Guild Quests',
+          targetQuestId: 'Target Quest ID',
+          targetQuestIdPlaceholder: 'Quest ID to count completions',
+          periodDays: 'Period Duration (days, optional)',
+          periodDaysPlaceholder: 'Leave empty for no period limit',
+        },
+        percentual: {
+          title: 'Percentual Quest Settings',
+          percentualType: 'Percentual Type',
+          goalTaskCompletion: 'Goal/Task Completion',
+          memberCompletion: 'Member Completion',
+          targetPercentage: 'Target Percentage (0-100)',
+          targetPercentagePlaceholder: 'e.g., 80',
+          linkedGoalIds: 'Linked Goal IDs (comma-separated)',
+          linkedGoalIdsPlaceholder: 'goal-id-1, goal-id-2',
+          linkedTaskIds: 'Linked Task IDs (comma-separated)',
+          linkedTaskIdsPlaceholder: 'task-id-1, task-id-2',
+          percentualCountScope: 'Count Scope',
+          percentualCountScopeGoals: 'Goals',
+          percentualCountScopeTasks: 'Tasks',
+          percentualCountScopeBoth: 'Both',
+        },
+        validation: {
+          titleRequired: 'Title must be at least 3 characters',
+          titleTooShort: 'Title must be at least 3 characters',
+          categoryRequired: 'Please select a category',
+          targetCountRequired: 'Target count must be at least 1',
+          targetCountInvalid: 'Target count must be at least 1',
+          countScopeRequired: 'Please select a count scope',
+          targetQuestIdRequired: 'Please specify a target quest ID',
+          percentualTypeRequired: 'Please select a percentual type',
+          targetPercentageRequired: 'Target percentage must be between 0 and 100',
+          targetPercentageInvalid: 'Target percentage must be between 0 and 100',
+          linkedGoalTaskRequired: 'Please link at least one goal or task',
+          percentualCountScopeRequired: 'Please select a count scope',
+        },
+      },
+      actions: {
+        create: 'Create Quest',
+        creating: 'Creating...',
+        edit: 'Edit',
+        delete: 'Delete',
+        archive: 'Archive',
+        complete: 'Complete Quest',
+        completing: 'Completing...',
+        completed: 'Completed',
+        viewProgress: 'View Progress',
+      },
+      messages: {
+        createSuccess: 'Quest created successfully',
+        updateSuccess: 'Quest updated successfully',
+        deleteSuccess: 'Quest deleted successfully',
+        archiveSuccess: 'Quest archived successfully',
+        completeSuccess: 'Quest completed!',
+        alreadyCompleted: 'You have already completed this quest',
+        onlyActiveComplete: 'Only active quests can be completed',
+        onlyDraftEdit: 'Only draft quests can be edited',
+        onlyDraftDelete: 'Only draft quests can be deleted',
+        onlyActiveArchive: 'Only active quests can be archived',
+      },
+      progress: {
+        goalsCompleted: 'Goals completed',
+        tasksCompleted: 'Tasks completed',
+        guildQuestsCompleted: 'Guild quests completed',
+        completionPercentage: 'Completion Percentage',
+        membersCompleted: 'Members Completed',
+        targetPercentage: 'Target Percentage',
+      },
+      metadata: {
+        rewardXp: 'Reward XP',
+        category: 'Category',
+        deadline: 'Deadline',
+        completedBy: 'completed',
+      },
+    },
+    activities: {
+      title: 'Recent Activities',
+      loading: 'Loading activities...',
+      error: 'Failed to load activities',
+      empty: 'No activities yet',
+      emptyDescription: 'Activity feed will appear here as members interact with the guild',
+      types: {
+        questCreated: 'quest created',
+        memberJoined: 'member joined',
+        memberLeft: 'member left',
+        questCompleted: 'quest completed',
+      },
+      messages: {
+        questCreated: 'created quest',
+        memberJoined: 'joined the guild',
+        memberLeft: 'left the guild',
+        questCompleted: 'completed quest',
+      },
+    },
     edit: {
       title: 'Edit Guild',
       subtitle: 'Update your guild information and settings',
@@ -829,18 +1117,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
             approved: 'Approved',
             rejected: 'Rejected',
           },
-          requestToJoin: {
-            title: 'Request to Join',
-            description: 'requires approval to join. Send a request with a message explaining why you\'d like to join.',
-            message: 'Message (optional)',
-            placeholder: 'Tell us why you\'d like to join this guild...',
-            submit: 'Send Request',
-            submitting: 'Sending...',
-            cancel: 'Cancel',
-            success: 'Join request sent successfully!',
-            error: 'Failed to send join request',
-          },
-        },
+      requestToJoin: {
+        title: 'Request to Join',
+        description: 'requires approval to join. Send a request with a message explaining why you\'d like to join.',
+        message: 'Message (optional)',
+        placeholder: 'Tell us why you\'d like to join this guild...',
+        submit: 'Send Request',
+        submitting: 'Sending...',
+        cancel: 'Cancel',
+        success: 'Join request sent successfully!',
+        error: 'Failed to send join request',
+      },
+    },
   },
   es: {
     title: 'Gremios',
@@ -946,12 +1234,15 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       notFound: 'Gremio no encontrado',
       notMember: 'No eres miembro de este gremio',
         tabs: {
-          overview: 'Resumen',
-          members: 'Miembros',
+          overview: 'Crónica',
+          members: 'Registro',
           goals: 'Objetivos',
           quests: 'Misiones',
-          analytics: 'Analíticas',
-          comments: 'Comentarios',
+          analytics: 'Libro de Cuentas',
+          comments: 'Pergaminos',
+          chat: 'Salón del Gremio',
+          joinRequests: 'Peticiones',
+          moderation: 'Mayordomía',
         },
         avatar: {
           title: 'Avatar del Gremio',
@@ -1216,6 +1507,158 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         approved: 'Aprobado',
         rejected: 'Rechazado',
       },
+      requestToJoin: {
+        title: 'Solicitar Ingreso al Gremio',
+        description: 'requiere aprobación para unirse. Envía una solicitud con un mensaje explicando por qué te gustaría unirte.',
+        message: 'Mensaje (opcional)',
+        placeholder: 'Dile al gremio por qué quieres unirte...',
+        submit: 'Enviar Solicitud',
+        submitting: 'Enviando...',
+        cancel: 'Cancelar',
+        success: '¡Solicitud de unión enviada exitosamente!',
+        error: 'Error al enviar solicitud de unión',
+      },
+    },
+    quests: {
+      title: 'Misiones del Gremio',
+      subtitle: 'Gestiona y completa misiones del gremio',
+      create: 'Crear Misión',
+      createTitle: 'Crear Nueva Misión del Gremio',
+      createDescription: 'Crea una misión cuantitativa o porcentual para los miembros de tu gremio',
+      noQuests: 'Aún no hay misiones',
+      noQuestsDescription: 'Crea tu primera misión del gremio para involucrar a tus miembros',
+      noQuestsDescriptionMember: 'Aún no se han creado misiones para este gremio',
+      loading: 'Cargando misiones...',
+      error: 'Error al cargar misiones',
+      status: {
+        all: 'Todas',
+        active: 'Activas',
+        draft: 'Borrador',
+        archived: 'Archivadas',
+        cancelled: 'Canceladas',
+      },
+      types: {
+        quantitative: 'Cuantitativa',
+        percentual: 'Porcentual',
+      },
+      difficulty: {
+        easy: 'Fácil',
+        medium: 'Media',
+        hard: 'Difícil',
+      },
+      form: {
+        title: 'Título',
+        titlePlaceholder: 'Título de la misión',
+        description: 'Descripción',
+        descriptionPlaceholder: 'Descripción de la misión (opcional)',
+        category: 'Categoría',
+        difficulty: 'Dificultad',
+        rewardXp: 'XP de Recompensa',
+        questType: 'Tipo de Misión',
+        tags: 'Etiquetas',
+        tagsPlaceholder: 'Agregar etiqueta',
+        tagsHelp: 'Opcional, máx 10 etiquetas',
+        deadline: 'Fecha límite',
+        quantitative: {
+          title: 'Configuración de Misión Cuantitativa',
+          targetCount: 'Cantidad Objetivo',
+          targetCountPlaceholder: 'ej., 10',
+          countScope: 'Alcance del Conteo',
+          countScopeGoals: 'Objetivos',
+          countScopeTasks: 'Tareas',
+          countScopeGuildQuest: 'Misiones del Gremio',
+          targetQuestId: 'ID de Misión Objetivo',
+          targetQuestIdPlaceholder: 'ID de misión para contar completados',
+          periodDays: 'Duración del Período (días, opcional)',
+          periodDaysPlaceholder: 'Dejar vacío para sin límite de período',
+        },
+        percentual: {
+          title: 'Configuración de Misión Porcentual',
+          percentualType: 'Tipo Porcentual',
+          goalTaskCompletion: 'Completar Objetivo/Tarea',
+          memberCompletion: 'Completar por Miembros',
+          targetPercentage: 'Porcentaje Objetivo (0-100)',
+          targetPercentagePlaceholder: 'ej., 80',
+          linkedGoalIds: 'IDs de Objetivos Vinculados (separados por comas)',
+          linkedGoalIdsPlaceholder: 'objetivo-id-1, objetivo-id-2',
+          linkedTaskIds: 'IDs de Tareas Vinculadas (separadas por comas)',
+          linkedTaskIdsPlaceholder: 'tarea-id-1, tarea-id-2',
+          percentualCountScope: 'Alcance del Conteo',
+          percentualCountScopeGoals: 'Objetivos',
+          percentualCountScopeTasks: 'Tareas',
+          percentualCountScopeBoth: 'Ambos',
+        },
+        validation: {
+          titleRequired: 'El título debe tener al menos 3 caracteres',
+          titleTooShort: 'El título debe tener al menos 3 caracteres',
+          categoryRequired: 'Por favor selecciona una categoría',
+          targetCountRequired: 'La cantidad objetivo debe ser al menos 1',
+          targetCountInvalid: 'La cantidad objetivo debe ser al menos 1',
+          countScopeRequired: 'Por favor selecciona un alcance de conteo',
+          targetQuestIdRequired: 'Por favor especifica un ID de misión objetivo',
+          percentualTypeRequired: 'Por favor selecciona un tipo porcentual',
+          targetPercentageRequired: 'El porcentaje objetivo debe estar entre 0 y 100',
+          targetPercentageInvalid: 'El porcentaje objetivo debe estar entre 0 y 100',
+          linkedGoalTaskRequired: 'Por favor vincula al menos un objetivo o tarea',
+          percentualCountScopeRequired: 'Por favor selecciona un alcance de conteo',
+        },
+      },
+      actions: {
+        create: 'Crear Misión',
+        creating: 'Creando...',
+        edit: 'Editar',
+        delete: 'Eliminar',
+        archive: 'Archivar',
+        complete: 'Completar Misión',
+        completing: 'Completando...',
+        completed: 'Completada',
+        viewProgress: 'Ver Progreso',
+      },
+      messages: {
+        createSuccess: 'Misión creada exitosamente',
+        updateSuccess: 'Misión actualizada exitosamente',
+        deleteSuccess: 'Misión eliminada exitosamente',
+        archiveSuccess: 'Misión archivada exitosamente',
+        completeSuccess: '¡Misión completada!',
+        alreadyCompleted: 'Ya has completado esta misión',
+        onlyActiveComplete: 'Solo las misiones activas pueden completarse',
+        onlyDraftEdit: 'Solo las misiones en borrador pueden editarse',
+        onlyDraftDelete: 'Solo las misiones en borrador pueden eliminarse',
+        onlyActiveArchive: 'Solo las misiones activas pueden archivarse',
+      },
+      progress: {
+        goalsCompleted: 'Objetivos completados',
+        tasksCompleted: 'Tareas completadas',
+        guildQuestsCompleted: 'Misiones del gremio completadas',
+        completionPercentage: 'Porcentaje de Completado',
+        membersCompleted: 'Miembros Completados',
+        targetPercentage: 'Porcentaje Objetivo',
+      },
+      metadata: {
+        rewardXp: 'XP de Recompensa',
+        category: 'Categoría',
+        deadline: 'Fecha límite',
+        completedBy: 'completado por',
+      },
+    },
+    activities: {
+      title: 'Actividades Recientes',
+      loading: 'Cargando actividades...',
+      error: 'Error al cargar actividades',
+      empty: 'Aún no hay actividades',
+      emptyDescription: 'El feed de actividades aparecerá aquí cuando los miembros interactúen con el gremio',
+      types: {
+        questCreated: 'misión creada',
+        memberJoined: 'miembro se unió',
+        memberLeft: 'miembro se fue',
+        questCompleted: 'misión completada',
+      },
+      messages: {
+        questCreated: 'creó la misión',
+        memberJoined: 'se unió al gremio',
+        memberLeft: 'dejó el gremio',
+        questCompleted: 'completó la misión',
+      },
     },
   },
   fr: {
@@ -1322,12 +1765,15 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       notFound: 'Guilde non trouvée',
       notMember: 'Vous n\'êtes pas membre de cette guilde',
         tabs: {
-          overview: 'Aperçu',
-          members: 'Membres',
+          overview: 'Chronique',
+          members: 'Rôle',
           goals: 'Objectifs',
           quests: 'Quêtes',
-          analytics: 'Analytiques',
-          comments: 'Commentaires',
+          analytics: 'Registre',
+          comments: 'Parchemins',
+          chat: 'Salle de Guilde',
+          joinRequests: 'Pétitions',
+          moderation: 'Intendance',
         },
         avatar: {
           title: 'Avatar de la Guilde',
@@ -1600,7 +2046,10 @@ export const guildTranslations: Record<string, GuildTranslations> = {
  * Get guild translations for a specific language
  */
 export const getGuildTranslations = (language: string = 'en'): GuildTranslations => {
-  return guildTranslations[language] || guildTranslations.en;
+  // Ensure we're using a valid language key
+  const validLanguage = (language === 'en' || language === 'es' || language === 'fr') ? language : 'en';
+  const result = guildTranslations[validLanguage] || guildTranslations.en;
+  return result;
 };
 
 /**
