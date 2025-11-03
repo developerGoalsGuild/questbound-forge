@@ -149,13 +149,13 @@ interface Quest {
 
 /**
  * Form data interface for quest creation/editing
+ * Note: rewardXp is auto-calculated by backend and not included in form data
  */
 interface QuestFormData {
   title: string;
   description: string;
   category: string;
   difficulty: QuestDifficulty;
-  rewardXp: number;
   tags: string[];
   deadline?: number;
   privacy: QuestPrivacy;
@@ -170,13 +170,13 @@ interface QuestFormData {
 
 /**
  * Input interface for quest creation - matches backend QuestCreatePayload
+ * Note: rewardXp is auto-calculated by backend and not included in input
  */
 interface QuestCreateInput {
   title: string;
   category: string;
   difficulty?: QuestDifficulty;
   description?: string;
-  rewardXp?: number;
   tags?: string[];
   deadline?: number;
   privacy?: QuestPrivacy;
@@ -270,13 +270,15 @@ const QuestTagsSchema = z
 
 /**
  * Reward XP validation schema with min/max constraints
+ * Note: rewardXp is now auto-calculated by backend, but this schema is kept
+ * for validating rewardXp in quest responses (read-only from API)
  */
 const QuestRewardXpSchema = z
   .number()
   .int('Reward XP must be a whole number')
   .min(MIN_REWARD_XP, `Reward XP must be at least ${MIN_REWARD_XP}`)
   .max(MAX_REWARD_XP, `Reward XP must be no more than ${MAX_REWARD_XP}`)
-  .default(DEFAULT_REWARD_XP);
+  .optional(); // Optional since it's auto-calculated
 
 /**
  * Deadline validation schema requiring future dates (1+ hour requirement)

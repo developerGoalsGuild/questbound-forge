@@ -33,3 +33,40 @@ resource "aws_cognito_user_pool_domain" "user_pool_domain" {
   domain       = var.cognito_domain_prefix
   user_pool_id = aws_cognito_user_pool.user_pool.id
 }
+
+# Subscription Tier User Groups
+resource "aws_cognito_user_group" "initiate" {
+  name         = "INITIATE"
+  user_pool_id = aws_cognito_user_pool.user_pool.id
+  description  = "Initiate tier subscription group ($1/month)"
+  precedence   = 1
+
+  depends_on = [aws_cognito_user_pool.user_pool]
+}
+
+resource "aws_cognito_user_group" "journeyman" {
+  name         = "JOURNEYMAN"
+  user_pool_id = aws_cognito_user_pool.user_pool.id
+  description  = "Journeyman tier subscription group ($15/month)"
+  precedence   = 2
+
+  depends_on = [aws_cognito_user_pool.user_pool]
+}
+
+resource "aws_cognito_user_group" "sage" {
+  name         = "SAGE"
+  user_pool_id = aws_cognito_user_pool.user_pool.id
+  description  = "Radiant Sage tier subscription group ($49/month)"
+  precedence   = 3
+
+  depends_on = [aws_cognito_user_pool.user_pool]
+}
+
+resource "aws_cognito_user_group" "guildmaster" {
+  name         = "GUILDMASTER"
+  user_pool_id = aws_cognito_user_pool.user_pool.id
+  description  = "Guildmaster tier subscription group (Enterprise - custom pricing)"
+  precedence   = 4
+
+  depends_on = [aws_cognito_user_pool.user_pool]
+}

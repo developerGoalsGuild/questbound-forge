@@ -1,32 +1,17 @@
-// Version: 4.0 - Added Phase 5 enhancements: accessibility, loading states, error recovery
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+// Version: 5.0 - Rewritten as step-by-step wizard (one NLP question at a time)
+import React, { useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { createGoal } from '@/lib/apiGoal';
-import { goalCreateSchema, type GoalCreateInput } from '@/lib/validation/goalValidation';
-import { useDebouncedValidation, registerFieldSchema } from '@/hooks/useDebouncedValidation';
-import { 
-  titleSchema, 
-  deadlineSchema, 
-  descriptionSchema, 
-  categorySchema, 
-  tagsSchema,
-  nlpAnswerSchema 
-} from '@/lib/validation/goalValidation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useGoalCreateForm } from '@/hooks/useGoalCreateForm';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, Plus, Sparkles, Lightbulb, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import NLPQuestionsSection from './NLPQuestionsSection';
-import GoalCategorySelector from './GoalCategorySelector';
-import TagsInput from './TagsInput';
-import FieldTooltip from '@/components/ui/FieldTooltip';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import BasicInfoStep from '@/components/goals/steps/BasicInfoStep';
+import NLPQuestionStep from '@/components/goals/steps/NLPQuestionStep';
+import ReviewStep from '@/components/goals/steps/ReviewStep';
 import useFocusManagement from '@/hooks/useFocusManagement';
-import { SkeletonFormSection, SkeletonNLPQuestions, SkeletonFormActions } from '@/components/ui/SkeletonFormField';
 import NetworkErrorRecovery, { useNetworkStatus } from '@/components/ui/NetworkErrorRecovery';
 import ARIALiveRegion, { useARIALiveAnnouncements, FormAnnouncements } from '@/components/ui/ARIALiveRegion';
 import { logger } from '@/lib/logger';
@@ -42,20 +27,10 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
   onSuccess,
   onCancel
 }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  // Form state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-
-  // Get translations
   const goalCreationTranslations = (t as any)?.goalCreation;
-  const goalsTranslations = (t as any)?.goals;
-  const commonTranslations = (t as any)?.common;
 
   // Network status and error recovery
   const { isOnline, hasError, errorMessage, setError: setNetworkError, clearError } = useNetworkStatus();
@@ -74,188 +49,26 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     restoreFocus: true
   });
 
-  // Register field schemas for debounced validation
-  useEffect(() => {
-    registerFieldSchema('title', titleSchema);
-    registerFieldSchema('deadline', deadlineSchema);
-    registerFieldSchema('description', descriptionSchema);
-    registerFieldSchema('category', categorySchema);
-    registerFieldSchema('tags', tagsSchema);
-    registerFieldSchema('positive', nlpAnswerSchema);
-    registerFieldSchema('specific', nlpAnswerSchema);
-    registerFieldSchema('evidence', nlpAnswerSchema);
-    registerFieldSchema('resources', nlpAnswerSchema);
-    registerFieldSchema('obstacles', nlpAnswerSchema);
-    registerFieldSchema('ecology', nlpAnswerSchema);
-    registerFieldSchema('timeline', nlpAnswerSchema);
-    registerFieldSchema('firstStep', nlpAnswerSchema);
-  }, []);
-
-  // Initialize debounced validation
   const {
-    debouncedValidateField,
-    clearFieldValidation,
-    isFieldValidating,
-    getFieldError,
-    isFieldValid,
-    isFormValid,
-    getValidationSummary
-  } = useDebouncedValidation({
-    debounceMs: 500,
-    validateOnMount: false,
-    enableServerValidation: false,
-  });
-
-  // Form setup with React Hook Form (no automatic validation)
-  const {
-    register,
+    currentStep,
+    formData,
+    errors,
+    steps,
+    progress,
+    loading,
+    error,
+    currentStepInfo,
+    handleFieldChange,
+    handleNext,
+    handlePrevious,
     handleSubmit,
-    formState: { errors, isValid },
-    watch,
-    setValue,
-    reset,
-    trigger,
-    setError
-  } = useForm<GoalCreateInput>({
-    mode: 'onSubmit', // Only validate on submit to prevent initial validation errors
-    defaultValues: {
-      title: '',
-      description: '',
-      deadline: '',
-      category: '',
-      tags: [],
-      nlpAnswers: {
-        positive: '',
-        specific: '',
-        evidence: '',
-        resources: '',
-        obstacles: '',
-        ecology: '',
-        timeline: '',
-        firstStep: ''
-      }
-    }
-  });
-
-  // Watch form values for real-time updates
-  const watchedValues = watch();
-  const nlpAnswers = watchedValues.nlpAnswers || {
-    positive: '',
-    specific: '',
-    evidence: '',
-    resources: '',
-    obstacles: '',
-    ecology: '',
-    timeline: '',
-    firstStep: ''
-  };
-
-
-  // Handle field changes with debounced validation
-  const handleFieldChange = (fieldName: string, value: any) => {
-    // Clear any existing validation for this field
-    clearFieldValidation(fieldName);
-    
-    // Trigger debounced validation
-    debouncedValidateField(fieldName, value);
-    
-    // Announce field change to screen readers
-    if (value && value.trim().length > 0) {
-      announce(FormAnnouncements.fieldSaved(fieldName), 'polite', 2000);
-    }
-  };
-
-  // Handle NLP answers change with validation
-  const handleNLPAnswersChange = (answers: typeof nlpAnswers) => {
-    setValue('nlpAnswers', answers, { shouldValidate: false });
-    
-    // Validate each NLP answer individually
-    Object.entries(answers).forEach(([key, value]) => {
-      if (value && value.trim().length > 0) {
-        handleFieldChange(key, value);
-      }
-    });
-  };
-
-  // Handle category change with validation
-  const handleCategoryChange = (category: string) => {
-    setValue('category', category, { shouldValidate: false });
-    handleFieldChange('category', category);
-  };
-
-  // Handle tags change with validation
-  const handleTagsChange = (tags: string[]) => {
-    setValue('tags', tags, { shouldValidate: false });
-    
-    // Clear any existing validation for tags
-    clearFieldValidation('tags');
-    
-    // Trigger debounced validation for tags array
-    debouncedValidateField('tags', tags);
-    
-    // Announce field change to screen readers
-    if (tags && tags.length > 0) {
-      announce(FormAnnouncements.fieldSaved('tags'), 'polite', 2000);
-    }
-  };
-
-  // Handle form submission
-  const onSubmit = async (data: GoalCreateInput) => {
-    logger.debug('Goal creation form submitted', { data });
-    
-    // Clear previous validation errors
-    clearError();
-    
-    // Manual validation using Zod
-    try {
-      const validatedData = goalCreateSchema.parse(data);
-      logger.debug('Goal creation validation passed', { validatedData });
-    } catch (error: any) {
-      logger.warn('Goal creation validation failed', { error });
-      
-      
-      // Handle validation errors
-      if (error.errors) {
-        error.errors.forEach((err: any) => {
-          const fieldPath = err.path.join('.');
-          if (fieldPath.startsWith('nlpAnswers.')) {
-            const nlpField = fieldPath.replace('nlpAnswers.', '');
-            setError(`nlpAnswers.${nlpField}` as any, { 
-              message: err.message 
-            });
-          } else {
-            setError(fieldPath as any, { 
-              message: err.message 
-            });
-          }
-        });
-        
-        // Announce validation errors
-        announce(FormAnnouncements.validationError('form'), 'assertive');
-        
-        // Focus first error field
-        setTimeout(() => {
-          focusFirstError();
-        }, 100);
-      }
-      return;
-    }
-    
-    try {
-      setIsSubmitting(true);
-      setIsLoading(true);
-      
-      // Announce loading state
-      announce(FormAnnouncements.loading('Goal creation'), 'polite');
-      
-      logger.info('Calling createGoal API...');
-      const goalResponse = await createGoal(data);
-      logger.info('Goal created successfully', { goalId: goalResponse.id });
-      
-      // Clear any network errors
+    isFirstStep,
+    isLastStep,
+    canGoNext,
+    canGoPrevious
+  } = useGoalCreateForm({
+    onSuccess: async (goalId: string) => {
       clearError();
-      
-      // Announce success
       announce(FormAnnouncements.formSubmitted(), 'polite');
       
       toast({
@@ -264,114 +77,36 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
         variant: 'default'
       });
 
-      // Call success callback or navigate
       if (onSuccess) {
-        onSuccess(goalResponse.id);
+        onSuccess(goalId);
       } else {
         navigate('/goals');
       }
-    } catch (error: any) {
-      logger.error('Error creating goal', { error });
-      
-      // Set network error if it's a network issue
-      if (!navigator.onLine || error.name === 'NetworkError' || error.message.includes('fetch')) {
-        setNetworkError('Network error occurred. Please check your connection and try again.');
-        announce(FormAnnouncements.networkError(), 'assertive');
-      }
-      
-      // Parse API error response
-      let errorMessage = error?.message || 'Failed to create goal';
-      let fieldErrors: { [key: string]: string } = {};
-      
-      logger.debug('Raw goal creation error', { rawError: error });
-      logger.debug('Goal creation error message', { errorMessage });
-      
-      try {
-        // Try to parse error response if it's a string
-        if (typeof error?.message === 'string') {
-          const parsedError = JSON.parse(error.message);
-          logger.debug('Parsed goal creation error', { parsedError });
-          if (parsedError.message) {
-            errorMessage = parsedError.message;
-          }
-          if (parsedError.field_errors) {
-            fieldErrors = parsedError.field_errors;
-          }
-        }
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        logger.debug('Could not parse error response', { parseError });
-      }
-      
-      // Set field-specific errors
-      Object.entries(fieldErrors).forEach(([field, message]) => {
-        logger.debug(`Setting field error for ${field}`, { message });
-        if (field === 'deadline') {
-          setError('deadline', { message });
-        } else if (field === 'title') {
-          setError('title', { message });
-        } else if (field === 'description') {
-          setError('description', { message });
-        } else if (field === 'category') {
-          setError('category', { message });
-        } else if (field === 'tags') {
-          setError('tags', { message });
-        } else if (field.startsWith('nlpAnswers.')) {
-          const nlpField = field.replace('nlpAnswers.', '');
-          setError(`nlpAnswers.${nlpField}` as any, { message });
-        }
-      });
-      
-      // If no specific field errors, check if it's a deadline error
-      if (Object.keys(fieldErrors).length === 0 && errorMessage.includes('Deadline')) {
-        logger.debug('Setting deadline error from general message', { errorMessage });
-        setError('deadline', { message: errorMessage });
-      }
-      
-      // Announce form error
-      announce(FormAnnouncements.formError(errorMessage), 'assertive');
-      
-      // Show toast for general errors or if no field-specific errors
-      if (Object.keys(fieldErrors).length === 0 && !errorMessage.includes('Deadline')) {
-        toast({
-          title: goalCreationTranslations?.messages?.error || 'Error',
-          description: errorMessage,
-          variant: 'destructive'
-        });
-      }
-    } finally {
-      setIsSubmitting(false);
-      setIsLoading(false);
+    },
+    onCancel
+  });
+
+  // Handle network error retry
+  const handleRetry = async () => {
+    if (loading) return;
+    if (isLastStep) {
+      await handleSubmit();
+    } else {
+      handleNext();
     }
   };
 
-  // Handle form reset
-  const handleReset = () => {
-    reset();
-    setImageUrl(null);
-    setSuggestions([]);
-    clearError();
-    clearAll();
-    
-    // Clear all validation states
-    clearFieldValidation('title');
-    clearFieldValidation('deadline');
-    clearFieldValidation('description');
-    clearFieldValidation('category');
-    clearFieldValidation('tags');
-    clearFieldValidation('positive');
-    clearFieldValidation('specific');
-    clearFieldValidation('evidence');
-    clearFieldValidation('resources');
-    clearFieldValidation('obstacles');
-    clearFieldValidation('ecology');
-    clearFieldValidation('timeline');
-    clearFieldValidation('firstStep');
-    
-    // Focus first field after reset
-    setTimeout(() => {
-      focusFirst();
-    }, 100);
+  // Handle network status check
+  const handleCheckStatus = async () => {
+    try {
+      const response = await fetch('/api/health', { method: 'HEAD' });
+      if (response.ok) {
+        clearError();
+        announce(FormAnnouncements.networkRestored(), 'polite');
+      }
+    } catch (error) {
+      setNetworkError('Network connection still unavailable');
+    }
   };
 
   // Handle cancel
@@ -383,104 +118,35 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
     }
   };
 
-  // Handle network error retry
-  const handleRetry = async () => {
-    if (isSubmitting) return;
-    
-    // Retry the last form submission
-    const formData = watchedValues;
-    if (formData.title && formData.deadline) {
-      await onSubmit(formData as GoalCreateInput);
+  // Render current step
+  const renderCurrentStep = () => {
+    const commonProps = {
+      formData,
+      onFieldChange: handleFieldChange,
+      errors,
+      onNext: canGoNext ? handleNext : undefined
+    };
+
+    if (currentStepInfo.type === 'basic') {
+      return <BasicInfoStep {...commonProps} />;
+    } else if (currentStepInfo.type === 'nlp' && currentStepInfo.questionKey) {
+      return (
+        <NLPQuestionStep
+          {...commonProps}
+          questionKey={currentStepInfo.questionKey}
+        />
+      );
+    } else if (currentStepInfo.type === 'review') {
+      return <ReviewStep formData={formData} errors={errors} />;
     }
+
+    return null;
   };
-
-  // Handle network status check
-  const handleCheckStatus = async () => {
-    try {
-      // Simple network check
-      const response = await fetch('/api/health', { method: 'HEAD' });
-      if (response.ok) {
-        clearError();
-        announce(FormAnnouncements.networkRestored(), 'polite');
-      }
-    } catch (error) {
-      setNetworkError('Network connection still unavailable');
-    }
-  };
-
-  // AI Features
-  const handleGenerateImage = async () => {
-    try {
-      setImageUrl(null);
-      const base = import.meta.env.VITE_API_BASE_URL || '';
-      const res = await fetch(base.replace(/\/$/, '') + '/ai/inspiration-image', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ 
-          text: `${watchedValues.title} ${watchedValues.description}`.trim(), 
-          lang: language 
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.detail || 'AI image failed');
-      setImageUrl(body.imageUrl || null);
-    } catch (e: any) {
-      toast({
-        title: goalCreationTranslations?.messages?.aiImageFailed || 'AI image generation failed',
-        description: String(e?.message || e),
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleSuggestImprovements = async () => {
-    try {
-      setSuggestions([]);
-      const base = import.meta.env.VITE_API_BASE_URL || '';
-      const res = await fetch(base.replace(/\/$/, '') + '/ai/suggest-improvements', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ 
-          text: `${watchedValues.title}\n${watchedValues.description}`.trim(), 
-          lang: language 
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body?.detail || 'AI suggestions failed');
-      setSuggestions(Array.isArray(body.suggestions) ? body.suggestions : []);
-    } catch (e: any) {
-      toast({
-        title: goalCreationTranslations?.messages?.aiSuggestFailed || 'AI suggestions failed',
-        description: String(e?.message || e),
-        variant: 'destructive'
-      });
-    }
-  };
-
-
-  // Show loading skeleton if initial loading
-  if (isLoading && !isSubmitting) {
-    return (
-      <div className={`max-w-4xl mx-auto p-4 space-y-6 ${className}`}>
-        <div className="flex items-center gap-4">
-          <div className="h-8 w-8 bg-muted animate-pulse rounded" />
-          <div className="space-y-2">
-            <div className="h-8 w-64 bg-muted animate-pulse rounded" />
-            <div className="h-4 w-80 bg-muted animate-pulse rounded" />
-          </div>
-        </div>
-        
-        <SkeletonFormSection fields={4} showTitle={true} />
-        <SkeletonNLPQuestions questions={8} />
-        <SkeletonFormActions buttons={3} />
-      </div>
-    );
-  }
 
   return (
     <div 
       ref={containerRef as React.RefObject<HTMLDivElement>}
-      className={`max-w-4xl mx-auto p-4 space-y-6 ${className}`}
+      className={`max-w-4xl mx-auto p-4 sm:p-6 space-y-6 ${className}`}
       onKeyDown={handleKeyDown}
       role="main"
       aria-label="Goal creation form"
@@ -506,334 +172,147 @@ const GoalCreationForm: React.FC<GoalCreationFormProps> = ({
       />
       
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
+            size="sm"
             onClick={handleCancel}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground shrink-0"
             aria-label="Go back to goals list"
           >
             <ArrowLeft className="w-4 h-4" />
-            {goalCreationTranslations?.actions?.backToGoals || 'Back to Goals'}
+            <span className="hidden sm:inline">
+              {goalCreationTranslations?.actions?.backToGoals || 'Back to Goals'}
+            </span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-xl sm:text-2xl font-bold">
               {goalCreationTranslations?.title || 'Create New Goal'}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground hidden sm:block">
               {goalCreationTranslations?.subtitle || 'Set up a new goal with detailed planning'}
             </p>
           </div>
         </div>
       </div>
 
-      <form 
-        onSubmit={handleSubmit(onSubmit)} 
-        className="space-y-6" 
-        data-testid="goal-creation-form"
-        role="form"
-        aria-label="Goal creation form"
-        noValidate
-      >
-        {/* Basic Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {goalCreationTranslations?.sections?.basicInfo || 'Basic Information'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Title Field */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="goal-title" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.title || 'Title'}
-                </Label>
-                <FieldTooltip
-                  targetId="goal-title"
-                  fieldLabel={goalCreationTranslations?.fields?.title || 'Title'}
-                  hint={goalCreationTranslations?.hints?.title}
-                  iconLabelTemplate={goalCreationTranslations?.hints?.iconLabel}
-                />
+      {/* Progress Bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span>
+            {goalCreationTranslations?.progress?.step || 'Step'} {currentStep + 1} {goalCreationTranslations?.progress?.of || 'of'} {steps.length}
+          </span>
+          <span>{Math.round(progress)}%</span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+
+      {/* Step Indicators - Show only previous, current, and next step */}
+      <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+        {steps
+          .map((step, index) => ({ step, index }))
+          .filter(({ index }) => {
+            // Show previous step, current step, and next step only
+            return index === currentStep - 1 || index === currentStep || index === currentStep + 1;
+          })
+          .map(({ step, index }) => (
+            <div
+              key={step.id}
+              className={`flex items-center space-x-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors ${
+                index === currentStep
+                  ? 'bg-primary text-primary-foreground'
+                  : index < currentStep
+                  ? 'bg-primary/20 text-primary'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
+                index === currentStep
+                  ? 'bg-primary-foreground text-primary'
+                  : index < currentStep
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted-foreground text-muted'
+              }`}>
+                {index < currentStep ? '✓' : index + 1}
               </div>
-              <div className="relative">
-                <Input
-                  id="goal-title"
-                  {...register('title', {
-                    onChange: (e) => handleFieldChange('title', e.target.value)
-                  })}
-                  placeholder={goalCreationTranslations?.placeholders?.title || 'Enter your goal title'}
-                  className={`pr-10 ${errors.title || getFieldError('title') ? 'border-destructive' : isFieldValid('title') ? 'border-green-500' : ''}`}
-                  aria-invalid={!!(errors.title || getFieldError('title'))}
-                />
-                {/* Validation status icon */}
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  {isFieldValidating('title') ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : isFieldValid('title') ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : getFieldError('title') ? (
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                  ) : null}
-                </div>
-              </div>
-              {(errors.title || getFieldError('title')) && (
-                <p className="text-sm text-destructive" role="alert">
-                  {errors.title?.message || getFieldError('title')}
-                </p>
+              <span className="hidden sm:inline">{step.shortTitle || step.title}</span>
+            </div>
+          ))}
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Current Step Content */}
+      <div className="min-h-[300px] sm:min-h-[400px]">
+        {renderCurrentStep()}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t">
+        <div className="flex gap-2">
+          {canGoPrevious && (
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={loading}
+              className="flex-1 sm:flex-initial"
+            >
+              {goalCreationTranslations?.actions?.previous || 'Previous'}
+            </Button>
+          )}
+          {onCancel && (
+            <Button
+              variant="ghost"
+              onClick={handleCancel}
+              disabled={loading}
+              className="flex-1 sm:flex-initial"
+            >
+              {goalCreationTranslations?.actions?.cancel || 'Cancel'}
+            </Button>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          {canGoNext ? (
+            <Button
+              onClick={handleNext}
+              disabled={loading}
+              className="flex-1 sm:flex-initial"
+            >
+              {goalCreationTranslations?.actions?.next || 'Next'}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 sm:flex-initial"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {goalCreationTranslations?.actions?.creating || 'Creating...'}
+                </>
+              ) : (
+                goalCreationTranslations?.actions?.createGoal || 'Create Goal'
               )}
-            </div>
+            </Button>
+          )}
+        </div>
+      </div>
 
-            {/* Description Field */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="goal-description" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.description || 'Description'}
-                </Label>
-                <FieldTooltip
-                  targetId="goal-description"
-                  fieldLabel={goalCreationTranslations?.fields?.description || 'Description'}
-                  hint={goalCreationTranslations?.hints?.description}
-                  iconLabelTemplate={goalCreationTranslations?.hints?.iconLabel}
-                />
-              </div>
-              <div className="relative">
-                <Textarea
-                  id="goal-description"
-                  {...register('description', {
-                    onChange: (e) => handleFieldChange('description', e.target.value)
-                  })}
-                  placeholder={goalCreationTranslations?.placeholders?.description || 'Describe your goal in detail'}
-                  rows={4}
-                  className={`pr-10 ${errors.description || getFieldError('description') ? 'border-destructive' : isFieldValid('description') ? 'border-green-500' : ''}`}
-                  aria-invalid={!!(errors.description || getFieldError('description'))}
-                />
-                {/* Validation status icon */}
-                <div className="absolute right-3 top-3">
-                  {isFieldValidating('description') ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : isFieldValid('description') ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : getFieldError('description') ? (
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                  ) : null}
-                </div>
-              </div>
-              {(errors.description || getFieldError('description')) && (
-                <p className="text-sm text-destructive" role="alert">
-                  {errors.description?.message || getFieldError('description')}
-                </p>
-              )}
-            </div>
-
-            {/* Deadline Field */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="goal-deadline" className="text-sm font-medium">
-                  {goalCreationTranslations?.fields?.deadline || 'Deadline'}
-                </Label>
-                <FieldTooltip
-                  targetId="goal-deadline"
-                  fieldLabel={goalCreationTranslations?.fields?.deadline || 'Deadline'}
-                  hint={goalCreationTranslations?.hints?.deadline}
-                  iconLabelTemplate={goalCreationTranslations?.hints?.iconLabel}
-                />
-              </div>
-              <div className="relative">
-                <Input
-                  id="goal-deadline"
-                  type="date"
-                  {...register('deadline', {
-                    onChange: (e) => handleFieldChange('deadline', e.target.value)
-                  })}
-                  className={`pr-10 ${errors.deadline || getFieldError('deadline') ? 'border-destructive' : isFieldValid('deadline') ? 'border-green-500' : ''}`}
-                  aria-invalid={!!(errors.deadline || getFieldError('deadline'))}
-                />
-                {/* Validation status icon */}
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  {isFieldValidating('deadline') ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : isFieldValid('deadline') ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : getFieldError('deadline') ? (
-                    <AlertCircle className="h-4 w-4 text-destructive" />
-                  ) : null}
-                </div>
-              </div>
-              {(errors.deadline || getFieldError('deadline')) && (
-                <p className="text-sm text-destructive" role="alert">
-                  {errors.deadline?.message || getFieldError('deadline')}
-                </p>
-              )}
-            </div>
-
-            {/* Category Field */}
-            <div className="space-y-2">
-              <GoalCategorySelector
-                value={watchedValues.category || ''}
-                onValueChange={handleCategoryChange}
-                error={errors.category?.message || getFieldError('category')}
-                placeholder={goalCreationTranslations?.placeholders?.category || 'Select a category'}
-                isFieldValidating={isFieldValidating('category')}
-                isFieldValid={isFieldValid('category')}
-              />
-            </div>
-
-            {/* Tags Field */}
-            <div className="space-y-2">
-              <TagsInput
-                value={watchedValues.tags || []}
-                onChange={handleTagsChange}
-                error={errors.tags?.message || getFieldError('tags')}
-                placeholder={goalCreationTranslations?.placeholders?.tags || 'Add tags and press Enter'}
-                isFieldValidating={isFieldValidating('tags')}
-                isFieldValid={isFieldValid('tags')}
-                maxTags={10}
-                disabled={isSubmitting}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* NLP Questions Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {goalCreationTranslations?.sections?.nlpQuestions || 'Well-formed Outcome (NLP)'}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {goalCreationTranslations?.sections?.nlpSubtitle || 'Answer these questions to clarify and strengthen your goal.'}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <NLPQuestionsSection
-              answers={nlpAnswers}
-              onAnswersChange={handleNLPAnswersChange}
-              errors={{
-                ...errors.nlpAnswers,
-                positive: getFieldError('positive'),
-                specific: getFieldError('specific'),
-                evidence: getFieldError('evidence'),
-                resources: getFieldError('resources'),
-                obstacles: getFieldError('obstacles'),
-                ecology: getFieldError('ecology'),
-                timeline: getFieldError('timeline'),
-                firstStep: getFieldError('firstStep'),
-              }}
-              isFieldValidating={isFieldValidating}
-              isFieldValid={isFieldValid}
-            />
-          </CardContent>
-        </Card>
-
-        {/* AI Features Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {goalCreationTranslations?.sections?.aiFeatures || 'AI-Powered Features'}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {goalCreationTranslations?.sections?.aiSubtitle || 'Get inspiration and suggestions for your goal.'}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGenerateImage}
-                disabled={!watchedValues.title || isSubmitting}
-                className="flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                {goalCreationTranslations?.actions?.generateImage || 'Generate Image'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSuggestImprovements}
-                disabled={!watchedValues.title || isSubmitting}
-                className="flex items-center gap-2"
-              >
-                <Lightbulb className="w-4 h-4" />
-                {goalCreationTranslations?.actions?.suggestImprovements || 'Suggest Improvements'}
-              </Button>
-            </div>
-
-            {/* AI Results */}
-            {imageUrl && (
-              <div className="space-y-2">
-                <h4 className="font-medium">
-                  {goalCreationTranslations?.aiResults?.imageTitle || 'Inspirational Image'}
-                </h4>
-                <img 
-                  alt="Goal inspiration" 
-                  src={imageUrl} 
-                  className="rounded border max-h-64 object-cover w-full"
-                />
-              </div>
-            )}
-
-            {suggestions.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium">
-                  {goalCreationTranslations?.aiResults?.suggestionsTitle || 'AI Suggestions'}
-                </h4>
-                <ul className="list-disc pl-6 space-y-1 text-sm">
-                  {suggestions.map((suggestion, i) => (
-                    <li key={i}>{suggestion}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Form Actions */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-3 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleReset}
-                disabled={isSubmitting || isLoading}
-                aria-label="Reset form to initial state"
-              >
-                {goalCreationTranslations?.actions?.reset || 'Reset'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={isSubmitting || isLoading}
-                aria-label="Cancel goal creation and return to goals list"
-              >
-                {goalCreationTranslations?.actions?.cancel || 'Cancel'}
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || isLoading}
-                className="flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {goalCreationTranslations?.actions?.creating || 'Creating...'}
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    {goalCreationTranslations?.actions?.createGoal || 'Create Goal'}
-                  </>
-                )}
-              </Button>
-            </div>
-            
-          </CardContent>
-        </Card>
-      </form>
+      {/* Help Text */}
+      <div className="text-xs text-muted-foreground text-center">
+        {goalCreationTranslations?.help?.requiredFields || 'Fields marked with * are required'}
+      </div>
     </div>
   );
 };

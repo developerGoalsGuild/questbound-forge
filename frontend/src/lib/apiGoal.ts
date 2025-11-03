@@ -83,32 +83,75 @@ export function buildTags(category?: string): string[] {
   return trimmed ? [trimmed] : [];
 }
 
-export function assertValidDeadline(deadline: string): string {
+/**
+ * Converts a date string to YYYY-MM-DD format, accepting various input formats
+ * including locale-specific formats and ISO formats.
+ */
+export function normalizeDeadlineToYYYYMMDD(deadline: string): string {
   const trimmed = deadline?.trim?.() ?? '';
-  if (!DATE_ONLY_REGEX.test(trimmed)) {
-    throw new Error('Deadline must follow YYYY-MM-DD format.');
+  if (!trimmed) {
+    throw new Error('Deadline is required.');
   }
 
-  // Create a Date object and verify it represents the same date
-  const date = new Date(`${trimmed}T00:00:00Z`);
+  // If already in YYYY-MM-DD format, validate and return
+  if (DATE_ONLY_REGEX.test(trimmed)) {
+    const date = new Date(`${trimmed}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) {
+      throw new Error('Deadline must be a valid calendar date.');
+    }
+    // Verify the date components match (to catch invalid dates like Feb 30)
+    const [year, month, day] = trimmed.split('-').map(Number);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) {
+      throw new Error('Deadline must be a valid calendar date.');
+    }
+    return trimmed;
+  }
+
+  // Try parsing as a date string (handles locale formats, ISO formats, etc.)
+  let date: Date;
+  
+  // Try parsing directly first (handles ISO strings like "2024-01-15T00:00:00Z")
+  date = new Date(trimmed);
+  
+  // If that fails, try adding time component for date-only strings
   if (Number.isNaN(date.getTime())) {
-    throw new Error('Deadline must be a valid calendar date.');
+    date = new Date(trimmed + 'T00:00:00Z');
+  }
+  
+  // If still invalid, try parsing as locale-specific date
+  if (Number.isNaN(date.getTime())) {
+    // Try parsing with Date.parse which handles many formats
+    const timestamp = Date.parse(trimmed);
+    if (!isNaN(timestamp)) {
+      date = new Date(timestamp);
+    }
   }
 
-  // Verify the date components match (to catch invalid dates like Feb 30)
-  const [year, month, day] = trimmed.split('-').map(Number);
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day) {
-    throw new Error('Deadline must be a valid calendar date.');
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('Deadline must be a valid date. Please use your local date format (e.g., MM/DD/YYYY or DD/MM/YYYY).');
   }
 
-  return trimmed;
+  // Convert to YYYY-MM-DD format
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * @deprecated Use normalizeDeadlineToYYYYMMDD instead
+ */
+export function assertValidDeadline(deadline: string): string {
+  return normalizeDeadlineToYYYYMMDD(deadline);
 }
 
 export async function createGoal(input: GoalInput): Promise<GoalResponse> {
   const base = getApiBase();
   const url = base.replace(/\/$/, '') + '/quests';
 
-  const deadline = assertValidDeadline(input.deadline);
+  // Normalize deadline to YYYY-MM-DD format (accepts various input formats)
+  const deadline = normalizeDeadlineToYYYYMMDD(input.deadline);
   const payload = {
     title: input.title,
     description: input.description?.trim?.() ?? '',

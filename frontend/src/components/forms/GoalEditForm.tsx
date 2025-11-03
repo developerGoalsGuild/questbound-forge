@@ -1,10 +1,12 @@
-// Version: 3.0 - Added debounced real-time validation
+// Version: 4.0 - Modernized layout with inline tasks (no modals)
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { getGoal, updateGoal } from '@/lib/apiGoal';
+import { loadTasks as loadTasksApi, createTask as createTaskApi, updateTask, deleteTask } from '@/lib/apiTask';
+import { type TaskResponse } from '@/lib/apiTask';
 import { goalCreateSchema, type GoalCreateInput } from '@/lib/validation/goalValidation';
 import { useDebouncedValidation, registerFieldSchema } from '@/hooks/useDebouncedValidation';
 import { 
@@ -20,11 +22,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Plus, Sparkles, Lightbulb, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import NLPQuestionsSection from './NLPQuestionsSection';
 import GoalCategorySelector from './GoalCategorySelector';
 import TagsInput from './TagsInput';
 import FieldTooltip from '@/components/ui/FieldTooltip';
+import TasksListInline from '@/components/goals/TasksListInline';
 import { logger } from '@/lib/logger';
 
 interface GoalEditFormProps {
@@ -47,8 +50,8 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
   // Form state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [goalDeadline, setGoalDeadline] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
 
   // Get translations
   const goalEditTranslations = (t as any)?.goalEdit;
@@ -187,6 +190,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           const deadlineDate = new Date(goalData.deadline + 'T00:00:00Z');
           const formattedDeadline = deadlineDate.toISOString().split('T')[0];
           setValue('deadline', formattedDeadline, { shouldValidate: false });
+          setGoalDeadline(formattedDeadline);
         }
         
         // Set category
@@ -254,8 +258,94 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
 
     if (goalId) {
       loadGoalData();
+      loadGoalTasks();
     }
   }, [goalId, setValue, toast, navigate, onCancel]);
+
+  // Load tasks for the goal
+  const loadGoalTasks = async () => {
+    try {
+      const tasksData = await loadTasksApi(goalId);
+      setTasks(Array.isArray(tasksData) ? tasksData : tasksData ? [tasksData] : []);
+    } catch (error: any) {
+      logger.error('Error loading tasks', { goalId, error });
+      setTasks([]);
+    }
+  };
+
+  // Task handlers
+  const handleCreateTask = async (taskData: {
+    title: string;
+    dueAt: string;
+    tags: string[];
+    status: string;
+  }) => {
+    try {
+      const dueAtEpoch = toEpochSeconds(taskData.dueAt);
+      await createTaskApi({
+        goalId,
+        title: taskData.title,
+        dueAt: dueAtEpoch,
+        tags: taskData.tags,
+        status: taskData.status
+      });
+      await loadGoalTasks();
+      toast({
+        title: 'Success',
+        description: 'Task created successfully',
+        variant: 'default'
+      });
+    } catch (error: any) {
+      logger.error('Error creating task', { goalId, error });
+      throw error;
+    }
+  };
+
+  const handleUpdateTask = async (task: TaskResponse) => {
+    try {
+      await updateTask(task.id, {
+        title: task.title,
+        dueAt: task.dueAt,
+        tags: task.tags,
+        status: task.status,
+        goalId: task.goalId
+      });
+      await loadGoalTasks();
+      toast({
+        title: 'Success',
+        description: 'Task updated successfully',
+        variant: 'default'
+      });
+    } catch (error: any) {
+      logger.error('Error updating task', { taskId: task.id, error });
+      throw error;
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+      await loadGoalTasks();
+      toast({
+        title: 'Success',
+        description: 'Task deleted successfully',
+        variant: 'default'
+      });
+    } catch (error: any) {
+      logger.error('Error deleting task', { taskId, error });
+      throw error;
+    }
+  };
+
+  const toEpochSeconds = (input: string): number => {
+    const dateOnlyMatch = input.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (dateOnlyMatch) {
+      const [year, month, day] = input.split('-').map(n => Number(n));
+      const ms = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+      return Math.floor(ms / 1000);
+    }
+    return Math.floor(new Date(input).getTime() / 1000);
+  };
 
   // Handle form submission
   const onSubmit = async (data: GoalCreateInput) => {
@@ -394,8 +484,6 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
   // Handle form reset
   const handleReset = () => {
     reset();
-    setImageUrl(null);
-    setSuggestions([]);
     // Clear all validation states
     clearFieldValidation('title');
     clearFieldValidation('deadline');
@@ -421,16 +509,6 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
     }
   };
 
-  // AI Features (placeholder functions)
-  const handleGenerateImage = async () => {
-    // Placeholder for AI image generation
-    logger.info('Generating AI image for goal', { title: watchedValues.title });
-  };
-
-  const handleSuggestImprovements = async () => {
-    // Placeholder for AI suggestions
-    logger.info('Suggesting improvements for goal', { title: watchedValues.title });
-  };
 
   if (isLoading) {
     return (
@@ -446,9 +524,9 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
   }
 
   return (
-    <div className={`max-w-3xl mx-auto p-4 ${className}`}>
+    <div className={`max-w-5xl mx-auto p-4 sm:p-6 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
@@ -457,13 +535,13 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             className="shrink-0"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            {commonTranslations?.back || 'Back'}
+            <span className="hidden sm:inline">{commonTranslations?.back || 'Back'}</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-xl sm:text-2xl font-bold">
               {goalEditTranslations?.title || 'Edit Goal'}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground hidden sm:block">
               {goalEditTranslations?.subtitle || 'Update your goal details and planning'}
             </p>
           </div>
@@ -474,7 +552,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         {/* Basic Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="text-base sm:text-lg">
               {goalCreationTranslations?.sections?.basicInfo || 'Basic Information'}
             </CardTitle>
           </CardHeader>
@@ -614,11 +692,11 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           </CardContent>
         </Card>
 
-        {/* NLP Questions Section */}
+        {/* Goal Contract Section */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              {goalCreationTranslations?.sections?.nlpQuestions || 'NLP Analysis'}
+            <CardTitle className="text-base sm:text-lg">
+              {goalCreationTranslations?.sections?.nlpQuestions || 'Goal Contract'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -642,72 +720,36 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
           </CardContent>
         </Card>
 
-        {/* AI Features Card */}
+        {/* Tasks Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              {goalCreationTranslations?.sections?.aiFeatures || 'AI Features'}
+            <CardTitle className="text-base sm:text-lg">
+              {goalsTranslations?.tasks?.title || 'Tasks'}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGenerateImage}
-                disabled={!watchedValues.title}
-                className="flex-1"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {goalCreationTranslations?.actions?.generateImage || 'Generate Image'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSuggestImprovements}
-                disabled={!watchedValues.title}
-                className="flex-1"
-              >
-                <Lightbulb className="w-4 h-4 mr-2" />
-                {goalCreationTranslations?.actions?.suggestImprovements || 'Suggest Improvements'}
-              </Button>
-            </div>
-            
-            {imageUrl && (
-              <div className="mt-4">
-                <img
-                  src={imageUrl}
-                  alt="Generated goal visualization"
-                  className="w-full max-w-md mx-auto rounded-lg"
-                />
-              </div>
-            )}
-            
-            {suggestions.length > 0 && (
-              <div className="mt-4">
-                <h4 className="font-medium mb-2">
-                  {goalCreationTranslations?.suggestions?.title || 'AI Suggestions'}
-                </h4>
-                <ul className="space-y-1">
-                  {suggestions.map((suggestion, index) => (
-                    <li key={index} className="text-sm text-muted-foreground">
-                      • {suggestion}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          <CardContent>
+            <TasksListInline
+              tasks={tasks}
+              goalId={goalId}
+              goalDeadline={goalDeadline}
+              onUpdateTask={handleUpdateTask}
+              onDeleteTask={handleDeleteTask}
+              onCreateTask={handleCreateTask}
+              canEdit={true}
+              canDelete={true}
+              canCreate={true}
+            />
           </CardContent>
         </Card>
 
         {/* Form Actions */}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
           <Button
             type="button"
             variant="outline"
             onClick={handleReset}
             disabled={isSubmitting}
+            className="order-2 sm:order-1"
           >
             {commonTranslations?.reset || 'Reset'}
           </Button>
@@ -716,17 +758,23 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             variant="outline"
             onClick={handleCancel}
             disabled={isSubmitting}
+            className="order-3 sm:order-2"
           >
             {commonTranslations?.cancel || 'Cancel'}
           </Button>
           <Button
             type="submit"
             disabled={isSubmitting}
+            className="order-1 sm:order-3"
           >
-            {isSubmitting
-              ? (commonTranslations?.loading || 'Updating...')
-              : (goalEditTranslations?.actions?.save || goalCreationTranslations?.actions?.updateGoal || 'Update Goal')
-            }
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {commonTranslations?.loading || 'Updating...'}
+              </>
+            ) : (
+              goalEditTranslations?.actions?.save || goalCreationTranslations?.actions?.updateGoal || 'Update Goal'
+            )}
           </Button>
         </div>
       </form>

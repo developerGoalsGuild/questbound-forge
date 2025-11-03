@@ -637,7 +637,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       title: 'Enter a clear, descriptive title for your quest. This will help you identify it later.',
       description: 'Provide a detailed description of your quest. This helps you and others understand what needs to be accomplished.',
       category: 'Choose the category that best fits your quest. This helps organize and filter your quests.',
-      difficulty: 'Select the difficulty level. This affects the reward XP you\'ll earn when completing the quest.',
+      difficulty: 'Select the difficulty level. Quest reward XP is calculated automatically based on scope, period, and difficulty.',
+      rewardXp: 'Reward XP is calculated automatically based on quest scope (number of items), period (duration), and difficulty level. The calculation uses a base of 50 XP with multipliers for complexity.',
       privacy: 'Set the privacy level for your quest. Public quests are visible to everyone, followers-only to your followers, and private only to you.',
       kind: 'Choose the quest type. Linked quests are tied to specific goals and tasks, while quantitative quests track completion counts over time.',
       tags: 'Add tags to help categorize and find your quest. Use descriptive keywords separated by commas.',
@@ -749,7 +750,10 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       cannotEdit: 'Cannot edit quest. This quest is currently {status}. Only draft quests can be edited.',
       noGoals: 'No goals available. Create some goals first.',
       noTasks: 'No tasks available for selected goals.',
-      loading: 'Loading quest...'
+      loading: 'Loading quest...',
+      calculated: 'Calculated automatically',
+      autoCalculated: 'Auto-calculated',
+      rewardCalculatedNote: 'Reward XP is calculated automatically based on quest scope, period, and difficulty.'
     },
 
     sections: {
@@ -1165,7 +1169,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       title: 'Ingresa un título claro y descriptivo para tu misión. Esto te ayudará a identificarla más tarde.',
       description: 'Proporciona una descripción detallada de tu misión. Esto te ayuda a ti y a otros a entender qué se necesita lograr.',
       category: 'Elige la categoría que mejor se ajuste a tu misión. Esto ayuda a organizar y filtrar tus misiones.',
-      difficulty: 'Selecciona el nivel de dificultad. Esto afecta los XP de recompensa que ganarás al completar la misión.',
+      difficulty: 'Selecciona el nivel de dificultad. La XP de recompensa de la misión se calcula automáticamente según el alcance, el período y la dificultad.',
+      rewardXp: 'La XP de recompensa se calcula automáticamente según el alcance de la misión (número de elementos), el período (duración) y el nivel de dificultad. El cálculo utiliza una base de 50 XP con multiplicadores por complejidad.',
       privacy: 'Establece el nivel de privacidad para tu misión. Las misiones públicas son visibles para todos, solo seguidores para tus seguidores, y privadas solo para ti.',
       kind: 'Elige el tipo de misión. Las misiones vinculadas están ligadas a metas y tareas específicas, mientras que las misiones cuantitativas rastrean conteos de finalización a lo largo del tiempo.',
       tags: 'Agrega etiquetas para ayudar a categorizar y encontrar tu misión. Usa palabras clave descriptivas separadas por comas.',
@@ -1296,7 +1301,10 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       cannotEdit: 'No se puede editar la misión. Esta misión está actualmente {status}. Solo las misiones en borrador pueden ser editadas.',
       noGoals: 'No hay objetivos disponibles. Crea algunos objetivos primero.',
       noTasks: 'No hay tareas disponibles para los objetivos seleccionados.',
-      loading: 'Cargando misión...'
+      loading: 'Cargando misión...',
+      calculated: 'Calculado automáticamente',
+      autoCalculated: 'Auto-calculado',
+      rewardCalculatedNote: 'La XP de recompensa se calcula automáticamente según el alcance de la misión, el período y la dificultad.'
     },
 
     sections: {
@@ -1693,7 +1701,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       title: 'Entrez un titre clair et descriptif pour votre quête. Cela vous aidera à l\'identifier plus tard.',
       description: 'Fournissez une description détaillée de votre quête. Cela vous aide, vous et les autres, à comprendre ce qui doit être accompli.',
       category: 'Choisissez la catégorie qui correspond le mieux à votre quête. Cela aide à organiser et filtrer vos quêtes.',
-      difficulty: 'Sélectionnez le niveau de difficulté. Cela affecte les XP de récompense que vous gagnerez en complétant la quête.',
+      difficulty: 'Sélectionnez le niveau de difficulté. L\'XP de récompense de la quête est calculée automatiquement selon la portée, la période et la difficulté.',
+      rewardXp: 'L\'XP de récompense est calculée automatiquement selon la portée de la quête (nombre d\'éléments), la période (durée) et le niveau de difficulté. Le calcul utilise une base de 50 XP avec des multiplicateurs pour la complexité.',
       privacy: 'Définissez le niveau de confidentialité pour votre quête. Les quêtes publiques sont visibles par tous, les abonnés seulement par vos abonnés, et privées seulement par vous.',
       kind: 'Choisissez le type de quête. Les quêtes liées sont liées à des objectifs et tâches spécifiques, tandis que les quêtes quantitatives suivent les comptes de finalisation au fil du temps.',
       tags: 'Ajoutez des étiquettes pour aider à catégoriser et trouver votre quête. Utilisez des mots-clés descriptifs séparés par des virgules.',
@@ -1805,7 +1814,10 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       cannotEdit: 'Impossible de modifier la quête. Cette quête est actuellement {status}. Seules les quêtes en brouillon peuvent être modifiées.',
       noGoals: 'Aucun objectif disponible. Créez d\'abord des objectifs.',
       noTasks: 'Aucune tâche disponible pour les objectifs sélectionnés.',
-      loading: 'Chargement de la quête...'
+      loading: 'Chargement de la quête...',
+      calculated: 'Calculé automatiquement',
+      autoCalculated: 'Auto-calculé',
+      rewardCalculatedNote: 'L\'XP de récompense est calculée automatiquement selon la portée de la quête, la période et la difficulté.'
     },
 
     sections: {

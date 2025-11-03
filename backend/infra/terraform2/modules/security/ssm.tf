@@ -264,3 +264,51 @@ resource "aws_ssm_parameter" "guild_service_config" {
     Component   = "guild-service"
   }
 }
+
+# Stripe Secret Key
+resource "aws_ssm_parameter" "stripe_secret_key" {
+  count       = var.stripe_secret_key != "" ? 1 : 0
+  name        = "/goalsguild/subscription-service/STRIPE_SECRET_KEY"
+  description = "Stripe secret key for subscription billing (${var.environment})"
+  type        = "SecureString"
+  value       = var.stripe_secret_key
+  overwrite   = true
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "subscription-service"
+  }
+}
+
+# Stripe Webhook Secret
+resource "aws_ssm_parameter" "stripe_webhook_secret" {
+  count       = var.stripe_webhook_secret != "" ? 1 : 0
+  name        = "/goalsguild/subscription-service/STRIPE_WEBHOOK_SECRET"
+  description = "Stripe webhook secret for webhook signature verification (${var.environment})"
+  type        = "SecureString"
+  value       = var.stripe_webhook_secret
+  overwrite   = true
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "subscription-service"
+  }
+}
+
+# Stripe Publishable Key (for frontend)
+resource "aws_ssm_parameter" "stripe_publishable_key" {
+  count       = var.stripe_publishable_key != "" ? 1 : 0
+  name        = "/goalsguild/subscription-service/STRIPE_PUBLISHABLE_KEY"
+  description = "Stripe publishable key for frontend checkout (${var.environment})"
+  type        = "SecureString"
+  value       = var.stripe_publishable_key
+  overwrite   = true
+
+  tags = {
+    Environment = var.environment
+    Service     = "goalsguild"
+    Component   = "subscription-service"
+  }
+}

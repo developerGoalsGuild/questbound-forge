@@ -284,39 +284,34 @@ const BasicInfoStep: React.FC<StepProps> = ({
           </div>
         </div>
 
-        {/* Reward XP - Calculated automatically */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="rewardXp" className="text-sm font-medium">
-              {questTranslations?.fields?.rewardXp || 'Reward XP'}
-            </Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-xs">
-                  {questTranslations?.tooltips?.rewardXp || 'XP reward is calculated automatically based on quest difficulty.'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
+        {/* Reward XP - Calculated automatically by backend */}
+        {quest && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="rewardXp" className="text-sm font-medium">
+                {questTranslations?.fields?.rewardXp || 'Reward XP'}
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    {questTranslations?.tooltips?.rewardXp || 'XP reward is calculated automatically based on quest scope, period, and difficulty.'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+              <span className="text-sm font-medium">
+                {quest.rewardXp} XP
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({questTranslations?.messages?.calculated || questTranslations?.messages?.autoCalculated || 'Calculated automatically'})
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-            <span className="text-sm font-medium">
-              {(() => {
-                switch (formData.difficulty) {
-                  case 'easy': return '50 XP';
-                  case 'medium': return '100 XP';
-                  case 'hard': return '200 XP';
-                  default: return '100 XP';
-                }
-              })()}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              ({questTranslations?.messages?.calculated || 'Calculated based on difficulty'})
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       {onNext && (
@@ -949,7 +944,9 @@ const ReviewStep: React.FC<StepProps> = ({
   const questTranslations = (t as any)?.quest;
 
   // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
-  const displayRewardXp = 'Auto-calculated';
+  const displayRewardXp = quest?.rewardXp 
+    ? `${quest.rewardXp} XP (${questTranslations?.messages?.calculated || questTranslations?.messages?.autoCalculated || 'Calculated automatically'})`
+    : questTranslations?.messages?.autoCalculated || 'Auto-calculated';
 
   const getPrivacyIcon = (privacy: string) => {
     switch (privacy) {

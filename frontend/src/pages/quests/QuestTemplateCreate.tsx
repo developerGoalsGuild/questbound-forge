@@ -76,7 +76,7 @@ interface QuestTemplateCreateFormData {
   privacy: QuestTemplatePrivacy;
   kind: QuestKind;
   tags: string[];
-  rewardXp: number;
+  // Note: rewardXp is auto-calculated by backend and not included in form data
   estimatedDuration: number;
   instructions: string;
 }
@@ -100,7 +100,7 @@ const QuestTemplateCreateFormSchema = z.object({
   privacy: z.enum(['public', 'followers', 'private'] as const),
   kind: z.enum(['linked', 'quantitative'] as const),
   tags: z.array(z.string()).max(10, 'Maximum 10 tags allowed'),
-  rewardXp: z.number().min(0).max(10000), // XP is calculated automatically, just validate range
+  // Note: rewardXp is auto-calculated by backend and not included in validation
   estimatedDuration: z.number().min(1, 'Duration must be at least 1 day').max(365, 'Duration must be less than 1 year'),
   instructions: z.string().max(1000, 'Instructions must be less than 1000 characters').optional()
 });
@@ -360,38 +360,8 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({ formData, onDataChange, erro
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="rewardXp" className="text-sm font-medium">
-              {questTranslations?.form?.rewardXp || 'XP Reward'}
-            </Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-xs">
-                  {questTranslations?.tooltips?.rewardXp || 'XP reward is calculated automatically based on quest difficulty.'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-            <span className="text-sm font-medium">
-              {(() => {
-                switch (formData.difficulty) {
-                  case 'easy': return '50 XP';
-                  case 'medium': return '100 XP';
-                  case 'hard': return '200 XP';
-                  default: return '100 XP';
-                }
-              })()}
-            </span>
-            <span className="text-xs text-muted-foreground" data-testid="xp-calculation-note">
-              ({questTranslations?.messages?.calculated || 'Calculated based on difficulty'})
-            </span>
-          </div>
-        </div>
+        {/* Note: rewardXp is auto-calculated by backend based on scope, period, and difficulty */}
+        {/* Removed rewardXp input field - reward is calculated automatically */}
 
         <div className="space-y-2">
           <Label htmlFor="estimatedDuration" className="text-sm font-medium">
@@ -516,9 +486,10 @@ const ReviewStep: React.FC<StepProps> = ({ formData, errors }) => {
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
+              {/* Note: rewardXp is auto-calculated by backend - displayed as read-only from API response */}
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">XP Reward</Label>
-                <p className="text-sm">{formData.rewardXp} XP</p>
+                <p className="text-sm">{questTranslations?.messages?.autoCalculated || 'Auto-calculated'} XP</p>
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Estimated Duration</Label>
@@ -556,7 +527,7 @@ const QuestTemplateCreate: React.FC = () => {
     privacy: 'public',
     kind: 'linked',
     tags: [],
-    rewardXp: 0,
+    // Note: rewardXp is auto-calculated by backend
     estimatedDuration: 7,
     instructions: '',
   });
@@ -669,7 +640,7 @@ const QuestTemplateCreate: React.FC = () => {
         privacy: formData.privacy,
         kind: formData.kind,
         tags: formData.tags,
-        rewardXp: formData.rewardXp,
+        // Note: rewardXp is auto-calculated by backend and not included in input
         estimatedDuration: formData.estimatedDuration,
         instructions: formData.instructions,
       };

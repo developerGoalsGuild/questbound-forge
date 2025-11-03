@@ -3,7 +3,6 @@ import { X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import FieldTooltip from '@/components/ui/FieldTooltip';
 
 interface TagsInputProps {
   value: string[];
@@ -72,18 +71,6 @@ const TagsInput: React.FC<TagsInputProps> = ({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium">
-          Tags
-        </label>
-        <FieldTooltip
-          targetId="goal-tags"
-          fieldLabel="Tags"
-          hint="Add labels to help organize and find related goals. Press Enter or comma to add a tag."
-          iconLabelTemplate="More information about tags"
-        />
-      </div>
-      
       {/* Tags Display */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">

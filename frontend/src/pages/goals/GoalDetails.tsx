@@ -1,8 +1,9 @@
+// Version: 2.0 - Modern tabbed interface with inline task editing
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
-import { getGoal, deleteGoal, loadGoals, getGoalsWithTasks } from '@/lib/apiGoal';
+import { getGoal, deleteGoal } from '@/lib/apiGoal';
 import { loadTasks, createTask, updateTask, deleteTask } from '@/lib/apiTask';
 import { GoalStatus, formatGoalStatus, getStatusColorClass, formatDeadline } from '@/models/goal';
 import DualProgressBar from '@/components/ui/DualProgressBar';
@@ -12,16 +13,14 @@ import {
   calculateHybridProgress,
   type GoalProgressData 
 } from '@/lib/goalProgress';
-import { calculateGoalProgress, type GoalWithTasks } from '@/lib/progressCalculation';
-import TasksModal from '@/components/modals/TasksModal';
-import CreateTaskModal from '@/components/modals/CreateTaskModal';
+import TasksListInline from '@/components/goals/TasksListInline';
 import { GoalQuestsSection } from '@/components/goals/GoalQuestsSection';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { getUserIdFromToken } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,13 +50,14 @@ import {
   CalendarDays,
   TrendingUp,
   AlertCircle,
-  Plus,
+  ListTodo,
 } from 'lucide-react';
 import FieldTooltip from '@/components/ui/FieldTooltip';
 import { logger } from '@/lib/logger';
 import { CollaboratorList } from '@/components/collaborations/CollaboratorList';
 import { CommentSection } from '@/components/collaborations/CommentSection';
 import { InviteCollaboratorModal } from '@/components/collaborations/InviteCollaboratorModal';
+import { TaskResponse } from '@/lib/apiTask';
 
 interface GoalDetailsData {
   id: string;
@@ -71,7 +71,6 @@ interface GoalDetailsData {
   answers: Array<{ key: string; answer: string }>;
   category?: string;
   progress?: number;
-  // Backend progress data
   taskProgress?: number;
   timeProgress?: number;
   completedTasks?: number;
@@ -84,20 +83,11 @@ interface GoalDetailsData {
     achievedAt?: number;
     description?: string;
   }>;
-  // Access control fields
-  accessType?: string;  // "owner" or "collaborator"
+  accessType?: string;
   canEdit?: boolean;
   canDelete?: boolean;
   canAddTasks?: boolean;
   canComment?: boolean;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  dueAt: number; // epoch seconds
-  status: string;
-  tags: string[];
 }
 
 const GoalDetails: React.FC = () => {
@@ -111,20 +101,21 @@ const GoalDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState('details');
   
   // Task-related state
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
-  const [showTasksModal, setShowTasksModal] = useState(false);
-  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
-  // Get translations with safety checks
+  // Get translations
   const goalDetailsTranslations = (t as any)?.goalDetails;
   const commonTranslations = (t as any)?.common;
-  // Get goals translations for specific hints (same as create goals page)
-  const goalsTranslations = t as any;
-
+  const goalsTranslations = (t as any)?.goals;
+  const goalCreationTranslations = (t as any)?.goalCreation;
+  const nlpTranslations = goalCreationTranslations?.nlp ?? {};
+  const nlpQuestions = nlpTranslations.questions ?? {};
+  const nlpHints = nlpTranslations.hints ?? {};
 
   // Load goal details
   const loadGoalDetails = useCallback(async () => {
@@ -138,10 +129,8 @@ const GoalDetails: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Load goal details with access control information
       const goalData = await getGoal(id);
       
-      // Create goal data for details display
       const goalDetailsData: GoalDetailsData = {
         id: goalData.id,
         title: goalData.title,
@@ -159,7 +148,6 @@ const GoalDetails: React.FC = () => {
         completedTasks: goalData.completedTasks,
         totalTasks: goalData.totalTasks,
         milestones: goalData.milestones,
-        // Access control fields
         accessType: goalData.accessType,
         canEdit: goalData.canEdit,
         canDelete: goalData.canDelete,
@@ -169,7 +157,6 @@ const GoalDetails: React.FC = () => {
       
       setGoal(goalDetailsData);
       
-      // Create progress data for DualProgressBar
       const progressGoalData: GoalProgressData = {
         id: goalData.id,
         title: goalData.title,
@@ -200,6 +187,33 @@ const GoalDetails: React.FC = () => {
     loadGoalDetails();
   }, [loadGoalDetails]);
 
+  // Load tasks
+  const loadGoalTasks = useCallback(async () => {
+    if (!goal?.id) return;
+
+    try {
+      setTasksLoading(true);
+      const goalTasks = await loadTasks(goal.id);
+      setTasks(Array.isArray(goalTasks) ? goalTasks : []);
+    } catch (e: any) {
+      logger.error('Error loading tasks', { goalId: goal.id, error: e });
+      toast({
+        title: 'Error',
+        description: e?.message || 'Failed to load tasks',
+        variant: 'destructive'
+      });
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [goal?.id, toast]);
+
+  // Load tasks when goal is loaded and tasks tab is active
+  useEffect(() => {
+    if (goal?.id && activeTab === 'tasks') {
+      loadGoalTasks();
+    }
+  }, [goal?.id, activeTab, loadGoalTasks]);
+
   // Handle delete goal
   const handleDeleteGoal = async () => {
     if (!goal) return;
@@ -214,10 +228,9 @@ const GoalDetails: React.FC = () => {
       });
       navigate('/goals');
     } catch (e: any) {
-      const errorMessage = e?.message || 'Failed to delete goal';
       toast({
         title: goalDetailsTranslations?.messages?.deleteError || 'Error',
-        description: errorMessage,
+        description: e?.message || 'Failed to delete goal',
         variant: 'destructive'
       });
     } finally {
@@ -232,68 +245,23 @@ const GoalDetails: React.FC = () => {
     }
   };
 
-  // Load tasks for the goal
-  const loadGoalTasks = useCallback(async () => {
+  // Task handlers
+  const handleTaskCreate = async (taskData: {
+    title: string;
+    dueAt: string;
+    tags: string[];
+    status: string;
+  }) => {
     if (!goal?.id) return;
 
     try {
-      setTasksLoading(true);
-      const goalTasks = await loadTasks(goal.id);
-      setTasks(goalTasks || []);
-    } catch (e: any) {
-      logger.error('Error loading tasks', { goalId: goal.id, error: e });
-      
-      // Parse API error response
-      let errorMessage = e?.message || 'Failed to load tasks';
-      
-      try {
-        // Try to parse error response if it's a string
-        if (typeof e?.message === 'string') {
-          const parsedError = JSON.parse(e.message);
-          if (parsedError.message) {
-            errorMessage = parsedError.message;
-          }
-        }
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        logger.warn('Could not parse error response for loading tasks', { parseError });
-      }
-      
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive'
-      });
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [goal?.id, toast]);
-
-  // Handle view tasks
-  const handleViewTasks = () => {
-    if (goal) {
-      setShowTasksModal(true);
-      loadGoalTasks();
-    }
-  };
-
-  // Handle create new task
-  const handleCreateTask = () => {
-    setShowCreateTaskModal(true);
-  };
-
-  // Handle task creation
-  const handleTaskCreate = async (title: string, dueAt: string, tags: string[], status: string) => {
-    if (!goal?.id) return;
-
-    try {
-      const dueAtTimestamp = new Date(dueAt + 'T00:00:00Z').getTime() / 1000;
+      const dueAtEpoch = new Date(taskData.dueAt + 'T00:00:00Z').getTime() / 1000;
       await createTask({
         goalId: goal.id,
-        title,
-        dueAt: dueAtTimestamp,
-        tags,
-        status
+        title: taskData.title,
+        dueAt: dueAtEpoch,
+        tags: taskData.tags,
+        status: taskData.status
       });
 
       toast({
@@ -302,37 +270,19 @@ const GoalDetails: React.FC = () => {
         variant: 'default'
       });
 
-      setShowCreateTaskModal(false);
-      loadGoalTasks(); // Refresh tasks list
+      await loadGoalTasks();
     } catch (e: any) {
       logger.error('Error creating task', { goalId: goal.id, error: e });
-      
-      // Parse API error response
-      let errorMessage = e?.message || 'Failed to create task';
-      
-      try {
-        // Try to parse error response if it's a string
-        if (typeof e?.message === 'string') {
-          const parsedError = JSON.parse(e.message);
-          if (parsedError.message) {
-            errorMessage = parsedError.message;
-          }
-        }
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        logger.warn('Could not parse create task error response', { parseError });
-      }
-      
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: e?.message || 'Failed to create task',
         variant: 'destructive'
       });
+      throw e;
     }
   };
 
-  // Handle task update
-  const handleTaskUpdate = async (task: Task) => {
+  const handleTaskUpdate = async (task: TaskResponse) => {
     try {
       await updateTask(task.id, {
         goalId: goal?.id || '',
@@ -348,70 +298,35 @@ const GoalDetails: React.FC = () => {
         variant: 'default'
       });
 
-      loadGoalTasks(); // Refresh tasks list
+      await loadGoalTasks();
     } catch (e: any) {
       logger.error('Error updating task', { taskId: task.id, error: e });
-      
-      // Parse API error response
-      let errorMessage = e?.message || 'Failed to update task';
-      
-      try {
-        // Try to parse error response if it's a string
-        if (typeof e?.message === 'string') {
-          const parsedError = JSON.parse(e.message);
-          if (parsedError.message) {
-            errorMessage = parsedError.message;
-          }
-        }
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        logger.warn('Could not parse update task error response', { parseError });
-      }
-      
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: e?.message || 'Failed to update task',
         variant: 'destructive'
       });
+      throw e;
     }
   };
 
-  // Handle task deletion
   const handleTaskDelete = async (taskId: string) => {
     try {
       await deleteTask(taskId);
-
       toast({
         title: 'Success',
         description: 'Task deleted successfully',
         variant: 'default'
       });
-
-      loadGoalTasks(); // Refresh tasks list
+      await loadGoalTasks();
     } catch (e: any) {
       logger.error('Error deleting task', { taskId, error: e });
-      
-      // Parse API error response
-      let errorMessage = e?.message || 'Failed to delete task';
-      
-      try {
-        // Try to parse error response if it's a string
-        if (typeof e?.message === 'string') {
-          const parsedError = JSON.parse(e.message);
-          if (parsedError.message) {
-            errorMessage = parsedError.message;
-          }
-        }
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        logger.warn('Could not parse delete task error response', { parseError });
-      }
-      
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: e?.message || 'Failed to delete task',
         variant: 'destructive'
       });
+      throw e;
     }
   };
 
@@ -461,7 +376,7 @@ const GoalDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-4">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -476,14 +391,14 @@ const GoalDetails: React.FC = () => {
 
   if (error || !goal) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="container mx-auto py-8 px-4">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-destructive mb-4">
             {goalDetailsTranslations?.messages?.notFound || 'Goal Not Found'}
           </h2>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Button variant="outline" onClick={() => navigate('/goals')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               {goalDetailsTranslations?.actions?.back || 'Back to Goals'}
@@ -500,59 +415,41 @@ const GoalDetails: React.FC = () => {
   const deadlineInfo = getDeadlineInfo();
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="container mx-auto py-4 sm:py-8 px-4 max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate('/goals')}
             className="shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {goalDetailsTranslations?.actions?.back || 'Back'}
+            <ArrowLeft className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.back || 'Back'}</span>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{goal.title}</h1>
-            <p className="text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-3xl font-bold truncate">{goal.title}</h1>
+            <p className="text-sm text-muted-foreground hidden sm:block">
               {goalDetailsTranslations?.subtitle || 'Goal Details'}
             </p>
           </div>
         </div>
         
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleViewTasks}>
-            <Calendar className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.viewTasks || 'View Tasks'}</span>
-            <span className="sm:hidden">Tasks</span>
-          </Button>
-          
-          {/* Only show Create Task button if user can add tasks */}
-          {goal?.canAddTasks && (
-            <Button variant="outline" onClick={handleCreateTask}>
-              <Plus className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.createTask || 'Create Task'}</span>
-              <span className="sm:hidden">Create</span>
-            </Button>
-          )}
-          
-          {/* Only show Edit button if user can edit */}
           {goal?.canEdit && (
-            <Button onClick={handleEditGoal}>
-              <Edit className="w-4 h-4 mr-2" />
-              {goalDetailsTranslations?.actions?.edit || 'Edit'}
+            <Button onClick={handleEditGoal} size="sm">
+              <Edit className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.edit || 'Edit'}</span>
             </Button>
           )}
           
-          {/* Only show Delete button if user can delete */}
           {goal?.canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={deleting}>
-                  <Trash2 className="w-4 h-4 mr-2" />
+                <Button variant="destructive" size="sm" disabled={deleting}>
+                  <Trash2 className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">{goalDetailsTranslations?.actions?.delete || 'Delete'}</span>
-                  <span className="sm:hidden">Delete</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -579,314 +476,337 @@ const GoalDetails: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="w-5 h-5" />
-                {goalDetailsTranslations?.sections?.basicInfo || 'Basic Information'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      {goalDetailsTranslations?.fields?.status || 'Status'}
-                    </label>
-                    <FieldTooltip 
-                      targetId="goal-status" 
-                      fieldLabel={goalDetailsTranslations?.fields?.status || 'Status'} 
-                      hint={goalDetailsTranslations?.hints?.fields?.status || 'Current progress state of the goal (active, paused, completed, or archived).'}
-                      iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {getStatusIcon(goal.status)}
-                    <Badge 
-                      variant="secondary" 
-                      className={`${getStatusColorClass(goal.status)} text-xs`}
-                    >
-                      {formatGoalStatus(goal.status)}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      {goalDetailsTranslations?.fields?.category || 'Category'}
-                    </label>
-                    <FieldTooltip 
-                      targetId="goal-category" 
-                      fieldLabel={goalDetailsTranslations?.fields?.category || 'Category'} 
-                      hint={goalDetailsTranslations?.hints?.fields?.category || 'Optional categorization to group related goals.'}
-                      iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                    />
-                  </div>
-                  <p className="mt-1 text-sm">{goal.category || 'No category assigned'}</p>
-                </div>
-              </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="details" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">{goalDetailsTranslations?.tabs?.details || 'Details'}</span>
+            <span className="sm:hidden">Details</span>
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="flex items-center gap-2">
+            <ListTodo className="w-4 h-4" />
+            <span className="hidden sm:inline">{goalDetailsTranslations?.tabs?.tasks || 'Tasks'}</span>
+            <span className="sm:hidden">Tasks</span>
+          </TabsTrigger>
+        </TabsList>
 
-              <div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {goalDetailsTranslations?.fields?.tags || 'Tags'}
-                  </label>
-                  <FieldTooltip 
-                    targetId="goal-tags" 
-                    fieldLabel={goalDetailsTranslations?.fields?.tags || 'Tags'} 
-                    hint={goalDetailsTranslations?.hints?.fields?.tags || 'Labels to help organize and find related goals.'}
-                    iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {goal.tags && goal.tags.length > 0 ? (
-                    goal.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">No tags assigned</span>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Description */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                {goalDetailsTranslations?.sections?.description || 'Description'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {goal.description || 'No description provided'}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* NLP Answers */}
-          {goal.answers && goal.answers.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  {goalDetailsTranslations?.sections?.nlpAnswers || 'NLP Answers'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {goal.answers.map((answer, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        {answer.key}
-                      </label>
-                      <FieldTooltip 
-                        targetId={`nlp-${answer.key}-${index}`} 
-                        fieldLabel={answer.key} 
-                        hint={goalsTranslations?.hints?.questions?.[answer.key] || 'Your responses to the NLP (Neuro-Linguistic Programming) questions.'}
-                        iconLabelTemplate={goalsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                      />
-                    </div>
-                    <p className="text-sm bg-muted p-3 rounded-md">
-                      {answer.answer}
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Goal Quests Section */}
-          <ErrorBoundary>
-            <GoalQuestsSection
-              goalId={goal.id}
-              goalTitle={goal.title}
-              canCreate={goal?.canAddTasks || false}
-              canViewAll={goal?.canEdit || false}
-            />
-          </ErrorBoundary>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                {goalDetailsTranslations?.sections?.timeline || 'Timeline'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">
-                        {goalDetailsTranslations?.timeline?.created || 'Created'}
-                      </p>
-                      <FieldTooltip 
-                        targetId="goal-created" 
-                        fieldLabel={goalDetailsTranslations?.timeline?.created || 'Created'} 
-                        hint={goalDetailsTranslations?.hints?.fields?.createdAt || 'When this goal was originally created.'}
-                        iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(goal.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">
-                        {goalDetailsTranslations?.timeline?.lastUpdated || 'Last Updated'}
-                      </p>
-                      <FieldTooltip 
-                        targetId="goal-updated" 
-                        fieldLabel={goalDetailsTranslations?.timeline?.lastUpdated || 'Last Updated'} 
-                        hint={goalDetailsTranslations?.hints?.fields?.updatedAt || 'When this goal was last modified.'}
-                        iconLabelTemplate={goalDetailsTranslations?.hints?.iconLabel || 'More information about {field}'}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(goal.updatedAt)}
-                    </p>
-                  </div>
-                </div>
-
-                {deadlineInfo ? (
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <div>
+        {/* Details Tab */}
+        <TabsContent value="details" className="space-y-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Basic Information - Enhanced layout */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Target className="w-5 h-5" />
+                    {goalDetailsTranslations?.sections?.basicInfo || 'Basic Information'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Status and Category in a row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">
-                          {goalDetailsTranslations?.timeline?.deadline || 'Deadline'}
-                        </p>
+                        <label className="text-sm font-semibold text-foreground">
+                          {goalDetailsTranslations?.fields?.status || 'Status'}
+                        </label>
                         <FieldTooltip 
-                          targetId="goal-deadline" 
-                          fieldLabel={goalDetailsTranslations?.timeline?.deadline || 'Deadline'} 
-                          hint={goalsTranslations?.hints?.fields?.deadline || 'Pick the target date you want to finish; you can adjust it if plans change.'}
-                          iconLabelTemplate={goalsTranslations?.hints?.iconLabel || 'More information about {field}'}
+                          targetId="goal-status" 
+                          fieldLabel={goalDetailsTranslations?.fields?.status || 'Status'} 
+                          hint={goalDetailsTranslations?.hints?.fields?.status || 'Current progress state of the goal'}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDeadline(goal.deadline!)}
-                        {deadlineInfo.isOverdue ? (
-                          <span className="text-destructive ml-2">
-                            ({Math.abs(deadlineInfo.daysRemaining)} {goalDetailsTranslations?.timeline?.daysOverdue || 'days overdue'})
-                          </span>
-                        ) : deadlineInfo.isDueSoon ? (
-                          <span className="text-orange-500 ml-2">
-                            ({deadlineInfo.daysRemaining} {goalDetailsTranslations?.timeline?.daysRemaining || 'days remaining'})
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground ml-2">
-                            ({deadlineInfo.daysRemaining} {goalDetailsTranslations?.timeline?.daysRemaining || 'days remaining'})
-                          </span>
-                        )}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(goal.status)}
+                        <Badge 
+                          variant="secondary" 
+                          className={`${getStatusColorClass(goal.status)} text-sm px-3 py-1`}
+                        >
+                          {formatGoalStatus(goal.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-semibold text-foreground">
+                          {goalDetailsTranslations?.fields?.category || 'Category'}
+                        </label>
+                        <FieldTooltip 
+                          targetId="goal-category" 
+                          fieldLabel={goalDetailsTranslations?.fields?.category || 'Category'} 
+                          hint={goalDetailsTranslations?.hints?.fields?.category || 'Optional categorization'}
+                        />
+                      </div>
+                      {goal.category ? (
+                        <p className="text-sm text-foreground font-medium">
+                          {goal.category}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                          No category assigned
+                        </p>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {goalDetailsTranslations?.timeline?.deadline || 'Deadline'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {goalDetailsTranslations?.timeline?.noDeadline || 'No deadline set'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                {goalDetailsTranslations?.sections?.progress || 'Progress'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {goalWithProgress ? (
-                <DualProgressBar 
-                  goal={goalWithProgress} 
-                  showMilestones={true}
-                  showLabels={true}
-                />
-              ) : (
-                <div className="text-center text-muted-foreground py-4">
-                  Loading progress data...
-                </div>
+                  {/* Tags */}
+                  {goal.tags && goal.tags.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-semibold text-foreground">
+                          {goalDetailsTranslations?.fields?.tags || 'Tags'}
+                        </label>
+                        <FieldTooltip 
+                          targetId="goal-tags" 
+                          fieldLabel={goalDetailsTranslations?.fields?.tags || 'Tags'} 
+                          hint={goalDetailsTranslations?.hints?.fields?.tags || 'Labels to help organize goals'}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {goal.tags.map((tag, index) => (
+                          <Badge key={index} variant="outline" className="text-xs px-2.5 py-1">
+                            <Tag className="w-3 h-3 mr-1.5" />
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Description */}
+              {goal.description && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <FileText className="w-5 h-5" />
+                      {goalDetailsTranslations?.sections?.description || 'Description'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                      {goal.description}
+                    </p>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
-      {/* Tasks Modal */}
-      <TasksModal
-        isOpen={showTasksModal}
-        onClose={() => setShowTasksModal(false)}
-        tasks={tasks}
-        onUpdateTask={handleTaskUpdate}
-        onDeleteTask={handleTaskDelete}
-        onTasksChange={loadGoalTasks}
-        onCreateTask={handleCreateTask}
-        canEdit={goal?.canEdit || false}
-        canDelete={goal?.canDelete || false}
-        canCreate={goal?.canAddTasks || false}
-      />
+              {/* Goal Contract (NLP Answers) */}
+              {goal.answers && goal.answers.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <User className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-base sm:text-lg mb-1">
+                          {goalCreationTranslations?.sections?.nlpQuestions || 'Goal Contract'}
+                        </CardTitle>
+                        {goalCreationTranslations?.sections?.nlpSubtitle && (
+                          <p className="text-sm text-muted-foreground">
+                            {goalCreationTranslations.sections.nlpSubtitle}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {goal.answers.map((answer, index) => {
+                        const questionLabel = nlpQuestions[answer.key as keyof typeof nlpQuestions] || answer.key;
+                        const questionHint = nlpHints[answer.key as keyof typeof nlpHints];
+                        
+                        return (
+                          <div 
+                            key={index} 
+                            className="border rounded-lg p-4 space-y-3 bg-card hover:border-primary/50 transition-all hover:shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <label className="text-sm font-semibold text-foreground leading-tight">
+                                    {questionLabel}
+                                  </label>
+                                  {questionHint && (
+                                    <FieldTooltip 
+                                      targetId={`nlp-${answer.key}-${index}`} 
+                                      fieldLabel={questionLabel} 
+                                      hint={questionHint}
+                                      iconLabelTemplate={goalCreationTranslations?.hints?.iconLabel || 'More information about {field}'}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="pt-2 border-t">
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                                {answer.answer}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-      {/* Create Task Modal */}
-      <CreateTaskModal
-        isOpen={showCreateTaskModal}
-        onClose={() => setShowCreateTaskModal(false)}
-        onCreate={handleTaskCreate}
-        goalDeadline={goal?.deadline || null}
-      />
+              {/* Goal Quests Section */}
+              <ErrorBoundary>
+                <GoalQuestsSection
+                  goalId={goal.id}
+                  goalTitle={goal.title}
+                  canCreate={goal?.canAddTasks || false}
+                  canViewAll={goal?.canEdit || false}
+                />
+              </ErrorBoundary>
+            </div>
 
-      {/* Collaboration Section - Hide for completed or archived goals */}
-      {goal && !['completed', 'archived'].includes(goal.status) && (
-        <div className="mt-8 space-y-6">
-          <CollaboratorList
-            resourceType="goal"
-            resourceId={goal.id}
-            resourceTitle={goal.title}
-            currentUserId={getUserIdFromToken() || ''}
-            isOwner={goal.canEdit || false} // Use access control information
-            onInviteClick={() => setShowInviteModal(true)}
-          />
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Timeline */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Clock className="w-5 h-5" />
+                    {goalDetailsTranslations?.sections?.timeline || 'Timeline'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {goalDetailsTranslations?.timeline?.created || 'Created'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {formatDate(goal.createdAt)}
+                        </p>
+                      </div>
+                    </div>
 
-          {/* Only show comment section if user can comment */}
-          {goal.canComment && (
-            <CommentSection
-              resourceType="goal"
-              resourceId={goal.id}
-            />
+                    <div className="flex items-center gap-3">
+                      <CalendarDays className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {goalDetailsTranslations?.timeline?.lastUpdated || 'Last Updated'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {formatDate(goal.updatedAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {deadlineInfo ? (
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            {goalDetailsTranslations?.timeline?.deadline || 'Deadline'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDeadline(goal.deadline!)}
+                            {deadlineInfo.isOverdue ? (
+                              <span className="text-destructive ml-2">
+                                ({Math.abs(deadlineInfo.daysRemaining)} {goalDetailsTranslations?.timeline?.daysOverdue || 'days overdue'})
+                              </span>
+                            ) : deadlineInfo.isDueSoon ? (
+                              <span className="text-orange-500 ml-2">
+                                ({deadlineInfo.daysRemaining} {goalDetailsTranslations?.timeline?.daysRemaining || 'days remaining'})
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground ml-2">
+                                ({deadlineInfo.daysRemaining} {goalDetailsTranslations?.timeline?.daysRemaining || 'days remaining'})
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium">
+                            {goalDetailsTranslations?.timeline?.deadline || 'Deadline'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {goalDetailsTranslations?.timeline?.noDeadline || 'No deadline set'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Progress */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <BarChart3 className="w-5 h-5" />
+                    {goalDetailsTranslations?.sections?.progress || 'Progress'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {goalWithProgress ? (
+                    <DualProgressBar 
+                      goal={goalWithProgress} 
+                      showMilestones={true}
+                      showLabels={true}
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground py-4">
+                      Loading progress data...
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Collaboration Section */}
+          {goal && !['completed', 'archived'].includes(goal.status) && (
+            <div className="mt-8 space-y-6">
+              <CollaboratorList
+                resourceType="goal"
+                resourceId={goal.id}
+                resourceTitle={goal.title}
+                currentUserId={getUserIdFromToken() || ''}
+                isOwner={goal.canEdit || false}
+                onInviteClick={() => setShowInviteModal(true)}
+              />
+
+              {goal.canComment && (
+                <CommentSection
+                  resourceType="goal"
+                  resourceId={goal.id}
+                />
+              )}
+            </div>
           )}
-        </div>
-      )}
+        </TabsContent>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="mt-6">
+          <TasksListInline
+            tasks={tasks}
+            goalId={goal.id}
+            goalDeadline={goal.deadline}
+            onUpdateTask={handleTaskUpdate}
+            onDeleteTask={handleTaskDelete}
+            onCreateTask={handleTaskCreate}
+            canEdit={goal.canEdit || false}
+            canDelete={goal.canDelete || false}
+            canCreate={goal.canAddTasks || false}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Invite Collaborator Modal */}
       {goal && showInviteModal && (
@@ -898,7 +818,6 @@ const GoalDetails: React.FC = () => {
           resourceTitle={goal.title}
           onInviteSent={() => {
             setShowInviteModal(false);
-            // Optionally refresh collaborator list or show success message
           }}
         />
       )}

@@ -85,3 +85,24 @@ variable "avatar_s3_bucket" {
   type        = string
   default     = ""
 }
+
+variable "stripe_secret_key" {
+  description = "Stripe secret key for subscription billing"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_webhook_secret" {
+  description = "Stripe webhook secret for webhook signature verification"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "stripe_publishable_key" {
+  description = "Stripe publishable key for frontend checkout"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
