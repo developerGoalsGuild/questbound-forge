@@ -34,6 +34,7 @@ import type { QuestTranslations } from './quest';
 import type { CollaborationsTranslations } from './collaborations';
 import type { CommonTranslations } from './common';
 import type { GuildTranslations } from './guild';
+import type { SubscriptionTranslations } from './subscription';
 
 import { navTranslations } from './nav';
 import { loginTranslations } from './login';
@@ -54,6 +55,7 @@ import { headerTranslations } from './header';
 import { questTranslations } from './quest';
 import { collaborationsTranslations } from './collaborations';
 import { guildTranslations } from './guild';
+import { subscriptionTranslations } from './subscription';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -72,6 +74,7 @@ export type Translations = { [key: string]: any } & {
   header: HeaderTranslations;
   quest: QuestTranslations;
   guild: GuildTranslations;
+  subscription: SubscriptionTranslations;
   common: CommonTranslations;
 } & CollaborationsTranslations;
 
@@ -97,6 +100,7 @@ export const translations: Record<Language, Translations> = {
     header: headerTranslations.en,
     quest: questTranslations.en,
     guild: guildTranslations.en,
+    subscription: subscriptionTranslations.en.subscription,
     ...collaborationsTranslations.en,
     common: commonTranslations.en,
   },
@@ -118,6 +122,7 @@ export const translations: Record<Language, Translations> = {
     header: headerTranslations.es,
     quest: questTranslations.es,
     guild: guildTranslations.es,
+    subscription: subscriptionTranslations.es.subscription,
     ...collaborationsTranslations.es,
     common: commonTranslations.es,
   },
@@ -139,6 +144,7 @@ export const translations: Record<Language, Translations> = {
     header: headerTranslations.fr,
     quest: questTranslations.fr,
     guild: guildTranslations.fr,
+    subscription: subscriptionTranslations.fr.subscription,
     ...collaborationsTranslations.fr,
     common: commonTranslations.fr,
   },

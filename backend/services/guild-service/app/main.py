@@ -218,7 +218,7 @@ async def calculate_guild_analytics(guild_id: str):
         active_members = len([m for m in members if m.last_seen_at and 
                              (datetime.now() - m.last_seen_at).days <= 7])
         
-        # Get guild goals and quests
+        # Get user goals from guild members (not guild-level goals)
         goals = guild.goals or []
         quests = guild.quests or []
         

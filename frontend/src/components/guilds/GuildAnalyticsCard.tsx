@@ -15,7 +15,6 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   Users,
-  Target,
   Trophy,
   TrendingUp,
   TrendingDown,
@@ -37,26 +36,21 @@ export interface GuildAnalyticsData {
   // Basic metrics
   totalMembers: number;
   activeMembers: number;
-  totalGoals: number;
-  completedGoals: number;
   totalQuests: number;
   completedQuests: number;
   
   // Activity metrics
   weeklyActivity: number;
   monthlyActivity: number;
-  averageGoalCompletion: number;
   averageQuestCompletion: number;
   
   // Growth metrics
   memberGrowthRate: number;
-  goalGrowthRate: number;
   questGrowthRate: number;
   
   // Performance metrics
   topPerformers: number;
   newMembersThisWeek: number;
-  goalsCreatedThisWeek: number;
   questsCompletedThisWeek: number;
   
   // Member activity rate (weighted: login 30% + completions 40% + chat 30%)
@@ -72,7 +66,6 @@ export interface GuildAnalyticsData {
     username: string;
     avatarUrl?: string;
     role: 'owner' | 'member';
-    goalsCompleted: number;
     questsCompleted: number;
     activityScore: number;
     totalXp: number;
@@ -259,10 +252,6 @@ const MemberLeaderboard: React.FC<MemberLeaderboardProps> = ({
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
                     <span className="flex items-center gap-1">
-                      <Target className="h-3 w-3" />
-                      {member.goalsCompleted} {guildTranslations?.analytics?.goals || 'goals'}
-                    </span>
-                    <span className="flex items-center gap-1">
                       <Trophy className="h-3 w-3" />
                       {member.questsCompleted} {guildTranslations?.analytics?.quests || 'quests'}
                     </span>
@@ -316,20 +305,15 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
   const safeData = {
     totalMembers: data?.totalMembers || 0,
     activeMembers: data?.activeMembers || 0,
-    totalGoals: data?.totalGoals || 0,
-    completedGoals: data?.completedGoals || 0,
     totalQuests: data?.totalQuests || 0,
     completedQuests: data?.completedQuests || 0,
     weeklyActivity: data?.weeklyActivity || 0,
     monthlyActivity: data?.monthlyActivity || 0,
-    averageGoalCompletion: data?.averageGoalCompletion || 0,
     averageQuestCompletion: data?.averageQuestCompletion || 0,
     memberGrowthRate: data?.memberGrowthRate || 0,
-    goalGrowthRate: data?.goalGrowthRate || 0,
     questGrowthRate: data?.questGrowthRate || 0,
     topPerformers: data?.topPerformers || 0,
     newMembersThisWeek: data?.newMembersThisWeek || 0,
-    goalsCreatedThisWeek: data?.goalsCreatedThisWeek || 0,
     questsCompletedThisWeek: data?.questsCompletedThisWeek || 0,
     memberActivityRate: data?.memberActivityRate,
     createdAt: data?.createdAt || new Date().toISOString(),
@@ -343,10 +327,6 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
     ? Math.round(safeData.memberActivityRate)
     : (safeData.totalMembers > 0) 
     ? Math.round((safeData.activeMembers / safeData.totalMembers) * 100) 
-    : 0;
-  
-  const goalCompletionRate = (safeData.totalGoals > 0) 
-    ? Math.round((safeData.completedGoals / safeData.totalGoals) * 100) 
     : 0;
   
   const questCompletionRate = (safeData.totalQuests > 0) 
@@ -413,15 +393,15 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
               color="blue"
             />
             <MetricCard
-              title={guildTranslations?.analytics?.goals || 'Goals'}
-              value={safeData.totalGoals}
-              icon={Target}
+              title={guildTranslations?.analytics?.quests || 'Quests'}
+              value={safeData.totalQuests}
+              icon={Trophy}
               trend={showTrends ? {
-                value: safeData.goalGrowthRate,
-                isPositive: safeData.goalGrowthRate >= 0,
+                value: safeData.questGrowthRate,
+                isPositive: safeData.questGrowthRate >= 0,
                 period: 'month'
               } : undefined}
-              color="green"
+              color="yellow"
             />
           </div>
         </CardContent>
@@ -440,7 +420,7 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Key Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <MetricCard
               title="Total Members"
               value={safeData.totalMembers}
@@ -452,18 +432,6 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
               } : undefined}
               description={`${safeData.activeMembers} active`}
               color="blue"
-            />
-            <MetricCard
-              title="Total Goals"
-              value={safeData.totalGoals}
-              icon={Target}
-              trend={showTrends ? {
-                value: safeData.goalGrowthRate,
-                isPositive: safeData.goalGrowthRate >= 0,
-                period: 'month'
-              } : undefined}
-              description={`${safeData.completedGoals} completed`}
-              color="green"
             />
             <MetricCard
               title="Total Quests"
@@ -497,13 +465,6 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Goal Completion</span>
-                <span className="text-sm text-gray-600">{goalCompletionRate}%</span>
-              </div>
-              <Progress value={goalCompletionRate} className="h-2" />
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Quest Completion</span>
                 <span className="text-sm text-gray-600">{questCompletionRate}%</span>
               </div>
@@ -518,10 +479,6 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">New members this week</span>
                 <Badge variant="secondary">{safeData.newMembersThisWeek}</Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Goals created this week</span>
-                <Badge variant="secondary">{safeData.goalsCreatedThisWeek}</Badge>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Quests completed this week</span>
@@ -555,7 +512,7 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Primary Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MetricCard
             title="Members"
             value={safeData.totalMembers}
@@ -567,18 +524,6 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
             } : undefined}
             description={`${safeData.activeMembers} active (${memberActivityRate}%)`}
             color="blue"
-          />
-          <MetricCard
-            title="Goals"
-            value={safeData.totalGoals}
-            icon={Target}
-            trend={showTrends ? {
-              value: safeData.goalGrowthRate,
-              isPositive: safeData.goalGrowthRate >= 0,
-              period: 'month'
-            } : undefined}
-            description={`${safeData.completedGoals} completed (${goalCompletionRate}%)`}
-            color="green"
           />
           <MetricCard
             title="Quests"
@@ -626,13 +571,6 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
               </div>
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Goal Completion Rate</span>
-                  <span className="text-sm text-gray-600">{goalCompletionRate}%</span>
-                </div>
-                <Progress value={goalCompletionRate} className="h-2" />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">Quest Completion Rate</span>
                   <span className="text-sm text-gray-600">{questCompletionRate}%</span>
                 </div>
@@ -645,14 +583,10 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
         {/* Weekly Summary */}
         <div className="bg-gray-50 rounded-lg p-4">
           <h4 className="text-sm font-medium text-gray-900 mb-3">This Week's Summary</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{safeData.newMembersThisWeek}</div>
               <div className="text-xs text-gray-600">New Members</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{safeData.goalsCreatedThisWeek}</div>
-              <div className="text-xs text-gray-600">Goals Created</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-600">{safeData.questsCompletedThisWeek}</div>

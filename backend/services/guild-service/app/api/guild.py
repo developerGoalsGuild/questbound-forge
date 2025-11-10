@@ -125,7 +125,7 @@ async def get_guild_rankings_endpoint(
 async def get_guild_endpoint(
     guild_id: str,
     include_members: bool = Query(False, description="Include guild members"),
-    include_goals: bool = Query(False, description="Include guild goals"),
+    include_goals: bool = Query(False, description="Include user goals from guild members (not guild-level goals)"),
     include_quests: bool = Query(False, description="Include guild quests")
 ):
     """Get guild details."""

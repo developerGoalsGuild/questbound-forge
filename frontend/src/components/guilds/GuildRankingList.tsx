@@ -21,7 +21,6 @@ import {
   SortDesc,
   Trophy,
   Users,
-  Target,
   Zap,
   Loader2,
   AlertCircle,
@@ -141,14 +140,12 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
 
     const totalGuilds = guilds.length;
     const totalMembers = guilds.reduce((sum, guild) => sum + guild.memberCount, 0);
-    const totalGoals = guilds.reduce((sum, guild) => sum + guild.goalCount, 0);
     const totalScore = guilds.reduce((sum, guild) => sum + guild.totalScore, 0);
     const avgActivity = guilds.reduce((sum, guild) => sum + guild.activityScore, 0) / totalGuilds;
 
     return {
       totalGuilds,
       totalMembers,
-      totalGoals,
       totalScore,
       avgActivity: Math.round(avgActivity),
     };
@@ -224,10 +221,6 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
                 {stats.totalMembers.toLocaleString()} members
-              </span>
-              <span className="flex items-center gap-1">
-                <Target className="h-4 w-4" />
-                {stats.totalGoals.toLocaleString()} goals
               </span>
               <span className="flex items-center gap-1">
                 <Zap className="h-4 w-4" />

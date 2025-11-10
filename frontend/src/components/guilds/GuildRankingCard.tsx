@@ -21,7 +21,6 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
-  Target,
   Zap,
   Activity,
   Award,
@@ -39,7 +38,6 @@ export interface GuildRankingData {
   previousPosition?: number;
   totalScore: number;
   memberCount: number;
-  goalCount: number;
   questCount: number;
   activityScore: number;
   growthRate: number;
@@ -287,10 +285,6 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
                   {data.memberCount || 0} {guildTranslations?.analytics?.members || 'members'}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Target className="h-3 w-3" />
-                  {data.goalCount || 0} {guildTranslations?.analytics?.goals || 'goals'}
-                </span>
-                <span className="flex items-center gap-1">
                   <Zap className="h-3 w-3" />
                   {(data.totalScore || 0).toLocaleString()} pts
                 </span>
@@ -377,12 +371,6 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
             trend={showTrends ? { value: Math.abs(data.growthRate), isPositive: data.growthRate > 0 } : undefined}
           />
           <MetricItem
-            icon={Target}
-            label="Goals"
-            value={data.goalCount}
-            color="green"
-          />
-          <MetricItem
             icon={Trophy}
             label="Quests"
             value={data.questCount}
@@ -408,7 +396,7 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
               className="h-2" 
             />
             <p className="text-xs text-gray-500">
-              Based on member activity, goal completion, and quest progress
+              Based on member activity and quest progress
             </p>
           </div>
         )}

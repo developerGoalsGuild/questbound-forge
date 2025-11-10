@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
-import { createUser, isEmailAvailable, isNicknameAvailable, confirmEmail } from '@/lib/api';
+import { createUser, isEmailAvailable, isNicknameAvailable, confirmEmail, login } from '@/lib/api';
 import { getCountries, initialsFor, isValidCountryCode } from '@/i18n/countries';
 import { mapSignupErrorToField } from './errorMapping';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -23,6 +24,7 @@ interface FormData {
 
 const LocalSignUp: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   // Unify translation shape: prefer signup.local when present
   const signup = useMemo(() => (t as any).signup?.local || (t as any).signup || {}, [t]);
   const [formData, setFormData] = useState<FormData>({
@@ -201,7 +203,8 @@ const LocalSignUp: React.FC = () => {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    return isValid;
   };
 
   // Debounced email availability check as user types
@@ -296,7 +299,9 @@ const LocalSignUp: React.FC = () => {
     e.preventDefault();
     setSuccessMessage(null);
     setErrorMessage(null);
-    if (!validate()) return;
+    if (!validate()) {
+      return;
+    }
 
     // Optional: server-side email uniqueness check via GraphQL
     try {
@@ -306,10 +311,8 @@ const LocalSignUp: React.FC = () => {
         return;
       }
     } catch (err) {
-      // On check failure, proceed cautiously or surface a generic message
-      // Here we choose to surface a validation-style message
-      setErrors((prev) => ({ ...prev, email: (signup.validation?.emailTaken as string) || 'Email already in use' }));
-      return;
+      // On check failure, proceed with signup (availability check is optional)
+      // Don't block signup on availability check failure - let the backend handle it
     }
 
     setLoading(true);
@@ -329,34 +332,105 @@ const LocalSignUp: React.FC = () => {
         country: formData.country,
         gender: formData.gender
         });
+      
       if (emailConfirmationEnabled) {
         // Send email confirmation only when enabled
         await confirmEmail(formData.email);
+        // Success copy depends on feature flag
+        const successText = signup.successConfirmMessage || signup.successMessage;
+        setSuccessMessage(successText);
+        setFormData({
+          email: '',
+          fullName: '',
+          password: '',
+          confirmPassword: '',
+          nickname: '',
+          pronouns: '',
+          bio: '',
+          birthDate: '',
+          country: '',
+          gender: '',
+          role: 'user',
+        });
+      } else {
+        // If email confirmation is disabled, automatically log the user in
+        // Add a small delay to ensure user account is fully created
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        try {
+          const loginResponse = await login(formData.email, formData.password);
+          
+          // Store authentication tokens
+          localStorage.setItem('auth', JSON.stringify(loginResponse));
+          window.dispatchEvent(new CustomEvent('auth:change'));
+          
+          // Try to infer user type from token payload
+          const token = loginResponse.id_token || loginResponse.access_token;
+          let userType: 'user' | 'partner' | 'patron' = 'user';
+          if (token && token.split('.').length >= 2) {
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              const role = (payload?.role || payload?.user_type || '').toString().toLowerCase();
+              if (role === 'partner' || role === 'patron' || role === 'user') {
+                userType = role as any;
+              }
+            } catch {}
+          }
+          
+          // Navigate to dashboard or subscription page
+          const dest = userType ? `/dashboard?type=${encodeURIComponent(userType)}` : '/dashboard';
+          navigate(dest, { replace: true });
+        } catch (loginError: any) {
+          // If auto-login fails, try once more after a longer delay
+          try {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const retryLoginResponse = await login(formData.email, formData.password);
+            
+            // Store authentication tokens
+            localStorage.setItem('auth', JSON.stringify(retryLoginResponse));
+            window.dispatchEvent(new CustomEvent('auth:change'));
+            
+            // Try to infer user type from token payload
+            const token = retryLoginResponse.id_token || retryLoginResponse.access_token;
+            let userType: 'user' | 'partner' | 'patron' = 'user';
+            if (token && token.split('.').length >= 2) {
+              try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const role = (payload?.role || payload?.user_type || '').toString().toLowerCase();
+                if (role === 'partner' || role === 'patron' || role === 'user') {
+                  userType = role as any;
+                }
+              } catch {}
+            }
+            
+            // Navigate to dashboard or subscription page
+            const dest = userType ? `/dashboard?type=${encodeURIComponent(userType)}` : '/dashboard';
+            navigate(dest, { replace: true });
+          } catch (retryError: any) {
+            // If retry also fails, show success message and let user login manually
+            setSuccessMessage(signup.successMessage || 'Account created successfully. Please log in.');
+            setFormData({
+              email: '',
+              fullName: '',
+              password: '',
+              confirmPassword: '',
+              nickname: '',
+              pronouns: '',
+              bio: '',
+              birthDate: '',
+              country: '',
+              gender: '',
+              role: 'user',
+            });
+          }
+        }
       }
-      // Success copy depends on feature flag
-      const successText = emailConfirmationEnabled
-        ? (signup.successConfirmMessage || signup.successMessage)
-        : signup.successMessage;
-      setSuccessMessage(successText);
-      setFormData({
-        email: '',
-        fullName: '',
-        password: '',
-        confirmPassword: '',
-        nickname: '',
-        pronouns: '',
-        bio: '',
-        birthDate: '',
-        country: '',
-        gender: '',
-        role: 'user',
-      });
     } catch (error: any) {
       const mapped = mapSignupErrorToField(error, signup);
       if (mapped) {
         setErrors((prev) => ({ ...prev, [mapped.field]: mapped.message }));
       } else {
-        setErrorMessage(signup.errorMessage);
+        setErrorMessage(signup.errorMessage || error?.message || 'Signup failed');
       }
     } finally {
       setLoading(false);

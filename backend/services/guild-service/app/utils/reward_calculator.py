@@ -5,7 +5,7 @@ Automatically calculates quest reward XP based on:
 - Base XP: 50 (single base for all quests)
 - Scope multiplier (linear): Number of items in scope
 - Period multiplier (square root): Compensates for longer periods with diminishing returns
-- Difficulty weights: Tasks = 1x, Goals = 2x, Guild quests = 3x
+- Difficulty weights: Tasks = 1x, User Goals = 2x, Guild quests = 3x
 """
 
 import math
@@ -39,14 +39,14 @@ def calculate_guild_quest_reward(
     
     Args:
         kind: Quest type ("quantitative", "percentual")
-        linked_goal_ids: List of linked goal IDs (for percentual quests)
+        linked_goal_ids: List of linked user goal IDs (for percentual quests - references goals from guild members)
         linked_task_ids: List of linked task IDs (for percentual quests)
         target_count: Target count for quantitative quests
-        count_scope: Scope for quantitative quests ("goals", "tasks", "guild_quest")
+        count_scope: Scope for quantitative quests ("goals" for user goals, "tasks", "guild_quest")
         period_days: Period duration in days
         percentual_type: Type for percentual quests ("goal_task_completion", "member_completion")
         member_total: Total guild members (for member_completion percentual quests)
-        percentual_count_scope: Count scope for goal_task_completion ("goals", "tasks", "both")
+        percentual_count_scope: Count scope for goal_task_completion ("goals" for user goals, "tasks", "both")
     
     Returns:
         Calculated reward XP (capped between MIN_REWARD_XP and MAX_REWARD_XP)
@@ -99,7 +99,7 @@ def _calculate_scope(
         
         # Apply difficulty weight based on what we're counting
         if count_scope == "goals":
-            # Goals are harder: multiply by GOAL_WEIGHT
+            # User goals are harder: multiply by GOAL_WEIGHT
             return float(target_count) * GOAL_WEIGHT
         elif count_scope == "tasks":
             # Tasks are easier: multiply by TASK_WEIGHT
@@ -110,7 +110,7 @@ def _calculate_scope(
     
     elif kind == "percentual":
         if percentual_type == "goal_task_completion":
-            # Count linked goals/tasks with weights
+            # Count linked user goals/tasks with weights
             goals_count = len(linked_goal_ids)
             tasks_count = len(linked_task_ids)
             

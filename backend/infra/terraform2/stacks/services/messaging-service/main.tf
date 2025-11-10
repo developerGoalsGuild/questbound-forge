@@ -207,3 +207,6 @@ resource "aws_iam_role_policy_attachment" "messaging_service_ssm_policy" {
 
 
 
+
+
+

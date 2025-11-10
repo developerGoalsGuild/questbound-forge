@@ -1637,56 +1637,66 @@ export const guildAPI = {
     const data = await response.json();
     console.log('Raw analytics API response:', data);
     
+    // Check if we got valid data
+    if (!data || typeof data !== 'object') {
+      console.error('Invalid analytics response format:', data);
+      throw new Error('Invalid analytics response format');
+    }
+    
     // Transform snake_case to camelCase for frontend compatibility
+    // Handle both snake_case (backend) and camelCase (already transformed) formats
     const transformedData = {
-      // Basic metrics
-      totalMembers: data.total_members || 0,
-      activeMembers: data.active_members || 0,
-      totalGoals: data.total_goals || 0,
-      completedGoals: data.completed_goals || 0,
-      totalQuests: data.total_quests || 0,
-      completedQuests: data.completed_quests || 0,
+      // Basic metrics - try both snake_case and camelCase
+      totalMembers: data.total_members ?? data.totalMembers ?? 0,
+      activeMembers: data.active_members ?? data.activeMembers ?? 0,
+      totalQuests: data.total_quests ?? data.totalQuests ?? 0,
+      completedQuests: data.completed_quests ?? data.completedQuests ?? 0,
       
       // Activity metrics
-      weeklyActivity: data.activity_score || 0,
-      monthlyActivity: data.activity_score || 0,
-      averageGoalCompletion: data.goal_completion_rate || 0,
-      averageQuestCompletion: data.quest_completion_rate || 0,
+      weeklyActivity: data.activity_score ?? data.activityScore ?? data.weekly_activity ?? data.weeklyActivity ?? 0,
+      monthlyActivity: data.activity_score ?? data.activityScore ?? data.monthly_activity ?? data.monthlyActivity ?? 0,
+      averageQuestCompletion: data.quest_completion_rate ?? data.questCompletionRate ?? data.average_quest_completion ?? data.averageQuestCompletion ?? 0,
       
       // Growth metrics
-      memberGrowthRate: data.member_growth_rate || 0,
-      goalGrowthRate: data.goal_completion_rate || 0,
-      questGrowthRate: data.quest_completion_rate || 0,
+      memberGrowthRate: data.member_growth_rate ?? data.memberGrowthRate ?? 0,
+      questGrowthRate: data.quest_growth_rate ?? data.questGrowthRate ?? data.quest_completion_rate ?? data.questCompletionRate ?? 0,
       
       // Performance metrics
-      topPerformers: data.memberLeaderboard?.length || 0,
-      newMembersThisWeek: 0, // Not available in current backend
-      goalsCreatedThisWeek: 0, // Not available in current backend
-      questsCompletedThisWeek: 0, // Not available in current backend
+      topPerformers: data.memberLeaderboard?.length ?? data.member_leaderboard?.length ?? 0,
+      newMembersThisWeek: data.new_members_this_week ?? data.newMembersThisWeek ?? 0,
+      questsCompletedThisWeek: data.quests_completed_this_week ?? data.questsCompletedThisWeek ?? 0,
       
       // Member activity rate (weighted: login 30% + completions 40% + chat 30%)
-      memberActivityRate: data.member_activity_rate || undefined,
+      memberActivityRate: data.member_activity_rate ?? data.memberActivityRate ?? undefined,
       
       // Time-based data
-      createdAt: data.created_at || data.last_updated || new Date().toISOString(),
-      lastActivityAt: data.last_activity_at || data.last_updated || new Date().toISOString(),
+      createdAt: data.created_at ?? data.createdAt ?? data.last_updated ?? data.lastUpdated ?? new Date().toISOString(),
+      lastActivityAt: data.last_activity_at ?? data.lastActivityAt ?? data.last_updated ?? data.lastUpdated ?? new Date().toISOString(),
       
-      // Member leaderboard data (transform if available)
-      memberLeaderboard: data.memberLeaderboard?.map((member: any) => ({
-        userId: member.user_id || member.userId,
-        username: member.username || 'Unknown',
-        avatarUrl: member.avatar_url || member.avatarUrl,
-        role: member.role || 'member',
-        goalsCompleted: member.goals_completed || member.goalsCompleted || 0,
-        questsCompleted: member.quests_completed || member.questsCompleted || 0,
-        activityScore: member.score || member.activityScore || 0,
-        totalXp: member.score || member.totalXp || 0,
-        joinedAt: member.last_activity || member.joinedAt || new Date().toISOString(),
-        lastSeenAt: member.last_activity || member.lastSeenAt,
-      })) || [],
+      // Member leaderboard data (transform if available) - try both formats
+      memberLeaderboard: (data.memberLeaderboard ?? data.member_leaderboard ?? []).map((member: any) => ({
+        userId: member.user_id ?? member.userId ?? '',
+        username: member.username ?? member.nickname ?? 'Unknown',
+        avatarUrl: member.avatar_url ?? member.avatarUrl,
+        role: member.role ?? 'member',
+        questsCompleted: member.quests_completed ?? member.questsCompleted ?? 0,
+        activityScore: member.activity_score ?? member.activityScore ?? member.score ?? 0,
+        totalXp: member.total_xp ?? member.totalXp ?? member.score ?? 0,
+        joinedAt: member.joined_at ?? member.joinedAt ?? member.last_activity ?? member.lastActivity ?? new Date().toISOString(),
+        lastSeenAt: member.last_seen_at ?? member.lastSeenAt ?? member.last_activity ?? member.lastActivity,
+      })) ?? [],
     };
     
     console.log('Transformed analytics data:', transformedData);
+    console.log('Analytics data summary:', {
+      totalMembers: transformedData.totalMembers,
+      activeMembers: transformedData.activeMembers,
+      totalQuests: transformedData.totalQuests,
+      completedQuests: transformedData.completedQuests,
+      weeklyActivity: transformedData.weeklyActivity,
+      memberLeaderboardCount: transformedData.memberLeaderboard.length,
+    });
+    
     return transformedData;
   },
 

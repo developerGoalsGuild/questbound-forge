@@ -135,16 +135,16 @@ class GuildQuestCreatePayload(BaseModel):
     
     # Quantitative quest fields
     targetCount: Optional[int] = Field(None, ge=1, description="Target count for quantitative quests")
-    countScope: Optional[GuildQuestCountScope] = Field(None, description="Count scope: goals, tasks, or guild_quest")
+    countScope: Optional[GuildQuestCountScope] = Field(None, description="Count scope: goals (user goals), tasks, or guild_quest")
     targetQuestId: Optional[str] = Field(None, description="Target quest ID if counting guild quest completions")
     periodDays: Optional[int] = Field(None, ge=1, description="Period duration in days (optional)")
     
     # Percentual quest fields
     percentualType: Optional[GuildQuestPercentualType] = Field(None, description="Percentual type: goal_task_completion or member_completion")
     targetPercentage: Optional[float] = Field(None, ge=0, le=100, description="Target percentage (0-100)")
-    linkedGoalIds: Optional[List[str]] = Field(None, description="Linked goal IDs for goal_task_completion type")
+    linkedGoalIds: Optional[List[str]] = Field(None, description="Linked user goal IDs for goal_task_completion type (references goals from guild members)")
     linkedTaskIds: Optional[List[str]] = Field(None, description="Linked task IDs for goal_task_completion type")
-    percentualCountScope: Optional[Literal["goals", "tasks", "both"]] = Field(None, description="Count scope for goal_task_completion")
+    percentualCountScope: Optional[Literal["goals", "tasks", "both"]] = Field(None, description="Count scope for goal_task_completion (goals = user goals from guild members)")
 
 class GuildQuestUpdatePayload(BaseModel):
     """Payload for updating a guild quest (only draft quests)"""

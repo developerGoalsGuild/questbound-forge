@@ -5,7 +5,7 @@
 
 # Use existing ECR image directly (temporarily)
 locals {
-  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_user_service:v17"
+  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_user_service:v20"
 }
 
 module "user_lambda" {
@@ -21,6 +21,9 @@ module "user_lambda" {
     SETTINGS_SSM_PREFIX = "/goalsguild/user-service/"
   }
 }
+
+
+
 
 
 

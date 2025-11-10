@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Shield, Menu, X, Globe, User as UserIcon, LogOut, MessageSquare } from 'lucide-react';
+import { Shield, Menu, X, Globe, User as UserIcon, LogOut, MessageSquare, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -123,6 +123,12 @@ const Header = () => {
                   <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
                     <UserIcon className="h-4 w-4 mr-2" /> Profile
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/subscription')} className="cursor-pointer">
+                    <CreditCard className="h-4 w-4 mr-2" /> Subscription
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/subscription/manage')} className="cursor-pointer">
+                    <CreditCard className="h-4 w-4 mr-2" /> Manage Billing
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
                     <LogOut className="h-4 w-4 mr-2" /> Logout
                   </DropdownMenuItem>
@@ -183,6 +189,12 @@ const Header = () => {
                   <>
                     <Link to="/profile" className="font-medium hover:text-primary transition-colors">
                       Profile
+                    </Link>
+                    <Link to="/subscription" className="font-medium hover:text-primary transition-colors">
+                      Subscription
+                    </Link>
+                    <Link to="/subscription/manage" className="font-medium hover:text-primary transition-colors">
+                      Manage Billing
                     </Link>
                     <button onClick={handleLogout} className="text-left font-medium text-red-600 hover:text-red-700 transition-colors">
                       Logout

@@ -465,21 +465,13 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
 
       <CardContent>
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <Users className="h-5 w-5 text-blue-500" />
               <span className="text-2xl font-bold text-gray-900">{guild.member_count}</span>
             </div>
             <p className="text-sm text-gray-600">{translations.details.stats.members}</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Target className="h-5 w-5 text-green-500" />
-              <span className="text-2xl font-bold text-gray-900">{guild.goal_count}</span>
-            </div>
-            <p className="text-sm text-gray-600">{translations.details.stats.goals}</p>
           </div>
           
           <div className="text-center">

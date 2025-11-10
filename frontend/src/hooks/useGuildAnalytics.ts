@@ -42,7 +42,6 @@ const generateMockLeaderboard = () => {
       username,
       avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
       role: index === 0 ? 'owner' : 'member',
-      goalsCompleted: Math.floor(Math.random() * 15) + 1,
       questsCompleted: Math.floor(Math.random() * 25) + 1,
       activityScore: Math.floor(Math.random() * 40) + 60, // 60-100%
       totalXp: Math.floor(Math.random() * 5000) + 1000, // 1000-6000 XP
@@ -50,14 +49,14 @@ const generateMockLeaderboard = () => {
       lastSeenAt: lastSeenDate.toISOString(),
     };
   }).sort((a, b) => {
-    // Sort by activity score, then by total XP, then by goals completed
+    // Sort by activity score, then by total XP, then by quests completed
     if (b.activityScore !== a.activityScore) {
       return b.activityScore - a.activityScore;
     }
     if (b.totalXp !== a.totalXp) {
       return b.totalXp - a.totalXp;
     }
-    return b.goalsCompleted - a.goalsCompleted;
+    return b.questsCompleted - a.questsCompleted;
   });
 };
 
@@ -68,33 +67,27 @@ const generateMockAnalyticsData = (guildId: string): GuildAnalyticsData => {
   const lastActivity = new Date(baseDate.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Random date within last 7 days
 
   const totalMembers = Math.floor(Math.random() * 50) + 10;
-  const totalGoals = Math.floor(Math.random() * 20) + 5;
   const totalQuests = Math.floor(Math.random() * 30) + 8;
 
   return {
     // Basic metrics
     totalMembers,
     activeMembers: Math.floor(Math.random() * Math.min(30, totalMembers)) + 5,
-    totalGoals,
-    completedGoals: Math.floor(Math.random() * totalGoals) + 1,
     totalQuests,
     completedQuests: Math.floor(Math.random() * totalQuests) + 1,
     
     // Activity metrics
     weeklyActivity: Math.floor(Math.random() * 40) + 60, // 60-100%
     monthlyActivity: Math.floor(Math.random() * 30) + 50, // 50-80%
-    averageGoalCompletion: Math.floor(Math.random() * 30) + 70, // 70-100%
     averageQuestCompletion: Math.floor(Math.random() * 25) + 75, // 75-100%
     
     // Growth metrics (can be negative)
     memberGrowthRate: Math.floor(Math.random() * 40) - 10, // -10% to +30%
-    goalGrowthRate: Math.floor(Math.random() * 50) - 5, // -5% to +45%
     questGrowthRate: Math.floor(Math.random() * 60) - 15, // -15% to +45%
     
     // Performance metrics
     topPerformers: Math.floor(Math.random() * 8) + 2, // 2-10 top performers
     newMembersThisWeek: Math.floor(Math.random() * 5) + 1, // 1-6 new members
-    goalsCreatedThisWeek: Math.floor(Math.random() * 4) + 1, // 1-5 new goals
     questsCompletedThisWeek: Math.floor(Math.random() * 8) + 2, // 2-10 completed quests
     
     // Time-based data
@@ -139,7 +132,7 @@ export const useGuildAnalytics = ({
       }
       
       // Check for required fields
-      const requiredFields = ['totalMembers', 'activeMembers', 'totalGoals', 'completedGoals', 'totalQuests', 'completedQuests'];
+      const requiredFields = ['totalMembers', 'activeMembers', 'totalQuests', 'completedQuests'];
       const missingFields = requiredFields.filter(field => analyticsData[field] === undefined);
       if (missingFields.length > 0) {
         console.warn('Missing required analytics fields:', missingFields);

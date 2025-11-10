@@ -2209,7 +2209,7 @@ async def create_guild_quest(guild_id: str, payload: GuildQuestCreatePayload, cr
             if not payload.targetCount or payload.targetCount < 1:
                 raise GuildValidationError("Quantitative quests require targetCount >= 1")
             if not payload.countScope or payload.countScope not in ["goals", "tasks", "guild_quest"]:
-                raise GuildValidationError("Quantitative quests require countScope: goals, tasks, or guild_quest")
+                raise GuildValidationError("Quantitative quests require countScope: goals (user goals), tasks, or guild_quest")
             if payload.countScope == "guild_quest" and not payload.targetQuestId:
                 raise GuildValidationError("Guild quest count scope requires targetQuestId")
         
@@ -2220,7 +2220,7 @@ async def create_guild_quest(guild_id: str, payload: GuildQuestCreatePayload, cr
                 raise GuildValidationError("Percentual quests require targetPercentage between 0 and 100")
             if payload.percentualType == "goal_task_completion":
                 if not payload.linkedGoalIds and not payload.linkedTaskIds:
-                    raise GuildValidationError("Goal/task completion quests require at least one linked goal or task")
+                    raise GuildValidationError("Goal/task completion quests require at least one linked user goal or task")
                 if not payload.percentualCountScope:
                     raise GuildValidationError("Goal/task completion quests require percentualCountScope")
         
@@ -2775,7 +2775,7 @@ async def finish_guild_quest(
     finished_by: str,
     finished_by_nickname: Optional[str] = None
 ) -> GuildQuestResponse:
-    """Finish a guild quest - sets status to completed (if goals reached) or failed (if not)."""
+    """Finish a guild quest - sets status to completed (if completion criteria reached) or failed (if not)."""
     try:
         # Get existing quest
         quest = await get_guild_quest(guild_id, quest_id)
@@ -2809,7 +2809,7 @@ async def finish_guild_quest(
         
         now_ms = int(datetime.utcnow().timestamp() * 1000)
         
-        # Check if goals are reached
+        # Check if completion criteria are reached
         goals_reached = False
         
         logger.info(f"DEBUG: finish_guild_quest - Checking objectives for quest {quest_id}, kind={quest.kind}, title={quest.title}")
@@ -2842,7 +2842,7 @@ async def finish_guild_quest(
                             continue
                 # Fallback: if we couldn't check all members, use completedByCount as proxy
                 if not goals_reached:
-                    logger.info(f"Goal task completion check: No member reached {quest.targetPercentage}%, checking completedByCount as fallback")
+                    logger.info(f"Task completion check: No member reached {quest.targetPercentage}%, checking completedByCount as fallback")
                     goals_reached = (quest.completedByCount or 0) > 0
             elif quest.percentualType == "member_completion":
                 # Check if percentage of members who completed >= targetPercentage
@@ -2853,7 +2853,7 @@ async def finish_guild_quest(
                 goals_reached = completion_percentage >= target_percentage
                 logger.info(f"DEBUG: finish_guild_quest - Member completion check: {members_completed}/{member_total} ({completion_percentage:.2f}%) >= {target_percentage}%, goals_reached={goals_reached}")
         
-        # Set status based on goals
+        # Set status based on completion criteria
         final_status = 'completed' if goals_reached else 'failed'
         logger.info(f"DEBUG: finish_guild_quest - Final status: {final_status} (goals_reached={goals_reached})")
         
@@ -3005,6 +3005,7 @@ async def complete_guild_quest(
         # First, refresh quest data to get updated counts
         updated_quest = await get_guild_quest(guild_id, quest_id)
         
+        # Check if completion criteria are reached
         goals_reached = False
         
         if updated_quest.kind == "quantitative":
@@ -3015,7 +3016,7 @@ async def complete_guild_quest(
         elif updated_quest.kind == "percentual":
             if updated_quest.percentualType == "goal_task_completion":
                 # For goal_task_completion, check if any member has reached the percentage
-                # If at least one member completed, goals are reached
+                # If at least one member completed, completion criteria are reached
                 goals_reached = (updated_quest.completedByCount or 0) > 0
             elif updated_quest.percentualType == "member_completion":
                 # Check if percentage of members who completed >= targetPercentage
@@ -3024,7 +3025,7 @@ async def complete_guild_quest(
                 completion_percentage = (members_completed / member_total) * 100
                 goals_reached = completion_percentage >= (updated_quest.targetPercentage or 0)
         
-        # If objectives are reached, automatically change quest status to "completed"
+        # If completion criteria are reached, automatically change quest status to "completed"
         if goals_reached and updated_quest.status == 'active':
             now_ms_finish = int(datetime.utcnow().timestamp() * 1000)
             logger.info(f"DEBUG: complete_guild_quest - Quest objectives reached, auto-completing quest {quest_id}")

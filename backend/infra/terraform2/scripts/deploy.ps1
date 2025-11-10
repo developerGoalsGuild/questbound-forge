@@ -43,6 +43,7 @@ $EnvFile = Resolve-Path "$RepoRoot\environments\$Env.tfvars" | Select-Object -Ex
 $StacksOrder = @(
   "database",
   "security",
+  "ecr",        # ECR repositories must be created before services
   "authorizer",
   "services/user-service",
   "services/quest-service",

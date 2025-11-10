@@ -30,6 +30,9 @@ import MyCollaborations from './pages/collaborations/MyCollaborations';
 import { MyGuilds, CreateGuild, GuildDetails, GuildAnalytics, GuildRankings } from './pages/guilds';
 import GuildEditPage from './pages/guilds/GuildEdit';
 import ChatPage from './pages/chat/ChatPage';
+import SubscriptionPlans from './pages/subscription/SubscriptionPlans';
+import SubscriptionManagement from './pages/subscription/SubscriptionManagement';
+import CheckoutSuccess from './pages/subscription/CheckoutSuccess';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 const queryClient = new QueryClient();
@@ -75,6 +78,9 @@ const App = () => (
             <Route path="/guilds/analytics" element={<ProtectedRoute><AuthenticatedLayout><GuildAnalytics /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/guilds/rankings" element={<ProtectedRoute><AuthenticatedLayout><GuildRankings /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><AuthenticatedLayout><ErrorBoundary><ChatPage /></ErrorBoundary></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute><AuthenticatedLayout><SubscriptionPlans /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/subscription/manage" element={<ProtectedRoute><AuthenticatedLayout><SubscriptionManagement /></AuthenticatedLayout></ProtectedRoute>} />
+            <Route path="/subscription/success" element={<ProtectedRoute><AuthenticatedLayout><CheckoutSuccess /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/login/Login" element={<Login />} />
