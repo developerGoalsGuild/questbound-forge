@@ -1,0 +1,2 @@
+"""Gamification service models."""
+

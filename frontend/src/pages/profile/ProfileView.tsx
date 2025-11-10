@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useTranslation } from '@/hooks/useTranslation';
+import { XPDisplay } from '@/components/gamification/XPDisplay';
+import { BadgeDisplay } from '@/components/gamification/BadgeDisplay';
 import {
   User,
   Mail,
@@ -311,6 +313,10 @@ const ProfileView = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* XP & Gamification */}
+          <XPDisplay className="md:col-span-2" />
+          <BadgeDisplay className="md:col-span-2" />
 
           {/* Account Information */}
           <Card className="md:col-span-2">
