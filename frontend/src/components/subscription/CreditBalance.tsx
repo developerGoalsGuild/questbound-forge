@@ -135,7 +135,7 @@ export const CreditBalance: React.FC<CreditBalanceProps> = ({
             <AlertDescription>
               {creditsTranslations.insufficient || 'Insufficient Credits'}.{' '}
               <a
-                href="/subscription/credits"
+                href="/subscription"
                 className="font-medium underline hover:no-underline"
               >
                 {creditsTranslations.buyMore || 'Buy More Credits'}

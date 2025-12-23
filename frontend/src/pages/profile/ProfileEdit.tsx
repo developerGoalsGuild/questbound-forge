@@ -200,7 +200,7 @@ const ProfileEdit = () => {
           </Alert>
           {loadError === 'PROFILE_NOT_FOUND' && (
             <div className="mt-4">
-              <Button onClick={() => navigate('/signup')}>
+              <Button onClick={() => navigate('/signup/LocalSignUp')}>
                 Go to Sign Up
               </Button>
             </div>
