@@ -7,12 +7,15 @@ import { getAccessToken, getApiBase, getTokenExpiry, renewToken, getUserIdFromTo
 import { logger } from './logger';
 
 
+import { SubscriptionTier } from './api/subscription';
+
 export interface CreateUserInput {
   email: string;
   fullName?: string;
   password?: string;
   status?: string;
   role?: 'user' | 'partner' | 'patron';
+  subscriptionTier?: SubscriptionTier;
   [key: string]: any;
 }
 
@@ -166,6 +169,7 @@ export async function createUser(input: CreateUserInput) {
     pronouns: input.pronouns,
     bio: input.bio,
     tags: input.tags,
+    subscriptionTier: input.subscriptionTier,
     status
   };
   const headers: Record<string,string> = { 'content-type': 'application/json' };

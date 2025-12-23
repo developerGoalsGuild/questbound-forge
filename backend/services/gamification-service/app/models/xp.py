@@ -42,6 +42,10 @@ class XPAwardRequest(BaseModel):
     sourceId: Optional[str] = Field(None, description="ID of the source entity")
     description: str = Field(..., description="Description of the award")
     eventId: Optional[str] = Field(None, description="Unique event ID for idempotency")
+    metadata: Optional[dict] = Field(
+        default=None,
+        description="Optional metadata for downstream systems (quest counts, streak data, etc.)"
+    )
 
 
 class XPAwardResponse(BaseModel):
@@ -51,4 +55,30 @@ class XPAwardResponse(BaseModel):
     level: int = Field(..., description="Current level")
     levelUp: bool = Field(False, description="Whether user leveled up")
     previousLevel: Optional[int] = Field(None, description="Previous level if leveled up")
+
+
+class LevelProgress(BaseModel):
+    """Structured level progress snapshot."""
+    userId: str = Field(..., description="User ID")
+    totalXp: int = Field(..., description="Total accumulated XP")
+    currentLevel: int = Field(..., description="Current level")
+    xpForCurrentLevel: int = Field(..., description="XP required for current level")
+    xpForNextLevel: int = Field(..., description="XP required for next level")
+    xpProgress: float = Field(..., ge=0.0, le=1.0, description="Progress to next level (0-1)")
+    updatedAt: int = Field(..., description="Last updated timestamp")
+
+
+class LevelEvent(BaseModel):
+    """Historical level-up event."""
+    userId: str = Field(..., description="User ID")
+    level: int = Field(..., description="Level reached")
+    totalXp: int = Field(..., description="Total XP at level up")
+    source: Optional[str] = Field(None, description="Triggering source (quest_completion, manual_award, etc.)")
+    awardedAt: int = Field(..., description="Timestamp when level up occurred")
+
+
+class LevelHistoryResponse(BaseModel):
+    """Paginated level history response."""
+    items: List[LevelEvent] = Field(default_factory=list, description="Level events in descending order")
+    nextToken: Optional[str] = Field(None, description="Opaque pagination token for fetching the next page")
 

@@ -1,5 +1,6 @@
 # GoalsGuild Landing Page - ACM Certificate Configuration
-# Let's Encrypt SSL certificate management for CloudFront
+# AWS Certificate Manager (ACM) - FREE SSL/TLS certificates for CloudFront
+# ACM provides free public SSL/TLS certificates with automatic renewal
 
 # Data source for Route53 hosted zone (if using Route53)
 data "aws_route53_zone" "main" {
@@ -31,15 +32,13 @@ resource "aws_acm_certificate" "landing_page" {
 
 # DNS validation records for the certificate
 resource "aws_route53_record" "certificate_validation" {
-  count = var.custom_domain != "" && var.use_route53 ? 1 : 0
-  
-  for_each = {
+  for_each = var.custom_domain != "" && var.use_route53 ? {
     for dvo in aws_acm_certificate.landing_page[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
     }
-  }
+  } : {}
   
   allow_overwrite = true
   name            = each.value.name
@@ -49,12 +48,12 @@ resource "aws_route53_record" "certificate_validation" {
   zone_id         = data.aws_route53_zone.main[0].zone_id
 }
 
-# Certificate validation
+# Certificate validation (automatic for Route53, manual for external DNS)
 resource "aws_acm_certificate_validation" "landing_page" {
   count = var.custom_domain != "" && var.use_route53 ? 1 : 0
   
   certificate_arn         = aws_acm_certificate.landing_page[0].arn
-  validation_record_fqdns  = [for record in aws_route53_record.certificate_validation[0] : record.fqdn]
+  validation_record_fqdns  = [for record in aws_route53_record.certificate_validation : record.fqdn]
   
   timeouts {
     create = "10m"
@@ -107,6 +106,10 @@ resource "local_file" "dns_validation_instructions" {
     ]
   })
 }
+
+
+
+
 
 
 

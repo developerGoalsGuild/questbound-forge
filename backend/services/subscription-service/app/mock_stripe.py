@@ -94,10 +94,18 @@ class MockStripeClient:
         """Create mock checkout session - immediately succeeds in dev."""
         session_id = f"cs_mock_{uuid.uuid4().hex[:24]}"
         
+        # Replace Stripe placeholder with actual session ID (like real Stripe does)
+        checkout_url = success_url.replace("{CHECKOUT_SESSION_ID}", session_id)
+        # Add mock parameter to indicate this is a mock checkout
+        if "?" in checkout_url:
+            checkout_url = f"{checkout_url}&mock=true"
+        else:
+            checkout_url = f"{checkout_url}?mock=true"
+        
         # In dev, create a mock session that simulates successful checkout
         session = MockCheckoutSession(
             id=session_id,
-            url=f"{success_url}?session_id={session_id}&mock=true",
+            url=checkout_url,
             customer=customer_id,
             mode="subscription",
             payment_status="paid",
@@ -106,6 +114,7 @@ class MockStripeClient:
         self.checkout_sessions[session_id] = session
         
         logger.info(f"Created mock checkout session {session_id} for customer {customer_id}")
+        logger.info(f"Mock checkout URL: {checkout_url}")
         
         # In dev, auto-create subscription after a short delay (simulated)
         # This would normally happen via webhook

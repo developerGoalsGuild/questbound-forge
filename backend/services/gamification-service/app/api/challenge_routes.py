@@ -6,25 +6,40 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from typing import Optional
 from uuid import uuid4
 
+# Import models at module level (needed for response_model decorators)
 from ..models.challenge import (
     Challenge, ChallengeListResponse, ChallengeCreateRequest,
     ChallengeJoinRequest, ChallengeWithParticipants, ChallengeParticipant
 )
-from ..db.challenge_db import (
-    create_challenge, get_challenge, list_challenges,
-    join_challenge, get_challenge_participants, update_participant_progress
-)
-from ..auth import TokenVerifier, TokenVerificationError
-from ..settings import Settings
 
+# Lazy loading of heavy imports
 router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
-_settings = Settings()
-_verifier = TokenVerifier(_settings)
+# Lazy initialization of settings and verifier
+_settings = None
+_verifier = None
+
+def _get_settings():
+    """Lazy initialization of settings."""
+    global _settings
+    if _settings is None:
+        from ..settings import Settings
+        _settings = Settings()
+    return _settings
+
+def _get_verifier():
+    """Lazy initialization of token verifier."""
+    global _verifier
+    if _verifier is None:
+        from ..auth import TokenVerifier
+        _verifier = TokenVerifier(_get_settings())
+    return _verifier
 
 
 async def authenticate(authorization: Optional[str] = Header(None)):
     """Authenticate user from JWT token."""
+    from ..auth import TokenVerificationError
+    
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
     
@@ -34,7 +49,8 @@ async def authenticate(authorization: Optional[str] = Header(None)):
     token = authorization[7:]
     
     try:
-        claims, provider = _verifier.verify(token)
+        verifier = _get_verifier()
+        claims, provider = verifier.verify(token)
         return claims.get("sub")
     except TokenVerificationError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -46,6 +62,7 @@ async def create_challenge_endpoint(
     user_id: str = Depends(authenticate)
 ):
     """Create a new challenge."""
+    from ..db.challenge_db import create_challenge
     import time
     
     challenge = Challenge(
@@ -69,6 +86,8 @@ async def create_challenge_endpoint(
 @router.get("", response_model=ChallengeListResponse)
 async def list_challenges_endpoint(status: Optional[str] = None, limit: int = 50):
     """List challenges."""
+    from ..db.challenge_db import list_challenges
+    
     challenges = list_challenges(status=status, limit=limit)
     return ChallengeListResponse(challenges=challenges, total=len(challenges))
 
@@ -79,6 +98,8 @@ async def get_challenge_endpoint(
     user_id: Optional[str] = Depends(authenticate)
 ):
     """Get challenge details with participant information."""
+    from ..db.challenge_db import get_challenge, get_challenge_participants
+    
     challenge = get_challenge(challenge_id)
     if not challenge:
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -107,6 +128,9 @@ async def join_challenge_endpoint(
     user_id: str = Depends(authenticate)
 ):
     """Join a challenge."""
+    from ..db.challenge_db import get_challenge, join_challenge
+    import time
+    
     challenge = get_challenge(challenge_id)
     if not challenge:
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -114,7 +138,6 @@ async def join_challenge_endpoint(
     if challenge.status != "active":
         raise HTTPException(status_code=400, detail="Challenge is not active")
     
-    import time
     now_ms = int(time.time() * 1000)
     if now_ms < challenge.startDate or now_ms > challenge.endDate:
         raise HTTPException(status_code=400, detail="Challenge is not currently active")
@@ -134,6 +157,8 @@ async def update_challenge_progress_endpoint(
     
     This endpoint is called by other services to update challenge progress.
     """
+    from ..db.challenge_db import get_challenge, update_participant_progress
+    
     challenge = get_challenge(challenge_id)
     if not challenge:
         raise HTTPException(status_code=404, detail="Challenge not found")

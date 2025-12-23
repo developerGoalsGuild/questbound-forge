@@ -2,18 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState, KeyboardEvent } from
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { X, Check, Loader2 } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
 import { type ProfileFormData } from '@/models/profile';
 import { profileUpdateSchema } from '@/lib/validation/profileValidation';
 import { getProfile, updateProfile, getCountries, checkNicknameAvailability } from '@/lib/apiProfile';
+import { SubscriptionTier, getCurrentSubscription, createCheckoutSession } from '@/lib/api/subscription';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import NotificationPreferences from './NotificationPreferences';
@@ -23,12 +28,27 @@ const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 const ProfileEdit = () => {
   const navigate = useNavigate();
   const { language, t } = useTranslation();
+  const { toast: toastNotification } = useToast();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [nicknameTaken, setNicknameTaken] = useState<boolean>(false);
   const [tagInput, setTagInput] = useState<string>('');
+  const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
+
+  // Fetch current subscription
+  const {
+    data: subscription,
+    isLoading: subscriptionLoading,
+    error: subscriptionError,
+  } = useQuery({
+    queryKey: ['current-subscription'],
+    queryFn: getCurrentSubscription,
+  });
+
+  const subscriptionTranslations = useMemo(() => (t as any)?.subscription || {}, [t]);
+  const plansTranslations = subscriptionTranslations.plans || {};
 
   const countries = useMemo(() => getCountries(language), [language]);
 
@@ -199,9 +219,10 @@ const ProfileEdit = () => {
         </div>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="subscription">Subscription</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
@@ -359,8 +380,206 @@ const ProfileEdit = () => {
           <TabsContent value="notifications">
             <NotificationPreferences />
           </TabsContent>
+
+          <TabsContent value="subscription">
+            <Card>
+              <CardHeader>
+                <CardTitle>{subscriptionTranslations.title || 'Subscription Plans'}</CardTitle>
+                <CardDescription>
+                  {subscriptionTranslations.subtitle || 'Change your subscription plan'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {subscriptionLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                  </div>
+                ) : subscriptionError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {subscriptionTranslations.errors?.loadFailed || 'Failed to load subscription information'}
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <SubscriptionPlanSelector
+                    currentTier={subscription?.plan_tier}
+                    hasActiveSubscription={subscription?.has_active_subscription || false}
+                    plansTranslations={plansTranslations}
+                    subscriptionTranslations={subscriptionTranslations}
+                    selectedTier={selectedTier}
+                    onTierSelect={setSelectedTier}
+                    onCheckout={(tier) => {
+                      const successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+                      const cancelUrl = `${window.location.origin}/profile/edit?tab=subscription`;
+                      createCheckoutSession(tier, successUrl, cancelUrl)
+                        .then((response) => {
+                          window.location.href = response.url;
+                        })
+                        .catch((error: any) => {
+                          logger.error('Failed to create checkout session', { error: error.message });
+                          toastNotification({
+                            title: subscriptionTranslations.errors?.checkoutFailed || 'Error',
+                            description: error.message || 'Failed to create checkout session',
+                            variant: 'destructive',
+                          });
+                        });
+                    }}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+};
+
+interface SubscriptionPlanSelectorProps {
+  currentTier?: SubscriptionTier | null;
+  hasActiveSubscription: boolean;
+  plansTranslations: any;
+  subscriptionTranslations: any;
+  selectedTier: SubscriptionTier | null;
+  onTierSelect: (tier: SubscriptionTier | null) => void;
+  onCheckout: (tier: SubscriptionTier) => void;
+}
+
+const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
+  currentTier,
+  hasActiveSubscription,
+  plansTranslations,
+  subscriptionTranslations,
+  selectedTier,
+  onTierSelect,
+  onCheckout,
+}) => {
+  const plans: Array<{ tier: SubscriptionTier; name: string; price: string; period: string; description: string; features: string[]; popular: boolean }> = [
+    {
+      tier: 'INITIATE',
+      ...plansTranslations.initiate,
+    },
+    {
+      tier: 'JOURNEYMAN',
+      ...plansTranslations.journeyman,
+    },
+    {
+      tier: 'SAGE',
+      ...plansTranslations.sage,
+    },
+    {
+      tier: 'GUILDMASTER',
+      ...plansTranslations.guildmaster,
+    },
+  ];
+
+  const getTierHierarchy = (tier: SubscriptionTier): number => {
+    const hierarchy: Record<SubscriptionTier, number> = {
+      INITIATE: 1,
+      JOURNEYMAN: 2,
+      SAGE: 3,
+      GUILDMASTER: 4,
+    };
+    return hierarchy[tier] || 0;
+  };
+
+  const isUpgrade = (tier: SubscriptionTier): boolean => {
+    if (!currentTier) return true;
+    return getTierHierarchy(tier) > getTierHierarchy(currentTier);
+  };
+
+  const isDowngrade = (tier: SubscriptionTier): boolean => {
+    if (!currentTier) return false;
+    return getTierHierarchy(tier) < getTierHierarchy(currentTier);
+  };
+
+  return (
+    <div className="space-y-6">
+      {hasActiveSubscription && currentTier && (
+        <Alert>
+          <AlertDescription>
+            <strong>{subscriptionTranslations.currentPlan || 'Current Plan'}:</strong>{' '}
+            {plansTranslations[currentTier.toLowerCase() as keyof typeof plansTranslations]?.name || currentTier}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {plans.map((plan) => {
+          const isCurrentPlan = currentTier === plan.tier;
+          const isSelected = selectedTier === plan.tier;
+          const isUpgradePlan = isUpgrade(plan.tier);
+          const isDowngradePlan = isDowngrade(plan.tier);
+
+          return (
+            <Card
+              key={plan.tier}
+              className={cn(
+                'relative flex flex-col h-full transition-all',
+                isCurrentPlan && 'border-green-500 border-2',
+                isSelected && !isCurrentPlan && 'border-primary border-2 shadow-lg',
+                plan.popular && !isCurrentPlan && 'border-primary'
+              )}
+            >
+              {plan.popular && (
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary z-10">
+                  Most Popular
+                </Badge>
+              )}
+              {isCurrentPlan && (
+                <Badge className="absolute -top-3 right-4 bg-green-500 z-10">
+                  Current
+                </Badge>
+              )}
+              <CardHeader>
+                <CardTitle className="text-xl">{plan.name || plan.tier}</CardTitle>
+                <CardDescription>{plan.description || ''}</CardDescription>
+                <div className="mt-2">
+                  <span className="text-3xl font-bold">{plan.price || '$0'}</span>
+                  {plan.period && <span className="text-muted-foreground ml-1">{plan.period}</span>}
+                </div>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col">
+                <ul className="space-y-2 flex-grow mb-4">
+                  {(plan.features || []).slice(0, 3).map((feature: string, index: number) => (
+                    <li key={index} className="flex items-start gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  onClick={() => {
+                    if (isCurrentPlan) return;
+                    onTierSelect(plan.tier);
+                    onCheckout(plan.tier);
+                  }}
+                  disabled={isCurrentPlan || selectedTier === plan.tier}
+                  className="w-full"
+                  variant={isCurrentPlan ? 'outline' : isSelected ? 'default' : 'outline'}
+                >
+                  {isCurrentPlan
+                    ? 'Current Plan'
+                    : isUpgradePlan
+                    ? subscriptionTranslations.upgrade || 'Upgrade'
+                    : isDowngradePlan
+                    ? subscriptionTranslations.downgrade || 'Downgrade'
+                    : plan.cta || 'Select'}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {!hasActiveSubscription && (
+        <Alert>
+          <AlertDescription>
+            You're currently on the free tier. Select a plan above to upgrade and unlock premium features.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 };

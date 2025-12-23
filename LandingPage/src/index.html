@@ -8,6 +8,16 @@
     <title>GoalsGuild - Achieve Your Goals Together</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="icon" type="image/png" href="assets/images/transparentLogo.png">
+    <!-- 
+        API Gateway configuration for waitlist functionality.
+        Update these values with your actual API Gateway URL and key.
+    -->
+    <script>
+        window.GOALSGUILD_CONFIG = {
+            apiBaseUrl: 'https://3xlvsffmxc.execute-api.us-east-2.amazonaws.com/v1',
+            apiKey: 'f5do7KmhzVaXGqIvGnc2aJMbmm6qQum1FLOXcj4i'
+        };
+    </script>
 </head>
 <body>
     <!-- Navigation -->
@@ -572,6 +582,25 @@
         </div>
     </section>
 
+    <!-- Development Notice -->
+    <section class="development-notice">
+        <div class="container">
+            <div class="notice-content">
+                <div class="notice-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                        <path d="M2 12l10 5 10-5"></path>
+                    </svg>
+                </div>
+                <div class="notice-text">
+                    <h3>Platform in Development</h3>
+                    <p>The features described on this page are currently in development and may change before the final product launch. Some features may not be available at the initial release, and we reserve the right to modify or remove features based on user feedback and technical considerations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- How It Works Section -->
     <section id="how-it-works" class="how-it-works">
         <div class="container">
@@ -639,6 +668,9 @@
                     </div>
                     <p class="form-note">Join the community that's already changing lives. No spam, just results.</p>
                 </form>
+                <div class="waitlist-disclaimer">
+                    <p><strong>Note:</strong> Features are in active development and may change or not be available at launch. We're building based on your feedback and will keep you updated on our progress.</p>
+                </div>
                 <div id="formMessage" class="form-message" role="alert" aria-live="polite"></div>
             </div>
         </div>
@@ -710,7 +742,7 @@
     </footer>
 
     <script src="js/carousel.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=3"></script>
 </body>
 </html>
 

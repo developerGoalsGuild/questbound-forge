@@ -7,6 +7,11 @@ import { mapSignupErrorToField } from './errorMapping';
 import { PasswordInput } from '@/components/ui/password-input';
 import { cn } from '@/lib/utils';
 import { emailConfirmationEnabled } from '@/config/featureFlags';
+import { SubscriptionTier, createCheckoutSession } from '@/lib/api/subscription';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Check } from 'lucide-react';
 
 interface FormData {
   email: string;
@@ -20,10 +25,11 @@ interface FormData {
   country: string;
   gender: string;
   role: 'user' | 'partner' | 'patron';
+  subscriptionTier?: SubscriptionTier;
 }
 
 const LocalSignUp: React.FC = () => {
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const navigate = useNavigate();
   // Unify translation shape: prefer signup.local when present
   const signup = useMemo(() => (t as any).signup?.local || (t as any).signup || {}, [t]);
@@ -38,7 +44,8 @@ const LocalSignUp: React.FC = () => {
     birthDate: '',
     country: '',
         gender: '',
-        role: 'user'
+        role: 'user',
+    subscriptionTier: undefined
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [pronounsWasSet, setPronounsWasSet] = useState(false);
@@ -77,8 +84,9 @@ const LocalSignUp: React.FC = () => {
     return y + '-' + m + '-' + day;
   };
 
-  const { language } = useTranslation();
   const countries = useMemo(() => getCountries(language), [language]);
+  const subscriptionTranslations = useMemo(() => (t as any)?.subscription || {}, [t]);
+  const plansTranslations = subscriptionTranslations.plans || {};
   // Build diacritic-safe placeholders to keep queries robust across encodings
   const normalizeDisplay = (raw: string) => {
     try {
@@ -228,10 +236,12 @@ const LocalSignUp: React.FC = () => {
             email: available ? undefined : (validation.emailTaken || 'Email already in use'),
           }));
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           // On failure, don't block, just clear checking state
+          // The backend will validate email uniqueness during signup
           setEmailAvailable(null);
+          console.debug('Email availability check failed:', error);
         }
       } finally {
         if (!cancelled) setEmailChecking(false);
@@ -247,6 +257,10 @@ const LocalSignUp: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
+    // Clear availability status when email changes
+    if (name === 'email') {
+      setEmailAvailable(null);
+    }
     if (name === 'pronouns' && value) {
       setPronounsWasSet(true);
     }
@@ -270,7 +284,10 @@ const LocalSignUp: React.FC = () => {
             email: available ? undefined : (signup.validation?.emailTaken || 'Email already in use'),
           }));
         } catch (error) {
-          console.error('Email availability check failed on blur:', error);
+          // On failure, don't show availability status - leave it as unknown
+          // The backend will validate email uniqueness during signup
+          setEmailAvailable(null);
+          console.debug('Email availability check failed on blur:', error);
         } finally {
           setEmailChecking(false);
         }
@@ -319,6 +336,7 @@ const LocalSignUp: React.FC = () => {
     try {
       // Create user; status depends on feature flag
       const status = emailConfirmationEnabled ? 'email confirmation pending' : 'active';
+      const selectedTier = formData.subscriptionTier;
       await createUser({
         email: formData.email,
         fullName: formData.fullName,
@@ -330,7 +348,8 @@ const LocalSignUp: React.FC = () => {
         bio: formData.bio,
         birthDate: formData.birthDate,
         country: formData.country,
-        gender: formData.gender
+        gender: formData.gender,
+        subscriptionTier: selectedTier
         });
       
       if (emailConfirmationEnabled) {
@@ -351,6 +370,7 @@ const LocalSignUp: React.FC = () => {
           country: '',
           gender: '',
           role: 'user',
+          subscriptionTier: undefined,
         });
       } else {
         // If email confirmation is disabled, automatically log the user in
@@ -363,6 +383,26 @@ const LocalSignUp: React.FC = () => {
           // Store authentication tokens
           localStorage.setItem('auth', JSON.stringify(loginResponse));
           window.dispatchEvent(new CustomEvent('auth:change'));
+          
+          // If subscription tier was selected, redirect to Stripe checkout
+          if (selectedTier) {
+            try {
+              const successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+              const cancelUrl = `${window.location.origin}/dashboard`;
+              const checkoutResponse = await createCheckoutSession(
+                selectedTier,
+                successUrl,
+                cancelUrl
+              );
+              // Redirect to Stripe checkout
+              window.location.href = checkoutResponse.url;
+              return; // Exit early, user will be redirected
+            } catch (checkoutError: any) {
+              console.error('Failed to create checkout session:', checkoutError);
+              // Continue with normal flow if checkout fails
+              setErrorMessage(checkoutError?.message || 'Failed to create checkout session. You can subscribe later.');
+            }
+          }
           
           // Try to infer user type from token payload
           const token = loginResponse.id_token || loginResponse.access_token;
@@ -389,6 +429,26 @@ const LocalSignUp: React.FC = () => {
             // Store authentication tokens
             localStorage.setItem('auth', JSON.stringify(retryLoginResponse));
             window.dispatchEvent(new CustomEvent('auth:change'));
+            
+            // If subscription tier was selected, redirect to Stripe checkout
+            if (selectedTier) {
+              try {
+                const successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+                const cancelUrl = `${window.location.origin}/dashboard`;
+                const checkoutResponse = await createCheckoutSession(
+                  selectedTier,
+                  successUrl,
+                  cancelUrl
+                );
+                // Redirect to Stripe checkout
+                window.location.href = checkoutResponse.url;
+                return; // Exit early, user will be redirected
+              } catch (checkoutError: any) {
+                console.error('Failed to create checkout session:', checkoutError);
+                // Continue with normal flow if checkout fails
+                setErrorMessage(checkoutError?.message || 'Failed to create checkout session. You can subscribe later.');
+              }
+            }
             
             // Try to infer user type from token payload
             const token = retryLoginResponse.id_token || retryLoginResponse.access_token;
@@ -421,6 +481,7 @@ const LocalSignUp: React.FC = () => {
               country: '',
               gender: '',
               role: 'user',
+              subscriptionTier: undefined,
             });
           }
         }
@@ -474,6 +535,7 @@ const LocalSignUp: React.FC = () => {
             value={formData.email}
             onChange={handleChange}
             onBlur={handleBlur}
+            autoComplete="username"
             className={'w-full border rounded px-3 py-2 ' + (errors.email ? 'border-red-500' : 'border-gray-300')}
             aria-invalid={!!errors.email}
             aria-describedby="email-error"
@@ -734,6 +796,147 @@ const LocalSignUp: React.FC = () => {
               {errors.confirmPassword}
             </p>
           )}
+        </div>
+
+        {/* Subscription Selection Section */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">
+            {subscriptionTranslations.title || 'Choose a Subscription Plan'}
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            {subscriptionTranslations.subtitle || 'Select a plan to get started, or continue with free tier'}
+          </p>
+          
+          <Tabs 
+            defaultValue={formData.subscriptionTier?.toLowerCase() || 'free'} 
+            value={formData.subscriptionTier?.toLowerCase() || 'free'}
+            onValueChange={(value) => {
+              if (value === 'free') {
+                setFormData(prev => ({ ...prev, subscriptionTier: undefined }));
+              } else {
+                setFormData(prev => ({ ...prev, subscriptionTier: value.toUpperCase() as SubscriptionTier }));
+              }
+            }}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-5 mb-4 h-auto">
+              <TabsTrigger 
+                value="free" 
+                className={cn(
+                  'text-xs sm:text-sm px-2 py-2 whitespace-nowrap',
+                  !formData.subscriptionTier && 'bg-primary text-primary-foreground'
+                )}
+              >
+                Free
+              </TabsTrigger>
+              {(['INITIATE', 'JOURNEYMAN', 'SAGE', 'GUILDMASTER'] as SubscriptionTier[]).map((tier) => {
+                const planKey = tier.toLowerCase() as keyof typeof plansTranslations;
+                const plan = plansTranslations[planKey] || {};
+                const isSelected = formData.subscriptionTier === tier;
+                const isPopular = plan.popular || false;
+                const displayName = plan.name || tier;
+                
+                return (
+                  <TabsTrigger 
+                    key={tier} 
+                    value={tier.toLowerCase()}
+                    className={cn(
+                      'relative text-xs sm:text-sm px-2 py-2 flex flex-col items-center gap-1 min-h-[3rem]',
+                      isSelected && 'bg-primary text-primary-foreground',
+                      isPopular && 'font-semibold'
+                    )}
+                  >
+                    <span className="truncate w-full text-center">{displayName}</span>
+                    {isPopular && (
+                      <Badge className="h-4 px-1 text-[10px] leading-tight">Popular</Badge>
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+            
+            <TabsContent value="free" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Free Tier</CardTitle>
+                  <CardDescription>Get started with basic features</CardDescription>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold">$0</span>
+                    <span className="text-muted-foreground ml-1">/month</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>Basic quest templates</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>Community access</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span>Standard support</span>
+                    </li>
+                  </ul>
+                  {!formData.subscriptionTier && (
+                    <div className="mt-4 text-center">
+                      <Badge variant="default" className="bg-primary">
+                        Selected
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            {(['INITIATE', 'JOURNEYMAN', 'SAGE', 'GUILDMASTER'] as SubscriptionTier[]).map((tier) => {
+              const planKey = tier.toLowerCase() as keyof typeof plansTranslations;
+              const plan = plansTranslations[planKey] || {};
+              const isSelected = formData.subscriptionTier === tier;
+              
+              return (
+                <TabsContent key={tier} value={tier.toLowerCase()} className="mt-0">
+                  <Card className={cn(
+                    'relative',
+                    isSelected && 'border-primary border-2'
+                  )}>
+                    {plan.popular && (
+                      <Badge className="absolute -top-3 right-4 bg-primary">
+                        Most Popular
+                      </Badge>
+                    )}
+                    <CardHeader>
+                      <CardTitle className="text-2xl">{plan.name || tier}</CardTitle>
+                      <CardDescription>{plan.description || ''}</CardDescription>
+                      <div className="mt-2">
+                        <span className="text-4xl font-bold">{plan.price || '$0'}</span>
+                        {plan.period && <span className="text-muted-foreground ml-1">{plan.period}</span>}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3">
+                        {(plan.features || []).map((feature: string, index: number) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                            <span className="text-sm">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {isSelected && (
+                        <div className="mt-6 text-center">
+                          <Badge variant="default" className="bg-primary text-lg px-4 py-2">
+                            Selected Plan
+                          </Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         </div>
 
         <button

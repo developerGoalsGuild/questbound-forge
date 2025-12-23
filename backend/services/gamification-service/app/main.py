@@ -43,17 +43,22 @@ _add_common_to_path()
 
 from common.logging import get_structured_logger, log_event
 
-from .api.xp_routes import router as xp_router
-from .api.badge_routes import router as badge_router
-from .api.challenge_routes import router as challenge_router
-from .api.leaderboard_routes import router as leaderboard_router
-from .settings import Settings
+# Lazy import routers to reduce cold start time
+# Settings will be initialized lazily when needed
 
-# Initialize logger
+# Initialize logger (lightweight, can be done at import time)
 logger = get_structured_logger("gamification-service", env_flag="GAMIFICATION_LOG_ENABLED", default_enabled=True)
 
-# Initialize settings
-settings = Settings()
+# Settings will be initialized on first use
+_settings = None
+
+def get_settings():
+    """Lazy initialization of settings."""
+    global _settings
+    if _settings is None:
+        from .settings import Settings
+        _settings = Settings()
+    return _settings
 
 # Create FastAPI app
 app = FastAPI(
@@ -87,16 +92,37 @@ async def handle_unexpected(request, exc: Exception):
     logger.error("unhandled.exception", type=type(exc).__name__, exc_info=True)
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
-# Health check
+# Health check (lightweight, no dependencies)
 @app.get("/health")
 def health():
     return {"ok": True, "service": "gamification-service"}
 
-# Include routers
-app.include_router(xp_router)
-app.include_router(badge_router)
-app.include_router(challenge_router)
-app.include_router(leaderboard_router)
+# Load routers function (can be called manually for tests)
+def _load_routers():
+    """Load routers (used for both startup event and tests)."""
+    from .api.xp_routes import router as xp_router
+    from .api.badge_routes import router as badge_router
+    from .api.level_routes import router as level_router
+    from .api.challenge_routes import router as challenge_router
+    from .api.leaderboard_routes import router as leaderboard_router
+    
+    app.include_router(xp_router)
+    app.include_router(badge_router)
+    app.include_router(level_router)
+    app.include_router(challenge_router)
+    app.include_router(leaderboard_router)
+
+# Lazy load routers to reduce cold start time
+# Routers are imported only when the app starts, not at module import time
+@app.on_event("startup")
+async def load_routers():
+    """Load routers on startup (after Lambda is ready)."""
+    _load_routers()
+
+# For tests: load routers immediately if not in Lambda environment
+# Check if we're in a test environment or if routers haven't been loaded
+if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("TESTING"):
+    _load_routers()
 
 if __name__ == "__main__":
     import uvicorn

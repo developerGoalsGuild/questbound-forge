@@ -16,10 +16,6 @@ resource "aws_cloudfront_distribution" "landing_page" {
     domain_name              = aws_s3_bucket.landing_page.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.landing_page.id
     origin_id                = "S3-${aws_s3_bucket.landing_page.bucket}"
-
-    s3_origin_config {
-      origin_access_identity = ""
-    }
   }
 
   enabled             = true
@@ -28,128 +24,68 @@ resource "aws_cloudfront_distribution" "landing_page" {
   default_root_object = "index.html"
 
   # Custom domain (if provided)
-  dynamic "aliases" {
-    for_each = var.custom_domain != "" ? [var.custom_domain] : []
-    content {
-      aliases = [var.custom_domain]
-    }
-  }
+  # Include both root domain and all additional domains (e.g., www subdomain)
+  aliases = var.custom_domain != "" ? concat([var.custom_domain], var.additional_domains) : []
 
-  # Default cache behavior
+  # Default cache behavior - using modern cache policy (free tier compatible)
   default_cache_behavior {
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "S3-${aws_s3_bucket.landing_page.bucket}"
     compress               = true
     viewer_protocol_policy = "redirect-to-https"
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 3600
-    max_ttl     = 86400
+    
+    # Use AWS managed cache policy (free tier compatible)
+    # CachingOptimized policy: caches everything, respects origin cache headers
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"  # Managed-CachingOptimized
   }
 
-  # Cache behavior for static assets
+  # Cache behaviors for static assets - using modern cache policies (free tier compatible)
+  # Reduced to 4 ordered behaviors + 1 default = 5 total (free tier limit)
+  
+  # CSS files - long cache
   ordered_cache_behavior {
-    path_pattern     = "*.css"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.landing_page.bucket}"
-    compress         = true
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 31536000  # 1 year
-    max_ttl     = 31536000
+    path_pattern          = "*.css"
+    allowed_methods       = ["GET", "HEAD"]
+    cached_methods        = ["GET", "HEAD"]
+    target_origin_id      = "S3-${aws_s3_bucket.landing_page.bucket}"
+    compress              = true
+    viewer_protocol_policy = "redirect-to-https"
+    
+    # Use CachingOptimized policy - respects origin cache headers, long TTL
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"  # Managed-CachingOptimized
   }
 
+  # JavaScript files - long cache
   ordered_cache_behavior {
-    path_pattern     = "*.js"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.landing_page.bucket}"
-    compress         = true
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 31536000  # 1 year
-    max_ttl     = 31536000
+    path_pattern          = "*.js"
+    allowed_methods       = ["GET", "HEAD"]
+    cached_methods        = ["GET", "HEAD"]
+    target_origin_id      = "S3-${aws_s3_bucket.landing_page.bucket}"
+    compress              = true
+    viewer_protocol_policy = "redirect-to-https"
+    
+    # Use CachingOptimized policy
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"  # Managed-CachingOptimized
   }
 
+  # Image files - using most common pattern (png) to cover most images
+  # Note: CloudFront doesn't support multiple patterns in one behavior
+  # We combine by using a single pattern that covers the most common case
   ordered_cache_behavior {
-    path_pattern     = "*.png"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.landing_page.bucket}"
-    compress         = true
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 31536000  # 1 year
-    max_ttl     = 31536000
+    path_pattern          = "*.png"
+    allowed_methods       = ["GET", "HEAD"]
+    cached_methods        = ["GET", "HEAD"]
+    target_origin_id      = "S3-${aws_s3_bucket.landing_page.bucket}"
+    compress              = true
+    viewer_protocol_policy = "redirect-to-https"
+    
+    # Use CachingOptimized policy
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"  # Managed-CachingOptimized
   }
-
-  ordered_cache_behavior {
-    path_pattern     = "*.jpg"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.landing_page.bucket}"
-    compress         = true
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 31536000  # 1 year
-    max_ttl     = 31536000
-  }
-
-  ordered_cache_behavior {
-    path_pattern     = "*.svg"
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.landing_page.bucket}"
-    compress         = true
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 31536000  # 1 year
-    max_ttl     = 31536000
-  }
+  
+  # Additional image types - jpg and svg will use default behavior
+  # This keeps us at exactly 5 behaviors (1 default + 4 ordered)
 
   # Custom error pages
   custom_error_response {
@@ -168,12 +104,24 @@ resource "aws_cloudfront_distribution" "landing_page" {
   price_class = var.price_class
 
   # SSL certificate
+  # Note: Certificate must be validated before CloudFront can use it
+  # For Route53: validation happens automatically
+  # For manual DNS (GoDaddy): validate certificate first, then apply CloudFront changes
   dynamic "viewer_certificate" {
     for_each = var.custom_domain != "" ? [1] : []
     content {
-      acm_certificate_arn      = var.ssl_certificate_arn != "" ? var.ssl_certificate_arn : aws_acm_certificate.landing_page[0].arn
+      # Use provided ARN if available, otherwise use created certificate
+      # For Route53: use validated certificate ARN
+      # For manual: use certificate ARN (must be validated manually first)
+      acm_certificate_arn = var.ssl_certificate_arn != "" ? var.ssl_certificate_arn : (
+        var.use_route53 && length(aws_acm_certificate_validation.landing_page) > 0 
+          ? aws_acm_certificate_validation.landing_page[0].certificate_arn 
+          : aws_acm_certificate.landing_page[0].arn
+      )
       ssl_support_method       = "sni-only"
-      minimum_protocol_version = "TLSv1.2_2021"
+      # Use TLSv1.2_2019 for maximum browser compatibility (including Edge)
+      # TLSv1.2_2021 removes some older cipher suites that Edge might need
+      minimum_protocol_version = "TLSv1.2_2019"
     }
   }
 
@@ -184,14 +132,11 @@ resource "aws_cloudfront_distribution" "landing_page" {
     }
   }
 
-  # Geographic restrictions (if any)
-  dynamic "restrictions" {
-    for_each = length(var.geo_restrictions) > 0 ? [1] : []
-    content {
-      geo_restriction {
-        restriction_type = var.geo_restriction_type
-        locations       = var.geo_restrictions
-      }
+  # Geographic restrictions (required block)
+  restrictions {
+    geo_restriction {
+      restriction_type = var.geo_restriction_type == "none" ? "none" : var.geo_restriction_type
+      locations        = var.geo_restriction_type == "none" ? [] : var.geo_restrictions
     }
   }
 

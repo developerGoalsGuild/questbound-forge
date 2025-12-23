@@ -2,7 +2,14 @@
 
 ## Overview
 
-This Terraform configuration supports automatic Let's Encrypt SSL certificate provisioning for your CloudFront distribution. The system can work with or without Route53 DNS management.
+This Terraform configuration uses **AWS Certificate Manager (ACM)** to provide **FREE SSL/TLS certificates** for your CloudFront distribution. ACM certificates are completely free, automatically renew, and are the standard for CloudFront. The system can work with or without Route53 DNS management.
+
+### ✅ FREE Certificates - No Cost!
+
+- **AWS Certificate Manager (ACM)** = 100% FREE
+- No charges for certificates, validation, or renewal
+- Automatic renewal before expiration
+- Industry-standard SSL/TLS certificates
 
 ## SSL Certificate Options
 
@@ -150,9 +157,10 @@ Add the DNS records to your domain provider, then run `terraform apply` again.
 - Be patient during the initial deployment
 
 ### Certificate Renewal
-- Let's Encrypt certificates are automatically renewed by AWS ACM
-- No manual intervention required
-- Certificates are valid for 13 months
+- **ACM certificates are automatically renewed** by AWS
+- **No manual intervention required** - completely hands-off
+- Certificates are valid for 1 year and auto-renew before expiration
+- **100% FREE** - No renewal fees or charges
 
 ### Security Features
 - TLS 1.2 minimum protocol version
@@ -182,10 +190,18 @@ Add the DNS records to your domain provider, then run `terraform apply` again.
 
 ## Cost Considerations
 
-### ACM Certificate Costs
-- **Free**: ACM certificates are free
-- **Route53**: $0.50 per hosted zone per month
-- **DNS queries**: $0.40 per million queries
+### ✅ ACM Certificate Costs - COMPLETELY FREE!
+- **ACM Certificates**: **$0.00** - Completely free forever
+- **Certificate Validation**: **$0.00** - Free
+- **Certificate Renewal**: **$0.00** - Automatic and free
+- **CloudFront SSL**: **$0.00** - Free with ACM certificates
+
+### Optional Costs (Only if using Route53)
+- **Route53 Hosted Zone**: $0.50 per hosted zone per month (optional)
+- **DNS queries**: $0.40 per million queries (usually minimal)
+
+### Summary
+**Your SSL certificate setup is 100% FREE!** ACM provides industry-standard SSL/TLS certificates at no cost, with automatic renewal. This is the best free option available for CloudFront.
 
 ### CloudFront Costs
 - **Price Class**: Choose appropriate price class

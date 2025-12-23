@@ -110,21 +110,32 @@ function initSmoothScrolling() {
  */
 function initWaitlistForm() {
     const form = document.getElementById('waitlistForm');
-    if (!form) return;
+    if (!form) {
+        console.error('Waitlist form not found! Looking for element with id="waitlistForm"');
+        return;
+    }
+
+    console.log('Waitlist form initialized');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        console.log('Form submitted');
 
         const emailInput = form.querySelector('input[type="email"]');
         const button = form.querySelector('button[type="submit"]');
         const messageDiv = document.getElementById('formMessage');
 
-        if (!emailInput || !button || !messageDiv) return;
+        if (!emailInput || !button || !messageDiv) {
+            console.error('Form elements not found:', { emailInput: !!emailInput, button: !!button, messageDiv: !!messageDiv });
+            return;
+        }
 
         const email = emailInput.value.trim();
+        console.log('Email submitted:', email);
 
         // Validate email
         if (!isValidEmail(email)) {
+            console.warn('Invalid email format:', email);
             showMessage(messageDiv, 'Please enter a valid email address.', 'error');
             return;
         }
@@ -135,22 +146,66 @@ function initWaitlistForm() {
         button.disabled = true;
 
         try {
-            // TODO: Replace with actual API endpoint
-            // const response = await fetch('YOUR_API_ENDPOINT', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     body: JSON.stringify({ email }),
-            // });
+            // Get API Gateway URL and key from config
+            // These are set via a script tag in index.html: <script>window.GOALSGUILD_CONFIG = { apiBaseUrl: '...', apiKey: '...' };</script>
+            const apiBaseUrl = window.GOALSGUILD_CONFIG?.apiBaseUrl;
+            const apiKey = window.GOALSGUILD_CONFIG?.apiKey;
+            
+            console.log('API Configuration:', { 
+                apiBaseUrl, 
+                hasApiKey: !!apiKey,
+                configExists: !!window.GOALSGUILD_CONFIG,
+                fullConfig: window.GOALSGUILD_CONFIG
+            });
+            
+            if (!apiBaseUrl) {
+                console.error('API Base URL not configured!');
+                showMessage(messageDiv, 'Configuration error: API URL missing. Please contact support.', 'error');
+                return;
+            }
+            
+            if (!apiKey) {
+                console.error('API Gateway key not configured!');
+                showMessage(messageDiv, 'Configuration error: API key missing. Please contact support.', 'error');
+                return;
+            }
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const url = `${apiBaseUrl}/waitlist/subscribe`;
+            console.log('Making request to:', url);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                },
+                body: JSON.stringify({ email }),
+            });
+
+            console.log('Response received:', { status: response.status, statusText: response.statusText });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+                let errorMessage = errorData.detail || 'Something went wrong. Please try again later.';
+                
+                // Handle specific error cases
+                if (response.status === 429) {
+                    errorMessage = errorData.detail || 'Too many requests. Please wait a moment and try again.';
+                } else if (response.status === 403) {
+                    errorMessage = 'Access denied. Please contact support.';
+                } else if (response.status === 400) {
+                    errorMessage = errorData.detail || 'Invalid email address.';
+                }
+                
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
 
             // Show success message
             showMessage(
                 messageDiv,
-                'Thank you for joining! Check your email for confirmation.',
+                data.message || 'Thank you for joining! We\'ll be in touch soon.',
                 'success'
             );
 
@@ -159,11 +214,20 @@ function initWaitlistForm() {
 
         } catch (error) {
             console.error('Error submitting form:', error);
-            showMessage(
-                messageDiv,
-                'Something went wrong. Please try again later.',
-                'error'
-            );
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+            
+            let errorMessage = 'Something went wrong. Please try again later.';
+            if (error.message) {
+                errorMessage = error.message;
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Network error. Please check your connection and try again.';
+            }
+            
+            showMessage(messageDiv, errorMessage, 'error');
         } finally {
             // Re-enable button
             button.textContent = originalButtonText;

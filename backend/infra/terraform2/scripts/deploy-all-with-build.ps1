@@ -63,7 +63,8 @@ $AllServices = @(
   @{ Name = "subscription-service"; Script = "deploy-subscription-service-with-build.ps1"; ECR = "goalsguild_subscription_service" },
   @{ Name = "collaboration-service"; Script = "deploy-collaboration-service-with-build.ps1"; ECR = "goalsguild_collaboration_service" },
   @{ Name = "guild-service"; Script = "deploy-guild-service-with-build.ps1"; ECR = "goalsguild_guild_service" },
-  @{ Name = "messaging-service"; Script = "deploy-messaging-service-with-build.ps1"; ECR = "goalsguild_messaging_service" }
+  @{ Name = "messaging-service"; Script = "deploy-messaging-service-with-build.ps1"; ECR = "goalsguild_messaging_service" },
+  @{ Name = "gamification-service"; Script = "deploy-gamification-service-with-build.ps1"; ECR = "goalsguild_gamification_service" }
 )
 
 # Define infrastructure stacks in deployment order

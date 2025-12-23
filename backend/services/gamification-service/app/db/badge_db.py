@@ -5,8 +5,9 @@ Badge database operations for the gamification service.
 import time
 from typing import Dict, List, Optional
 from uuid import uuid4
-from boto3.dynamodb.conditions import Key, Attr
-from botocore.exceptions import BotoCoreError, ClientError
+# Lazy import of boto3 components to reduce cold start
+# from boto3.dynamodb.conditions import Key, Attr
+# from botocore.exceptions import BotoCoreError, ClientError
 
 import sys
 from pathlib import Path
@@ -145,7 +146,7 @@ def get_badge_definition(badge_id: str) -> Optional[BadgeDefinition]:
         raise BadgeDBError(f"Failed to get badge definition: {str(e)}") from e
 
 
-def list_badge_definitions(category: Optional[str] = None) -> List[BadgeDefinition]:
+def list_badge_definitions(category: Optional[str] = None, rarity: Optional[str] = None) -> List[BadgeDefinition]:
     """
     List all badge definitions.
     
@@ -155,17 +156,18 @@ def list_badge_definitions(category: Optional[str] = None) -> List[BadgeDefiniti
     Returns:
         List of BadgeDefinition objects
     """
+    from boto3.dynamodb.conditions import Attr
+    
     table = _get_dynamodb_table()
     
     try:
+        filter_expr = Attr("type").eq("BadgeDefinition")
         if category:
-            response = table.scan(
-                FilterExpression=Attr("type").eq("BadgeDefinition") & Attr("category").eq(category)
-            )
-        else:
-            response = table.scan(
-                FilterExpression=Attr("type").eq("BadgeDefinition")
-            )
+            filter_expr = filter_expr & Attr("category").eq(category)
+        if rarity:
+            filter_expr = filter_expr & Attr("rarity").eq(rarity)
+
+        response = table.scan(FilterExpression=filter_expr)
         
         badges = []
         for item in response.get("Items", []):
@@ -222,6 +224,8 @@ def assign_badge(user_id: str, badge_id: str, metadata: Optional[dict] = None) -
     except Exception:
         pass
     
+    definition = get_badge_definition(badge_id)
+
     badge_item = {
         "PK": f"USER#{user_id}",
         "SK": f"BADGE#{badge_id}",
@@ -237,6 +241,13 @@ def assign_badge(user_id: str, badge_id: str, metadata: Optional[dict] = None) -
     
     if metadata:
         badge_item["metadata"] = metadata
+    if definition:
+        badge_item["definitionName"] = definition.name
+        badge_item["definitionDescription"] = definition.description
+        badge_item["definitionCategory"] = definition.category
+        badge_item["definitionRarity"] = definition.rarity
+        if definition.icon:
+            badge_item["definitionIcon"] = definition.icon
     
     try:
         table.put_item(Item=badge_item)
@@ -250,7 +261,12 @@ def assign_badge(user_id: str, badge_id: str, metadata: Optional[dict] = None) -
         badgeId=badge_id,
         earnedAt=now_ms,
         progress=1.0,  # Fully earned
-        metadata=metadata
+        metadata=metadata,
+        definitionName=badge_item.get("definitionName"),
+        definitionDescription=badge_item.get("definitionDescription"),
+        definitionCategory=badge_item.get("definitionCategory"),
+        definitionRarity=badge_item.get("definitionRarity"),
+        definitionIcon=badge_item.get("definitionIcon"),
     )
 
 
@@ -264,6 +280,8 @@ def get_user_badges(user_id: str) -> List[UserBadge]:
     Returns:
         List of UserBadge objects
     """
+    from boto3.dynamodb.conditions import Key
+    
     table = _get_dynamodb_table()
     
     try:
@@ -278,7 +296,12 @@ def get_user_badges(user_id: str) -> List[UserBadge]:
                 badgeId=item["badgeId"],
                 earnedAt=item.get("earnedAt", item.get("createdAt", int(time.time() * 1000))),
                 progress=item.get("progress", 1.0),
-                metadata=item.get("metadata")
+                metadata=item.get("metadata"),
+                definitionName=item.get("definitionName"),
+                definitionDescription=item.get("definitionDescription"),
+                definitionCategory=item.get("definitionCategory"),
+                definitionRarity=item.get("definitionRarity"),
+                definitionIcon=item.get("definitionIcon"),
             ))
         
         return badges

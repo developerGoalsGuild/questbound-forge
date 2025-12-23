@@ -35,6 +35,12 @@ data "terraform_remote_state" "messaging_service" {
   config = { path = "../services/messaging-service/terraform.tfstate" }
 }
 
+data "terraform_remote_state" "gamification_service" {
+  count   = var.gamification_service_lambda_arn_override == "" ? 1 : 0
+  backend = "local"
+  config = { path = "../services/gamification-service/terraform.tfstate" }
+}
+
 locals {
   authorizer_arn   = var.lambda_authorizer_arn_override != "" ? var.lambda_authorizer_arn_override : try(data.terraform_remote_state.authorizer[0].outputs.lambda_authorizer_arn, "")
   user_lambda_arn  = var.user_service_lambda_arn_override != "" ? var.user_service_lambda_arn_override : try(data.terraform_remote_state.user_service[0].outputs.lambda_function_arn, "")
@@ -42,6 +48,7 @@ locals {
   collaboration_lambda_arn = var.collaboration_service_lambda_arn_override != "" ? var.collaboration_service_lambda_arn_override : try(data.terraform_remote_state.collaboration_service[0].outputs.collaboration_service_lambda_arn, "")
   guild_lambda_arn = var.guild_service_lambda_arn_override != "" ? var.guild_service_lambda_arn_override : try(data.terraform_remote_state.guild_service[0].outputs.lambda_function_arn, "")
   messaging_lambda_arn = var.messaging_service_lambda_arn_override != "" ? var.messaging_service_lambda_arn_override : try(data.terraform_remote_state.messaging_service[0].outputs.lambda_function_arn, "")
+  gamification_lambda_arn = var.gamification_service_lambda_arn_override != "" ? var.gamification_service_lambda_arn_override : try(data.terraform_remote_state.gamification_service[0].outputs.lambda_function_arn, "")
 }
 
 module "apigw" {
@@ -56,6 +63,7 @@ module "apigw" {
   collaboration_service_lambda_arn = local.collaboration_lambda_arn
   guild_service_lambda_arn  = local.guild_lambda_arn
   messaging_service_lambda_arn = local.messaging_lambda_arn
+  gamification_service_lambda_arn = local.gamification_lambda_arn
   
   # Performance optimization controls
   enable_api_gateway_waf    = var.enable_api_gateway_waf

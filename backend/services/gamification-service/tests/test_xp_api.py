@@ -20,7 +20,9 @@ os.environ['GAMIFICATION_SERVICE_ENV_VARS'] = json.dumps({
     'CORE_TABLE': 'gg_core',
     'JWT_SECRET': 'test-secret',
     'JWT_AUDIENCE': 'api://default',
-    'JWT_ISSUER': 'https://auth.local'
+    'JWT_ISSUER': 'https://auth.local',
+    'INTERNAL_API_KEY': 'test-key',
+    'BASE_XP_FOR_LEVEL': 100
 })
 
 
@@ -185,3 +187,48 @@ class TestXPAPI:
         data = response.json()
         assert data["success"] is True
         assert data["totalXp"] == 10
+
+    def test_award_xp_rejects_missing_key(self, app_client):
+        """Verify internal key is enforced."""
+        payload = {
+            "userId": "user-123",
+            "amount": 10,
+            "source": "task_completion",
+            "description": "Test task"
+        }
+
+        response = app_client.post("/xp/award", json=payload)
+        assert response.status_code == 403
+
+    def test_get_level_progress(self, app_client):
+        """Fetch level progress snapshot."""
+        token = _issue_token()
+        from app.db.xp_db import create_xp_summary
+        create_xp_summary("user-123", initial_xp=250)
+
+        response = app_client.get("/levels/me", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["currentLevel"] >= 2
+        assert data["totalXp"] == 250
+
+    def test_get_level_history(self, app_client):
+        """Ensure level history returns events once user levels up."""
+        token = _issue_token()
+        from app.services.xp_service import award_xp
+        from app.models.xp import XPAwardRequest
+
+        # Award enough XP to trigger a level-up event
+        award_xp(XPAwardRequest(
+            userId="user-123",
+            amount=500,
+            source="task_completion",
+            description="Level boost",
+            metadata={}
+        ))
+
+        response = app_client.get("/levels/history", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert len(data["items"]) >= 1

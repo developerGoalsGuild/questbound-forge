@@ -81,6 +81,11 @@ export function ProductionChatInterface({
     });
   };
 
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProductionChatInterface.tsx:84',message:'useProductionMessaging entry',data:{roomId,userId:userId?.substring(0,10)+'...'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }, [roomId, userId]);
+  // #endregion
   const {
     messages,
     isLoading,
@@ -101,6 +106,11 @@ export function ProductionChatInterface({
     currentRoom,
     roomInfo
   } = useProductionMessaging(roomId);
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProductionChatInterface.tsx:103',message:'useProductionMessaging state',data:{roomId,isConnected,hasError,errorMessage,hasRoomInfo:!!roomInfo,roomInfoKeys:roomInfo?Object.keys(roomInfo):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }, [roomId, isConnected, hasError, errorMessage, roomInfo]);
+  // #endregion
 
   // Debug: Log room info to see what we're getting
   useEffect(() => {

@@ -3,8 +3,9 @@ Leaderboard database operations for the gamification service.
 """
 
 from typing import Dict, List, Optional
-from boto3.dynamodb.conditions import Key
-from botocore.exceptions import BotoCoreError, ClientError
+# Lazy import of boto3 components to reduce cold start
+# from boto3.dynamodb.conditions import Key
+# from botocore.exceptions import BotoCoreError, ClientError
 
 import sys
 from pathlib import Path
@@ -77,6 +78,8 @@ def get_global_xp_leaderboard(limit: int = 100) -> List[LeaderboardEntry]:
     Returns:
         List of LeaderboardEntry objects
     """
+    from boto3.dynamodb.conditions import Key
+    
     table = _get_dynamodb_table()
     
     try:
@@ -116,6 +119,8 @@ def get_level_leaderboard(limit: int = 100) -> List[LeaderboardEntry]:
     Returns:
         List of LeaderboardEntry objects
     """
+    from boto3.dynamodb.conditions import Key
+    
     table = _get_dynamodb_table()
     
     try:
@@ -174,12 +179,14 @@ def get_badge_leaderboard(limit: int = 100) -> List[LeaderboardEntry]:
     Returns:
         List of LeaderboardEntry objects
     """
+    from boto3.dynamodb.conditions import Attr
+    
     table = _get_dynamodb_table()
     
     try:
         # Scan for all user badges and count
         response = table.scan(
-            FilterExpression=Key("type").eq("UserBadge"),
+            FilterExpression=Attr("type").eq("UserBadge"),
             ProjectionExpression="userId"
         )
         

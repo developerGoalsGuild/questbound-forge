@@ -1,0 +1,43 @@
+# DNS Validation Instructions for Let's Encrypt Certificate
+# 
+# Domain: goalsguild.com
+# 
+# Please create the following DNS records in your domain's DNS management console:
+# 
+# Record Type: CNAME
+# Name: _0575f594826c23cd5f1d27b279d9ab69.goalsguild.com.
+# Value: _ff67cc5e5678438833b104a793e669c3.jkddzztszm.acm-validations.aws.
+# TTL: 300 (or default)
+# 
+# Record Type: CNAME
+# Name: _4e8fbfce96727c2127685887fb07ffae.www.goalsguild.com.
+# Value: _f4999578204189bcc79d5506eb67c7c1.jkddzztszm.acm-validations.aws.
+# TTL: 300 (or default)
+# 
+#
+# After creating these records, wait 5-10 minutes for DNS propagation,
+# then run: terraform apply
+#
+# Note: These records are only needed during certificate validation.
+# They can be deleted after the certificate is issued.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

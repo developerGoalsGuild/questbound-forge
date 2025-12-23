@@ -7,8 +7,9 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Trophy, TrendingUp } from 'lucide-react';
-import { getCurrentXP, XPSummary } from '@/lib/api/gamification';
+import { getLevelProgress, LevelProgress } from '@/lib/api/gamification';
 import { useTranslation } from '@/hooks/useTranslation';
+import { cn } from '@/lib/utils';
 
 interface XPDisplayProps {
   userId?: string;
@@ -17,7 +18,7 @@ interface XPDisplayProps {
 
 export function XPDisplay({ userId, className }: XPDisplayProps) {
   const { t } = useTranslation();
-  const [xpSummary, setXpSummary] = useState<XPSummary | null>(null);
+  const [xpSummary, setXpSummary] = useState<LevelProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,11 +27,12 @@ export function XPDisplay({ userId, className }: XPDisplayProps) {
       try {
         setLoading(true);
         setError(null);
-        const summary = await getCurrentXP();
+        const summary = await getLevelProgress();
         setXpSummary(summary);
       } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load XP';
         console.error('Failed to fetch XP:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load XP');
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -54,34 +56,53 @@ export function XPDisplay({ userId, className }: XPDisplayProps) {
   }
 
   if (error || !xpSummary) {
-    return null; // Fail silently
+    return (
+      <Card className={className} aria-live="polite">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            {t?.gamification?.xp?.title || 'Experience Points'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-red-600" role="alert">
+            {error || (t?.common?.errors?.generic || 'Unable to load XP data')}
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   const progressPercentage = Math.round(xpSummary.xpProgress * 100);
   const xpRemaining = xpSummary.xpForNextLevel - xpSummary.totalXp;
+  const liveMessage =
+    xpRemaining > 0
+      ? `${progressPercentage}% ${t?.gamification?.xp?.progress || 'progress'}`
+      : t?.gamification?.xp?.maxLevel || 'Max level reached!';
 
   return (
-    <Card className={className}>
+    <Card className={cn('outline-none focus-visible:ring-2 focus-visible:ring-offset-2', className)} data-testid="xp-display" tabIndex={-1} aria-live="polite">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2" data-testid="xp-title">
           <Trophy className="h-5 w-5 text-yellow-500" />
           {t?.gamification?.xp?.title || 'Experience Points'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
+        <div data-testid="xp-content">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-2xl font-bold">{xpSummary.totalXp.toLocaleString()} XP</span>
-            <span className="text-lg font-semibold text-blue-600">
+            <span className="text-2xl font-bold" data-testid="xp-amount">{xpSummary.totalXp.toLocaleString()} XP</span>
+            <span className="text-lg font-semibold text-blue-600" data-testid="xp-level">
               Level {xpSummary.currentLevel}
             </span>
           </div>
           
           {/* Progress bar */}
-          <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-2" role="progressbar" aria-valuenow={progressPercentage} aria-valuemin={0} aria-valuemax={100} data-testid="xp-progress-bar">
             <div
               className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
               style={{ width: `${progressPercentage}%` }}
+              data-testid="xp-progress-fill"
             />
           </div>
           
@@ -96,6 +117,9 @@ export function XPDisplay({ userId, className }: XPDisplayProps) {
               {progressPercentage}%
             </span>
           </div>
+          <p className="sr-only" aria-live="polite">
+            {liveMessage}
+          </p>
         </div>
       </CardContent>
     </Card>

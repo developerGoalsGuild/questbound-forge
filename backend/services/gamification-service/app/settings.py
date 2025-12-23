@@ -5,19 +5,26 @@ import os
 from functools import lru_cache
 from typing import Iterable, List
 
-import boto3
+# Lazy loading of boto3 to reduce cold start time
+_SSM = None
+
+def _get_ssm_client():
+    """Lazy initialization of SSM client."""
+    global _SSM
+    if _SSM is None:
+        import boto3
+        _SSM = boto3.client("ssm", region_name=_detect_region())
+    return _SSM
 
 
 def _detect_region() -> str:
     return os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-2"
 
 
-_SSM = boto3.client("ssm", region_name=_detect_region())
-
-
 @lru_cache(maxsize=256)
 def get_param(name: str, decrypt: bool = True) -> str:
-    resp = _SSM.get_parameter(Name=name, WithDecryption=decrypt)
+    ssm = _get_ssm_client()
+    resp = ssm.get_parameter(Name=name, WithDecryption=decrypt)
     return resp["Parameter"]["Value"]
 
 
@@ -110,6 +117,19 @@ class Settings:
     @property
     def environment(self) -> str:
         return str(self._get("ENVIRONMENT", os.getenv("ENVIRONMENT", "dev")))
+
+    @property
+    def base_xp_for_level(self) -> int:
+        value = self._get("BASE_XP_FOR_LEVEL", os.getenv("BASE_XP_FOR_LEVEL", "100"))
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 100
+
+    @property
+    def internal_api_key(self) -> str:
+        """Shared secret for internal service-to-service calls."""
+        return self._get("INTERNAL_API_KEY") or os.getenv("GAMIFICATION_INTERNAL_KEY", "")
 
 
 def get_settings(prefix: str | None = None) -> Settings:

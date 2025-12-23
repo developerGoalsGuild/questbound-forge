@@ -61,7 +61,7 @@ export default function ChatPage() {
                   description: roomDescription,
                   memberCount: count 
                 };
-              } catch {
+              } catch (err: any) {
                 return { ...(r as Room), memberCount: r.memberCount ?? 0 };
               }
             })
@@ -101,7 +101,9 @@ export default function ChatPage() {
     let mounted = true;
     (async () => {
       try {
-        if (!selectedRoom) return;
+        if (!selectedRoom) {
+          return;
+        }
         const info: any = await getRoomInfo(selectedRoom);
         if (!mounted) return;
         const count = (info?.memberCount ?? info?.member_count ?? info?.active_connections ?? info?.activeConnections ?? 0) as number;
@@ -244,14 +246,14 @@ export default function ChatPage() {
                       onError={(error) => {
                         console.error('Production chat error:', error);
                       }}
-                      onStatsUpdate={(_, stats) => {
-                        setActiveConnections(stats?.distinctSenders ?? 0);
-                      }}
-                      onSettings={() => setShowSettingsDialog(true)}
-                      onMembers={() => setShowMembersDialog(true)}
-                      className="h-full"
-                    />
-                  ) : (
+                        onStatsUpdate={(_, stats) => {
+                          setActiveConnections(stats?.distinctSenders ?? 0);
+                        }}
+                        onSettings={() => setShowSettingsDialog(true)}
+                        onMembers={() => setShowMembersDialog(true)}
+                        className="h-full"
+                      />
+                    ) : (
                     <SimpleChatInterface
                       roomId={selectedRoom}
                       userId={userId}

@@ -37,33 +37,29 @@ resource "aws_appsync_resolver" "query_myProfile" {
 }
 
 resource "aws_appsync_resolver" "query_isEmailAvailable" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "isEmailAvailable"
-  kind   = "PIPELINE"
-  pipeline_config {
-    functions = [
-      aws_appsync_function.availability_key_guard.function_id,
-      aws_appsync_function.availability_is_email.function_id,
-    ]
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "isEmailAvailable"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code        = file("${local.resolvers_path}/isEmailAvailable.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
   }
-  request_template  = "$util.toJson({})"
-  response_template = "$util.toJson($ctx.prev.result)"
 }
 
 resource "aws_appsync_resolver" "query_isNicknameAvailable" {
-  api_id = module.appsync.api_id
-  type   = "Query"
-  field  = "isNicknameAvailable"
-  kind   = "PIPELINE"
-  pipeline_config {
-    functions = [
-      aws_appsync_function.availability_key_guard.function_id,
-      aws_appsync_function.availability_is_nickname.function_id,
-    ]
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "isNicknameAvailable"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code        = file("${local.resolvers_path}/isNicknameAvailable.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
   }
-  request_template  = "$util.toJson({})"
-  response_template = "$util.toJson($ctx.prev.result)"
 }
 
 resource "aws_appsync_resolver" "query_isNicknameAvailableForUser" {
@@ -359,6 +355,58 @@ resource "aws_appsync_resolver" "query_user" {
       ]
       ttl = var.appsync_cache_ttl_seconds
     }
+  }
+}
+
+resource "aws_appsync_resolver" "query_myLevelProgress" {
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myLevelProgress"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code        = file("${local.resolvers_path}/myLevelProgress.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_myLevelHistory" {
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myLevelHistory"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code        = file("${local.resolvers_path}/myLevelHistory.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_myBadges" {
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "myBadges"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code        = file("${local.resolvers_path}/myBadges.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
+  }
+}
+
+resource "aws_appsync_resolver" "query_badgeCatalog" {
+  api_id      = module.appsync.api_id
+  type        = "Query"
+  field       = "badgeCatalog"
+  kind        = "UNIT"
+  data_source = aws_appsync_datasource.profile_ddb.name
+  code        = file("${local.resolvers_path}/badgeCatalog.js")
+  runtime {
+    name            = "APPSYNC_JS"
+    runtime_version = "1.0.0"
   }
 }
 

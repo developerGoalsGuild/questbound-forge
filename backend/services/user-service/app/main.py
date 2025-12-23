@@ -41,6 +41,8 @@ from .models import (
     ProfileUpdate,
     AppSyncKeyResponse,
     AvailabilityKeyResponse,
+    WaitlistSubscribe,
+    WaitlistResponse,
 )
 from .ssm import settings
 from .security import (
@@ -87,6 +89,11 @@ BLOCK_THRESHOLD = 3
 AVAILABILITY_RATE_LIMIT = 30  # requests per window per IP
 AVAILABILITY_RATE_WINDOW_SECONDS = 60  # window seconds
 _availability_hits: dict[str, deque[float]] = defaultdict(deque)
+
+# Waitlist rate limiting (low rate limit: 5 requests per minute per IP)
+WAITLIST_RATE_LIMIT = 5  # requests per window per IP
+WAITLIST_RATE_WINDOW_SECONDS = 60  # 1 minute window
+_waitlist_hits: dict[str, deque[float]] = defaultdict(deque)
 
 # -------------------------
 # Logging
@@ -136,6 +143,24 @@ def _enforce_availability_rate_limit(request: Request) -> None:
     if len(dq) >= AVAILABILITY_RATE_LIMIT:
         _safe_event("availability.rate_limited", client=host, hits=len(dq))
         raise HTTPException(status_code=429, detail="Too many availability checks. Please wait and try again.")
+    dq.append(now)
+
+
+def _enforce_waitlist_rate_limit(request: Request) -> None:
+    """Enforce rate limiting for waitlist subscriptions (5 requests per minute per IP)."""
+    client_ip = _client_ip(request)
+    host = client_ip if client_ip else (request.client.host if request.client else "unknown")
+    now = time.time()
+    dq = _waitlist_hits[host]
+    # Drop stale timestamps
+    while dq and now - dq[0] > WAITLIST_RATE_WINDOW_SECONDS:
+        dq.popleft()
+    if len(dq) >= WAITLIST_RATE_LIMIT:
+        _safe_event("waitlist.rate_limited", client=host, hits=len(dq), ip=client_ip)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many waitlist subscription attempts. Please wait {WAITLIST_RATE_WINDOW_SECONDS} seconds and try again."
+        )
     dq.append(now)
 
 
@@ -230,6 +255,12 @@ _origin_candidates = [
     _norm_origin(getattr(settings, "frontend_base_url", None)),
     _norm_origin(settings.app_base_url),
     _norm_origin(os.getenv("DEV_FRONTEND_ORIGIN", "http://localhost:8080")),
+    # Add CloudFront domains for landing page
+    "https://d1of22l34nde2a.cloudfront.net",
+    "https://www.goalsguild.com",
+    "https://goalsguild.com",
+    # Allow local file testing (null origin)
+    "null",
 ]
 _allow_origins = [o for o in _origin_candidates if o]
 if not _allow_origins:
@@ -250,16 +281,42 @@ app.add_middleware(
 async def _ensure_cors_headers(request: Request, call_next: Callable):
     response = await call_next(request)
     origin = request.headers.get("origin")
-    if origin and origin.rstrip("/") in _allow_origins:
-        # Only set if not already present
+    
+    # Handle null origin (file:// protocol) - allow for local testing
+    # Also handle wildcard or specific allowed origins
+    if origin == "null" or origin is None:
+        # For null origin (file://), allow it for local testing
         if "access-control-allow-origin" not in response.headers:
-            response.headers["access-control-allow-origin"] = origin
+            response.headers["access-control-allow-origin"] = "*"
         if "access-control-allow-credentials" not in response.headers:
             response.headers["access-control-allow-credentials"] = "true"
+        if "access-control-allow-methods" not in response.headers:
+            response.headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        if "access-control-allow-headers" not in response.headers:
+            response.headers["access-control-allow-headers"] = "Content-Type, Authorization, x-api-key"
+    elif origin and (_allow_origins == ["*"] or origin.rstrip("/") in _allow_origins):
+        # Only set if not already present
+        if "access-control-allow-origin" not in response.headers:
+            response.headers["access-control-allow-origin"] = origin if _allow_origins != ["*"] else "*"
+        if "access-control-allow-credentials" not in response.headers:
+            response.headers["access-control-allow-credentials"] = "true"
+        if "access-control-allow-methods" not in response.headers:
+            response.headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        if "access-control-allow-headers" not in response.headers:
+            response.headers["access-control-allow-headers"] = "Content-Type, Authorization, x-api-key"
         # Ensure caches vary by Origin
         vary = response.headers.get("vary") or ""
         if "Origin" not in vary.split(","):
             response.headers["vary"] = ", ".join([v for v in [vary.strip(", ") or None, "Origin"] if v])
+    elif _allow_origins == ["*"]:
+        # Wildcard allow - set for any origin
+        if "access-control-allow-origin" not in response.headers:
+            response.headers["access-control-allow-origin"] = "*"
+        if "access-control-allow-methods" not in response.headers:
+            response.headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        if "access-control-allow-headers" not in response.headers:
+            response.headers["access-control-allow-headers"] = "Content-Type, Authorization, x-api-key"
+    
     return response
 
 def _client_ip(request: Request) -> str:
@@ -387,6 +444,116 @@ def _ddb_call(fn: Callable, *, op: str, max_retries: int = 2, **kwargs):
 def healthz():
     return {"ok": True, "time": int(time.time())}
 
+# --- WAITLIST SUBSCRIPTION ---
+# OPTIONS handler for CORS preflight
+@app.options("/waitlist/subscribe")
+async def waitlist_subscribe_options(request: Request):
+    """Handle CORS preflight requests for waitlist endpoint."""
+    origin = request.headers.get("origin")
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
+@app.post("/waitlist/subscribe", response_model=WaitlistResponse)
+def waitlist_subscribe(body: WaitlistSubscribe, request: Request, x_api_key: str | None = Header(default=None, alias="x-api-key")):
+    """
+    Subscribe an email to the waitlist.
+    Requires API key authentication and has low rate limits (5 requests per minute per IP).
+    """
+    # Enforce rate limiting
+    _enforce_waitlist_rate_limit(request)
+    
+    # API key validation (API Gateway also validates, but this provides additional security)
+    if not x_api_key:
+        raise HTTPException(status_code=403, detail="API key is required")
+    
+    email = body.email.lower().strip()
+    client_ip = _client_ip(request)
+    cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+    now_ts = int(time.time())
+    created_at_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_ts))
+    
+    try:
+        # Check if email already exists in waitlist
+        try:
+            existing = core.get_item(
+                Key={
+                    "PK": f"WAITLIST#{email}",
+                    "SK": "SUBSCRIPTION#WAITLIST"
+                }
+            )
+            
+            if existing.get("Item"):
+                # Email already subscribed
+                log_event(logger, "waitlist.subscribe.duplicate", cid=cid, email=email, ip=client_ip)
+                return WaitlistResponse(
+                    message="Email already subscribed to waitlist",
+                    email=email,
+                    subscribed=True
+                )
+        except ClientError as e:
+            logger.warning("waitlist.subscribe.check_error", extra={"email": email, "error": str(e)}, exc_info=True)
+            # Continue to create new subscription
+        
+        # Create waitlist subscription record
+        waitlist_item = {
+            "PK": f"WAITLIST#{email}",
+            "SK": "SUBSCRIPTION#WAITLIST",
+            "type": "Waitlist",
+            "email": email,
+            "status": "subscribed",
+            "source": "landing_page",
+            "ipAddress": client_ip,
+            "createdAt": created_at_iso,
+            "updatedAt": created_at_iso,
+            # GSI for querying all waitlist subscribers
+            "GSI1PK": "WAITLIST#ALL",
+            "GSI1SK": f"SUBSCRIPTION#{created_at_iso}",
+        }
+        
+        logger.info("waitlist.subscribe.creating", extra={
+            "email": email,
+            "table": settings.core_table_name,
+            "cid": cid
+        })
+        
+        core.put_item(Item=waitlist_item)
+        
+        log_event(logger, "waitlist.subscribe.success", cid=cid, email=email, ip=client_ip)
+        
+        return WaitlistResponse(
+            message="Successfully subscribed to waitlist",
+            email=email,
+            subscribed=True
+        )
+        
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        error_msg = e.response.get("Error", {}).get("Message", str(e))
+        logger.error("waitlist.subscribe.ddb_error", extra={
+            "email": email,
+            "error_code": error_code,
+            "error_message": error_msg,
+            "table": settings.core_table_name,
+            "cid": cid
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unable to process waitlist subscription: {error_code}")
+    except Exception as e:
+        logger.error("waitlist.subscribe.error", extra={
+            "email": email,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "table": settings.core_table_name,
+            "cid": cid
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred processing your request")
+
 # --- SIGNUP (LOCAL) — send confirmation email ---
 @app.post("/users/signup", response_model=None)
 def signup(payload: dict, request: Request):
@@ -419,6 +586,7 @@ def signup(payload: dict, request: Request):
         pronouns = payload.get("pronouns") or ""
         bio = payload.get("bio") or ""
         tags = payload.get("tags") or []
+        subscription_tier = payload.get("subscriptionTier") or body.subscriptionTier
         status = payload.get("status") or "email confirmation pending"
 
         # Country allow-list
@@ -486,6 +654,10 @@ def signup(payload: dict, request: Request):
                 "createdAt": created_at_iso,
                 "updatedAt": updated_at_iso,
             }
+            
+            # Store selected subscription tier for tracking (actual subscription created via Stripe webhook)
+            if subscription_tier:
+                profile_item["selected_subscription_tier"] = subscription_tier
 
             # Only set nickname keys if a valid nickname was provided
             def _valid_nickname(n: str) -> bool:

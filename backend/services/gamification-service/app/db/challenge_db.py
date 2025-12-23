@@ -6,8 +6,9 @@ import time
 from decimal import Decimal
 from typing import Dict, List, Optional
 from uuid import uuid4
-from boto3.dynamodb.conditions import Key, Attr
-from botocore.exceptions import BotoCoreError, ClientError
+# Lazy import of boto3 components to reduce cold start
+# from boto3.dynamodb.conditions import Key, Attr
+# from botocore.exceptions import BotoCoreError, ClientError
 
 import sys
 from pathlib import Path
@@ -164,6 +165,8 @@ def list_challenges(status: Optional[str] = None, limit: int = 50) -> List[Chall
     Returns:
         List of Challenge objects
     """
+    from boto3.dynamodb.conditions import Attr
+    
     table = _get_dynamodb_table()
     
     try:
@@ -281,6 +284,8 @@ def get_challenge_participants(challenge_id: str) -> List[ChallengeParticipant]:
     Returns:
         List of ChallengeParticipant objects
     """
+    from boto3.dynamodb.conditions import Key
+    
     table = _get_dynamodb_table()
     
     try:

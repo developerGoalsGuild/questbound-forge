@@ -15,25 +15,6 @@ terraform {
   }
 }
 
-# Configure the AWS Provider for main region
-provider "aws" {
-  region = var.aws_region
-  
-  default_tags {
-    tags = local.common_tags
-  }
-}
-
-# AWS provider for us-east-1 (required for ACM certificates used by CloudFront)
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
-  
-  default_tags {
-    tags = local.common_tags
-  }
-}
-
 # Data sources
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -46,4 +27,15 @@ locals {
     ManagedBy   = "Terraform"
     CreatedBy   = data.aws_caller_identity.current.arn
   }, var.tags)
+}
+
+# Configure the AWS Provider for main region
+provider "aws" {
+  region = var.aws_region
+}
+
+# AWS provider for us-east-1 (required for ACM certificates used by CloudFront)
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
 }

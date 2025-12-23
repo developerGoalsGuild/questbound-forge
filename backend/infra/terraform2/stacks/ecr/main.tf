@@ -22,7 +22,8 @@ locals {
     "goalsguild_subscription_service",
     "goalsguild_collaboration_service",
     "goalsguild_guild_service",
-    "goalsguild_messaging_service"
+    "goalsguild_messaging_service",
+    "goalsguild_gamification_service"
   ]
 }
 

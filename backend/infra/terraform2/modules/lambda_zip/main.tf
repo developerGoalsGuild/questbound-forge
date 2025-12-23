@@ -1,8 +1,11 @@
 locals {
   src_abs   = abspath(var.src_dir)
-  build_abs = abspath("${path.module}/.build/lambda")
-  dist_abs  = abspath("${path.module}/.dist")
-  zip_abs   = abspath("${path.module}/.dist/lambda.zip")
+  # Use unique build/dist directories per function to avoid conflicts when building multiple Lambdas
+  # Hash the function name to create a unique identifier
+  function_hash = substr(sha256("${var.function_name}_${var.environment}"), 0, 8)
+  build_abs = abspath("${path.module}/.build/${local.function_hash}")
+  dist_abs  = abspath("${path.module}/.dist/${local.function_hash}")
+  zip_abs   = abspath("${path.module}/.dist/${local.function_hash}/lambda.zip")
 
   src_all      = fileset(local.src_abs, "**")
   excluded_set = flatten([for p in var.exclude_globs : fileset(local.src_abs, p)])

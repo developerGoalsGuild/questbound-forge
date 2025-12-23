@@ -293,6 +293,9 @@ export async function sendMessage(roomId: string, text: string): Promise<Message
  * Get room information
  */
 export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:295',message:'getRoomInfo entry',data:{roomId,apiGatewayUrl:API_GATEWAY_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   // Prefer API Gateway (CORS-enabled) endpoints
   // URL-encode the roomId to handle special characters like # (GUILD#guild_id format)
   const encodedRoomId = encodeURIComponent(roomId);
@@ -304,17 +307,63 @@ export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
   let lastError: any = null;
   for (const url of tryEndpoints) {
     try {
-      const response = await fetch(url, { method: 'GET', headers: getAuthHeaders() });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:307',message:'getRoomInfo fetch attempt',data:{url,roomId,encodedRoomId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      const headers = getAuthHeaders();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:309',message:'getRoomInfo auth headers',data:{hasAuth:!!headers.Authorization,authLen:headers.Authorization?.length||0,hasApiKey:!!headers['x-api-key']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      const response = await fetch(url, { method: 'GET', headers });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:311',message:'getRoomInfo response',data:{url,status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       if (response.ok) {
         const data = await response.json();
-        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:312',message:'getRoomInfo response data',data:{roomId,dataKeys:Object.keys(data),hasId:!!data.id,hasGuildId:!!data.guildId,dataName:data.name,dataRoomName:data.roomName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         // Normalize the response to match RoomInfo type
         // Backend returns snake_case, frontend expects camelCase
         console.log('Raw API response:', data); // Debug log
         console.log('Raw API response data.name:', data.name); // Debug log
         console.log('Raw API response data.roomName:', data.roomName); // Debug log
-        if (data.id && !data.guildId) {
-          // General room
+        
+        // Check for guild room FIRST based on roomId prefix (before checking data structure)
+        // This ensures guild rooms are correctly identified even if the API doesn't return guildId
+        if (roomId.startsWith('GUILD#') || data.guildId) {
+          // Guild room
+          // Extract guild ID from roomId if not in response
+          const extractedGuildId = data.guildId || roomId.replace('GUILD#', '');
+          // Extract guild name - prefer guildName, then name (but skip formatted display names)
+          // The API may return formatted names like "Guild#Guild_Bb3C05Aa..." which we should skip
+          let guildName = data.guildName;
+          if (!guildName && data.name) {
+            const nameStr = String(data.name).trim();
+            // Skip if it's a formatted display name (starts with "Guild#" or looks like an ID)
+            const isFormattedName = nameStr.startsWith('Guild#') || 
+                                   nameStr.toLowerCase().startsWith('guild_') ||
+                                   nameStr.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+            if (!isFormattedName && nameStr.length > 0) {
+              guildName = nameStr;
+            }
+          }
+          // Fallback to extracted guild ID if no valid name found
+          guildName = guildName || extractedGuildId;
+          
+          const guildInfo = {
+            guildId: extractedGuildId,
+            guildName: guildName,
+            memberCount: data.member_count || data.memberCount || 0,
+            isMember: data.isMember !== undefined ? data.isMember : true,
+            permissions: data.permissions || [],
+          };
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:347',message:'getRoomInfo guild return',data:{roomId,guildInfo},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
+          return guildInfo;
+        } else if (data.id && !data.guildId) {
+          // General room (only if not a guild room)
           // Handle empty strings - only use if truthy and not empty
           // Backend returns 'name' field, check both 'name' and 'roomName'
           const nameValue = (data.name && String(data.name).trim()) || (data.roomName && String(data.roomName).trim());
@@ -341,27 +390,33 @@ export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
             maxMessageLength: data.max_message_length || data.maxMessageLength || 2000,
           };
           console.log('Normalized room info:', normalized); // Debug log
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:375',message:'getRoomInfo normalized return',data:{roomId,normalizedKeys:Object.keys(normalized)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           return normalized as any;
-        } else if (data.guildId || roomId.startsWith('GUILD#')) {
-          // Guild room
-          return {
-            guildId: data.guildId || roomId.replace('GUILD#', ''),
-            guildName: data.guildName || data.name || '',
-            memberCount: data.member_count || data.memberCount || 0,
-            isMember: data.isMember !== undefined ? data.isMember : true,
-            permissions: data.permissions || [],
-          };
         }
         
         // Return as-is if structure doesn't match
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:357',message:'getRoomInfo return as-is',data:{roomId,dataKeys:Object.keys(data)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         return data;
       }
       lastError = new Error(`Failed to get room info from ${url}: ${response.status} ${response.statusText}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:359',message:'getRoomInfo endpoint failed',data:{url,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     } catch (e) {
       lastError = e;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:362',message:'getRoomInfo exception',data:{url,error:e?.message||String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     }
   }
   console.error('Error getting room info:', lastError);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messaging.ts:365',message:'getRoomInfo final error',data:{roomId,lastError:lastError?.message||String(lastError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   throw lastError || new Error('Failed to get room info');
 }
 

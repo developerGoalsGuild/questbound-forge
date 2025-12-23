@@ -66,6 +66,49 @@ type NotificationChannels {
   push: Boolean!
 }
 
+type LevelProgress {
+  userId: ID!
+  totalXp: Int!
+  currentLevel: Int!
+  xpForCurrentLevel: Int!
+  xpForNextLevel: Int!
+  xpProgress: Float!
+  updatedAt: AWSTimestamp!
+}
+
+type LevelEvent {
+  userId: ID!
+  level: Int!
+  totalXp: Int!
+  source: String
+  awardedAt: AWSTimestamp!
+}
+
+type LevelEventConnection {
+  items: [LevelEvent!]!
+  nextToken: String
+}
+
+type BadgeDefinition {
+  id: ID!
+  name: String!
+  description: String!
+  icon: String
+  category: String!
+  rarity: String!
+  criteria: AWSJSON
+  createdAt: AWSTimestamp
+}
+
+type UserBadge {
+  badgeId: ID!
+  userId: ID!
+  earnedAt: AWSTimestamp!
+  progress: Float
+  metadata: AWSJSON
+  definition: BadgeDefinition!
+}
+
 type User {
   id: ID!
   email: String
@@ -278,6 +321,12 @@ type Query {
   
   # Quest queries
   myQuests(goalId: ID): [Quest!]!
+
+  # Gamification queries
+  myLevelProgress: LevelProgress!
+  myLevelHistory(limit: Int = 20, nextToken: String): LevelEventConnection!
+  myBadges(category: String, rarity: String): [UserBadge!]!
+  badgeCatalog(category: String, rarity: String): [BadgeDefinition!]!
 }
 
 # ----------------

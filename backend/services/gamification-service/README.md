@@ -25,6 +25,8 @@ Service for managing XP, levels, badges, challenges, and leaderboards.
 - `JWT_ISSUER` - JWT issuer
 - `COGNITO_USER_POOL_ID` - Cognito User Pool ID
 - `COGNITO_REGION` - AWS region for Cognito
+- `BASE_XP_FOR_LEVEL` - Configurable XP progression base (default 100)
+- `GAMIFICATION_INTERNAL_KEY` - Shared secret used for internal API Gateway calls
 
 ## Development
 

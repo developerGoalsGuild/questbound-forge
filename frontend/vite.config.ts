@@ -20,6 +20,24 @@ export default defineConfig(async ({ mode }) => {
       host: "::",
       port: 8080,
       proxy: {
+        // Proxy subscription service calls to local service if running, otherwise to API Gateway
+        "/v1/subscriptions": {
+          target: env.VITE_SUBSCRIPTION_SERVICE_URL || "http://localhost:8001",
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path: string) => path.replace(/^\/v1/, ""),
+          configure: (proxy: any, _options: any) => {
+            proxy.on('error', (err: any, _req: any, _res: any) => {
+              console.log('Subscription service proxy error - is the service running on port 8001?', err);
+            });
+            proxy.on('proxyReq', (proxyReq: any, req: any, _res: any) => {
+              console.log('Sending Request to Subscription Service:', req.method, req.url);
+            });
+            proxy.on('proxyRes', (proxyRes: any, req: any, _res: any) => {
+              console.log('Received Response from Subscription Service:', proxyRes.statusCode, req.url);
+            });
+          },
+        },
         // Proxy API Gateway calls during development to avoid CORS
         "/v1": {
           target: env.VITE_API_GATEWAY_URL || "https://3xlvsffmxc.execute-api.us-east-2.amazonaws.com",

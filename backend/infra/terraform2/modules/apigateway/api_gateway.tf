@@ -67,6 +67,21 @@ resource "aws_api_gateway_resource" "appsync_subscription_key" {
   parent_id   = aws_api_gateway_resource.appsync.id
   path_part   = "subscription-key"
 }
+resource "aws_api_gateway_resource" "appsync_availability_key" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.appsync.id
+  path_part   = "availability-key"
+}
+resource "aws_api_gateway_resource" "waitlist" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "waitlist"
+}
+resource "aws_api_gateway_resource" "waitlist_subscribe" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.waitlist.id
+  path_part   = "subscribe"
+}
 resource "aws_api_gateway_resource" "quests" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -723,6 +738,115 @@ resource "aws_api_gateway_resource" "profile" {
   path_part   = "profile"
 }
 
+# Gamification service resources
+resource "aws_api_gateway_resource" "xp" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "xp"
+}
+
+resource "aws_api_gateway_resource" "xp_current" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.xp.id
+  path_part   = "current"
+}
+
+resource "aws_api_gateway_resource" "xp_history" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.xp.id
+  path_part   = "history"
+}
+
+resource "aws_api_gateway_resource" "xp_award" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.xp.id
+  path_part   = "award"
+}
+
+resource "aws_api_gateway_resource" "levels" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "levels"
+}
+
+resource "aws_api_gateway_resource" "levels_me" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.levels.id
+  path_part   = "me"
+}
+
+resource "aws_api_gateway_resource" "levels_history" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.levels.id
+  path_part   = "history"
+}
+
+resource "aws_api_gateway_resource" "badges" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "badges"
+}
+
+resource "aws_api_gateway_resource" "badges_me" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.badges.id
+  path_part   = "me"
+}
+
+resource "aws_api_gateway_resource" "badges_user_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.badges.id
+  path_part   = "{user_id}"
+}
+
+resource "aws_api_gateway_resource" "badges_evaluate" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.badges.id
+  path_part   = "evaluate"
+}
+
+resource "aws_api_gateway_resource" "challenges" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "challenges"
+}
+
+resource "aws_api_gateway_resource" "challenges_id" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.challenges.id
+  path_part   = "{challenge_id}"
+}
+
+resource "aws_api_gateway_resource" "challenges_id_join" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.challenges_id.id
+  path_part   = "join"
+}
+
+resource "aws_api_gateway_resource" "leaderboard" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "leaderboard"
+}
+
+resource "aws_api_gateway_resource" "leaderboard_global" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.leaderboard.id
+  path_part   = "global"
+}
+
+resource "aws_api_gateway_resource" "leaderboard_level" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.leaderboard.id
+  path_part   = "level"
+}
+
+resource "aws_api_gateway_resource" "leaderboard_badges" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.leaderboard.id
+  path_part   = "badges"
+}
+
 # POST /users/signup (public)
 resource "aws_api_gateway_resource" "user_signup" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
@@ -781,6 +905,100 @@ resource "aws_api_gateway_integration_response" "user_signup_options_integration
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
     "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /waitlist/subscribe (public, API key required, low rate limit)
+resource "aws_api_gateway_method" "waitlist_subscribe_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "waitlist_subscribe_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "waitlist_subscribe_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method             = aws_api_gateway_method.waitlist_subscribe_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "waitlist_subscribe_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method = aws_api_gateway_method.waitlist_subscribe_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "waitlist_subscribe_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method = aws_api_gateway_method.waitlist_subscribe_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "waitlist_subscribe_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method = aws_api_gateway_method.waitlist_subscribe_options.http_method
+  status_code = aws_api_gateway_method_response.waitlist_subscribe_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    # Use wildcard for CORS origin to allow all origins (since frontend_allowed_origins is ["*"])
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+resource "aws_api_gateway_method_response" "waitlist_subscribe_post_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method = aws_api_gateway_method.waitlist_subscribe_post.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin" = true
+  }
+}
+resource "aws_api_gateway_integration_response" "waitlist_subscribe_post_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.waitlist_subscribe.id
+  http_method = aws_api_gateway_method.waitlist_subscribe_post.http_method
+  status_code = aws_api_gateway_method_response.waitlist_subscribe_post_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin" = "'${local.cors_allow_origin}'"
+  }
+}
+
+# Low rate limit for waitlist endpoint (2 requests per second, burst 5)
+resource "aws_api_gateway_method_settings" "waitlist_subscribe_throttling" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+  method_path = "${aws_api_gateway_resource.waitlist_subscribe.path_part}/${aws_api_gateway_method.waitlist_subscribe_post.http_method}"
+
+  settings {
+    throttling_rate_limit  = 2   # 2 requests per second
+    throttling_burst_limit = 5   # Burst up to 5 requests
+    metrics_enabled        = true
+    logging_level          = "INFO"
   }
 }
 
@@ -1056,6 +1274,68 @@ resource "aws_api_gateway_integration_response" "appsync_subscription_key_option
   }
 }
 
+# GET /appsync/availability-key (public, rate-limited by backend)
+resource "aws_api_gateway_method" "appsync_availability_key_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.appsync_availability_key.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = false
+}
+
+# OPTIONS /appsync/availability-key (CORS)
+resource "aws_api_gateway_method" "appsync_availability_key_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.appsync_availability_key.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "appsync_availability_key_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.appsync_availability_key.id
+  http_method             = aws_api_gateway_method.appsync_availability_key_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "appsync_availability_key_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.appsync_availability_key.id
+  http_method = aws_api_gateway_method.appsync_availability_key_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "appsync_availability_key_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.appsync_availability_key.id
+  http_method = aws_api_gateway_method.appsync_availability_key_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "appsync_availability_key_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.appsync_availability_key.id
+  http_method = aws_api_gateway_method.appsync_availability_key_options.http_method
+  status_code = aws_api_gateway_method_response.appsync_availability_key_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
 # Profile integrations
 resource "aws_api_gateway_integration" "profile_get_integration" {
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
@@ -1112,6 +1392,919 @@ resource "aws_api_gateway_integration_response" "profile_options_integration_res
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# Gamification service methods and integrations
+
+# GET /xp/current (authenticated)
+resource "aws_api_gateway_method" "xp_current_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.xp_current.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "xp_current_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.xp_current.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "xp_current_get_integration" {
+  count                    = var.gamification_service_lambda_arn != "" ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.xp_current.id
+  http_method             = aws_api_gateway_method.xp_current_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "xp_current_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_current.id
+  http_method = aws_api_gateway_method.xp_current_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "xp_current_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_current.id
+  http_method = aws_api_gateway_method.xp_current_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "xp_current_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_current.id
+  http_method = aws_api_gateway_method.xp_current_options.http_method
+  status_code = aws_api_gateway_method_response.xp_current_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /xp/history (authenticated)
+resource "aws_api_gateway_method" "xp_history_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.xp_history.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "xp_history_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.xp_history.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "xp_history_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.xp_history.id
+  http_method             = aws_api_gateway_method.xp_history_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "xp_history_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_history.id
+  http_method = aws_api_gateway_method.xp_history_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "xp_history_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_history.id
+  http_method = aws_api_gateway_method.xp_history_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "xp_history_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_history.id
+  http_method = aws_api_gateway_method.xp_history_options.http_method
+  status_code = aws_api_gateway_method_response.xp_history_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /levels/me (authenticated)
+resource "aws_api_gateway_method" "levels_me_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.levels_me.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "levels_me_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.levels_me.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "levels_me_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.levels_me.id
+  http_method             = aws_api_gateway_method.levels_me_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "levels_me_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.levels_me.id
+  http_method = aws_api_gateway_method.levels_me_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "levels_me_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.levels_me.id
+  http_method = aws_api_gateway_method.levels_me_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "levels_me_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.levels_me.id
+  http_method = aws_api_gateway_method.levels_me_options.http_method
+  status_code = aws_api_gateway_method_response.levels_me_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /levels/history (authenticated)
+resource "aws_api_gateway_method" "levels_history_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.levels_history.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "levels_history_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.levels_history.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "levels_history_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.levels_history.id
+  http_method             = aws_api_gateway_method.levels_history_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "levels_history_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.levels_history.id
+  http_method = aws_api_gateway_method.levels_history_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "levels_history_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.levels_history.id
+  http_method = aws_api_gateway_method.levels_history_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "levels_history_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.levels_history.id
+  http_method = aws_api_gateway_method.levels_history_options.http_method
+  status_code = aws_api_gateway_method_response.levels_history_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /xp/award (internal - no auth required, but API key)
+resource "aws_api_gateway_method" "xp_award_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.xp_award.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "xp_award_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.xp_award.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "xp_award_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.xp_award.id
+  http_method             = aws_api_gateway_method.xp_award_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "xp_award_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_award.id
+  http_method = aws_api_gateway_method.xp_award_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "xp_award_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_award.id
+  http_method = aws_api_gateway_method.xp_award_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "xp_award_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.xp_award.id
+  http_method = aws_api_gateway_method.xp_award_options.http_method
+  status_code = aws_api_gateway_method_response.xp_award_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /badges (public)
+resource "aws_api_gateway_method" "badges_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.badges.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "badges_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.badges.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "badges_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.badges.id
+  http_method             = aws_api_gateway_method.badges_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "badges_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges.id
+  http_method = aws_api_gateway_method.badges_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "badges_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges.id
+  http_method = aws_api_gateway_method.badges_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "badges_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges.id
+  http_method = aws_api_gateway_method.badges_options.http_method
+  status_code = aws_api_gateway_method_response.badges_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /badges/me (authenticated)
+resource "aws_api_gateway_method" "badges_me_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.badges_me.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "badges_me_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.badges_me.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "badges_me_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.badges_me.id
+  http_method             = aws_api_gateway_method.badges_me_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "badges_me_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_me.id
+  http_method = aws_api_gateway_method.badges_me_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "badges_me_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_me.id
+  http_method = aws_api_gateway_method.badges_me_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "badges_me_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_me.id
+  http_method = aws_api_gateway_method.badges_me_options.http_method
+  status_code = aws_api_gateway_method_response.badges_me_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /badges/{user_id} (public)
+resource "aws_api_gateway_method" "badges_user_id_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.badges_user_id.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "badges_user_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.badges_user_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "badges_user_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.badges_user_id.id
+  http_method             = aws_api_gateway_method.badges_user_id_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "badges_user_id_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_user_id.id
+  http_method = aws_api_gateway_method.badges_user_id_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "badges_user_id_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_user_id.id
+  http_method = aws_api_gateway_method.badges_user_id_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "badges_user_id_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_user_id.id
+  http_method = aws_api_gateway_method.badges_user_id_options.http_method
+  status_code = aws_api_gateway_method_response.badges_user_id_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /badges/evaluate (internal)
+resource "aws_api_gateway_method" "badges_evaluate_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.badges_evaluate.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "badges_evaluate_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.badges_evaluate.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "badges_evaluate_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.badges_evaluate.id
+  http_method             = aws_api_gateway_method.badges_evaluate_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "badges_evaluate_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_evaluate.id
+  http_method = aws_api_gateway_method.badges_evaluate_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "badges_evaluate_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_evaluate.id
+  http_method = aws_api_gateway_method.badges_evaluate_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "badges_evaluate_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.badges_evaluate.id
+  http_method = aws_api_gateway_method.badges_evaluate_options.http_method
+  status_code = aws_api_gateway_method_response.badges_evaluate_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /challenges (public)
+resource "aws_api_gateway_method" "challenges_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.challenges.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+# POST /challenges (authenticated)
+resource "aws_api_gateway_method" "challenges_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.challenges.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "challenges_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.challenges.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "challenges_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.challenges.id
+  http_method             = aws_api_gateway_method.challenges_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "challenges_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.challenges.id
+  http_method             = aws_api_gateway_method.challenges_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "challenges_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges.id
+  http_method = aws_api_gateway_method.challenges_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "challenges_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges.id
+  http_method = aws_api_gateway_method.challenges_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "challenges_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges.id
+  http_method = aws_api_gateway_method.challenges_options.http_method
+  status_code = aws_api_gateway_method_response.challenges_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /challenges/{challenge_id} (public)
+resource "aws_api_gateway_method" "challenges_id_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.challenges_id.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "challenges_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.challenges_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "challenges_id_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.challenges_id.id
+  http_method             = aws_api_gateway_method.challenges_id_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "challenges_id_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges_id.id
+  http_method = aws_api_gateway_method.challenges_id_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "challenges_id_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges_id.id
+  http_method = aws_api_gateway_method.challenges_id_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "challenges_id_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges_id.id
+  http_method = aws_api_gateway_method.challenges_id_options.http_method
+  status_code = aws_api_gateway_method_response.challenges_id_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /challenges/{challenge_id}/join (authenticated)
+resource "aws_api_gateway_method" "challenges_id_join_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.challenges_id_join.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "challenges_id_join_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.challenges_id_join.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "challenges_id_join_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.challenges_id_join.id
+  http_method             = aws_api_gateway_method.challenges_id_join_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "challenges_id_join_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges_id_join.id
+  http_method = aws_api_gateway_method.challenges_id_join_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "challenges_id_join_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges_id_join.id
+  http_method = aws_api_gateway_method.challenges_id_join_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "challenges_id_join_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.challenges_id_join.id
+  http_method = aws_api_gateway_method.challenges_id_join_options.http_method
+  status_code = aws_api_gateway_method_response.challenges_id_join_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /leaderboard/global (public)
+resource "aws_api_gateway_method" "leaderboard_global_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.leaderboard_global.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "leaderboard_global_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.leaderboard_global.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "leaderboard_global_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.leaderboard_global.id
+  http_method             = aws_api_gateway_method.leaderboard_global_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "leaderboard_global_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_global.id
+  http_method = aws_api_gateway_method.leaderboard_global_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "leaderboard_global_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_global.id
+  http_method = aws_api_gateway_method.leaderboard_global_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "leaderboard_global_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_global.id
+  http_method = aws_api_gateway_method.leaderboard_global_options.http_method
+  status_code = aws_api_gateway_method_response.leaderboard_global_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /leaderboard/level (public)
+resource "aws_api_gateway_method" "leaderboard_level_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.leaderboard_level.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "leaderboard_level_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.leaderboard_level.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "leaderboard_level_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.leaderboard_level.id
+  http_method             = aws_api_gateway_method.leaderboard_level_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "leaderboard_level_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_level.id
+  http_method = aws_api_gateway_method.leaderboard_level_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "leaderboard_level_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_level.id
+  http_method = aws_api_gateway_method.leaderboard_level_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "leaderboard_level_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_level.id
+  http_method = aws_api_gateway_method.leaderboard_level_options.http_method
+  status_code = aws_api_gateway_method_response.leaderboard_level_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /leaderboard/badges (public)
+resource "aws_api_gateway_method" "leaderboard_badges_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.leaderboard_badges.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "leaderboard_badges_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.leaderboard_badges.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "leaderboard_badges_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.leaderboard_badges.id
+  http_method             = aws_api_gateway_method.leaderboard_badges_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.gamification_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "leaderboard_badges_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_badges.id
+  http_method = aws_api_gateway_method.leaderboard_badges_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({ statusCode = 200 })
+  }
+}
+
+resource "aws_api_gateway_method_response" "leaderboard_badges_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_badges.id
+  http_method = aws_api_gateway_method.leaderboard_badges_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "leaderboard_badges_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.leaderboard_badges.id
+  http_method = aws_api_gateway_method.leaderboard_badges_options.http_method
+  status_code = aws_api_gateway_method_response.leaderboard_badges_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
   }
 }
@@ -4582,6 +5775,34 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.collaborations_resources_type_id_comments_options,
       aws_api_gateway_method.collaborations_comments_id_reactions_reaction_id_delete,
       aws_api_gateway_method.collaborations_comments_id_reactions_reaction_id_options,
+      # Gamification service methods
+      aws_api_gateway_method.xp_current_get,
+      aws_api_gateway_method.xp_current_options,
+      aws_api_gateway_method.xp_history_get,
+      aws_api_gateway_method.xp_history_options,
+      aws_api_gateway_method.levels_me_get,
+      aws_api_gateway_method.levels_me_options,
+      aws_api_gateway_method.levels_history_get,
+      aws_api_gateway_method.levels_history_options,
+      aws_api_gateway_method.xp_award_post,
+      aws_api_gateway_method.xp_award_options,
+      aws_api_gateway_method.badges_get,
+      aws_api_gateway_method.badges_options,
+      aws_api_gateway_method.badges_me_get,
+      aws_api_gateway_method.badges_me_options,
+      aws_api_gateway_method.badges_user_id_get,
+      aws_api_gateway_method.badges_user_id_options,
+      aws_api_gateway_method.badges_evaluate_post,
+      aws_api_gateway_method.badges_evaluate_options,
+      aws_api_gateway_method.challenges_get,
+      aws_api_gateway_method.challenges_post,
+      aws_api_gateway_method.challenges_options,
+      aws_api_gateway_method.leaderboard_global_get,
+      aws_api_gateway_method.leaderboard_global_options,
+      aws_api_gateway_method.leaderboard_level_get,
+      aws_api_gateway_method.leaderboard_level_options,
+      aws_api_gateway_method.leaderboard_badges_get,
+      aws_api_gateway_method.leaderboard_badges_options,
     ]))
   }
   depends_on = [
@@ -4750,6 +5971,34 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.collaborations_resources_type_id_comments_options_integration,
     aws_api_gateway_integration.collaborations_comments_id_reactions_reaction_id_delete_integration,
     aws_api_gateway_integration.collaborations_comments_id_reactions_reaction_id_options_integration,
+    # Gamification service integrations
+    aws_api_gateway_integration.xp_current_get_integration,
+    aws_api_gateway_integration.xp_current_options_integration,
+    aws_api_gateway_integration.xp_history_get_integration,
+    aws_api_gateway_integration.xp_history_options_integration,
+    aws_api_gateway_integration.levels_me_get_integration,
+    aws_api_gateway_integration.levels_me_options_integration,
+    aws_api_gateway_integration.levels_history_get_integration,
+    aws_api_gateway_integration.levels_history_options_integration,
+    aws_api_gateway_integration.xp_award_post_integration,
+    aws_api_gateway_integration.xp_award_options_integration,
+    aws_api_gateway_integration.badges_get_integration,
+    aws_api_gateway_integration.badges_options_integration,
+    aws_api_gateway_integration.badges_me_get_integration,
+    aws_api_gateway_integration.badges_me_options_integration,
+    aws_api_gateway_integration.badges_user_id_get_integration,
+    aws_api_gateway_integration.badges_user_id_options_integration,
+    aws_api_gateway_integration.badges_evaluate_post_integration,
+    aws_api_gateway_integration.badges_evaluate_options_integration,
+    aws_api_gateway_integration.challenges_get_integration,
+    aws_api_gateway_integration.challenges_post_integration,
+    aws_api_gateway_integration.challenges_options_integration,
+    aws_api_gateway_integration.leaderboard_global_get_integration,
+    aws_api_gateway_integration.leaderboard_global_options_integration,
+    aws_api_gateway_integration.leaderboard_level_get_integration,
+    aws_api_gateway_integration.leaderboard_level_options_integration,
+    aws_api_gateway_integration.leaderboard_badges_get_integration,
+    aws_api_gateway_integration.leaderboard_badges_options_integration,
   ]
   lifecycle { create_before_destroy = true }
 }
@@ -5874,6 +7123,15 @@ resource "aws_lambda_permission" "allow_guild" {
   statement_id  = "AllowAPIGatewayInvokeGuild"
   action        = "lambda:InvokeFunction"
   function_name = split(":", var.guild_service_lambda_arn)[6]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "allow_gamification" {
+  count         = var.gamification_service_lambda_arn != "" ? 1 : 0
+  statement_id  = "AllowAPIGatewayInvokeGamification"
+  action        = "lambda:InvokeFunction"
+  function_name = split(":", var.gamification_service_lambda_arn)[6]
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }

@@ -5,7 +5,10 @@ Calculates user levels based on total XP using exponential progression.
 """
 
 import math
+from functools import lru_cache
 from typing import Tuple
+
+from ..settings import Settings
 
 
 # Level thresholds configuration
@@ -18,6 +21,16 @@ from typing import Tuple
 # etc.
 
 BASE_XP_FOR_LEVEL = 100
+
+
+@lru_cache(maxsize=1)
+def _get_base_xp_for_level() -> int:
+    """Return configurable base XP per level (defaults to 100)."""
+    try:
+        settings = Settings()
+        return max(1, settings.base_xp_for_level)
+    except Exception:
+        return BASE_XP_FOR_LEVEL
 
 
 def calculate_level(total_xp: int) -> int:
@@ -33,8 +46,9 @@ def calculate_level(total_xp: int) -> int:
     if total_xp < 0:
         total_xp = 0
     
-    # Exponential progression: level = floor(sqrt(totalXP / 100)) + 1
-    level = math.floor(math.sqrt(total_xp / BASE_XP_FOR_LEVEL)) + 1
+    base_xp = _get_base_xp_for_level()
+    # Exponential progression: level = floor(sqrt(totalXP / base)) + 1
+    level = math.floor(math.sqrt(total_xp / base_xp)) + 1
     
     # Ensure minimum level of 1
     return max(1, level)
@@ -53,11 +67,12 @@ def get_level_thresholds(level: int) -> Tuple[int, int]:
     if level < 1:
         level = 1
     
+    base_xp = _get_base_xp_for_level()
     # XP required to reach this level
-    xp_for_current = int((level - 1) ** 2 * BASE_XP_FOR_LEVEL)
+    xp_for_current = int((level - 1) ** 2 * base_xp)
     
     # XP required to reach next level
-    xp_for_next = int(level ** 2 * BASE_XP_FOR_LEVEL)
+    xp_for_next = int(level ** 2 * base_xp)
     
     return (xp_for_current, xp_for_next)
 

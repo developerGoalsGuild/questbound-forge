@@ -2,6 +2,9 @@ from __future__ import annotations
 from pydantic import BaseModel, EmailStr, Field
 from typing import Literal, Optional
 
+# Subscription tier types (matching subscription service)
+SubscriptionTier = Literal["INITIATE", "JOURNEYMAN", "SAGE", "GUILDMASTER"]
+
 
 class SignupLocal(BaseModel):
   provider: Literal['local'] = 'local'
@@ -18,6 +21,7 @@ class SignupLocal(BaseModel):
   pronouns: Optional[str] = None
   bio: Optional[str] = None
   tags: Optional[list[str]] = None
+  subscriptionTier: Optional[SubscriptionTier] = None
 
 
 class SignupGoogle(BaseModel):
@@ -121,3 +125,13 @@ class AppSyncKeyResponse(BaseModel):
 class AvailabilityKeyResponse(BaseModel):
   apiKey: str
   expiresAt: str
+
+
+class WaitlistSubscribe(BaseModel):
+  email: EmailStr
+
+
+class WaitlistResponse(BaseModel):
+  message: str
+  email: str
+  subscribed: bool

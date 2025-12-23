@@ -24,6 +24,11 @@ class UserBadge(BaseModel):
     earnedAt: int = Field(..., description="Timestamp when badge was earned")
     progress: Optional[float] = Field(None, description="Progress towards badge (0.0-1.0)")
     metadata: Optional[dict] = Field(None, description="Additional metadata")
+    definitionName: Optional[str] = Field(None, description="Snapshot of badge name")
+    definitionDescription: Optional[str] = Field(None, description="Snapshot of badge description")
+    definitionCategory: Optional[str] = Field(None, description="Snapshot of badge category")
+    definitionRarity: Optional[str] = Field(None, description="Snapshot of badge rarity")
+    definitionIcon: Optional[str] = Field(None, description="Snapshot of badge icon reference")
 
 
 class BadgeWithDefinition(BaseModel):
@@ -44,3 +49,9 @@ class BadgeAssignmentRequest(BaseModel):
     badgeId: str = Field(..., description="Badge ID")
     metadata: Optional[dict] = Field(None, description="Additional metadata")
 
+
+class BadgeEvaluationRequest(BaseModel):
+    """Request payload for evaluating badge criteria."""
+    userId: str = Field(..., description="User ID")
+    achievementType: str = Field(..., description="Type of achievement (quest_completed, level_up, streak, challenge_won)")
+    achievementData: dict = Field(default_factory=dict, description="Additional data (e.g., counts, streak days)")

@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { generateClient } from "aws-amplify/api";
+import { print } from "graphql";
 import awsConfigDev from '@/config/aws-exports.dev';
 import awsConfigProd from '@/config/aws-exports.prod';
 import { logger } from "./logger";
@@ -215,9 +216,17 @@ export async function getAvailabilityApiKey(forceRefresh = false): Promise<strin
   }
 
   const url = buildApiUrl('/appsync/availability-key');
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  const headers: Record<string, string> = { 
+    'Content-Type': 'application/json',
+    accept: 'application/json' 
+  };
+  if (apiKey) {
+    headers['x-api-key'] = apiKey;
+  }
   const res = await fetch(url, {
     method: 'GET',
-    headers: { accept: 'application/json' },
+    headers,
   });
 
   const textBody = await res.text();
@@ -230,7 +239,13 @@ export async function getAvailabilityApiKey(forceRefresh = false): Promise<strin
 
   if (!res.ok) {
     const message = (payload as any)?.detail || (payload as any)?.message || res.statusText;
-    logger.warn('Availability key fetch failed', { status: res.status, message });
+    // Use debug level for expected failures (e.g., API Gateway 403 in dev)
+    // The availability check functions will handle this gracefully
+    if (res.status === 403 || res.status === 401) {
+      logger.debug('Availability key fetch failed (auth required)', { status: res.status, message });
+    } else {
+      logger.warn('Availability key fetch failed', { status: res.status, message });
+    }
     throw new Error(typeof message === 'string' && message ? message : 'Failed to fetch availability key');
   }
 
@@ -290,20 +305,50 @@ export function graphQLClient() {
   } as any;
 }
 
-export async function graphqlWithApiKey<T = any>(query: string, variables: any = {}) {
+export async function graphqlWithApiKey<T = any>(query: string | any, variables: any = {}) {
   const operation = 'graphqlWithApiKey';
   const endpoint = import.meta.env.VITE_APPSYNC_ENDPOINT as string | undefined;
   if (!endpoint || !endpoint.trim()) {
     throw new Error('AppSync endpoint not configured');
   }
   const apiKey = await getAvailabilityApiKey();
+  
+  // Validate API key format (AppSync API keys are typically base64-like strings)
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error('AppSync API key is empty or invalid');
+  }
 
-  logger.debug('Executing GraphQL query with API key', { operation, endpoint });
+  // Convert GraphQL DocumentNode to string if needed (for Apollo Client gql tags)
+  let queryString: string;
+  if (typeof query === 'string') {
+    queryString = query;
+  } else if (query && typeof query === 'object') {
+    // Apollo Client DocumentNode - use GraphQL print to convert to string
+    try {
+      queryString = print(query);
+    } catch (error) {
+      logger.error('Failed to convert GraphQL query to string', { error });
+      throw new Error('Invalid GraphQL query format - unable to convert to string');
+    }
+  } else {
+    throw new Error('Invalid GraphQL query format');
+  }
+
+  logger.debug('Executing GraphQL query with API key', { 
+    operation, 
+    endpoint,
+    apiKeyLength: apiKey?.length || 0,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + '...' : 'none',
+    queryPreview: queryString.substring(0, 100) + '...',
+  });
 
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-    body: JSON.stringify({ query, variables }),
+    headers: { 
+      'content-type': 'application/json', 
+      'x-api-key': apiKey 
+    },
+    body: JSON.stringify({ query: queryString, variables }),
   });
 
   const json = await res.json();
@@ -312,17 +357,26 @@ export async function graphqlWithApiKey<T = any>(query: string, variables: any =
     status: res.status,
     headers: Object.fromEntries(res.headers.entries()),
     responseJson: json,
+    apiKeyLength: apiKey?.length || 0,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'none',
   });
 
   if (!res.ok || json.errors?.length) {
+    const errorMessage = json.errors?.[0]?.message || json.message || res.statusText || 'GraphQL error';
+    const errorDetails = json.errors?.[0] || {};
     logger.error('GraphQL query with API key failed', {
       operation,
       status: res.status,
       statusText: res.statusText,
       errors: json.errors,
       data: json.data,
+      errorMessage,
+      errorType: errorDetails.errorType || errorDetails.extensions?.errorType,
+      errorInfo: errorDetails.extensions,
+      apiKeyLength: apiKey?.length || 0,
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + '...' : 'none',
     });
-    throw Object.assign(new Error('GraphQL error'), { response: res, errors: json.errors, data: json.data });
+    throw Object.assign(new Error(errorMessage), { response: res, errors: json.errors, data: json.data });
   }
   return json.data as T;
 }

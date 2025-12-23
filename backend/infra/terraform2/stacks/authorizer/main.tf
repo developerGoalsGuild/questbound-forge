@@ -44,8 +44,9 @@ module "subscription_auth_lambda" {
     ".pytest_cache/**"
   ]
   environment_variables = {
-    ENVIRONMENT         = var.environment
-    SETTINGS_SSM_PREFIX = "/goalsguild/user-service/"
-    AUTH_LOG_ENABLED    = "1"
+    ENVIRONMENT                    = var.environment
+    SETTINGS_SSM_PREFIX            = "/goalsguild/user-service/"
+    AUTH_LOG_ENABLED               = "1"
+    APPSYNC_AVAILABILITY_KEY_PARAM = "/goalsguild/${var.environment}/appsync/availability_key"
   }
 }
