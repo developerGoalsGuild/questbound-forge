@@ -21,12 +21,13 @@ vi.mock('@/hooks/useTranslation', () => ({
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
+const mockUseParams = vi.fn(() => ({ slug: 'test-article' }));
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useParams: () => ({ slug: 'test-article' })
+    useParams: () => mockUseParams()
   };
 });
 
@@ -59,7 +60,10 @@ describe('HelpArticle page', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Test Article')).toBeInTheDocument();
+    // Title appears in both header and content, use getAllByText
+    const titles = screen.getAllByText('Test Article');
+    expect(titles.length).toBeGreaterThan(0);
+    expect(titles[0]).toBeInTheDocument();
   });
 
   test('renders back button', () => {
@@ -69,12 +73,15 @@ describe('HelpArticle page', () => {
       </MemoryRouter>
     );
 
-    const backButton = screen.getByRole('button', { name: /back/i });
-    expect(backButton).toBeInTheDocument();
+    // There are multiple back buttons, get the first one
+    const backButtons = screen.getAllByRole('button', { name: /back/i });
+    expect(backButtons.length).toBeGreaterThan(0);
+    expect(backButtons[0]).toBeInTheDocument();
   });
 
   test('shows not found for invalid slug', () => {
-    vi.mocked(require('react-router-dom').useParams).mockReturnValue({ slug: 'invalid' });
+    // Update the mock to return invalid slug
+    mockUseParams.mockReturnValue({ slug: 'invalid' });
 
     render(
       <MemoryRouter>

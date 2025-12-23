@@ -105,7 +105,9 @@ describe('Blog page', () => {
     );
 
     expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByText('Product Updates')).toBeInTheDocument();
+    // Product Updates appears multiple times (button and badge), so use getAllByText
+    const productUpdates = screen.getAllByText('Product Updates');
+    expect(productUpdates.length).toBeGreaterThan(0);
   });
 
   test('renders back button', () => {
@@ -126,8 +128,11 @@ describe('Blog page', () => {
       </MemoryRouter>
     );
 
-    const postCard = screen.getByText('Test Post');
-    postCard.click();
+    // Test Post appears multiple times (featured and all posts), get first one
+    const postCards = screen.getAllByText('Test Post');
+    expect(postCards.length).toBeGreaterThan(0);
+    // Click the first card
+    postCards[0].click();
 
     expect(mockNavigate).toHaveBeenCalledWith('/blog/test-post');
   });

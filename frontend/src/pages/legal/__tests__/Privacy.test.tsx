@@ -93,7 +93,11 @@ describe('Privacy page', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Introduction')).toBeInTheDocument();
+    // Introduction appears in TOC and content, check for h2 heading
+    const introductions = screen.getAllByText('Introduction');
+    expect(introductions.length).toBeGreaterThan(0);
+    // Verify it's rendered as a heading
+    expect(screen.getByRole('heading', { name: 'Introduction' })).toBeInTheDocument();
   });
 });
 

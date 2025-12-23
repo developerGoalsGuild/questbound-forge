@@ -109,7 +109,9 @@ describe('ApiDocs page', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Authentication')).toBeInTheDocument();
+    // Check for authentication in card title (more specific)
+    const authCards = screen.getAllByText('Authentication');
+    expect(authCards.length).toBeGreaterThan(0);
   });
 
   test('renders back button', () => {

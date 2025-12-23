@@ -93,7 +93,11 @@ describe('Terms page', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Acceptance of Terms')).toBeInTheDocument();
+    // Acceptance of Terms appears in TOC and content, check for h2 heading
+    const acceptances = screen.getAllByText('Acceptance of Terms');
+    expect(acceptances.length).toBeGreaterThan(0);
+    // Verify it's rendered as a heading
+    expect(screen.getByRole('heading', { name: 'Acceptance of Terms' })).toBeInTheDocument();
   });
 });
 

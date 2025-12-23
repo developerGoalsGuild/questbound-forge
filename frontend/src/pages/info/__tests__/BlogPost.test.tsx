@@ -23,12 +23,13 @@ vi.mock('@/hooks/useTranslation', () => ({
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
+const mockUseParams = vi.fn(() => ({ slug: 'test-post' }));
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useParams: () => ({ slug: 'test-post' })
+    useParams: () => mockUseParams()
   };
 });
 
@@ -59,6 +60,7 @@ global.fetch = vi.fn(() =>
 describe('BlogPost page', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockUseParams.mockReturnValue({ slug: 'test-post' });
     vi.clearAllMocks();
   });
 
@@ -97,12 +99,14 @@ describe('BlogPost page', () => {
       </MemoryRouter>
     );
 
-    const backButton = screen.getByRole('button', { name: /back/i });
-    expect(backButton).toBeInTheDocument();
+    // There are multiple back buttons, get the first one
+    const backButtons = screen.getAllByRole('button', { name: /back/i });
+    expect(backButtons.length).toBeGreaterThan(0);
   });
 
   test('shows not found for invalid slug', () => {
-    vi.mocked(require('react-router-dom').useParams).mockReturnValue({ slug: 'invalid' });
+    // Change mock to return invalid slug
+    mockUseParams.mockReturnValue({ slug: 'invalid' });
 
     render(
       <MemoryRouter>
@@ -111,6 +115,9 @@ describe('BlogPost page', () => {
     );
 
     expect(screen.getByText('Post Not Found')).toBeInTheDocument();
+    
+    // Reset mock for other tests
+    mockUseParams.mockReturnValue({ slug: 'test-post' });
   });
 });
 
