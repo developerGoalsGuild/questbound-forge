@@ -1,0 +1,387 @@
+{
+  "name": "GoalsGuild QuestBound Forge - Accessibility Testing Configuration",
+  "version": "1.0.0",
+  "description": "Configuration for accessibility testing in the GoalsGuild QuestBound Forge application",
+  "author": "GoalsGuild Team",
+  "license": "MIT",
+  "main": "accessibility-test.js",
+  "scripts": {
+    "test:accessibility": "node src/scripts/accessibility-test.js",
+    "test:accessibility:watch": "node src/scripts/accessibility-test.js --watch",
+    "test:accessibility:ci": "node src/scripts/accessibility-test.js --ci",
+    "test:accessibility:report": "node src/scripts/accessibility-test.js --report-only"
+  },
+  "config": {
+    "autoRunTests": true,
+    "testInterval": 30000,
+    "maxTestRetries": 3,
+    "testCategories": {
+      "headingHierarchy": true,
+      "imageAltText": true,
+      "formLabels": true,
+      "ariaLiveRegions": true,
+      "focusManagement": true,
+      "colorContrast": true,
+      "keyboardNavigation": true,
+      "buttonAccessibility": true,
+      "modalAccessibility": true,
+      "errorHandling": true,
+      "internationalization": true,
+      "semanticHTML": true,
+      "ariaAttributes": true,
+      "listAccessibility": true,
+      "iconAccessibility": true,
+      "contentStructure": true
+    },
+    "thresholds": {
+      "minScore": 80,
+      "maxFailures": 0,
+      "maxWarnings": 5
+    },
+    "reporting": {
+      "includeRecommendations": true,
+      "includeElementReferences": true,
+      "includeScreenshots": false,
+      "exportFormats": ["txt", "json"]
+    },
+    "development": {
+      "showTestResults": true,
+      "highlightIssues": true,
+      "autoFixSuggestions": false
+    }
+  },
+  "testCategories": {
+    "headingHierarchy": {
+      "name": "Heading Hierarchy",
+      "description": "Ensures proper heading structure (h1 → h2 → h3, etc.)",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "imageAltText": {
+      "name": "Image Alt Text",
+      "description": "Verifies all images have appropriate alt text",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "formLabels": {
+      "name": "Form Labels",
+      "description": "Checks that all form inputs have associated labels",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "ariaLiveRegions": {
+      "name": "ARIA Live Regions",
+      "description": "Validates ARIA live regions for dynamic content",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    },
+    "focusManagement": {
+      "name": "Focus Management",
+      "description": "Tests keyboard focus and navigation",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "colorContrast": {
+      "name": "Color Contrast",
+      "description": "Checks color contrast ratios for readability",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "keyboardNavigation": {
+      "name": "Keyboard Navigation",
+      "description": "Ensures all interactive elements are keyboard accessible",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "buttonAccessibility": {
+      "name": "Button Accessibility",
+      "description": "Validates button labels and accessibility",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "modalAccessibility": {
+      "name": "Modal Accessibility",
+      "description": "Checks modal dialog accessibility",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    },
+    "errorHandling": {
+      "name": "Error Handling",
+      "description": "Verifies error messages are properly announced",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "internationalization": {
+      "name": "Internationalization",
+      "description": "Tests translation and localization support",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    },
+    "semanticHTML": {
+      "name": "Semantic HTML",
+      "description": "Validates use of semantic HTML elements",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    },
+    "ariaAttributes": {
+      "name": "ARIA Attributes",
+      "description": "Checks ARIA attribute usage and validity",
+      "wcagLevel": "AA",
+      "priority": "high",
+      "enabled": true
+    },
+    "listAccessibility": {
+      "name": "List Accessibility",
+      "description": "Ensures proper list structure and accessibility",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    },
+    "iconAccessibility": {
+      "name": "Icon Accessibility",
+      "description": "Validates icon accessibility attributes",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    },
+    "contentStructure": {
+      "name": "Content Structure",
+      "description": "Checks overall content structure and organization",
+      "wcagLevel": "AA",
+      "priority": "medium",
+      "enabled": true
+    }
+  },
+  "wcagChecklist": {
+    "perceivable": [
+      "All images have alt text or are marked as decorative",
+      "Color is not the only means of conveying information",
+      "Text has sufficient color contrast (4.5:1 for normal text)",
+      "Content can be resized up to 200% without loss of functionality",
+      "Audio content has captions or transcripts"
+    ],
+    "operable": [
+      "All functionality is available via keyboard",
+      "No content flashes more than 3 times per second",
+      "Users can pause, stop, or hide moving content",
+      "Focus indicators are visible and clear",
+      "Navigation is consistent and predictable"
+    ],
+    "understandable": [
+      "Language is clear and simple",
+      "Form labels and instructions are clear",
+      "Error messages are helpful and specific",
+      "Content appears and operates predictably",
+      "Users can avoid and correct mistakes"
+    ],
+    "robust": [
+      "HTML is valid and well-formed",
+      "ARIA attributes are used correctly",
+      "Content works with assistive technologies",
+      "Code follows web standards",
+      "Future compatibility is maintained"
+    ]
+  },
+  "commonIssues": {
+    "missingAltText": {
+      "description": "Images without alt text",
+      "solution": "Add alt text or mark as decorative with role=\"presentation\"",
+      "example": "<img src=\"logo.png\" alt=\"Company Logo\" />",
+      "wcagLevel": "AA",
+      "priority": "high"
+    },
+    "poorFocusManagement": {
+      "description": "Focus not managed properly in modals",
+      "solution": "Use focus management hooks and trap focus within modals",
+      "example": "const { focusFirst, focusLast } = useFocusManagement();",
+      "wcagLevel": "AA",
+      "priority": "high"
+    },
+    "missingFormLabels": {
+      "description": "Form inputs without labels",
+      "solution": "Associate labels with inputs using for/id or aria-label",
+      "example": "<label htmlFor=\"email\">Email</label><input id=\"email\" />",
+      "wcagLevel": "AA",
+      "priority": "high"
+    },
+    "inaccessibleErrorMessages": {
+      "description": "Error messages not announced to screen readers",
+      "solution": "Use role=\"alert\" for error messages",
+      "example": "<p role=\"alert\">Please enter a valid email address</p>",
+      "wcagLevel": "AA",
+      "priority": "high"
+    },
+    "poorColorContrast": {
+      "description": "Text and background colors lack sufficient contrast",
+      "solution": "Use color contrast checker and adjust colors",
+      "example": "Ensure 4.5:1 contrast ratio for normal text",
+      "wcagLevel": "AA",
+      "priority": "high"
+    },
+    "missingAriaLabels": {
+      "description": "Interactive elements without accessible names",
+      "solution": "Add aria-label, aria-labelledby, or visible text",
+      "example": "<button aria-label=\"Close dialog\">×</button>",
+      "wcagLevel": "AA",
+      "priority": "high"
+    },
+    "improperHeadingHierarchy": {
+      "description": "Headings not in logical order",
+      "solution": "Use proper heading hierarchy (h1 → h2 → h3)",
+      "example": "<h1>Page Title</h1><h2>Section Title</h2>",
+      "wcagLevel": "AA",
+      "priority": "medium"
+    },
+    "missingLiveRegions": {
+      "description": "Dynamic content changes not announced",
+      "solution": "Use ARIA live regions for dynamic content",
+      "example": "<div aria-live=\"polite\">Status updates</div>",
+      "wcagLevel": "AA",
+      "priority": "medium"
+    }
+  },
+  "testingTools": {
+    "browserExtensions": [
+      {
+        "name": "axe-core",
+        "description": "Comprehensive accessibility testing",
+        "url": "https://www.deque.com/axe/",
+        "browsers": ["Chrome", "Firefox", "Edge"],
+        "recommended": true
+      },
+      {
+        "name": "WAVE",
+        "description": "Web Accessibility Evaluator",
+        "url": "https://wave.webaim.org/",
+        "browsers": ["Chrome", "Firefox", "Edge"],
+        "recommended": true
+      },
+      {
+        "name": "Lighthouse",
+        "description": "Built-in Chrome accessibility audit",
+        "url": "https://developers.google.com/web/tools/lighthouse",
+        "browsers": ["Chrome"],
+        "recommended": true
+      }
+    ],
+    "screenReaders": [
+      {
+        "name": "NVDA",
+        "description": "Free screen reader for Windows",
+        "url": "https://www.nvaccess.org/",
+        "platforms": ["Windows"],
+        "recommended": true
+      },
+      {
+        "name": "JAWS",
+        "description": "Professional screen reader for Windows",
+        "url": "https://www.freedomscientific.com/products/software/jaws/",
+        "platforms": ["Windows"],
+        "recommended": false
+      },
+      {
+        "name": "VoiceOver",
+        "description": "Built-in screen reader for macOS",
+        "url": "https://www.apple.com/accessibility/vision/",
+        "platforms": ["macOS"],
+        "recommended": true
+      },
+      {
+        "name": "Narrator",
+        "description": "Built-in screen reader for Windows",
+        "url": "https://support.microsoft.com/en-us/windows/complete-guide-to-narrator-e4397a0d-ef4f-b386-d8ae-c172f109bdb1",
+        "platforms": ["Windows"],
+        "recommended": false
+      }
+    ],
+    "colorContrast": [
+      {
+        "name": "WebAIM Color Contrast Checker",
+        "description": "Online color contrast testing tool",
+        "url": "https://webaim.org/resources/contrastchecker/",
+        "recommended": true
+      },
+      {
+        "name": "Colour Contrast Analyser",
+        "description": "Desktop application for color contrast testing",
+        "url": "https://www.tpgi.com/color-contrast-checker/",
+        "recommended": true
+      },
+      {
+        "name": "Chrome DevTools",
+        "description": "Built-in color picker with contrast ratios",
+        "url": "https://developers.google.com/web/tools/chrome-devtools",
+        "recommended": true
+      }
+    ]
+  },
+  "bestPractices": {
+    "testing": [
+      "Test with actual screen readers, not just automated tools",
+      "Test keyboard navigation without a mouse",
+      "Test with different zoom levels (up to 200%)",
+      "Test with high contrast mode enabled",
+      "Test with reduced motion preferences",
+      "Test with different color vision deficiencies"
+    ],
+    "development": [
+      "Use semantic HTML elements whenever possible",
+      "Add ARIA attributes only when necessary",
+      "Test accessibility features during development",
+      "Include accessibility in code reviews",
+      "Document accessibility requirements",
+      "Train team members on accessibility best practices"
+    ],
+    "design": [
+      "Ensure sufficient color contrast ratios",
+      "Design for different screen sizes and orientations",
+      "Provide multiple ways to access content",
+      "Use clear, simple language",
+      "Design consistent navigation patterns",
+      "Consider users with different abilities"
+    ]
+  },
+  "reporting": {
+    "formats": ["txt", "json", "html"],
+    "includeRecommendations": true,
+    "includeElementReferences": true,
+    "includeScreenshots": false,
+    "includeWCAGLevels": true,
+    "includePriorityLevels": true,
+    "includeTestCategories": true,
+    "includeBestPractices": true,
+    "includeCommonIssues": true,
+    "includeTestingTools": true
+  },
+  "ci": {
+    "enabled": true,
+    "failOnErrors": true,
+    "failOnWarnings": false,
+    "minScore": 80,
+    "maxFailures": 0,
+    "maxWarnings": 5,
+    "reportPath": "accessibility-reports",
+    "reportFormats": ["txt", "json"]
+  },
+  "development": {
+    "autoRunTests": true,
+    "showTestResults": true,
+    "highlightIssues": true,
+    "autoFixSuggestions": false,
+    "testInterval": 30000,
+    "maxTestRetries": 3
+  }
+}
+

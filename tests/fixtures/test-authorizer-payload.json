@@ -1,0 +1,8 @@
+{
+  "authorizationToken": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2F1dGgubG9jYWwiLCJhdWQiOiJhcGk6Ly9kZWZhdWx0Iiwic3ViIjoiYjhlNTNhYzQtMTY0OS00Y2U5LTg3MjUtYTBlNWU1NmQ4NTI3IiwiZW1haWwiOiJhbmRyZXNfYWx2YXJAaG90bWFpbC5jb20iLCJzY29wZSI6InVzZXI6cmVhZCIsImlhdCI6MTc2MTU2MzUzMywibmJmIjoxNzYxNTYzNTMzLCJleHAiOjE3NjE1NjcxMzMsInRva2VuX3VzZSI6ImFjY2VzcyIsInByb3ZpZGVyIjoibG9jYWwiLCJyb2xlIjoidXNlciIsIm5pY2tuYW1lIjoicGlydWxhcyJ9.1G35PL5JLH9ti54meBy8eGfdEklGXwn0AlkZnyMv0Kg",
+  "requestContext": {
+    "apiId": "w7lrzkdyu5f7fkj7onzg6qkutu",
+    "accountId": "838284111015"
+  }
+}
+

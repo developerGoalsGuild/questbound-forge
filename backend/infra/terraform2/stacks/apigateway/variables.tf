@@ -42,6 +42,11 @@ variable "gamification_service_lambda_arn_override" {
     default = ""
 }
 
+variable "subscription_service_lambda_arn_override" {
+    type    = string
+    default = ""
+}
+
 # Accept extra variables from shared tfvars to avoid warnings (not used here)
 variable "frontend_base_url" {
     type    = string

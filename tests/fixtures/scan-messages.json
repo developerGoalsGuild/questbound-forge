@@ -1,0 +1,9 @@
+{
+  "TableName": "gg_guild",
+  "FilterExpression": "begins_with(SK, :sk)",
+  "ExpressionAttributeValues": {
+    ":sk": {"S": "MSG#"}
+  },
+  "Limit": 10
+}
+

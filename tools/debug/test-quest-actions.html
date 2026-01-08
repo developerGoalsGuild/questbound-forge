@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest Actions Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .loading {
+            background-color: #ffc107;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quest Actions Test</h1>
+    <p>This page tests the quest start and delete functionality.</p>
+    
+    <div class="test-section">
+        <h2>Test Instructions</h2>
+        <ol>
+            <li>Open the browser developer tools (F12)</li>
+            <li>Go to the Network tab</li>
+            <li>Navigate to the quest dashboard in the app</li>
+            <li>Try to start a quest (click the Start button on a draft quest)</li>
+            <li>Try to delete a quest (click the Delete button on a draft quest)</li>
+            <li>Check the Network tab for API calls to verify they're being made</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Expected API Calls</h2>
+        <p>When you start a quest, you should see:</p>
+        <pre>POST /quests/quests/{quest_id}/start</pre>
+        
+        <p>When you delete a quest, you should see:</p>
+        <pre>DELETE /quests/quests/{quest_id}</pre>
+        
+        <p>When you cancel a quest, you should see:</p>
+        <pre>POST /quests/quests/{quest_id}/cancel</pre>
+        
+        <p>When you fail a quest, you should see:</p>
+        <pre>POST /quests/quests/{quest_id}/fail</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>What Was Fixed</h2>
+        <ul>
+            <li>✅ QuestDashboard now calls the real API methods (start, cancel, fail, deleteQuest) from useQuests hook</li>
+            <li>✅ QuestList component now receives loading states from QuestDashboard</li>
+            <li>✅ QuestCard component displays proper loading states during operations</li>
+            <li>✅ All quest actions now make real API calls instead of just logging</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Backend Endpoints Verified</h2>
+        <ul>
+            <li>✅ POST /quests/quests/{quest_id}/start - Start quest</li>
+            <li>✅ POST /quests/quests/{quest_id}/cancel - Cancel quest</li>
+            <li>✅ POST /quests/quests/{quest_id}/fail - Mark quest as failed</li>
+            <li>✅ DELETE /quests/quests/{quest_id} - Delete quest</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('Quest Actions Test Page Loaded');
+        console.log('Navigate to the quest dashboard to test the functionality');
+    </script>
+</body>
+</html>
+

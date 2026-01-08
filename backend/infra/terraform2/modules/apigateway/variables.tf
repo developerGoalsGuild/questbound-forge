@@ -28,6 +28,10 @@ variable "messaging_service_lambda_arn" {
 variable "gamification_service_lambda_arn" {
   type = string
 }
+
+variable "subscription_service_lambda_arn" {
+  type = string
+}
 variable "lambda_authorizer_arn" {
   type = string
 }

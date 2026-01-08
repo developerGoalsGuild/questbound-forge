@@ -1,0 +1,416 @@
+# Project Structure Organization Rules
+
+## Overview
+This document defines the mandatory folder and file organization structure for the GoalsGuild QuestBound Forge project. **ALL agents and developers MUST follow this structure strictly.**
+
+## Root Directory Structure
+
+The project follows a monorepo structure with clear separation of concerns:
+
+```
+questbound-forge/
+├── apps/                    # All applications (REQUIRED)
+├── backend/                 # Backend services and infrastructure (REQUIRED)
+├── docs/                    # Project documentation (REQUIRED)
+├── scripts/                 # Automation scripts (REQUIRED)
+├── tests/                   # Test files (REQUIRED)
+├── tools/                   # Development tools and utilities (REQUIRED)
+├── config/                  # Configuration files (REQUIRED)
+├── package.json             # Root package.json (monorepo management)
+├── README.md                # Main project README
+└── [standard config files]  # .gitignore, etc.
+```
+
+## Directory Rules
+
+### 1. `apps/` Directory
+
+**Purpose**: All applications (frontend, landing pages, etc.)
+
+**Structure**:
+```
+apps/
+├── frontend/                # React frontend application (REQUIRED)
+│   ├── src/
+│   ├── package.json
+│   └── ...
+└── landing-page/            # Landing page application (REQUIRED)
+    ├── src/
+    ├── scripts/
+    └── ...
+```
+
+**Rules**:
+- ✅ **MUST** place all applications in `apps/`
+- ✅ **MUST** use kebab-case for directory names (e.g., `landing-page`, not `LandingPage`)
+- ❌ **NEVER** create applications at the root level
+- ❌ **NEVER** use PascalCase or camelCase for app directory names
+
+**Examples**:
+- ✅ `apps/frontend/`
+- ✅ `apps/landing-page/`
+- ❌ `frontend/` (root level)
+- ❌ `apps/LandingPage/` (PascalCase)
+
+### 2. `backend/` Directory
+
+**Purpose**: Backend services and infrastructure
+
+**Structure**:
+```
+backend/
+├── services/                # Microservices (REQUIRED)
+│   ├── common/              # Shared backend code
+│   └── [service-name]/      # Individual services
+│       ├── app/             # Application code (REQUIRED)
+│       │   ├── api/         # API routes (if applicable)
+│       │   ├── db/          # Database access layer
+│       │   ├── models/      # Data models
+│       │   ├── services/    # Business logic services
+│       │   ├── utils/       # Utility functions
+│       │   ├── security/    # Security-related code
+│       │   ├── auth.py      # Authentication
+│       │   ├── main.py      # Application entry point
+│       │   └── settings.py  # Configuration
+│       ├── tests/           # Service-specific tests
+│       ├── scripts/         # Service-specific scripts
+│       ├── Dockerfile
+│       ├── requirements.txt
+│       └── README.md
+└── infra/                   # Infrastructure as Code
+    └── terraform2/          # Terraform configurations
+        └── scripts/         # Infrastructure deployment scripts
+```
+
+**Rules**:
+- ✅ **MUST** place all backend services in `backend/services/`
+- ✅ **MUST** use `app/` directory for application code in services
+- ✅ **MUST** place service-specific tests in `tests/` subdirectory
+- ✅ **MUST** place service-specific scripts in `scripts/` subdirectory
+- ❌ **NEVER** place service code directly in service root (use `app/` subdirectory)
+- ❌ **NEVER** mix infrastructure code with service code
+
+**Service Standardization**:
+All services **MUST** follow this structure:
+- `app/` - All application code
+- `tests/` - All tests
+- `scripts/` - Service-specific scripts
+- `Dockerfile` - Service Dockerfile
+- `requirements.txt` - Python dependencies
+- `README.md` - Service documentation
+
+### 3. `docs/` Directory
+
+**Purpose**: Consolidated project documentation
+
+**Structure**:
+```
+docs/
+├── architecture/            # Architecture documentation
+├── deployment/             # Deployment guides
+├── features/               # Feature documentation
+├── api/                    # API documentation
+│   └── postman/            # Postman collections
+├── testing/                # Testing documentation
+├── guides/                 # Developer and user guides
+└── project-management/     # Project planning and tracking
+```
+
+**Rules**:
+- ✅ **MUST** place all documentation in `docs/` subdirectories
+- ✅ **MUST** organize documentation by category
+- ✅ **MUST** place Postman collections in `docs/api/postman/`
+- ❌ **NEVER** place documentation files at the root level
+- ❌ **NEVER** create loose documentation files outside `docs/`
+
+**Documentation Categories**:
+- **Architecture**: System design, architecture diagrams, database schemas
+- **Deployment**: Deployment guides, checklists, troubleshooting
+- **Features**: Feature plans, implementation docs, specifications
+- **API**: API documentation, Postman collections, endpoint references
+- **Testing**: Testing guides, test plans, Selenium setup
+- **Guides**: Developer guides, user guides, how-to docs
+- **Project Management**: Task tracking, phase docs, planning
+
+### 4. `scripts/` Directory
+
+**Purpose**: Root-level automation scripts
+
+**Structure**:
+```
+scripts/
+├── deployment/             # Deployment scripts
+├── testing/                # Test execution scripts
+├── development/            # Development utilities
+└── infrastructure/         # Infrastructure management
+```
+
+**Rules**:
+- ✅ **MUST** place all root-level scripts in `scripts/` subdirectories
+- ✅ **MUST** organize scripts by purpose (deployment, testing, etc.)
+- ✅ **MUST** use descriptive names (e.g., `run-goal-progress-tests.ps1`)
+- ❌ **NEVER** place scripts at the root level
+- ❌ **NEVER** mix script types in the same directory
+
+**Script Categories**:
+- **Deployment**: Infrastructure and service deployment scripts
+- **Testing**: Test execution and automation scripts
+- **Development**: Development utilities and local setup scripts
+- **Infrastructure**: Infrastructure management scripts
+
+### 5. `tests/` Directory
+
+**Purpose**: Consolidated test files
+
+**Structure**:
+```
+tests/
+├── integration/            # Integration tests
+├── e2e/                    # End-to-end tests
+│   └── selenium/          # Selenium tests
+├── fixtures/              # Test fixtures and data
+└── utils/                 # Test utilities
+```
+
+**Rules**:
+- ✅ **MUST** place all root-level test files in `tests/` subdirectories
+- ✅ **MUST** organize tests by type (integration, e2e, etc.)
+- ✅ **MUST** place test fixtures in `tests/fixtures/`
+- ✅ **MUST** place test utilities in `tests/utils/`
+- ❌ **NEVER** place test files at the root level
+- ❌ **NEVER** mix test types in the same directory
+
+**Test Organization**:
+- **Integration**: Tests that verify multiple components work together
+- **E2E/Selenium**: End-to-end browser automation tests
+- **Fixtures**: Test data, JSON fixtures, credentials (gitignored)
+- **Utils**: Test utilities, helpers, shared test code
+
+### 6. `tools/` Directory
+
+**Purpose**: Development tools and utilities
+
+**Structure**:
+```
+tools/
+├── debug/                  # Debug scripts and utilities
+└── migration/              # Migration scripts
+```
+
+**Rules**:
+- ✅ **MUST** place debug scripts in `tools/debug/`
+- ✅ **MUST** place migration scripts in `tools/migration/`
+- ❌ **NEVER** place debug or utility scripts at the root level
+
+### 7. `config/` Directory
+
+**Purpose**: Configuration files
+
+**Structure**:
+```
+config/
+├── environments/           # Environment-specific configs
+└── shared/                # Shared configurations
+```
+
+**Rules**:
+- ✅ **MUST** place environment-specific configs in `config/environments/`
+- ✅ **MUST** place shared configs in `config/shared/`
+- ❌ **NEVER** place config files at the root level (except standard files like `.gitignore`)
+
+## File Placement Rules
+
+### Root Directory Files
+
+**ALLOWED** at root:
+- `package.json` - Root package.json for monorepo
+- `README.md` - Main project README
+- `.gitignore`, `.gitattributes` - Git configuration
+- `.cursorrules`, `.cursor/` - Cursor configuration
+- Lock files: `package-lock.json`, `bun.lockb`, etc.
+- Standard config files: `tsconfig.json`, `eslint.config.js` (if root-level)
+
+**FORBIDDEN** at root:
+- ❌ Test files (`.py`, `.js`, `.ts` test files)
+- ❌ Debug scripts
+- ❌ Documentation files (`.md` files except `README.md`)
+- ❌ Application code
+- ❌ Configuration files (except standard ones)
+- ❌ JSON test fixtures
+- ❌ Deployment scripts
+
+### Markdown File Rules
+
+**CRITICAL**: All markdown files (`.md`) **MUST** be in the `docs/` directory, with the following exceptions:
+
+**ALLOWED** markdown files outside `docs/`:
+- ✅ `README.md` files at the root of major directories (e.g., `README.md`, `apps/frontend/README.md`, `backend/services/user-service/README.md`)
+- ✅ `README.md` files that describe the contents of a specific directory (e.g., `scripts/README.md`, `tests/README.md`)
+- ✅ Content files in `apps/frontend/src/data/blog/` (blog post content, not documentation)
+
+**FORBIDDEN** markdown files outside `docs/`:
+- ❌ **ANY** `.md` file at the root level (except `README.md`)
+- ❌ **ANY** `.md` file in `apps/` directories (except `README.md` files)
+- ❌ **ANY** `.md` file in `backend/` directories (except `README.md` files)
+- ❌ **ANY** `.md` file in `scripts/` directories (except `README.md` files)
+- ❌ **ANY** `.md` file in `tests/` directories (except `README.md` files)
+- ❌ Documentation files in source code directories (move to `docs/`)
+- ❌ Test guides and documentation (move to `docs/testing/`)
+- ❌ Deployment guides (move to `docs/deployment/`)
+- ❌ Architecture documentation (move to `docs/architecture/`)
+- ❌ Service-specific documentation (move to `docs/backend/` or appropriate category)
+
+**Rules**:
+- ✅ **MUST** place all documentation markdown files in `docs/` subdirectories
+- ✅ **MUST** organize documentation by category (architecture, deployment, testing, etc.)
+- ✅ **MUST** use `README.md` only for directory descriptions
+- ❌ **NEVER** create `.md` files outside `docs/` unless they are `README.md` files
+- ❌ **NEVER** place documentation in source code directories
+
+**Documentation Categories**:
+- `docs/architecture/` - Architecture guides, system design, performance optimization
+- `docs/deployment/` - Deployment guides, checklists, troubleshooting, service deployment docs
+- `docs/backend/` - Backend service documentation, performance summaries, security docs
+- `docs/frontend/` - Frontend-specific documentation, optimization reports
+- `docs/landing-page/` - Landing page deployment and configuration docs
+- `docs/testing/` - Testing guides, test plans, test documentation
+- `docs/api/` - API documentation, Postman guides
+- `docs/guides/` - Developer guides, user guides
+- `docs/features/` - Feature documentation
+- `docs/project-management/` - Project planning and tracking
+
+### File Naming Conventions
+
+**Directories**:
+- ✅ Use kebab-case: `landing-page`, `user-service`, `test-results`
+- ❌ Avoid PascalCase: `LandingPage`, `UserService`
+- ❌ Avoid camelCase: `landingPage`, `userService`
+- ❌ Avoid spaces: `landing page`, `user service`
+
+**Files**:
+- ✅ Use kebab-case for scripts: `run-goal-progress-tests.ps1`
+- ✅ Use snake_case for Python: `test_user_service.py`
+- ✅ Use camelCase for TypeScript/JavaScript: `userService.ts`
+- ✅ Use PascalCase for React components: `UserProfile.tsx`
+
+## Path Reference Rules
+
+### When Creating New Files
+
+**Before creating a file, ask**:
+1. What type of file is it? (code, test, script, doc, config)
+2. Which application/service does it belong to?
+3. What is its purpose? (deployment, testing, development, etc.)
+
+**Then place it in the appropriate location**:
+- Application code → `apps/[app-name]/src/`
+- Service code → `backend/services/[service-name]/app/`
+- Tests → `tests/[type]/` or `backend/services/[service-name]/tests/`
+- Scripts → `scripts/[category]/`
+- Documentation → `docs/[category]/`
+- Config → `config/[type]/`
+
+### When Referencing Files
+
+**Update paths when referencing moved files**:
+- ✅ `apps/frontend/` (not `frontend/`)
+- ✅ `apps/landing-page/` (not `LandingPage/`)
+- ✅ `scripts/testing/` (not `scripts/` at root)
+- ✅ `tests/fixtures/` (not root-level test files)
+- ✅ `docs/deployment/` (not root-level `.md` files)
+
+## Migration Rules
+
+### When Moving Files
+
+1. **Identify the file type and purpose**
+2. **Determine the correct destination** based on this structure
+3. **Move the file** to the appropriate directory
+4. **Update all references** to the file:
+   - Import statements
+   - Script paths
+   - Documentation links
+   - Configuration files
+   - Package.json scripts
+   - Docker files
+   - Terraform files
+
+### When Creating New Files
+
+1. **Determine the file type** (code, test, script, doc, config)
+2. **Find the correct directory** using this structure
+3. **Create the file** in the appropriate location
+4. **Follow naming conventions** for the file type
+
+## Enforcement
+
+**ALL agents MUST**:
+- ✅ Follow this structure when creating new files
+- ✅ Move misplaced files to correct locations
+- ✅ Update references when moving files
+- ✅ Use correct naming conventions
+- ✅ Organize files by purpose and type
+
+**ALL agents MUST NOT**:
+- ❌ Create files at the root level (except allowed files)
+- ❌ Mix file types in the same directory
+- ❌ Use incorrect naming conventions
+- ❌ Place files in wrong categories
+- ❌ Leave references pointing to old locations
+- ❌ **Create markdown files outside `docs/`** (except `README.md` files)
+- ❌ **Place documentation in source code directories**
+
+## Examples
+
+### ✅ CORRECT
+
+```python
+# File: backend/services/user-service/app/main.py
+from app.models.user import User
+from app.db.user_db import UserDB
+```
+
+```typescript
+// File: apps/frontend/src/components/UserProfile.tsx
+import { useUserData } from '@/hooks/useUserData';
+```
+
+```powershell
+# File: scripts/testing/run-goal-progress-tests.ps1
+Set-Location "apps/frontend"
+```
+
+```markdown
+# File: docs/deployment/DEPLOYMENT_CHECKLIST.md
+## Deployment Checklist
+```
+
+### ❌ INCORRECT
+
+```python
+# File: backend/services/user-service/main.py (should be in app/)
+# File: user-service/main.py (should be in backend/services/)
+```
+
+```typescript
+# File: frontend/src/components/UserProfile.tsx (should be in apps/frontend/)
+```
+
+```powershell
+# File: run-goal-progress-tests.ps1 (should be in scripts/testing/)
+```
+
+```markdown
+# File: DEPLOYMENT_CHECKLIST.md (should be in docs/deployment/)
+```
+
+## Summary
+
+**Key Principles**:
+1. **Separation of Concerns**: Apps, backend, docs, scripts, tests are separate
+2. **Organization by Purpose**: Files grouped by what they do, not what they are
+3. **Consistent Naming**: kebab-case for directories, appropriate case for files
+4. **No Root Clutter**: Only essential files at root level
+5. **Clear Structure**: Easy to find files by their purpose
+
+**Remember**: When in doubt, refer to this document and place files according to their type and purpose, not convenience.

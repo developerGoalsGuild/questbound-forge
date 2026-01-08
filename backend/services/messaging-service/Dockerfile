@@ -31,4 +31,4 @@ EXPOSE 8080
 
 # IMPORTANT: point to the real module path for your ASGI app
 # If your app is in app/main.py and the variable is `app`, use app.main:app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -3,6 +3,11 @@
 ## Overview
 Implement comprehensive real-time messaging functionality using the existing AppSync GraphQL subscription system, which is the most cost-effective approach. Enhance the current implementation by adding missing message history queries and integration endpoints.
 
+**Important Prerequisites:**
+- Guild features must be implemented first (gg_guild table creation)
+- Collaboration service must be deployed with guild membership management
+- This implementation depends on the dual-table architecture where guild-related chat uses gg_guild table
+
 ## Current Implementation Status
 - ✅ **sendMessage mutation**: Persists messages to DynamoDB with proper single-table patterns
 - ✅ **onMessage subscription**: Broadcasts messages to connected clients in real-time
@@ -11,13 +16,29 @@ Implement comprehensive real-time messaging functionality using the existing App
 
 ## Technical Architecture
 
-### Data Model (DynamoDB Single-Table)
-Messages are stored using the existing single-table pattern:
+### Data Model (Dual-Table Design)
+Messages are stored using different table patterns based on context:
+
+**Guild Chat Messages (gg_guild table):**
 ```
+Table: gg_guild
+PK: GUILD#{guildId}
+SK: MSG#{timestamp}#{messageId}
+Attributes: id, guildId, senderId, text, ts, type='Message', roomType='guild'
+```
+
+**General Room Chat Messages (gg_core table):**
+```
+Table: gg_core
 PK: ROOM#{roomId}
 SK: MSG#{timestamp}#{messageId}
-Attributes: id, roomId, senderId, text, ts, type='Message'
+Attributes: id, roomId, senderId, text, ts, type='Message', roomType='general'
 ```
+
+### Room Type Detection Algorithm
+1. **Guild Rooms**: If roomId starts with `GUILD#` prefix → use `gg_guild` table
+2. **General Rooms**: All other roomIds → use `gg_core` table with `ROOM#{roomId}` pattern
+3. **Validation**: Check room existence and user membership before allowing message operations
 
 ### GraphQL Schema Integration
 Leverages existing Message type and subscription patterns in `schema.graphql`.
@@ -35,13 +56,16 @@ Leverages existing Message type and subscription patterns in `schema.graphql`.
 **Algorithm:**
 1. Extract `roomId`, `after` (optional timestamp), `limit` from query parameters
 2. Validate user authentication via Lambda authorizer context
-3. Query DynamoDB with:
-   - PK = `ROOM#{roomId}`
+3. **Determine Table and Key Pattern:**
+   - If roomId starts with `GUILD#` → Query `gg_guild` table with PK = `GUILD#{guildId}`
+   - Otherwise → Query `gg_core` table with PK = `ROOM#{roomId}`
+4. Query DynamoDB with:
    - SK begins_with `MSG#`
    - Filter by timestamp if `after` provided
    - Limit results and sort by timestamp descending
-4. Transform results to Message type format
-5. Return paginated results
+5. Validate user has access to the room/guild (membership check)
+6. Transform results to Message type format
+7. Return paginated results
 
 **Error Handling:**
 - Invalid roomId: 400 Bad Request
@@ -73,21 +97,23 @@ Leverages existing Message type and subscription patterns in `schema.graphql`.
 - Connection health monitoring
 - Message delivery confirmations
 - Offline message queuing
-- Room membership validation
+- Room membership validation (guild membership for guild chats)
 - Rate limiting for spam prevention
+- **Dual-table message persistence** (guild vs general rooms)
 
 **Files to Modify:**
 - `backend/infra/terraform2/resolvers/onMessage.subscribe.js` - Add connection validation
-- `backend/infra/terraform2/resolvers/sendMessage.js` - Add broadcasting enhancements
+- `backend/infra/terraform2/resolvers/sendMessage.js` - Add dual-table logic and broadcasting enhancements
 
 ### Phase 4: Infrastructure & Deployment
 **Goal**: Deploy enhanced messaging system to AWS.
 
 **Terraform Updates:**
+- Ensure `gg_guild` table is available (from guild features implementation)
 - Add messaging service Lambda function (if new service created)
 - Update API Gateway with WebSocket routes (if using direct WebSocket)
 - Add CloudWatch alarms for messaging metrics
-- Update IAM policies for new permissions
+- Update IAM policies for new permissions (access to both `gg_core` and `gg_guild` tables)
 
 **Environment Configuration:**
 - Add messaging service to terraform variables
@@ -135,8 +161,9 @@ Leverages existing Message type and subscription patterns in `schema.graphql`.
 
 ## Dependencies
 - Existing collaboration-service (room management)
+- **gg_guild table** (from guild features implementation - prerequisite)
 - AppSync GraphQL API (message operations)
-- DynamoDB (message persistence)
+- DynamoDB tables: `gg_core` (general rooms) and `gg_guild` (guild chats)
 - Lambda authorizer (authentication)
 
 ## Risk Mitigation
@@ -253,12 +280,15 @@ Leverages existing Message type and subscription patterns in `schema.graphql`.
 ### ✅ **Business Requirements**
 - [ ] Real-time messaging working across all supported clients
 - [ ] Message history accessible with pagination
-- [ ] Room-based messaging with proper isolation
+- [ ] Room-based messaging with proper isolation (general rooms vs guild rooms)
+- [ ] **Guild chat messages stored in gg_guild table with proper partitioning**
+- [ ] **General room chat messages stored in gg_core table**
 - [ ] Message persistence with TTL configuration
-- [ ] Integration with existing user authentication
+- [ ] Integration with existing user authentication and guild membership
 - [ ] Support for rich message content (text, potentially attachments)
 - [ ] Message delivery guarantees (at-least-once delivery)
 - [ ] Offline message queuing and delivery
+- [ ] Guild membership validation for guild chat access
 
 ### ✅ **Compliance & Legal**
 - [ ] GDPR compliance for message data handling

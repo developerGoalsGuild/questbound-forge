@@ -1,0 +1,37 @@
+<mxfile host="65bd71144e">
+    <diagram id="aws-arch" name="AWS Serverless Architecture">
+        <mxGraphModel dx="1174" dy="891" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="React Web/Mobile Client" style="shape=image;image=img/lib/mscae/WebClient.svg" parent="1" vertex="1">
+                    <mxGeometry x="40" y="80" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="Amazon Cognito" style="shape=image;image=img/lib/aws3/cognito.svg" parent="1" vertex="1">
+                    <mxGeometry x="190" y="340" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="API Gateway / AppSync" style="shape=image;image=img/lib/aws3/apigateway.svg" parent="1" vertex="1">
+                    <mxGeometry x="340" y="350" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Lambda Authorizer" style="shape=image;image=img/lib/aws3/lambda.svg" parent="1" vertex="1">
+                    <mxGeometry x="470" y="340" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="AWS Lambda (Resolvers)" style="shape=image;image=img/lib/aws3/lambda.svg" parent="1" vertex="1">
+                    <mxGeometry x="660" y="80" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="DynamoDB (Single Table)" style="shape=image;image=img/lib/aws3/dynamodb.svg" parent="1" vertex="1">
+                    <mxGeometry x="820" y="80" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="8" value="EventBridge / SQS" style="shape=image;image=img/lib/aws3/sqs.svg" parent="1" vertex="1">
+                    <mxGeometry x="980" y="80" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="9" value="OpenSearch Serverless" style="shape=image;image=img/lib/aws3/opensearch.svg" parent="1" vertex="1">
+                    <mxGeometry x="1140" y="80" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="Stripe (External)" style="shape=image;image=img/lib/mscae/Payment.svg" parent="1" vertex="1">
+                    <mxGeometry x="1300" y="80" width="80" height="80" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
