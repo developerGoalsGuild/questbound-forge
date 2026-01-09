@@ -48,6 +48,13 @@ export interface CommonTranslations {
       subtitle: string;
       placeholder: string;
       button: string;
+      submitting?: string;
+      subscribed?: string;
+      success?: string;
+      error?: string;
+      emailLabel?: string;
+      emailRequired?: string;
+      emailInvalid?: string;
     };
     copyright: string;
   };
@@ -102,6 +109,13 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
         subtitle: 'Get weekly updates on community achievements and new features.',
         placeholder: 'Enter your email',
         button: 'Subscribe',
+        submitting: 'Subscribing...',
+        subscribed: 'Subscribed!',
+        success: 'Thank you for subscribing!',
+        error: 'Something went wrong. Please try again later.',
+        emailLabel: 'Email address',
+        emailRequired: 'Email is required',
+        emailInvalid: 'Please enter a valid email address',
       },
       copyright: '© 2024 GoalGuild. All rights reserved. Built with AWS serverless architecture.',
     },
@@ -154,6 +168,13 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
         subtitle: 'Recibe actualizaciones semanales sobre logros comunitarios y nuevas funciones.',
         placeholder: 'Ingresa tu correo',
         button: 'Suscribirse',
+        submitting: 'Suscribiendo...',
+        subscribed: '¡Suscrito!',
+        success: '¡Gracias por suscribirte!',
+        error: 'Algo salió mal. Por favor intenta de nuevo más tarde.',
+        emailLabel: 'Dirección de correo electrónico',
+        emailRequired: 'El correo electrónico es obligatorio',
+        emailInvalid: 'Por favor ingresa una dirección de correo electrónico válida',
       },
       copyright: '© 2024 GoalGuild. Todos los derechos reservados. Construido con arquitectura serverless de AWS.',
     },
@@ -206,6 +227,13 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
         subtitle: 'Recevez des mises à jour hebdomadaires sur les réalisations communautaires et les nouvelles fonctionnalités.',
         placeholder: 'Entrez votre email',
         button: 'S\'abonner',
+        submitting: 'Abonnement...',
+        subscribed: 'Abonné!',
+        success: 'Merci de vous être abonné!',
+        error: 'Quelque chose s\'est mal passé. Veuillez réessayer plus tard.',
+        emailLabel: 'Adresse e-mail',
+        emailRequired: 'L\'e-mail est requis',
+        emailInvalid: 'Veuillez entrer une adresse e-mail valide',
       },
       copyright: '© 2024 GoalGuild. Tous droits réservés. Construit avec l\'architecture serverless AWS.',
     },

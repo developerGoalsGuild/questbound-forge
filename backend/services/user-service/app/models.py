@@ -135,3 +135,14 @@ class WaitlistResponse(BaseModel):
   message: str
   email: str
   subscribed: bool
+
+
+class NewsletterSubscribe(BaseModel):
+  email: EmailStr
+  source: Optional[str] = "footer"  # "footer", "modal", "landing_page", etc.
+
+
+class NewsletterResponse(BaseModel):
+  message: str
+  email: str
+  subscribed: bool

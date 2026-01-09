@@ -403,5 +403,86 @@ export async function updateUserProfile(input: ProfileUpdateInput): Promise<User
   return body as UserProfile;
 }
 
+export interface WaitlistResponse {
+  message: string;
+  email: string;
+  subscribed: boolean;
+}
+
+export interface NewsletterResponse {
+  message: string;
+  email: string;
+  subscribed: boolean;
+}
+
+export async function subscribeToWaitlist(email: string): Promise<WaitlistResponse> {
+  const base = getApiBase();
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  
+  if (!base) throw new Error('API base URL not configured');
+  if (!apiKey) throw new Error('API Gateway key not configured');
+  
+  const url = `${base.replace(/\/$/, '')}/waitlist/subscribe`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({ email }),
+  });
+  
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || response.statusText || 'Subscription failed';
+    console.error('Waitlist API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      timestamp: new Date().toISOString()
+    });
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
+
+export async function subscribeToNewsletter(
+  email: string,
+  source: string = 'footer'
+): Promise<NewsletterResponse> {
+  const base = getApiBase();
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  
+  if (!base) throw new Error('API base URL not configured');
+  if (!apiKey) throw new Error('API Gateway key not configured');
+  
+  const url = `${base.replace(/\/$/, '')}/newsletter/subscribe`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({ email, source }),
+  });
+  
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || response.statusText || 'Subscription failed';
+    console.error('Newsletter API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      timestamp: new Date().toISOString()
+    });
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
+
 export { getAccessToken, renewToken, getTokenExpiry, getUserIdFromToken } from '@/lib/utils';;
 export { getActiveGoalsCountForUser } from '@/lib/apiGoal';

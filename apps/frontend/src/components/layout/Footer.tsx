@@ -1,8 +1,19 @@
-import { Shield, Facebook, Twitter, Linkedin, Mail, Heart } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Shield, Facebook, Twitter, Linkedin, Mail, Heart, Loader2, Check } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { subscribeToNewsletter, NewsletterResponse } from '@/lib/api';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import ARIALiveRegion, { FormAnnouncements } from '@/components/ui/ARIALiveRegion';
 
 const Footer = () => {
   const { t } = useTranslation();
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
+  const [newsletterError, setNewsletterError] = useState<string | null>(null);
+  const [newsletterSuccess, setNewsletterSuccess] = useState(false);
+  const [newsletterAnnouncement, setNewsletterAnnouncement] = useState('');
+  const [newsletterAnnouncementPriority, setNewsletterAnnouncementPriority] = useState<'polite' | 'assertive'>('polite');
 
   const footerLinks = {
     product: [
@@ -31,6 +42,71 @@ const Footer = () => {
     { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com" },
     { name: "Email", icon: Mail, href: "mailto:hello@goalguild.com" },
   ];
+
+  const validateEmail = useCallback((email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }, []);
+
+  const handleNewsletterSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setNewsletterError(null);
+    setNewsletterSuccess(false);
+    setNewsletterAnnouncement('');
+
+    if (!newsletterEmail.trim()) {
+      const errorMsg = t.footer?.newsletter?.emailRequired || 'Email is required';
+      setNewsletterError(errorMsg);
+      setNewsletterAnnouncement(FormAnnouncements.fieldRequired('Email'));
+      setNewsletterAnnouncementPriority('assertive');
+      return;
+    }
+
+    if (!validateEmail(newsletterEmail)) {
+      const errorMsg = t.footer?.newsletter?.emailInvalid || 'Please enter a valid email address';
+      setNewsletterError(errorMsg);
+      setNewsletterAnnouncement(FormAnnouncements.validationError('Email'));
+      setNewsletterAnnouncementPriority('assertive');
+      return;
+    }
+
+    setNewsletterSubmitting(true);
+    setNewsletterAnnouncement(t.footer?.newsletter?.submitting || 'Subscribing...');
+    setNewsletterAnnouncementPriority('polite');
+
+    try {
+      const response: NewsletterResponse = await subscribeToNewsletter(newsletterEmail.trim(), 'footer');
+      
+      setNewsletterSuccess(true);
+      setNewsletterEmail('');
+      setNewsletterError(null);
+      setNewsletterAnnouncement(response.message || t.footer?.newsletter?.success || 'Successfully subscribed to newsletter');
+      setNewsletterAnnouncementPriority('polite');
+      
+      setTimeout(() => {
+        setNewsletterSuccess(false);
+        setNewsletterAnnouncement('');
+      }, 5000);
+    } catch (err: any) {
+      const errorMessage = err?.message || t.footer?.newsletter?.error || 'Something went wrong. Please try again later.';
+      setNewsletterError(errorMessage);
+      setNewsletterAnnouncement(FormAnnouncements.formError(errorMessage));
+      setNewsletterAnnouncementPriority('assertive');
+    } finally {
+      setNewsletterSubmitting(false);
+    }
+  }, [newsletterEmail, validateEmail, t]);
+
+  const handleNewsletterChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewsletterEmail(e.target.value);
+    if (newsletterError) {
+      setNewsletterError(null);
+    }
+    if (newsletterSuccess) {
+      setNewsletterSuccess(false);
+    }
+  }, [newsletterError, newsletterSuccess]);
 
   return (
     <footer className="bg-primary text-primary-foreground">
@@ -115,6 +191,11 @@ const Footer = () => {
 
         {/* Newsletter Signup */}
         <div className="medieval-banner p-6 mb-12 bg-primary-foreground/10 border-primary-foreground/20">
+          <ARIALiveRegion 
+            message={newsletterAnnouncement} 
+            priority={newsletterAnnouncementPriority} 
+            className="sr-only"
+          />
           <div className="text-center max-w-lg mx-auto">
             <h3 className="font-cinzel text-xl font-bold mb-2 text-secondary">
               {t.footer?.newsletter?.title || 'Join the Guild Newsletter'}
@@ -122,16 +203,64 @@ const Footer = () => {
             <p className="text-primary-foreground/70 mb-4">
               {t.footer?.newsletter?.subtitle || 'Get weekly updates on community achievements and new features.'}
             </p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder={t.footer?.newsletter?.placeholder || 'Enter your email'}
-                className="flex-1 px-4 py-2 rounded-lg bg-background text-foreground border border-border"
-              />
-              <button className="btn-gold text-secondary-foreground px-6 py-2 rounded-lg font-semibold whitespace-nowrap">
-                {t.footer?.newsletter?.button || 'Subscribe'}
-              </button>
-            </div>
+            <form onSubmit={handleNewsletterSubmit} noValidate role="form" aria-label="Newsletter subscription form">
+              <div className="flex gap-2">
+                <label htmlFor="newsletter-email" className="sr-only">
+                  {t.footer?.newsletter?.emailLabel || 'Email address'}
+                </label>
+                <Input
+                  id="newsletter-email"
+                  type="email"
+                  value={newsletterEmail}
+                  onChange={handleNewsletterChange}
+                  placeholder={t.footer?.newsletter?.placeholder || 'Enter your email'}
+                  disabled={newsletterSubmitting}
+                  aria-invalid={!!newsletterError}
+                  aria-describedby={newsletterError ? 'newsletter-error' : newsletterSuccess ? 'newsletter-success' : undefined}
+                  className={`flex-1 ${newsletterError ? 'border-red-500' : ''}`}
+                  required
+                />
+                <Button
+                  type="submit"
+                  disabled={newsletterSubmitting || !newsletterEmail.trim()}
+                  className="btn-gold text-secondary-foreground px-6 py-2 rounded-lg font-semibold whitespace-nowrap"
+                >
+                  {newsletterSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      {t.footer?.newsletter?.submitting || 'Subscribing...'}
+                    </>
+                  ) : newsletterSuccess ? (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      {t.footer?.newsletter?.subscribed || 'Subscribed!'}
+                    </>
+                  ) : (
+                    t.footer?.newsletter?.button || 'Subscribe'
+                  )}
+                </Button>
+              </div>
+              {newsletterError && (
+                <p
+                  id="newsletter-error"
+                  className="text-xs text-red-300 mt-2 text-left"
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  {newsletterError}
+                </p>
+              )}
+              {newsletterSuccess && (
+                <p
+                  id="newsletter-success"
+                  className="text-xs text-green-300 mt-2 text-left"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  {t.footer?.newsletter?.success || 'Thank you for subscribing!'}
+                </p>
+              )}
+            </form>
           </div>
         </div>
 

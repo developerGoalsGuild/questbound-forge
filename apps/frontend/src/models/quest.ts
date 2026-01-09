@@ -295,9 +295,10 @@ const QuestDeadlineSchema = z
   }, 'Deadline must be at least 1 hour in the future');
 
 /**
- * Complete quest creation input schema with all business rules
+ * Base quest input schema without refinements (for reuse in create and update)
+ * This is needed because .partial() cannot be used on schemas with refinements
  */
-const QuestCreateInputSchema = z.object({
+const QuestBaseInputSchema = z.object({
   title: QuestTitleSchema,
   category: QuestCategorySchema,
   difficulty: QuestDifficultySchema.default('medium'),
@@ -317,7 +318,13 @@ const QuestCreateInputSchema = z.object({
   targetCount: z.number().int().positive('Target count must be greater than 0').optional(),
   countScope: QuestCountScopeSchema.optional(),
   periodDays: z.number().int().positive('Period must be greater than 0 days').optional(),
-}).refine((data) => {
+});
+
+/**
+ * Complete quest creation input schema with all business rules
+ * Adds refinements for business logic validation
+ */
+const QuestCreateInputSchema = QuestBaseInputSchema.refine((data) => {
   // Quantitative quest validation - all fields required for quantitative quests
   if (data.kind === 'quantitative') {
     return data.targetCount !== undefined &&
@@ -340,9 +347,10 @@ const QuestCreateInputSchema = z.object({
 });
 
 /**
- * Quest update input schema as partial of create schema
+ * Quest update input schema as partial of base schema (without refinements)
+ * Updates don't need the same strict validation as creation
  */
-const QuestUpdateInputSchema = QuestCreateInputSchema.partial().extend({
+const QuestUpdateInputSchema = QuestBaseInputSchema.partial().extend({
   // Only title validation for updates (other fields optional)
   title: QuestTitleSchema.optional(),
 });

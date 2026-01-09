@@ -1,22 +1,32 @@
 import { ArrowRight, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
-//import heroImage from '@/assets/hero-castle.jpg';
 
 const Hero = () => {
   const { t } = useTranslation();
   const heroT = (t as any).hero || {};
 
+  // Use a placeholder or public asset path for the hero image
+  // If you have the image, uncomment and update the path
+  // import heroImage from '@/assets/hero-castle.jpg';
+  const heroImage = '/assets/images/hero-castle.jpg'; // Fallback to public asset
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" role="banner" data-testid="hero-section">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-        <img
-          //src={heroImage}
-          src=''
-          alt="Medieval castle representing collaboration and achievement"
-          className="w-full h-full object-cover"
-        />
+        {heroImage ? (
+          <img
+            src={heroImage}
+            alt="Medieval castle representing collaboration and achievement"
+            className="w-full h-full object-cover"
+            loading="eager"
+            onError={(e) => {
+              // Hide image on error, show gradient only
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : null}
         <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/70 to-primary/90" />
       </div>
 
@@ -40,8 +50,8 @@ const Hero = () => {
               className="btn-gold text-secondary-foreground px-8 py-4 text-lg font-semibold group"
               asChild
             >
-              <a href="/dashboard">
-                {heroT.ctaPrimary || 'Begin Your Quest'}
+              <a href="#waitlist">
+                {heroT.ctaPrimary || 'Join the Community'}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
             </Button>
@@ -50,9 +60,12 @@ const Hero = () => {
               variant="outline"
               size="lg"
               className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary px-8 py-4 text-lg group"
+              asChild
             >
-              <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-              {heroT.ctaSecondary || 'Explore Features'}
+              <a href="#how-it-works">
+                <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
+                {heroT.ctaSecondary || 'See How It Works'}
+              </a>
             </Button>
           </div>
 

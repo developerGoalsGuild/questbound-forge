@@ -35,6 +35,7 @@ import type { CollaborationsTranslations } from './collaborations';
 import type { CommonTranslations } from './common';
 import type { GuildTranslations } from './guild';
 import type { SubscriptionTranslations } from './subscription';
+import type { LandingPageTranslations } from './landingPage';
 
 import { navTranslations } from './nav';
 import { loginTranslations } from './login';
@@ -56,6 +57,7 @@ import { questTranslations } from './quest';
 import { collaborationsTranslations } from './collaborations';
 import { guildTranslations } from './guild';
 import { subscriptionTranslations } from './subscription';
+import { landingPageTranslations } from './landingPage';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -76,6 +78,13 @@ export type Translations = { [key: string]: any } & {
   guild: GuildTranslations;
   subscription: SubscriptionTranslations;
   common: CommonTranslations;
+  problemRecognition: LandingPageTranslations['problemRecognition'];
+  empathy: LandingPageTranslations['empathy'];
+  solutionIntro: LandingPageTranslations['solutionIntro'];
+  howItWorks: LandingPageTranslations['howItWorks'];
+  featureCarousel: LandingPageTranslations['featureCarousel'];
+  developmentNotice: LandingPageTranslations['developmentNotice'];
+  waitlist: LandingPageTranslations['waitlist'];
 } & CollaborationsTranslations;
 
 /**
@@ -103,6 +112,13 @@ export const translations: Record<Language, Translations> = {
     subscription: subscriptionTranslations.en.subscription,
     ...collaborationsTranslations.en,
     common: commonTranslations.en,
+    problemRecognition: landingPageTranslations.en.problemRecognition,
+    empathy: landingPageTranslations.en.empathy,
+    solutionIntro: landingPageTranslations.en.solutionIntro,
+    howItWorks: landingPageTranslations.en.howItWorks,
+    featureCarousel: landingPageTranslations.en.featureCarousel,
+    developmentNotice: landingPageTranslations.en.developmentNotice,
+    waitlist: landingPageTranslations.en.waitlist,
   },
   es: {
     ...navTranslations.es,
@@ -125,6 +141,13 @@ export const translations: Record<Language, Translations> = {
     subscription: subscriptionTranslations.es.subscription,
     ...collaborationsTranslations.es,
     common: commonTranslations.es,
+    problemRecognition: landingPageTranslations.es.problemRecognition,
+    empathy: landingPageTranslations.es.empathy,
+    solutionIntro: landingPageTranslations.es.solutionIntro,
+    howItWorks: landingPageTranslations.es.howItWorks,
+    featureCarousel: landingPageTranslations.es.featureCarousel,
+    developmentNotice: landingPageTranslations.es.developmentNotice,
+    waitlist: landingPageTranslations.es.waitlist,
   },
   fr: {
     ...navTranslations.fr,
@@ -147,5 +170,12 @@ export const translations: Record<Language, Translations> = {
     subscription: subscriptionTranslations.fr.subscription,
     ...collaborationsTranslations.fr,
     common: commonTranslations.fr,
+    problemRecognition: landingPageTranslations.fr.problemRecognition,
+    empathy: landingPageTranslations.fr.empathy,
+    solutionIntro: landingPageTranslations.fr.solutionIntro,
+    howItWorks: landingPageTranslations.fr.howItWorks,
+    featureCarousel: landingPageTranslations.fr.featureCarousel,
+    developmentNotice: landingPageTranslations.fr.developmentNotice,
+    waitlist: landingPageTranslations.fr.waitlist,
   },
 };

@@ -66,7 +66,8 @@ done
 # Get script directory and paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAFORM_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd "$TERRAFORM_DIR/../.." && pwd)"
+# Go up 3 levels from terraform2 to reach repo root: terraform2 -> infra -> backend -> repo root
+REPO_ROOT="$(cd "$TERRAFORM_DIR/../../.." && pwd)"
 SERVICE_PATH="$REPO_ROOT/backend/services/$SERVICE_NAME"
 STACK_PATH="$TERRAFORM_DIR/stacks/services/$SERVICE_NAME"
 ENV_FILE="$TERRAFORM_DIR/environments/$ENV.tfvars"
@@ -89,16 +90,23 @@ print_info "Starting $SERVICE_NAME build and deployment for environment: $ENV"
 
 # Get AWS account ID and region
 print_info "Getting AWS account ID and region..."
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
-if [ $? -ne 0 ] || [ -z "$ACCOUNT_ID" ]; then
-    print_error "Failed to get AWS account ID. Make sure AWS CLI is configured and you have valid credentials."
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>&1)
+AWS_EXIT_CODE=$?
+if [ $AWS_EXIT_CODE -ne 0 ] || [ -z "$ACCOUNT_ID" ]; then
+    print_error "Failed to get AWS account ID (exit code: $AWS_EXIT_CODE)"
+    print_error "Error output: $ACCOUNT_ID"
+    print_error ""
+    print_error "Please configure AWS credentials:"
+    print_error "  1. Run: aws configure"
+    print_error "  2. Or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables"
+    print_error "  3. Or use: aws sso login (if using SSO)"
     exit 1
 fi
 
 REGION=$(aws configure get region 2>/dev/null || echo "${AWS_REGION:-us-east-2}")
 if [ -z "$REGION" ]; then
-    print_error "Failed to get AWS region. Make sure AWS CLI is configured."
-    exit 1
+    print_error "Failed to get AWS region. Setting default to us-east-2"
+    REGION="us-east-2"
 fi
 
 print_info "AWS Account: $ACCOUNT_ID, Region: $REGION"

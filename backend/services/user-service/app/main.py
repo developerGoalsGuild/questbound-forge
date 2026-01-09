@@ -43,6 +43,8 @@ from .models import (
     AvailabilityKeyResponse,
     WaitlistSubscribe,
     WaitlistResponse,
+    NewsletterSubscribe,
+    NewsletterResponse,
 )
 from .ssm import settings
 from .security import (
@@ -546,6 +548,118 @@ def waitlist_subscribe(body: WaitlistSubscribe, request: Request, x_api_key: str
         raise HTTPException(status_code=500, detail=f"Unable to process waitlist subscription: {error_code}")
     except Exception as e:
         logger.error("waitlist.subscribe.error", extra={
+            "email": email,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "table": settings.core_table_name,
+            "cid": cid
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred processing your request")
+
+# --- NEWSLETTER SUBSCRIPTION ---
+# OPTIONS handler for CORS preflight
+@app.options("/newsletter/subscribe")
+async def newsletter_subscribe_options(request: Request):
+    """Handle CORS preflight requests for newsletter endpoint."""
+    origin = request.headers.get("origin")
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
+@app.post("/newsletter/subscribe", response_model=NewsletterResponse)
+def newsletter_subscribe(body: NewsletterSubscribe, request: Request, x_api_key: str | None = Header(default=None, alias="x-api-key")):
+    """
+    Subscribe an email to the newsletter.
+    Requires API key authentication and has low rate limits (5 requests per minute per IP).
+    """
+    # Enforce rate limiting (reuse waitlist rate limiter)
+    _enforce_waitlist_rate_limit(request)
+    
+    # API key validation (API Gateway also validates, but this provides additional security)
+    if not x_api_key:
+        raise HTTPException(status_code=403, detail="API key is required")
+    
+    email = body.email.lower().strip()
+    source = body.source or "footer"
+    client_ip = _client_ip(request)
+    cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+    now_ts = int(time.time())
+    created_at_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_ts))
+    
+    try:
+        # Check if email already exists in newsletter
+        try:
+            existing = core.get_item(
+                Key={
+                    "PK": f"NEWSLETTER#{email}",
+                    "SK": "SUBSCRIPTION#NEWSLETTER"
+                }
+            )
+            
+            if existing.get("Item"):
+                # Email already subscribed
+                log_event(logger, "newsletter.subscribe.duplicate", cid=cid, email=email, ip=client_ip, source=source)
+                return NewsletterResponse(
+                    message="Email already subscribed to newsletter",
+                    email=email,
+                    subscribed=True
+                )
+        except ClientError as e:
+            logger.warning("newsletter.subscribe.check_error", extra={"email": email, "error": str(e)}, exc_info=True)
+            # Continue to create new subscription
+        
+        # Create newsletter subscription record
+        newsletter_item = {
+            "PK": f"NEWSLETTER#{email}",
+            "SK": "SUBSCRIPTION#NEWSLETTER",
+            "type": "Newsletter",
+            "email": email,
+            "status": "subscribed",
+            "source": source,
+            "ipAddress": client_ip,
+            "createdAt": created_at_iso,
+            "updatedAt": created_at_iso,
+            # GSI for querying all newsletter subscribers
+            "GSI1PK": "NEWSLETTER#ALL",
+            "GSI1SK": f"SUBSCRIPTION#{created_at_iso}",
+        }
+        
+        logger.info("newsletter.subscribe.creating", extra={
+            "email": email,
+            "source": source,
+            "table": settings.core_table_name,
+            "cid": cid
+        })
+        
+        core.put_item(Item=newsletter_item)
+        
+        log_event(logger, "newsletter.subscribe.success", cid=cid, email=email, ip=client_ip, source=source)
+        
+        return NewsletterResponse(
+            message="Successfully subscribed to newsletter",
+            email=email,
+            subscribed=True
+        )
+        
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        error_msg = e.response.get("Error", {}).get("Message", str(e))
+        logger.error("newsletter.subscribe.ddb_error", extra={
+            "email": email,
+            "error_code": error_code,
+            "error_message": error_msg,
+            "table": settings.core_table_name,
+            "cid": cid
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unable to process newsletter subscription: {error_code}")
+    except Exception as e:
+        logger.error("newsletter.subscribe.error", extra={
             "email": email,
             "error": str(e),
             "error_type": type(e).__name__,

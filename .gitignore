@@ -41,6 +41,14 @@ backend/infra/terraform/terraform.tfstate.backup
 frontend/.env.development
 *.pyc
 
+# Test credentials (never commit)
+apps/frontend/.env.test
+apps/frontend/.env.local
+*.env.test
+*.env.local
+.env.test
+.env.local
+
 # Coverage artifacts (all workspaces)
 **/coverage/
 **/coverage-*/
