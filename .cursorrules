@@ -260,6 +260,28 @@ const sortedData = useMemo(() => {
 
 ### 10. Testing Standards
 
+#### Test Coverage Requirement
+**MANDATORY**: Every frontend change MUST include corresponding test updates to ensure all tests pass.
+
+**When to Update Tests:**
+- Adding new components → Add component tests
+- Modifying existing components → Update relevant tests
+- Changing routes or navigation → Update integration tests
+- Adding new features → Add feature-specific tests
+- Fixing bugs → Add regression tests
+- Refactoring code → Update affected tests
+- Changing API integrations → Update API mock tests
+
+**Test Update Checklist:**
+- [ ] Unit tests updated/added for component changes
+- [ ] Integration tests updated for navigation/routing changes
+- [ ] E2E tests updated for user flow changes
+- [ ] All existing tests still pass
+- [ ] New functionality is covered by tests
+- [ ] Test coverage maintained or improved
+
+**Failure to update tests is considered incomplete work.**
+
 #### Error Scenarios
 **TEST** all error scenarios including:
 - Network failures
@@ -372,6 +394,73 @@ frontend/src/
 - Test execution
 - Accessibility validation
 - Performance metrics
+
+#### Integration Testing After Frontend Changes
+**ALWAYS** run comprehensive frontend integration tests after making changes to frontend code:
+
+**When to Run:**
+- After modifying React components, pages, or routes
+- After changing navigation or routing logic
+- After updating API integrations or data fetching
+- After modifying authentication or authorization flows
+- After changing UI/UX elements that affect user interactions
+- Before committing frontend changes
+
+**How to Run:**
+```bash
+cd apps/frontend
+npm run test:selenium:comprehensive:verbose
+```
+
+**Test Coverage:**
+The comprehensive integration tests verify:
+- ✅ All public pages load correctly
+- ✅ Authentication and protected routes work
+- ✅ All authenticated pages are accessible
+- ✅ Navigation between pages functions properly
+- ✅ Goals and Quests pages with tab navigation
+- ✅ Chat room navigation and functionality
+- ✅ Quest chat/comments functionality
+- ✅ Responsive design on different viewports
+- ✅ Error handling and accessibility features
+
+**Prerequisites:**
+1. Frontend server running: `npm run dev` (in `apps/frontend`)
+2. Valid test credentials in `apps/frontend/.env.test` (optional - public tests work without)
+3. Chrome browser installed
+
+**Quick Test Command:**
+```bash
+# From project root
+cd apps/frontend && npm run test:selenium:comprehensive:verbose
+```
+
+**Note:** If credentials are not available, tests will skip authenticated scenarios gracefully. All public page tests will still run.
+
+#### Test Maintenance Rule
+**CRITICAL**: Every frontend code change MUST be accompanied by corresponding test updates.
+
+**Rule**: If you change frontend code, you MUST update or add tests to ensure:
+1. All existing tests continue to pass
+2. New functionality is covered by tests
+3. Integration tests reflect the current state of the application
+
+**This is non-negotiable** - incomplete test updates are considered incomplete work and should not be committed.
+
+**Test Update Workflow:**
+1. Make frontend code changes
+2. Identify affected tests (unit, integration, E2E)
+3. Update existing tests to match new behavior
+4. Add new tests for new functionality
+5. Run all tests to verify they pass
+6. Fix any failing tests before committing
+
+**Example Scenarios:**
+- **Adding a new button** → Add test for button click behavior
+- **Changing a route** → Update navigation tests
+- **Modifying a form** → Update form validation tests
+- **Refactoring a component** → Update component tests
+- **Fixing a bug** → Add regression test to prevent recurrence
 
 ## Common Patterns
 
