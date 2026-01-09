@@ -34,6 +34,19 @@ function loadCredentials() {
 
   // Read and parse .env.test file
   try {
+    // Check if file is readable (permissions check)
+    try {
+      fs.accessSync(envTestPath, fs.constants.R_OK);
+    } catch (accessError) {
+      // File exists but not readable, or permission denied
+      if (accessError.code === 'EACCES' || accessError.code === 'EPERM') {
+        console.warn(`Warning: Permission denied reading .env.test file. Using environment variables instead.`);
+        return credentials; // Return empty credentials, will fall back to env vars
+      }
+      // File doesn't exist or other error
+      return credentials;
+    }
+    
     const envContent = fs.readFileSync(envTestPath, 'utf8');
     const lines = envContent.split('\n');
 
@@ -76,7 +89,13 @@ function loadCredentials() {
       }
     });
   } catch (error) {
-    console.warn(`Warning: Could not read .env.test file: ${error.message}`);
+    // Handle permission errors gracefully
+    if (error.code === 'EACCES' || error.code === 'EPERM') {
+      console.warn(`Warning: Permission denied reading .env.test file: ${error.message}`);
+      console.warn(`   Using environment variables instead.`);
+    } else {
+      console.warn(`Warning: Could not read .env.test file: ${error.message}`);
+    }
   }
 
   return credentials;
