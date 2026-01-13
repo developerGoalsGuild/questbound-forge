@@ -1,33 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { landingPageTranslations } from '@/i18n/landingPage';
 
 interface Stat {
   value: string;
   label: string;
+  reference?: string;
 }
 
 const Empathy = () => {
-  const { t } = useTranslation();
+  const { language } = useTranslation();
   const sectionRef = useRef<HTMLElement>(null);
-  const empathyT = (t as any).empathy || {};
+  // empathy is a property in translations, access it directly from landingPageTranslations
+  const empathyT = landingPageTranslations[language].empathy;
   const [animatedStats, setAnimatedStats] = useState<Stat[]>([
-    { value: '0%', label: '' },
-    { value: '0%', label: '' },
-    { value: '0x', label: '' },
+    { value: '0%', label: '', reference: '' },
+    { value: '0%', label: '', reference: '' },
+    { value: '0x', label: '', reference: '' },
   ]);
 
   const stats: Stat[] = [
     {
       value: '92%',
-      label: empathyT.stats?.giveUp?.label || 'of people give up on their goals within 3 months',
+      label: empathyT.stats.giveUp.label,
+      reference: empathyT.stats.giveUp.reference,
     },
     {
       value: '78%',
-      label: empathyT.stats?.motivated?.label || 'feel more motivated when working with others',
+      label: empathyT.stats.motivated.label,
+      reference: empathyT.stats.motivated.reference,
     },
     {
       value: '3x',
-      label: empathyT.stats?.accountability?.label || 'more likely to succeed with accountability',
+      label: empathyT.stats.accountability.label,
+      reference: empathyT.stats.accountability.reference,
     },
   ];
 
@@ -62,7 +68,7 @@ const Empathy = () => {
         observer.unobserve(sectionRef.current);
       }
     };
-  }, []);
+  }, [stats]);
 
   return (
     <section
@@ -77,17 +83,17 @@ const Empathy = () => {
             id="empathy-title"
             className="font-cinzel text-4xl md:text-5xl font-bold mb-6 text-gradient-royal"
           >
-            {empathyT.title || 'We Get It'}
+            {empathyT.title}
           </h2>
         </div>
 
         <div className="max-w-4xl mx-auto mb-16">
           <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
             <p>
-              {empathyT.message?.paragraph1 || 'We know how it feels to be excited about a goal, only to lose motivation when you\'re going it alone. It\'s frustrating when you have big dreams but no one to share the journey with. You\'re not alone in feeling like traditional goal-setting methods just don\'t work.'}
+              {empathyT.message.paragraph1}
             </p>
             <p>
-              {empathyT.message?.paragraph2 || 'The truth is, humans weren\'t meant to achieve goals in isolation. We\'re social creatures who thrive on connection, support, and shared experiences. When you try to go it alone, you\'re fighting against your natural instincts.'}
+              {empathyT.message.paragraph2}
             </p>
           </div>
         </div>
@@ -102,9 +108,14 @@ const Empathy = () => {
               <div className="text-5xl md:text-6xl font-cinzel font-bold text-primary mb-4 transition-all duration-1000">
                 {stat.value}
               </div>
-              <div className="text-muted-foreground leading-relaxed">
+              <div className="text-muted-foreground leading-relaxed mb-2">
                 {stat.label}
               </div>
+              {stat.reference && (
+                <div className="text-xs text-muted-foreground/70 italic mt-2">
+                  {stat.reference}
+                </div>
+              )}
             </div>
           ))}
         </div>

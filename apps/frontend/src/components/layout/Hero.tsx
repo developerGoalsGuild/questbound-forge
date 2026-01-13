@@ -1,10 +1,12 @@
 import { ArrowRight, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
+import { heroTranslations } from '@/i18n/hero';
 
 const Hero = () => {
-  const { t } = useTranslation();
-  const heroT = (t as any).hero || {};
+  const { t, language } = useTranslation();
+  // heroTranslations is spread directly into t, so access directly from heroTranslations by language
+  const heroT = heroTranslations[language];
 
   // Use a placeholder or public asset path for the hero image
   // If you have the image, uncomment and update the path
@@ -35,12 +37,12 @@ const Hero = () => {
         <div className="max-w-4xl mx-auto animate-fade-in">
           {/* Main Heading */}
           <h1 className="font-cinzel text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            {heroT.title || 'Unite in Purpose, Achieve Together'}
+            {heroT.title}
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl md:text-2xl mb-8 text-primary-foreground/90 leading-relaxed max-w-3xl mx-auto">
-            {heroT.subtitle || 'Join a medieval-inspired community where goals become quests, progress is celebrated, and mutual support leads to extraordinary achievements.'}
+            {heroT.subtitle}
           </p>
 
           {/* Call to Action Buttons */}
@@ -51,7 +53,7 @@ const Hero = () => {
               asChild
             >
               <a href="#waitlist">
-                {heroT.ctaPrimary || 'Join the Community'}
+                {heroT.ctaPrimary}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
             </Button>
@@ -59,31 +61,31 @@ const Hero = () => {
             <Button
               variant="outline"
               size="lg"
-              className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary px-8 py-4 text-lg group"
+              className="border-2 border-primary-foreground/50 bg-white/10 backdrop-blur-sm text-primary-foreground hover:bg-primary-foreground hover:text-primary hover:border-primary-foreground px-8 py-4 text-lg group"
               asChild
             >
               <a href="#how-it-works">
                 <Play className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-                {heroT.ctaSecondary || 'See How It Works'}
+                {heroT.ctaSecondary}
               </a>
             </Button>
           </div>
 
-          {/* Stats or Trust Indicators */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          {/* Stats or Trust Indicators - Hidden until dynamic numbers are available */}
+          {/* <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div className="animate-scale-in" style={{ animationDelay: '0.2s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">10K+</div>
-              <div className="text-primary-foreground/80">{heroT.activeAdventurers || 'Active Adventurers'}</div>
+              <div className="text-primary-foreground/80">{heroT.stats.activeAdventurers}</div>
             </div>
             <div className="animate-scale-in" style={{ animationDelay: '0.4s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">50K+</div>
-              <div className="text-primary-foreground/80">{heroT.goalsAchieved || 'Goals Achieved'}</div>
+              <div className="text-primary-foreground/80">{heroT.stats.goalsAchieved}</div>
             </div>
             <div className="animate-scale-in" style={{ animationDelay: '0.6s' }}>
               <div className="text-3xl font-cinzel font-bold text-secondary mb-2">100+</div>
-              <div className="text-primary-foreground/80">{heroT.partnerGuilds || 'Partner Guilds'}</div>
+              <div className="text-primary-foreground/80">{heroT.stats.partnerGuilds}</div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

@@ -8,6 +8,7 @@ _ALGO = "HS256"
 class TokenPurpose:
     EMAIL_CONFIRM = "email_confirm"
     CHANGE_PASSWORD = "change_password"
+    RESET_PASSWORD = "reset_password"
 
 
 def issue_link_token(sub: str, purpose: str, ttl_seconds: int) -> dict:

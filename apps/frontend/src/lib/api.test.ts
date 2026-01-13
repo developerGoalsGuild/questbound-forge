@@ -19,7 +19,7 @@ vi.mock('@/graphql/queries', () => ({
   ACTIVE_GOALS_COUNT: 'ACTIVE_GOALS_COUNT',
 }));
 
-import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken } from './api';
+import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken, requestPasswordReset, resetPassword } from './api';
 import { getActiveGoalsCountForUser } from './apiGoal';
 
 describe('frontend api lib', () => {
@@ -227,5 +227,120 @@ describe('frontend api lib', () => {
   it('getActiveGoalsCountForUser returns 0 on error', async () => {
     vi.mocked(getActiveGoalsCountForUser).mockRejectedValue(new Error('Network error'));
     await expect(getActiveGoalsCountForUser('ERR')).rejects.toThrow('Network error');
+  });
+
+  describe('password reset API functions', () => {
+    it('requestPasswordReset posts to /password/reset-request with email', async () => {
+      const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ message: 'If the account exists and email is confirmed, a reset link will be sent.' })
+      } as any);
+      
+      const result = await requestPasswordReset('user@example.com');
+      
+      expect(spy).toHaveBeenCalled();
+      const [url, init] = spy.mock.calls[0];
+      expect(url).toMatch(/\/password\/reset-request$/);
+      const body = JSON.parse((init as any).body);
+      expect(body.email).toBe('user@example.com');
+      expect(result.message).toBeDefined();
+    });
+
+    it('requestPasswordReset includes x-api-key header when available', async () => {
+      vi.stubEnv('VITE_API_GATEWAY_KEY', 'test-api-key');
+      const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ message: 'Success' })
+      } as any);
+      
+      await requestPasswordReset('user@example.com');
+      
+      const [, init] = spy.mock.calls[0];
+      const headers = (init as any).headers;
+      const apiKey = headers['x-api-key'] || (headers.get && headers.get('x-api-key'));
+      expect(apiKey).toBe('test-api-key');
+    });
+
+    it('requestPasswordReset throws error when email not confirmed', async () => {
+      vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: async () => JSON.stringify({ detail: 'Email not confirmed. Please confirm your email before requesting a password reset.' })
+      } as any);
+      
+      await expect(requestPasswordReset('unconfirmed@example.com')).rejects.toThrow(/not confirmed/i);
+    });
+
+    it('requestPasswordReset throws error on network failure', async () => {
+      vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => JSON.stringify({ detail: 'Internal server error' })
+      } as any);
+      
+      await expect(requestPasswordReset('user@example.com')).rejects.toThrow(/internal server error/i);
+    });
+
+    it('resetPassword posts to /password/change with reset_token', async () => {
+      const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ message: 'Password reset successfully. Please log in with your new password.' })
+      } as any);
+      
+      const result = await resetPassword('reset-token-123', 'NewSecurePass123!');
+      
+      expect(spy).toHaveBeenCalled();
+      const [url, init] = spy.mock.calls[0];
+      expect(url).toMatch(/\/password\/change$/);
+      const body = JSON.parse((init as any).body);
+      expect(body.reset_token).toBe('reset-token-123');
+      expect(body.new_password).toBe('NewSecurePass123!');
+      expect(result.message).toBeDefined();
+    });
+
+    it('resetPassword includes x-api-key header when available', async () => {
+      vi.stubEnv('VITE_API_GATEWAY_KEY', 'test-api-key');
+      const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ message: 'Success' })
+      } as any);
+      
+      await resetPassword('token', 'NewPass123!');
+      
+      const [, init] = spy.mock.calls[0];
+      const headers = (init as any).headers;
+      const apiKey = headers['x-api-key'] || (headers.get && headers.get('x-api-key'));
+      expect(apiKey).toBe('test-api-key');
+    });
+
+    it('resetPassword throws error for expired token', async () => {
+      vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ detail: 'Reset token expired' })
+      } as any);
+      
+      await expect(resetPassword('expired-token', 'NewPass123!')).rejects.toThrow(/expired/i);
+    });
+
+    it('resetPassword throws error for invalid token', async () => {
+      vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ detail: 'Invalid or expired reset token' })
+      } as any);
+      
+      await expect(resetPassword('invalid-token', 'NewPass123!')).rejects.toThrow(/invalid/i);
+    });
+
+    it('resetPassword throws error for weak password', async () => {
+      vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ detail: 'Password must be at least 8 characters' })
+      } as any);
+      
+      await expect(resetPassword('valid-token', 'weak')).rejects.toThrow(/password/i);
+    });
   });
 });

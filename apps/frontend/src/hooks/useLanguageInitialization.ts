@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getProfile } from '@/lib/apiProfile';
-import { getAccessToken } from '@/lib/utils';
+import { isTokenValid } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
 export type SupportedLanguage = 'en' | 'es' | 'fr';
@@ -16,9 +16,69 @@ interface UseLanguageInitializationReturn {
  * Priority: User profile language > Browser language > Default (en)
  */
 export const useLanguageInitialization = (): UseLanguageInitializationReturn => {
-  const [language, setLanguage] = useState<SupportedLanguage>('en');
+  // Check localStorage first for manually selected language
+  const getStoredLanguage = useCallback((): SupportedLanguage | null => {
+    try {
+      const stored = localStorage.getItem('userLanguage');
+      if (stored && (stored === 'en' || stored === 'es' || stored === 'fr')) {
+        return stored as SupportedLanguage;
+      }
+    } catch (e) {
+      // localStorage not available or error
+    }
+    return null;
+  }, []);
+
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    try {
+      const stored = localStorage.getItem('userLanguage');
+      if (stored && (stored === 'en' || stored === 'es' || stored === 'fr')) {
+        return stored as SupportedLanguage;
+      }
+    } catch (e) {
+      // localStorage not available or error
+    }
+    return 'en';
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // List of public routes that don't require authentication
+  const publicRoutes = [
+    '/',
+    '/login',
+    '/login/Login',
+    '/signup/LocalSignUp',
+    '/forgot-password',
+    '/reset-password',
+    '/docs',
+    '/about',
+    '/blog',
+    '/careers',
+    '/help',
+    '/status',
+    '/privacy',
+    '/terms',
+  ];
+
+  const isPublicRoute = useCallback(() => {
+    // Use window.location.pathname instead of useLocation() since this hook
+    // may be called outside Router context (TranslationProvider wraps BrowserRouter)
+    const pathname = window.location.pathname;
+    return publicRoutes.some(route => {
+      // Exact match
+      if (pathname === route) return true;
+      // Check if pathname starts with route followed by / (for sub-routes)
+      if (pathname.startsWith(route + '/')) return true;
+      // Handle dynamic routes like /blog/:slug
+      if (route.includes(':')) {
+        const routePattern = route.replace(/:[^/]+/g, '[^/]+');
+        const regex = new RegExp(`^${routePattern}(/.*)?$`);
+        return regex.test(pathname);
+      }
+      return false;
+    });
+  }, []);
 
   const detectBrowserLanguage = useCallback((): SupportedLanguage => {
     try {
@@ -54,18 +114,39 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
       setIsLoading(true);
       setError(null);
       
-      // Check if user is authenticated
-      const token = getAccessToken();
-      if (!token) {
-        // User not logged in, use browser language
+      // Check if user has manually selected a language (stored in localStorage)
+      const storedLanguage = getStoredLanguage();
+      if (storedLanguage) {
+        setLanguage(storedLanguage);
+        logger.info('Using stored language preference', { language: storedLanguage });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Skip API calls on public routes
+      if (isPublicRoute()) {
+        const browserLang = detectBrowserLanguage();
+        setLanguage(browserLang);
+        logger.info('Public route detected, using browser language', { 
+          route: window.location.pathname,
+          language: browserLang 
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if user is authenticated with a valid token
+      if (!isTokenValid()) {
+        // User not logged in or token expired, use browser language
         const browserLang = detectBrowserLanguage();
         setLanguage(browserLang);
         logger.info('User not authenticated, using browser language', { language: browserLang });
+        setIsLoading(false);
         return;
       }
 
       try {
-        // Try to get user profile
+        // Try to get user profile (only if token is valid and not on public route)
         const profile = await getProfile();
         const profileLanguage = profile.language as SupportedLanguage;
         
@@ -103,7 +184,7 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
     } finally {
       setIsLoading(false);
     }
-  }, [detectBrowserLanguage]);
+  }, [detectBrowserLanguage, isPublicRoute, getStoredLanguage]);
 
   useEffect(() => {
     initializeLanguage();

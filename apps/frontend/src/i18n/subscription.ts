@@ -6,6 +6,15 @@ export interface SubscriptionTranslations {
   subscription: {
     title: string;
     subtitle: string;
+    mostPopular: string;
+    allPlansInclude: string;
+    allPlansFeatures: {
+      goalTracking: string;
+      communityAccess: string;
+      mobileApp: string;
+    };
+    needHelp: string;
+    contactSupport: string;
     currentPlan: string;
     upgrade: string;
     downgrade: string;
@@ -97,8 +106,17 @@ interface ErrorTranslations {
 export const subscriptionTranslations = {
   en: {
     subscription: {
-      title: 'Subscription Plans',
-      subtitle: 'Choose the plan that fits your goals',
+      title: 'Choose Your Path',
+      subtitle: 'Select the plan that best fits your journey to success',
+      mostPopular: 'Most Popular',
+      allPlansInclude: 'All Plans Include',
+      allPlansFeatures: {
+        goalTracking: 'Goal Tracking',
+        communityAccess: 'Community Access',
+        mobileApp: 'Mobile App',
+      },
+      needHelp: 'Need help choosing?',
+      contactSupport: 'Contact our support team',
       currentPlan: 'Current Plan',
       upgrade: 'Upgrade',
       downgrade: 'Downgrade',
@@ -237,8 +255,17 @@ export const subscriptionTranslations = {
   },
   es: {
     subscription: {
-      title: 'Planes de Suscripción',
-      subtitle: 'Elige el plan que se ajuste a tus objetivos',
+      title: 'Elige Tu Camino',
+      subtitle: 'Selecciona el plan que mejor se ajuste a tu viaje al éxito',
+      mostPopular: 'Más Popular',
+      allPlansInclude: 'Todos los Planes Incluyen',
+      allPlansFeatures: {
+        goalTracking: 'Seguimiento de Metas',
+        communityAccess: 'Acceso a la Comunidad',
+        mobileApp: 'Aplicación Móvil',
+      },
+      needHelp: '¿Necesitas ayuda para elegir?',
+      contactSupport: 'Contacta a nuestro equipo de soporte',
       currentPlan: 'Plan Actual',
       upgrade: 'Actualizar',
       downgrade: 'Degradar',
@@ -377,8 +404,17 @@ export const subscriptionTranslations = {
   },
   fr: {
     subscription: {
-      title: 'Plans d\'Abonnement',
-      subtitle: 'Choisissez le plan qui correspond à vos objectifs',
+      title: 'Choisissez Votre Chemin',
+      subtitle: 'Sélectionnez le plan qui correspond le mieux à votre parcours vers le succès',
+      mostPopular: 'Le Plus Populaire',
+      allPlansInclude: 'Tous les Plans Incluent',
+      allPlansFeatures: {
+        goalTracking: 'Suivi des Objectifs',
+        communityAccess: 'Accès à la Communauté',
+        mobileApp: 'Application Mobile',
+      },
+      needHelp: 'Besoin d\'aide pour choisir?',
+      contactSupport: 'Contactez notre équipe de support',
       currentPlan: 'Plan Actuel',
       upgrade: 'Mettre à Niveau',
       downgrade: 'Rétrograder',

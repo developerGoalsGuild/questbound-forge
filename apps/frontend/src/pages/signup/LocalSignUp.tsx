@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createUser, isEmailAvailable, isNicknameAvailable, confirmEmail, login } from '@/lib/api';
 import { getCountries, initialsFor, isValidCountryCode } from '@/i18n/countries';
@@ -31,8 +31,23 @@ interface FormData {
 const LocalSignUp: React.FC = () => {
   const { language, t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   // Unify translation shape: prefer signup.local when present
   const signup = useMemo(() => (t as any).signup?.local || (t as any).signup || {}, [t]);
+  
+  // Get plan from URL query parameter and convert to uppercase SubscriptionTier
+  const planFromUrl = searchParams.get('plan');
+  const initialSubscriptionTier = useMemo(() => {
+    if (!planFromUrl) return undefined;
+    const tierMap: Record<string, SubscriptionTier> = {
+      'initiate': 'INITIATE',
+      'journeyman': 'JOURNEYMAN',
+      'sage': 'SAGE',
+      'guildmaster': 'GUILDMASTER',
+    };
+    return tierMap[planFromUrl.toLowerCase()] || undefined;
+  }, [planFromUrl]);
+  
   const [formData, setFormData] = useState<FormData>({
     email: '',
     fullName: '',
@@ -45,7 +60,7 @@ const LocalSignUp: React.FC = () => {
     country: '',
         gender: '',
         role: 'user',
-    subscriptionTier: undefined
+    subscriptionTier: initialSubscriptionTier
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [pronounsWasSet, setPronounsWasSet] = useState(false);

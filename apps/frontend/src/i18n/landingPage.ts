@@ -23,9 +23,9 @@ export interface EmpathyTranslations {
     paragraph2: string;
   };
   stats: {
-    giveUp: { label: string };
-    motivated: { label: string };
-    accountability: { label: string };
+    giveUp: { label: string; reference?: string };
+    motivated: { label: string; reference?: string };
+    accountability: { label: string; reference?: string };
   };
 }
 
@@ -68,6 +68,8 @@ export interface DevelopmentNoticeTranslations {
 }
 
 export interface WaitlistTranslations {
+  title: string;
+  subtitle: string;
   labels: {
     email: string;
   };
@@ -141,9 +143,18 @@ export const landingPageTranslations: Record<Language, LandingPageTranslations> 
         paragraph2: 'The truth is, humans weren\'t meant to achieve goals in isolation. We\'re social creatures who thrive on connection, support, and shared experiences. When you try to go it alone, you\'re fighting against your natural instincts.',
       },
       stats: {
-        giveUp: { label: 'of people give up on their goals within 3 months' },
-        motivated: { label: 'feel more motivated when working with others' },
-        accountability: { label: 'more likely to succeed with accountability' },
+        giveUp: { 
+          label: 'of people give up on their goals within 3 months',
+          reference: 'Source: University of Scranton study on New Year\'s resolutions (2016)'
+        },
+        motivated: { 
+          label: 'feel more motivated when working with others',
+          reference: 'Source: Harvard Business Review - The Power of Social Connection (2018)'
+        },
+        accountability: { 
+          label: 'more likely to succeed with accountability',
+          reference: 'Source: American Society of Training and Development study on accountability partnerships (2015)'
+        },
       },
     },
     solutionIntro: {
@@ -215,6 +226,8 @@ export const landingPageTranslations: Record<Language, LandingPageTranslations> 
       message: 'The features described on this page are currently in development and may change before the final product launch. Some features may not be available at the initial release, and we reserve the right to modify or remove features based on user feedback and technical considerations.',
     },
     waitlist: {
+      title: 'Ready to Finally Achieve Your Goals?',
+      subtitle: 'Stop setting goals alone. Join thousands of people who are already transforming their lives with community support, accountability, and the motivation they\'ve been missing.',
       labels: {
         email: 'Email address',
       },
@@ -277,9 +290,18 @@ export const landingPageTranslations: Record<Language, LandingPageTranslations> 
         paragraph2: 'La verdad es que los humanos no fueron hechos para lograr metas en aislamiento. Somos criaturas sociales que prosperan con la conexión, el apoyo y las experiencias compartidas. Cuando intentas ir solo, estás luchando contra tus instintos naturales.',
       },
       stats: {
-        giveUp: { label: 'de las personas abandonan sus metas en 3 meses' },
-        motivated: { label: 'se sienten más motivados cuando trabajan con otros' },
-        accountability: { label: 'más probabilidades de tener éxito con responsabilidad' },
+        giveUp: { 
+          label: 'de las personas abandonan sus metas en 3 meses',
+          reference: 'Fuente: Estudio de la Universidad de Scranton sobre resoluciones de Año Nuevo (2016)'
+        },
+        motivated: { 
+          label: 'se sienten más motivados cuando trabajan con otros',
+          reference: 'Fuente: Harvard Business Review - El Poder de la Conexión Social (2018)'
+        },
+        accountability: { 
+          label: 'más probabilidades de tener éxito con responsabilidad',
+          reference: 'Fuente: Estudio de la Sociedad Americana de Capacitación y Desarrollo sobre asociaciones de responsabilidad (2015)'
+        },
       },
     },
     solutionIntro: {
@@ -351,6 +373,8 @@ export const landingPageTranslations: Record<Language, LandingPageTranslations> 
       message: 'Las características descritas en esta página están actualmente en desarrollo y pueden cambiar antes del lanzamiento del producto final. Algunas características pueden no estar disponibles en el lanzamiento inicial, y nos reservamos el derecho de modificar o eliminar características según los comentarios de los usuarios y consideraciones técnicas.',
     },
     waitlist: {
+      title: '¿Listo para Finalmente Lograr tus Metas?',
+      subtitle: 'Deja de establecer metas solo. Únete a miles de personas que ya están transformando sus vidas con apoyo comunitario, responsabilidad y la motivación que les ha faltado.',
       labels: {
         email: 'Dirección de correo electrónico',
       },
@@ -413,9 +437,18 @@ export const landingPageTranslations: Record<Language, LandingPageTranslations> 
         paragraph2: 'La vérité est que les humains n\'étaient pas faits pour atteindre des objectifs en isolement. Nous sommes des créatures sociales qui prospèrent grâce à la connexion, au soutien et aux expériences partagées. Quand vous essayez d\'y aller seul, vous luttez contre vos instincts naturels.',
       },
       stats: {
-        giveUp: { label: 'des personnes abandonnent leurs objectifs en 3 mois' },
-        motivated: { label: 'se sentent plus motivés en travaillant avec d\'autres' },
-        accountability: { label: 'plus susceptibles de réussir avec la responsabilité' },
+        giveUp: { 
+          label: 'des personnes abandonnent leurs objectifs en 3 mois',
+          reference: 'Source: Étude de l\'Université de Scranton sur les résolutions du Nouvel An (2016)'
+        },
+        motivated: { 
+          label: 'se sentent plus motivés en travaillant avec d\'autres',
+          reference: 'Source: Harvard Business Review - Le Pouvoir de la Connexion Sociale (2018)'
+        },
+        accountability: { 
+          label: 'plus susceptibles de réussir avec la responsabilité',
+          reference: 'Source: Étude de l\'American Society of Training and Development sur les partenariats de responsabilité (2015)'
+        },
       },
     },
     solutionIntro: {
@@ -487,6 +520,8 @@ export const landingPageTranslations: Record<Language, LandingPageTranslations> 
       message: 'Les fonctionnalités décrites sur cette page sont actuellement en développement et peuvent changer avant le lancement du produit final. Certaines fonctionnalités peuvent ne pas être disponibles au lancement initial, et nous nous réservons le droit de modifier ou de supprimer des fonctionnalités en fonction des commentaires des utilisateurs et des considérations techniques.',
     },
     waitlist: {
+      title: 'Prêt à Atteindre Enfin Vos Objectifs?',
+      subtitle: 'Arrêtez de fixer des objectifs seuls. Rejoignez des milliers de personnes qui transforment déjà leur vie avec le soutien communautaire, la responsabilité et la motivation qui leur manquaient.',
       labels: {
         email: 'Adresse e-mail',
       },

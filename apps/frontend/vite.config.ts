@@ -11,14 +11,20 @@ export default defineConfig(async ({ mode }) => {
   
   const plugins: any[] = [react()];
   if (mode === 'development') {
-    const { componentTagger } = await import('lovable-tagger');
-    plugins.push(componentTagger());
+    try {
+      const { componentTagger } = await import('lovable-tagger');
+      plugins.push(componentTagger());
+    } catch (error) {
+      // lovable-tagger is optional, skip if not installed
+      console.log('lovable-tagger not found, skipping component tagger');
+    }
   }
   
   return {
     server: {
-      host: "::",
+      host: "localhost",
       port: 8080,
+      strictPort: false,
       proxy: {
         // Proxy API Gateway calls during development to avoid CORS
         "/v1": {

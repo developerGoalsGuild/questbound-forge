@@ -7,6 +7,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
+import { blogTranslations } from '@/i18n/blog';
+import { commonTranslations } from '@/i18n/common';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,17 +18,18 @@ import { blogPosts } from '@/data/blog/posts';
 
 const Blog: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { language } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
-  const blogTranslations = (t as any)?.blog || {};
-  const commonTranslations = (t as any)?.common || {};
+  // Access translations directly from translation files
+  const blogT = blogTranslations[language];
+  const commonT = commonTranslations[language];
 
   const categories = [
-    { id: 'product-updates', label: blogTranslations?.categories?.productUpdates || 'Product Updates' },
-    { id: 'community', label: blogTranslations?.categories?.community || 'Community' },
-    { id: 'tips-tricks', label: blogTranslations?.categories?.tipsTricks || 'Tips & Tricks' }
+    { id: 'product-updates', label: blogT.categories.productUpdates },
+    { id: 'community', label: blogT.categories.community },
+    { id: 'tips-tricks', label: blogT.categories.tipsTricks },
   ];
 
   const filteredPosts = useMemo(() => {
@@ -34,11 +37,12 @@ const Blog: React.FC = () => {
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(post =>
-        post.title.toLowerCase().includes(query) ||
-        post.excerpt.toLowerCase().includes(query) ||
-        post.author.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(post => {
+        const t = post.translations[language];
+        return t.title.toLowerCase().includes(query) ||
+          t.excerpt.toLowerCase().includes(query) ||
+          t.author.toLowerCase().includes(query);
+      });
     }
 
     if (selectedCategory) {
@@ -46,7 +50,7 @@ const Blog: React.FC = () => {
     }
 
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, language]);
 
   const featuredPosts = blogPosts.filter(post => post.featured).slice(0, 2);
 
@@ -61,14 +65,14 @@ const Blog: React.FC = () => {
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            {commonTranslations?.back || 'Back'}
+            {commonT.back}
           </Button>
           <div className="space-y-1 flex-1">
             <h1 className="text-3xl font-bold tracking-tight">
-              {blogTranslations?.title || 'Blog'}
+              {blogT.title}
             </h1>
             <p className="text-muted-foreground">
-              {blogTranslations?.subtitle || 'Stories, tips, and updates from GoalsGuild'}
+              {blogT.subtitle}
             </p>
           </div>
         </div>
@@ -79,7 +83,7 @@ const Blog: React.FC = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder={blogTranslations?.searchPlaceholder || 'Search posts...'}
+                placeholder={blogT.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -91,7 +95,7 @@ const Blog: React.FC = () => {
                 size="sm"
                 onClick={() => setSelectedCategory(null)}
               >
-                {blogTranslations?.all || 'All'}
+                {blogT.all}
               </Button>
               {categories.map((category) => (
                 <Button
@@ -112,7 +116,7 @@ const Blog: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <Star className="h-6 w-6" />
-              {blogTranslations?.featured || 'Featured Posts'}
+              {blogT.featured}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {featuredPosts.map((post) => (
@@ -126,14 +130,14 @@ const Blog: React.FC = () => {
                       <Badge>{categories.find(c => c.id === post.category)?.label}</Badge>
                       {post.featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                     </div>
-                    <CardTitle className="line-clamp-2">{post.title}</CardTitle>
-                    <CardDescription className="line-clamp-2">{post.excerpt}</CardDescription>
+                    <CardTitle className="line-clamp-2">{post.translations[language].title}</CardTitle>
+                    <CardDescription className="line-clamp-2">{post.translations[language].excerpt}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-4 w-4" />
-                        {post.author}
+                        {post.translations[language].author}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
@@ -141,7 +145,7 @@ const Blog: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        {post.readTime} {blogTranslations?.minRead || 'min read'}
+                        {post.readTime} {blogT.minRead}
                       </div>
                     </div>
                   </CardContent>
@@ -154,12 +158,12 @@ const Blog: React.FC = () => {
         {/* All Posts */}
         <div>
           <h2 className="text-2xl font-bold mb-4">
-            {blogTranslations?.allPosts || 'All Posts'}
+            {blogT.allPosts}
           </h2>
           {filteredPosts.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center text-muted-foreground">
-                {blogTranslations?.noPosts || 'No posts found'}
+                {blogT.noPosts}
               </CardContent>
             </Card>
           ) : (
@@ -175,14 +179,14 @@ const Blog: React.FC = () => {
                       <Badge>{categories.find(c => c.id === post.category)?.label}</Badge>
                       {post.featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                     </div>
-                    <CardTitle className="line-clamp-2">{post.title}</CardTitle>
-                    <CardDescription className="line-clamp-3">{post.excerpt}</CardDescription>
+                    <CardTitle className="line-clamp-2">{post.translations[language].title}</CardTitle>
+                    <CardDescription className="line-clamp-3">{post.translations[language].excerpt}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-4 w-4" />
-                        {post.author}
+                        {post.translations[language].author}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
@@ -190,7 +194,7 @@ const Blog: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        {post.readTime} {blogTranslations?.minRead || 'min read'}
+                        {post.readTime} {blogT.minRead}
                       </div>
                     </div>
                   </CardContent>

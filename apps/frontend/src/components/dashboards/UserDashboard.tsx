@@ -1,24 +1,20 @@
-import { Target, Users, Trophy, TrendingUp, Calendar, Star, CheckCircle, Clock } from 'lucide-react';
+import { Target, Trophy, TrendingUp, CheckCircle, Clock, Award } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
-import { Progress } from '@/components/ui/progress';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useUserData } from '@/hooks/useUserData';
 import GoalsButton from '@/components/dashboard/GoalsButton';
 
 import { getActiveGoalsCountForUser, getAllGoalsProgress } from '@/lib/apiGoal';
-import { calculateAggregateProgress } from '@/lib/progressCalculation';
 import { getUserIdFromToken } from '@/lib/utils';
+import { getQuestAnalytics } from '@/lib/apiAnalytics';
+import { getCurrentXP } from '@/lib/api/gamification';
+import { getMyBadges, type UserBadge } from '@/lib/api/gamification';
 
 import { useEffect, useState } from 'react';
-import { useCommunityActivities } from '@/hooks/useCommunityData';
 import { logger } from '@/lib/logger';
+import type { Achievement } from '@/data/types';
 
 const UserDashboard = () => {
   const { t } = useTranslation() as any;
-  const { data: userData, loading, error } = useUserData();
-  const { activities: communityActivities } = useCommunityActivities('achievement', 2);
 
   // Fetch live active quests count from backend (fallback to mock on error)
   const [activeCount, setActiveCount] = useState<number | null>(null);
@@ -29,7 +25,23 @@ const UserDashboard = () => {
     completedTasks: number;
     totalTasks: number;
   } | null>(null);
+  
+  // Analytics data for success rate
+  const [successRate, setSuccessRate] = useState<number | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  
+  // XP data for guild points
+  const [totalXP, setTotalXP] = useState<number | null>(null);
+  const [xpLoading, setXpLoading] = useState(false);
+  
+  // Badges data for achievements
+  const [badges, setBadges] = useState<UserBadge[]>([]);
+  const [badgesLoading, setBadgesLoading] = useState(false);
+  
+  // Overall loading state
+  const isLoading = analyticsLoading || xpLoading || badgesLoading;
 
+  // Fetch active quests and progress data
   useEffect(() => {
     const uid = getUserIdFromToken();
     if (!uid) { 
@@ -90,7 +102,87 @@ const UserDashboard = () => {
     return () => { cancelled = true; };
   }, []);
 
-  if (loading) {
+  // Fetch analytics for success rate
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setAnalyticsLoading(true);
+        const analytics = await getQuestAnalytics('allTime', false);
+        if (!cancelled) {
+          setSuccessRate(Math.round(analytics.successRate * 100));
+        }
+      } catch (error) {
+        logger.error('Failed to load analytics data', { error });
+        if (!cancelled) {
+          setSuccessRate(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setAnalyticsLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch XP data for guild points
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setXpLoading(true);
+        const xpSummary = await getCurrentXP();
+        if (!cancelled) {
+          setTotalXP(xpSummary.totalXp);
+        }
+      } catch (error) {
+        logger.error('Failed to load XP data', { error });
+        if (!cancelled) {
+          setTotalXP(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setXpLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch badges for achievements
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setBadgesLoading(true);
+        const badgeResponse = await getMyBadges();
+        if (!cancelled) {
+          setBadges(badgeResponse.badges || []);
+        }
+      } catch (error) {
+        logger.error('Failed to load badges data', { error });
+        if (!cancelled) {
+          setBadges([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setBadgesLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Transform badges to achievements format
+  const achievements: Achievement[] = badges.map((userBadge) => ({
+    name: userBadge.definition.name,
+    icon: Trophy, // Default icon, could be enhanced with icon mapping
+    earned: true, // All badges from API are earned
+    description: userBadge.definition.description,
+  }));
+
+  if (isLoading && activeCount === null && progressData === null) {
     return (
       <div className="spacing-medieval py-8">
         <div className="container mx-auto">
@@ -102,19 +194,6 @@ const UserDashboard = () => {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !userData) {
-    return (
-      <div className="spacing-medieval py-8">
-        <div className="container mx-auto text-center">
-          <h1 className="font-cinzel text-4xl font-bold text-gradient-royal mb-2">
-            Adventurer's Hall
-          </h1>
-          <p className="text-destructive">{error || 'Failed to load dashboard data'}</p>
         </div>
       </div>
     );
@@ -138,7 +217,7 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? userData?.stats?.activeQuests ?? 0}</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? 0}</div>
               <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.activeQuests || 'Active Quests'}</div>
             </CardContent>
           </Card>
@@ -146,23 +225,29 @@ const UserDashboard = () => {
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <Trophy className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData?.stats?.achievements ?? 0}</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-gold">
+                {badgesLoading ? '...' : badges.length}
+              </div>
               <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.achievements || 'Achievements'}</div>
             </CardContent>
           </Card>
 
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
-              <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-royal">{userData?.stats?.guildPoints ?? 0}</div>
-              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.guildPoints || 'Guild Points'}</div>
+              <Award className="h-8 w-8 text-primary mx-auto mb-2" />
+              <div className="font-cinzel text-2xl font-bold text-gradient-royal">
+                {xpLoading ? '...' : (totalXP ?? 0).toLocaleString()}
+              </div>
+              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.guildPoints || 'Total XP'}</div>
             </CardContent>
           </Card>
 
           <Card className="guild-card">
             <CardContent className="p-6 text-center">
               <TrendingUp className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <div className="font-cinzel text-2xl font-bold text-gradient-gold">{userData?.stats?.successRate ?? 0}%</div>
+              <div className="font-cinzel text-2xl font-bold text-gradient-gold">
+                {analyticsLoading ? '...' : (successRate ?? 0)}%
+              </div>
               <div className="text-sm text-muted-foreground">Success Rate</div>
             </CardContent>
           </Card>
@@ -241,75 +326,43 @@ const UserDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                {(userData?.achievements || []).map((achievement, index) => {
-                  const Icon = achievement?.icon || Star;
-                  return (
-                    <div
-                      key={index}
-                      className={`p-4 rounded-lg border text-center transition-all duration-300 ${
-                        achievement?.earned
-                          ? 'bg-gradient-gold border-secondary shadow-gold'
-                          : 'bg-muted border-border opacity-50'
-                      }`}
-                    >
-                      <Icon className={`h-8 w-8 mx-auto mb-2 ${
-                        achievement?.earned ? 'text-secondary-foreground' : 'text-muted-foreground'
-                      }`} />
-                      <div className="font-semibold text-sm">{achievement?.name || 'Achievement'}</div>
+              {badgesLoading ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="p-4 rounded-lg border bg-muted animate-pulse">
+                      <div className="h-8 w-8 mx-auto mb-2 bg-muted-foreground/20 rounded" />
+                      <div className="h-4 w-20 mx-auto bg-muted-foreground/20 rounded" />
                     </div>
-                  );
-                })}
-              </div>
-              {userData?.nextAchievement && (
-                <div className="mt-6 p-4 medieval-banner rounded-lg text-center">
-                  <div className="font-cinzel text-lg font-bold text-gradient-royal mb-2">
-                    Next Achievement
-                  </div>
-                  <div className="text-sm text-muted-foreground mb-3">
-                    {userData.nextAchievement.description || 'Complete more quests to unlock achievements'}
-                  </div>
-                  <div className="progress-medieval mb-2">
-                    <div className="progress-medieval-fill" style={{ width: `${userData.nextAchievement.progress || 0}%` }} />
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {userData.nextAchievement.current || 0}/{userData.nextAchievement.target || 1} quests completed
-                  </div>
+                  ))}
+                </div>
+              ) : achievements.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {achievements.map((achievement, index) => {
+                    const Icon = achievement?.icon || Trophy;
+                    return (
+                      <div
+                        key={index}
+                        className="p-4 rounded-lg border text-center transition-all duration-300 bg-gradient-gold border-secondary shadow-gold"
+                      >
+                        <Icon className="h-8 w-8 mx-auto mb-2 text-secondary-foreground" />
+                        <div className="font-semibold text-sm">{achievement?.name || 'Achievement'}</div>
+                        {achievement?.description && (
+                          <div className="text-xs text-muted-foreground mt-1">{achievement.description}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No achievements earned yet</p>
+                  <p className="text-sm mt-2">Complete quests to earn badges and achievements</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
-
-        {/* Community Activity */}
-        <Card className="guild-card mt-8">
-          <CardHeader>
-            <CardTitle className="font-cinzel text-xl flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              {t.dashboard?.user?.community || 'Guild Activities'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {communityActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-4 p-4 bg-accent rounded-lg">
-                  <div className={`w-10 h-10 ${activity.type === 'achievement' ? 'bg-primary' : 'bg-secondary'} rounded-full flex items-center justify-center`}>
-                    <span className={`${activity.type === 'achievement' ? 'text-primary-foreground' : 'text-secondary-foreground'} font-semibold`}>
-                      {activity.userInitial}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold">{activity.activity}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {activity.timeAgo}
-                      {activity.details && ` • ${activity.details}`}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

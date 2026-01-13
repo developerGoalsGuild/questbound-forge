@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import LocalSignup from "./pages/signup/LocalSignUp";
 import Login from "./pages/login/Login";
+import ForgotPassword from "./pages/login/ForgotPassword";
+import ResetPassword from "./pages/login/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Goals from "./pages/goals/Goals";
 import GoalsList from "./pages/goals/GoalsList";
@@ -100,6 +102,8 @@ const App = () => (
             <Route path="/account/change-password" element={<ProtectedRoute><AuthenticatedLayout><ChangePassword /></AuthenticatedLayout></ProtectedRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/login/Login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />
             
             {/* Info pages (public) */}

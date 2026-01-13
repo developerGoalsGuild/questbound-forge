@@ -13,6 +13,7 @@ export interface CommonTranslations {
   editing: string;
   view: string;
   close: string;
+  back: string;
   ascending: string;
   descending: string;
   optional: string;
@@ -55,6 +56,7 @@ export interface CommonTranslations {
       emailLabel?: string;
       emailRequired?: string;
       emailInvalid?: string;
+      redirecting?: string;
     };
     copyright: string;
   };
@@ -74,6 +76,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     editing: 'Editing...',
     view: 'View',
     close: 'Close',
+    back: 'Back',
     ascending: 'Ascending',
     descending: 'Descending',
     optional: '(optional)',
@@ -116,6 +119,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
         emailLabel: 'Email address',
         emailRequired: 'Email is required',
         emailInvalid: 'Please enter a valid email address',
+        redirecting: 'Redirecting to Substack...',
       },
       copyright: '© 2024 GoalGuild. All rights reserved. Built with AWS serverless architecture.',
     },
@@ -133,6 +137,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     editing: 'Editando...',
     view: 'Ver',
     close: 'Cerrar',
+    back: 'Atrás',
     ascending: 'Ascendente',
     descending: 'Descendente',
     optional: '(opcional)',
@@ -175,6 +180,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
         emailLabel: 'Dirección de correo electrónico',
         emailRequired: 'El correo electrónico es obligatorio',
         emailInvalid: 'Por favor ingresa una dirección de correo electrónico válida',
+        redirecting: 'Redirigiendo a Substack...',
       },
       copyright: '© 2024 GoalGuild. Todos los derechos reservados. Construido con arquitectura serverless de AWS.',
     },
@@ -192,6 +198,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
     editing: 'Modification...',
     view: 'Voir',
     close: 'Fermer',
+    back: 'Retour',
     ascending: 'Croissant',
     descending: 'Décroissant',
     optional: '(optionnel)',
@@ -234,6 +241,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
         emailLabel: 'Adresse e-mail',
         emailRequired: 'L\'e-mail est requis',
         emailInvalid: 'Veuillez entrer une adresse e-mail valide',
+        redirecting: 'Redirection vers Substack...',
       },
       copyright: '© 2024 GoalGuild. Tous droits réservés. Construit avec l\'architecture serverless AWS.',
     },

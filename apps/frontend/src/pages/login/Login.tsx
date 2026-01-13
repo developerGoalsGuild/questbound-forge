@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -162,7 +162,7 @@ const Login = () => {
         </form>
         <div className="text-sm text-muted-foreground mt-4 flex items-center justify-between">
           <a href="/signup/LocalSignUp" className="hover:text-foreground">{t?.nav?.signup || 'Create account'}</a>
-          <a href="#" className="hover:text-foreground">{t?.login?.forgotPassword || 'Forgot password?'}</a>
+          <Link to="/forgot-password" className="hover:text-foreground">{t?.login?.forgotPassword || 'Forgot password?'}</Link>
         </div>
 
         {/* Divider */}

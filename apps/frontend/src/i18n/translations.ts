@@ -1,4 +1,4 @@
-﻿/*
+/*
   Translation files have been reorganized according to pages/components for better maintainability.
 
   Structure:
@@ -36,8 +36,17 @@ import type { CommonTranslations } from './common';
 import type { GuildTranslations } from './guild';
 import type { SubscriptionTranslations } from './subscription';
 import type { LandingPageTranslations } from './landingPage';
+import type { CommunityTranslations } from './community';
+import type { ContactTranslations } from './contact';
+import type { AboutTranslations } from './about';
+import type { BlogTranslations } from './blog';
+import type { HelpTranslations } from './help';
+import type { PrivacyTranslations } from './privacy';
+import type { TermsTranslations } from './terms';
 
 import { navTranslations } from './nav';
+import { communityTranslations } from './community';
+import { contactTranslations } from './contact';
 import { loginTranslations } from './login';
 import { heroTranslations } from './hero';
 import { featuresTranslations } from './features';
@@ -58,6 +67,11 @@ import { collaborationsTranslations } from './collaborations';
 import { guildTranslations } from './guild';
 import { subscriptionTranslations } from './subscription';
 import { landingPageTranslations } from './landingPage';
+import { aboutTranslations } from './about';
+import { blogTranslations } from './blog';
+import { helpTranslations } from './help';
+import { privacyTranslations } from './privacy';
+import { termsTranslations } from './terms';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -85,6 +99,13 @@ export type Translations = { [key: string]: any } & {
   featureCarousel: LandingPageTranslations['featureCarousel'];
   developmentNotice: LandingPageTranslations['developmentNotice'];
   waitlist: LandingPageTranslations['waitlist'];
+  community: CommunityTranslations;
+  contact: ContactTranslations;
+  about: AboutTranslations;
+  blog: BlogTranslations;
+  help: HelpTranslations;
+  privacy: PrivacyTranslations;
+  terms: TermsTranslations;
 } & CollaborationsTranslations;
 
 /**
@@ -119,6 +140,13 @@ export const translations: Record<Language, Translations> = {
     featureCarousel: landingPageTranslations.en.featureCarousel,
     developmentNotice: landingPageTranslations.en.developmentNotice,
     waitlist: landingPageTranslations.en.waitlist,
+    community: communityTranslations.en,
+    contact: contactTranslations.en,
+    about: aboutTranslations.en,
+    blog: blogTranslations.en,
+    help: helpTranslations.en,
+    privacy: privacyTranslations.en,
+    terms: termsTranslations.en,
   },
   es: {
     ...navTranslations.es,
@@ -148,6 +176,13 @@ export const translations: Record<Language, Translations> = {
     featureCarousel: landingPageTranslations.es.featureCarousel,
     developmentNotice: landingPageTranslations.es.developmentNotice,
     waitlist: landingPageTranslations.es.waitlist,
+    community: communityTranslations.es,
+    contact: contactTranslations.es,
+    about: aboutTranslations.es,
+    blog: blogTranslations.es,
+    help: helpTranslations.es,
+    privacy: privacyTranslations.es,
+    terms: termsTranslations.es,
   },
   fr: {
     ...navTranslations.fr,
@@ -177,5 +212,12 @@ export const translations: Record<Language, Translations> = {
     featureCarousel: landingPageTranslations.fr.featureCarousel,
     developmentNotice: landingPageTranslations.fr.developmentNotice,
     waitlist: landingPageTranslations.fr.waitlist,
+    community: communityTranslations.fr,
+    contact: contactTranslations.fr,
+    about: aboutTranslations.fr,
+    blog: blogTranslations.fr,
+    help: helpTranslations.fr,
+    privacy: privacyTranslations.fr,
+    terms: termsTranslations.fr,
   },
 };

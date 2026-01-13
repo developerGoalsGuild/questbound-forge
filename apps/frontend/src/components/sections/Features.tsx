@@ -1,6 +1,7 @@
 import { Target, Users, Trophy, Crown, Brain, TrendingUp, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/useTranslation';
+import { featuresTranslations } from '@/i18n/features';
 //import collaborationImage from '@/assets/collaboration-guild.jpg';
 //import achievementsImage from '@/assets/achievements.jpg';
 
@@ -16,48 +17,49 @@ interface Feature {
 }
 
 const Features = () => {
-  const { t } = useTranslation();
-  const featuresT = t.features || {};
-  const cta = featuresT.cta || {};
+  const { language } = useTranslation();
+  // featuresTranslations is spread directly into t, so access directly from featuresTranslations by language
+  const featuresT = featuresTranslations[language];
+  const cta = featuresT.cta;
 
   const features: Feature[] = [
     {
       icon: Target,
-      title: featuresT.goalTracking?.title || 'Advanced Goal Tracking',
-      description: featuresT.goalTracking?.description || 'Track your progress with detailed analytics and milestone celebrations.',
+      title: featuresT.goalTracking.title,
+      description: featuresT.goalTracking.description,
       gradient: 'from-primary to-primary-glow',
-      badge: featuresT.goalTracking?.badge || 'AI-Powered',
-      tags: featuresT.goalTracking?.tags || ['NLP Processing', 'Task Breakdown', 'Progress Tracking'],
-      learnMoreLink: featuresT.goalTracking?.learnMore || '#',
+      badge: featuresT.goalTracking.badge,
+      tags: featuresT.goalTracking.tags,
+      learnMoreLink: featuresT.goalTracking.learnMore,
     },
     {
       icon: Users,
-      title: featuresT.community?.title || 'Community Support',
-      description: featuresT.community?.description || 'Connect with like-minded adventurers for mutual encouragement and accountability.',
+      title: featuresT.community.title,
+      description: featuresT.community.description,
       gradient: 'from-secondary to-secondary-hover',
-      badge: featuresT.community?.badge || 'Smart Algorithm',
-      tags: featuresT.community?.tags || ['AI Matching', 'Skill Analysis', 'Goal Alignment'],
-      learnMoreLink: featuresT.community?.learnMore || '#',
+      badge: featuresT.community.badge,
+      tags: featuresT.community.tags,
+      learnMoreLink: featuresT.community.learnMore,
       image: '',
     },
     {
       icon: Trophy,
-      title: featuresT.gamification?.title || 'Gamified Experience',
-      description: featuresT.gamification?.description || 'Earn achievements, unlock rewards, and level up your goal-setting skills.',
+      title: featuresT.gamification.title,
+      description: featuresT.gamification.description,
       gradient: 'from-accent to-accent-glow',
-      badge: featuresT.gamification?.badge || 'Engaging',
-      tags: featuresT.gamification?.tags || ['XP System', 'Badges', 'Leaderboards'],
-      learnMoreLink: featuresT.gamification?.learnMore || '#',
+      badge: featuresT.gamification.badge,
+      tags: featuresT.gamification.tags,
+      learnMoreLink: featuresT.gamification.learnMore,
       image: '',
     },
     {
       icon: Crown,
-      title: featuresT.patronage?.title || 'Patronage System',
-      description: featuresT.patronage?.description || 'Support the platform and gain exclusive benefits while helping others succeed.',
+      title: featuresT.patronage.title,
+      description: featuresT.patronage.description,
       gradient: 'from-gold to-gold-glow',
-      badge: featuresT.patronage?.badge,
-      tags: featuresT.patronage?.tags,
-      learnMoreLink: featuresT.patronage?.learnMore || '#',
+      badge: featuresT.patronage.badge || undefined,
+      tags: featuresT.patronage.tags || undefined,
+      learnMoreLink: featuresT.patronage.learnMore,
       image: '',
     },
     {
@@ -81,15 +83,15 @@ const Features = () => {
   ];
 
   return (
-    <section id="features" data-testid="features-section" className="py-24 spacing-medieval bg-gradient-parchment" role="region">
+    <section id="features" data-testid="features-section" className="py-24 spacing-medieval bg-gradient-parchment" role="region" style={{ scrollMarginTop: '80px' }}>
       <div className="container mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16 animate-fade-in">
           <h2 className="font-cinzel text-4xl md:text-5xl font-bold mb-6 text-gradient-royal">
-            {featuresT.title || 'Powerful Features for Goal Achievement'}
+            {featuresT.title}
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            {featuresT.subtitle || 'Everything you need to turn your aspirations into achievements'}
+            {featuresT.subtitle}
           </p>
         </div>
 
@@ -99,7 +101,7 @@ const Features = () => {
             const Icon = feature.icon;
             return (
               <Card
-                key={index}
+                key={`feature-${feature.title}-${index}`}
                 className="guild-card group overflow-hidden hover:shadow-medieval animate-scale-in relative"
                 style={{ animationDelay: `${index * 0.2}s` }}
               >
@@ -120,7 +122,11 @@ const Features = () => {
                     <div
                       className={`inline-flex items-center justify-center w-16 h-16 rounded-lg bg-gradient-to-br ${feature.gradient} shadow-royal`}
                     >
-                      <Icon className="h-8 w-8 text-primary-foreground" />
+                      <Icon className={`h-8 w-8 ${
+                        feature.gradient.includes('accent') || feature.gradient.includes('gold')
+                          ? 'text-primary' 
+                          : 'text-primary-foreground'
+                      }`} />
                     </div>
                     {feature.badge && (
                       <span className="px-3 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary">
@@ -176,13 +182,13 @@ const Features = () => {
         <div className="text-center mt-16">
           <div className="medieval-banner p-8 max-w-2xl mx-auto">
             <h3 className="font-cinzel text-2xl font-bold mb-4 text-gradient-royal">
-              {cta.title || 'Ready to Begin Your Adventure?'}
+              {cta.title}
             </h3>
             <p className="text-muted-foreground mb-6">
-              {cta.subtitle || 'Join thousands of adventurers already achieving their goals together.'}
+              {cta.subtitle}
             </p>
             <button className="btn-heraldic text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:shadow-royal transition-all duration-300">
-              {cta.button || 'Start Your Journey'}
+              {cta.button}
             </button>
           </div>
         </div>

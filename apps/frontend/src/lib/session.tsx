@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { getTokenExpiry, renewToken, getAccessToken } from '@/lib/utils';
+import { getTokenExpiry, renewToken } from '@/lib/utils';
+import { isTokenValid } from '@/lib/auth';
 
 export function SessionKeepAlive() {
   const lastRef = useRef<number>(0);
   const handler = useCallback(async () => {
-    // Skip token renewal if user is not authenticated (reduces unnecessary API calls)
-    const token = getAccessToken();
-    if (!token) return; // No token = not logged in, skip renewal
+    // Skip token renewal if user is not authenticated or token is invalid (reduces unnecessary API calls)
+    if (!isTokenValid()) return; // No valid token = not logged in or expired, skip renewal
     
     const nowMs = Date.now();
     if (nowMs - lastRef.current < 60_000) return; // throttle once per minute

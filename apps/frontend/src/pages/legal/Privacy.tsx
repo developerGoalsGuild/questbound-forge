@@ -7,6 +7,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
+import { privacyTranslations } from '@/i18n/privacy';
+import { commonTranslations } from '@/i18n/common';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Shield, Printer } from 'lucide-react';
@@ -14,20 +16,21 @@ import { privacyPolicyContent } from '@/data/legal/privacy';
 
 const Privacy: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { language } = useTranslation();
   
-  const privacyTranslations = (t as any)?.privacy || {};
-  const commonTranslations = (t as any)?.common || {};
+  // Access translations directly from translation files
+  const privacyT = privacyTranslations[language];
+  const commonT = commonTranslations[language];
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   const sections = [
-    { id: 'introduction', title: privacyTranslations?.sections?.introduction || 'Introduction' },
-    { id: 'data-collection', title: privacyTranslations?.sections?.dataCollection || 'Data Collection' },
-    { id: 'data-usage', title: privacyTranslations?.sections?.dataUsage || 'Data Usage' },
-    { id: 'data-sharing', title: privacyTranslations?.sections?.dataSharing || 'Data Sharing' },
-    { id: 'user-rights', title: privacyTranslations?.sections?.userRights || 'User Rights' },
-    { id: 'cookies', title: privacyTranslations?.sections?.cookies || 'Cookies Policy' },
-    { id: 'contact', title: privacyTranslations?.sections?.contact || 'Contact Information' }
+    { id: 'introduction', title: privacyT.sections.introduction },
+    { id: 'data-collection', title: privacyT.sections.dataCollection },
+    { id: 'data-usage', title: privacyT.sections.dataUsage },
+    { id: 'data-sharing', title: privacyT.sections.dataSharing },
+    { id: 'user-rights', title: privacyT.sections.userRights },
+    { id: 'cookies', title: privacyT.sections.cookies },
+    { id: 'contact', title: privacyT.sections.contact },
   ];
 
   const handlePrint = () => {
@@ -46,15 +49,15 @@ const Privacy: React.FC = () => {
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              {commonTranslations?.back || 'Back'}
+              {commonT.back}
             </Button>
             <div className="space-y-1">
               <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                 <Shield className="h-8 w-8" />
-                {privacyTranslations?.title || 'Privacy Policy'}
+                {privacyT.title}
               </h1>
               <p className="text-muted-foreground">
-                {privacyTranslations?.subtitle || 'How we collect, use, and protect your data'}
+                {privacyT.subtitle}
               </p>
             </div>
           </div>
@@ -64,20 +67,20 @@ const Privacy: React.FC = () => {
             className="hidden print:hidden md:flex items-center gap-2"
           >
             <Printer className="h-4 w-4" />
-            {privacyTranslations?.print || 'Print'}
+            {privacyT.print}
           </Button>
         </div>
 
         {/* Last Updated */}
         <div className="text-sm text-muted-foreground">
-          {privacyTranslations?.lastUpdated || 'Last Updated'}: {privacyPolicyContent.lastUpdated || 'December 23, 2024'}
+          {privacyT.lastUpdated}: {privacyPolicyContent.lastUpdated[language]}
         </div>
 
         {/* Table of Contents */}
         <Card className="print:hidden">
           <CardHeader>
             <CardTitle className="text-lg">
-              {privacyTranslations?.tableOfContents || 'Table of Contents'}
+              {privacyT.tableOfContents}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -103,29 +106,32 @@ const Privacy: React.FC = () => {
         {/* Privacy Policy Content */}
         <Card className="print:border-0 print:shadow-none">
           <CardContent className="pt-6 space-y-8">
-            {privacyPolicyContent.sections.map((section, index) => (
-              <section
-                key={section.id}
-                id={section.id}
-                className="scroll-mt-20"
-              >
-                <h2 className="text-2xl font-bold mb-4">{section.title}</h2>
-                <div className="prose prose-sm max-w-none">
-                  {section.content.map((paragraph, pIndex) => (
-                    <p key={pIndex} className="mb-4 leading-relaxed">
-                      {paragraph}
-                    </p>
-                  ))}
-                  {section.items && (
-                    <ul className="list-disc list-inside space-y-2 mb-4">
-                      {section.items.map((item, iIndex) => (
-                        <li key={iIndex}>{item}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </section>
-            ))}
+            {privacyPolicyContent.sections.map((section) => {
+              const t = section.translations[language];
+              return (
+                <section
+                  key={section.id}
+                  id={section.id}
+                  className="scroll-mt-20"
+                >
+                  <h2 className="text-2xl font-bold mb-4">{t.title}</h2>
+                  <div className="prose prose-sm max-w-none">
+                    {t.content.map((paragraph, pIndex) => (
+                      <p key={pIndex} className="mb-4 leading-relaxed">
+                        {paragraph}
+                      </p>
+                    ))}
+                    {t.items && (
+                      <ul className="list-disc list-inside space-y-2 mb-4">
+                        {t.items.map((item, iIndex) => (
+                          <li key={iIndex}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -133,24 +139,23 @@ const Privacy: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>
-              {privacyTranslations?.contact?.title || 'Questions About Privacy?'}
+              {privacyT.contact.title}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="mb-4">
-              {privacyTranslations?.contact?.description || 
-               'If you have questions about this Privacy Policy, please contact us:'}
+              {privacyT.contact.description}
             </p>
             <div className="space-y-2">
               <p>
-                <strong>{privacyTranslations?.contact?.email?.label || 'Email'}:</strong>{' '}
+                <strong>{privacyT.contact.email.label}:</strong>{' '}
                 <a href="mailto:privacy@goalsguild.com" className="text-primary hover:underline">
-                  {privacyTranslations?.contact?.email?.value || 'privacy@goalsguild.com'}
+                  {privacyT.contact.email.value}
                 </a>
               </p>
               <p>
-                <strong>{privacyTranslations?.contact?.address?.label || 'Address'}:</strong>{' '}
-                {privacyTranslations?.contact?.address?.value || 'GoalsGuild Privacy Team'}
+                <strong>{privacyT.contact.address.label}:</strong>{' '}
+                {privacyT.contact.address.value}
               </p>
             </div>
           </CardContent>

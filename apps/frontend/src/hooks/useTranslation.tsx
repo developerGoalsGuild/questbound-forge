@@ -13,15 +13,34 @@ interface TranslationContextType {
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
 export const TranslationProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState<Language>('en');
-  const { language: detectedLanguage, isLoading, error } = useLanguageInitialization();
-
-  // Update language when detection completes
-  useEffect(() => {
-    if (!isLoading && detectedLanguage) {
-      setLanguage(detectedLanguage);
+  // Check localStorage first for manually selected language
+  const getStoredLanguage = (): Language => {
+    try {
+      const stored = localStorage.getItem('userLanguage');
+      if (stored && (stored === 'en' || stored === 'es' || stored === 'fr')) {
+        return stored as Language;
+      }
+    } catch (e) {
+      // localStorage not available or error
     }
-  }, [detectedLanguage, isLoading]);
+    return 'en';
+  };
+
+  const [language, setLanguage] = useState<Language>(getStoredLanguage());
+  const { language: detectedLanguage, isLoading, error } = useLanguageInitialization();
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Update language when detection completes (only on initial load)
+  useEffect(() => {
+    if (!isLoading && detectedLanguage && !hasInitialized) {
+      // Only set from detection if no manual language is stored
+      const stored = localStorage.getItem('userLanguage');
+      if (!stored) {
+        setLanguage(detectedLanguage);
+      }
+      setHasInitialized(true);
+    }
+  }, [detectedLanguage, isLoading, hasInitialized]);
 
   // Log any initialization errors
   useEffect(() => {
@@ -33,11 +52,28 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
   // Async changeLanguage function for compatibility with useLanguage hook
   const changeLanguage = async (lang: Language): Promise<void> => {
     setLanguage(lang);
+    // Store in localStorage to persist across page reloads
+    try {
+      localStorage.setItem('userLanguage', lang);
+    } catch (e) {
+      // localStorage not available or error
+    }
+  };
+
+  // Enhanced setLanguage that also stores in localStorage
+  const setLanguageWithStorage = (lang: Language): void => {
+    setLanguage(lang);
+    // Store in localStorage to persist across page reloads
+    try {
+      localStorage.setItem('userLanguage', lang);
+    } catch (e) {
+      // localStorage not available or error
+    }
   };
   
   const value = {
     language,
-    setLanguage,
+    setLanguage: setLanguageWithStorage,
     changeLanguage,
     t: translations[language],
     isLanguageLoading: isLoading,

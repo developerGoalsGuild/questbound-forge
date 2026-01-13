@@ -7,6 +7,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
+import { blogTranslations } from '@/i18n/blog';
+import { commonTranslations } from '@/i18n/common';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,19 +19,20 @@ import { blogPosts } from '@/data/blog/posts';
 const BlogPost: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { language } = useTranslation();
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   
-  const blogTranslations = (t as any)?.blog || {};
-  const commonTranslations = (t as any)?.common || {};
+  // Access translations directly from translation files
+  const blogT = blogTranslations[language];
+  const commonT = commonTranslations[language];
 
   const post = blogPosts.find(p => p.slug === slug);
 
   const categories = [
-    { id: 'product-updates', label: blogTranslations?.categories?.productUpdates || 'Product Updates' },
-    { id: 'community', label: blogTranslations?.categories?.community || 'Community' },
-    { id: 'tips-tricks', label: blogTranslations?.categories?.tipsTricks || 'Tips & Tricks' }
+    { id: 'product-updates', label: blogT.categories.productUpdates },
+    { id: 'community', label: blogT.categories.community },
+    { id: 'tips-tricks', label: blogT.categories.tipsTricks },
   ];
 
   useEffect(() => {
@@ -38,11 +41,16 @@ const BlogPost: React.FC = () => {
       return;
     }
 
-    // Load markdown content - using fetch directly
-    fetch(`/src/data/blog/posts/${post.slug}.md`)
+    // Load markdown content - using fetch directly with language-specific file
+    fetch(`/src/data/blog/posts/${post.slug}.${language}.md`)
       .then(res => {
         if (res.ok) {
           return res.text();
+        }
+        // Fallback to English if language-specific file doesn't exist
+        if (language !== 'en') {
+          return fetch(`/src/data/blog/posts/${post.slug}.en.md`)
+            .then(res => res.ok ? res.text() : Promise.reject());
         }
         throw new Error('File not found');
       })
@@ -52,10 +60,11 @@ const BlogPost: React.FC = () => {
       })
       .catch(() => {
         // Fallback if markdown file doesn't exist
-        setContent('# ' + post.title + '\n\n' + post.excerpt);
+        const t = post.translations[language];
+        setContent('# ' + t.title + '\n\n' + t.excerpt);
         setLoading(false);
       });
-  }, [post]);
+  }, [post, language]);
 
   if (!post) {
     return (
@@ -64,13 +73,13 @@ const BlogPost: React.FC = () => {
           <Card>
             <CardContent className="pt-6 text-center">
               <h2 className="text-2xl font-bold mb-4">
-                {blogTranslations?.notFound || 'Post Not Found'}
+                {blogT.notFound}
               </h2>
               <p className="text-muted-foreground mb-4">
-                {blogTranslations?.notFoundDescription || 'The blog post you\'re looking for doesn\'t exist.'}
+                {blogT.notFoundDescription}
               </p>
               <Button onClick={() => navigate('/blog')}>
-                {blogTranslations?.backToBlog || 'Back to Blog'}
+                {blogT.backToBlog}
               </Button>
             </CardContent>
           </Card>
@@ -92,7 +101,7 @@ const BlogPost: React.FC = () => {
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            {commonTranslations?.back || 'Back'}
+            {commonT.back}
           </Button>
         </div>
 
@@ -103,15 +112,15 @@ const BlogPost: React.FC = () => {
               <Badge>{categoryLabel}</Badge>
               {post.featured && <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />}
             </div>
-            <CardTitle className="text-3xl mb-4">{post.title}</CardTitle>
+            <CardTitle className="text-3xl mb-4">{post.translations[language].title}</CardTitle>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <User className="h-4 w-4" />
-                {post.author}
+                {post.translations[language].author}
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {new Date(post.date).toLocaleDateString('en-US', {
+                {new Date(post.date).toLocaleDateString(language === 'en' ? 'en-US' : language === 'es' ? 'es-ES' : 'fr-FR', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
@@ -119,7 +128,7 @@ const BlogPost: React.FC = () => {
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
-                {post.readTime} {blogTranslations?.minRead || 'min read'}
+                {post.readTime} {blogT.minRead}
               </div>
             </div>
           </CardHeader>
@@ -130,7 +139,7 @@ const BlogPost: React.FC = () => {
           <CardContent className="pt-6">
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">
-                {blogTranslations?.loading || 'Loading...'}
+                {blogT.loading}
               </div>
             ) : (
               <div className="prose prose-lg max-w-none">
@@ -162,7 +171,7 @@ const BlogPost: React.FC = () => {
         {/* Navigation */}
         <div className="flex justify-between">
           <Button variant="outline" onClick={() => navigate('/blog')}>
-            {blogTranslations?.backToBlog || 'Back to Blog'}
+            {blogT.backToBlog}
           </Button>
         </div>
       </div>

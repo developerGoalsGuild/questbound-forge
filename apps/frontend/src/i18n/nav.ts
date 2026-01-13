@@ -12,6 +12,10 @@ export interface NavTranslations {
   goals: string;
   chat: string;
   logout: string;
+  account: string;
+  profile: string;
+  subscription: string;
+  manageBilling: string;
 }
 
 export const navTranslations: Record<Language, NavTranslations> = {
@@ -27,6 +31,10 @@ export const navTranslations: Record<Language, NavTranslations> = {
     goals: 'Quests',
     chat: 'Chat',
     logout: 'Sign Out',
+    account: 'Account',
+    profile: 'Profile',
+    subscription: 'Subscription',
+    manageBilling: 'Manage Billing',
   },
   es: {
     home: 'Inicio',
@@ -40,6 +48,10 @@ export const navTranslations: Record<Language, NavTranslations> = {
     goals: 'Misiones',
     chat: 'Chat',
     logout: 'Cerrar sesión',
+    account: 'Cuenta',
+    profile: 'Perfil',
+    subscription: 'Suscripción',
+    manageBilling: 'Gestionar facturación',
   },
   fr: {
     home: 'Accueil',
@@ -53,5 +65,9 @@ export const navTranslations: Record<Language, NavTranslations> = {
     goals: 'Quêtes',
     chat: 'Chat',
     logout: 'Se déconnecter',
+    account: 'Compte',
+    profile: 'Profil',
+    subscription: 'Abonnement',
+    manageBilling: 'Gérer la facturation',
   },
 };

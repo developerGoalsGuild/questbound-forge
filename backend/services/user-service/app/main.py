@@ -30,6 +30,7 @@ from common.logging import get_structured_logger, log_event
 from .models import (
     ConfirmEmailResponse,
     PasswordChangeRequest,
+    PasswordResetRequest,
     SendTempPassword,
     SignupLocal,
     SignupGoogle,
@@ -45,6 +46,8 @@ from .models import (
     WaitlistResponse,
     NewsletterSubscribe,
     NewsletterResponse,
+    ContactSubmit,
+    ContactResponse,
 )
 from .ssm import settings
 from .security import (
@@ -87,6 +90,7 @@ dynamodb_client = boto3_session.client('dynamodb', config=AWS_CONFIG)
 # -------------------------
 CONFIRM_TTL = 60 * 60 * 24   # 24h
 CHANGE_CHALLENGE_TTL = 60 * 10  # 10m
+RESET_PASSWORD_TTL = 60 * 60  # 1h
 BLOCK_THRESHOLD = 3
 AVAILABILITY_RATE_LIMIT = 30  # requests per window per IP
 AVAILABILITY_RATE_WINDOW_SECONDS = 60  # window seconds
@@ -96,6 +100,11 @@ _availability_hits: dict[str, deque[float]] = defaultdict(deque)
 WAITLIST_RATE_LIMIT = 5  # requests per window per IP
 WAITLIST_RATE_WINDOW_SECONDS = 60  # 1 minute window
 _waitlist_hits: dict[str, deque[float]] = defaultdict(deque)
+
+# Contact form rate limiting (stricter: 3 requests per 5 minutes per IP)
+CONTACT_RATE_LIMIT = 3  # requests per window per IP
+CONTACT_RATE_WINDOW_SECONDS = 300  # 5 minute window
+_contact_hits: dict[str, deque[float]] = defaultdict(deque)
 
 # -------------------------
 # Logging
@@ -164,6 +173,93 @@ def _enforce_waitlist_rate_limit(request: Request) -> None:
             detail=f"Too many waitlist subscription attempts. Please wait {WAITLIST_RATE_WINDOW_SECONDS} seconds and try again."
         )
     dq.append(now)
+
+
+def _enforce_contact_rate_limit(request: Request) -> None:
+    """Enforce rate limiting for contact form submissions (3 requests per 5 minutes per IP)."""
+    client_ip = _client_ip(request)
+    host = client_ip if client_ip else (request.client.host if request.client else "unknown")
+    now = time.time()
+    dq = _contact_hits[host]
+    # Drop stale timestamps
+    while dq and now - dq[0] > CONTACT_RATE_WINDOW_SECONDS:
+        dq.popleft()
+    if len(dq) >= CONTACT_RATE_LIMIT:
+        _safe_event("contact.rate_limited", client=host, hits=len(dq), ip=client_ip)
+        raise HTTPException(
+            status_code=429,
+            detail="Too many contact form submissions. Please wait a few minutes and try again."
+        )
+    dq.append(now)
+
+
+def _validate_contact_input(name: str, email: str, subject: str, message: str) -> None:
+    """Validate and sanitize contact form input."""
+    import re
+    
+    # Length limits
+    MAX_NAME_LENGTH = 100
+    MAX_EMAIL_LENGTH = 254  # RFC 5321
+    MAX_SUBJECT_LENGTH = 200
+    MAX_MESSAGE_LENGTH = 5000
+    
+    if len(name) > MAX_NAME_LENGTH:
+        raise HTTPException(status_code=400, detail="Name is too long")
+    if len(email) > MAX_EMAIL_LENGTH:
+        raise HTTPException(status_code=400, detail="Email is too long")
+    if len(subject) > MAX_SUBJECT_LENGTH:
+        raise HTTPException(status_code=400, detail="Subject is too long")
+    if len(message) > MAX_MESSAGE_LENGTH:
+        raise HTTPException(status_code=400, detail="Message is too long")
+    
+    # Minimum length requirements
+    if len(name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Name must be at least 2 characters")
+    if len(subject.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Subject must be at least 3 characters")
+    if len(message.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Message must be at least 10 characters")
+    
+    # Check for suspicious patterns (basic spam detection)
+    spam_patterns = [
+        r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',  # URLs
+        r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',  # Multiple emails
+    ]
+    
+    # Count URLs in message
+    url_count = len(re.findall(spam_patterns[0], message, re.IGNORECASE))
+    if url_count > 3:
+        raise HTTPException(status_code=400, detail="Message contains too many links")
+    
+    # Count emails in message
+    email_count = len(re.findall(spam_patterns[1], message, re.IGNORECASE))
+    if email_count > 2:
+        raise HTTPException(status_code=400, detail="Message contains too many email addresses")
+    
+    # Check for excessive repetition (spam indicator)
+    words = message.lower().split()
+    if len(words) > 10:
+        word_counts = {}
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+        max_repetition = max(word_counts.values()) if word_counts else 0
+        if max_repetition > len(words) * 0.3:  # More than 30% repetition
+            raise HTTPException(status_code=400, detail="Message contains excessive repetition")
+    
+    # Validate email domain (block common disposable email domains)
+    email_domain = email.split('@')[1].lower() if '@' in email else ''
+    disposable_domains = {
+        'tempmail.com', '10minutemail.com', 'guerrillamail.com', 'mailinator.com',
+        'throwaway.email', 'temp-mail.org', 'getnada.com', 'mohmal.com'
+    }
+    if email_domain in disposable_domains:
+        raise HTTPException(status_code=400, detail="Disposable email addresses are not allowed")
+    
+    # Check for suspicious characters (potential injection attempts)
+    suspicious_chars = ['<', '>', '{', '}', '[', ']', '`', '$', '|']
+    for char in suspicious_chars:
+        if char in message and message.count(char) > 5:
+            raise HTTPException(status_code=400, detail="Message contains invalid characters")
 
 
 def _resolve_expiry(value: str | None, fallback_minutes: int) -> str:
@@ -667,6 +763,154 @@ def newsletter_subscribe(body: NewsletterSubscribe, request: Request, x_api_key:
             "cid": cid
         }, exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred processing your request")
+
+# --- CONTACT FORM SUBMISSION ---
+# OPTIONS handler for CORS preflight
+@app.options("/contact/submit")
+async def contact_submit_options(request: Request):
+    """Handle CORS preflight requests for contact endpoint."""
+    origin = request.headers.get("origin")
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
+@app.post("/contact/submit", response_model=ContactResponse)
+def contact_submit(body: ContactSubmit, request: Request, x_api_key: str | None = Header(default=None, alias="x-api-key")):
+    """
+    Submit a contact form message.
+    Requires API key authentication and has strict rate limits (3 requests per 5 minutes per IP).
+    Includes input validation, spam detection, and honeypot bot protection.
+    """
+    # API key validation (API Gateway also validates, but this provides additional security)
+    if not x_api_key:
+        raise HTTPException(status_code=403, detail="API key is required")
+    
+    # Honeypot check - if honeypot field is filled, it's likely a bot
+    if body.honeypot and body.honeypot.strip():
+        logger.warning("contact.submit.honeypot_triggered", extra={
+            "ip": _client_ip(request),
+            "email": _mask_email(body.email.lower().strip() if body.email else None)
+        })
+        # Return success to avoid revealing honeypot
+        return ContactResponse(
+            message="Thank you for contacting us! We'll get back to you within 24 hours.",
+            submitted=True
+        )
+    
+    # Enforce stricter rate limiting for contact form
+    _enforce_contact_rate_limit(request)
+    
+    # Sanitize and validate input
+    email = body.email.lower().strip()
+    name = body.name.strip()
+    subject = body.subject.strip()
+    message = body.message.strip()
+    
+    # Validate input (length, patterns, spam detection)
+    _validate_contact_input(name, email, subject, message)
+    
+    client_ip = _client_ip(request)
+    cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+    now_ts = int(time.time())
+    created_at_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_ts))
+    
+    # Check for duplicate submissions (same email + subject + message within last hour)
+    try:
+        recent_submissions = core.query(
+            KeyConditionExpression="PK = :pk AND SK >= :sk",
+            ExpressionAttributeValues={
+                ":pk": f"CONTACT#{email}",
+                ":sk": f"SUBMISSION#{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(now_ts - 3600))}"
+            },
+            Limit=1
+        )
+        if recent_submissions.get("Items"):
+            # Check if it's a duplicate
+            existing = recent_submissions["Items"][0]
+            if (existing.get("subject", "").strip() == subject and 
+                existing.get("message", "").strip() == message):
+                logger.warning("contact.submit.duplicate", extra={
+                    "email": _mask_email(email),
+                    "ip": client_ip,
+                    "cid": cid
+                })
+                # Return success to avoid revealing duplicate detection
+                return ContactResponse(
+                    message="Thank you for contacting us! We'll get back to you within 24 hours.",
+                    submitted=True
+                )
+    except ClientError as e:
+        logger.warning("contact.submit.duplicate_check_error", extra={
+            "email": _mask_email(email),
+            "error": str(e)
+        })
+        # Continue if duplicate check fails
+    
+    try:
+        # Create contact form submission record
+        contact_item = {
+            "PK": f"CONTACT#{email}",
+            "SK": f"SUBMISSION#{created_at_iso}",
+            "type": "ContactForm",
+            "email": email,
+            "name": name,
+            "subject": subject,
+            "message": message,
+            "ipAddress": client_ip,
+            "createdAt": created_at_iso,
+            "status": "pending",
+            # GSI for querying all contact submissions
+            "GSI1PK": "CONTACT#ALL",
+            "GSI1SK": f"SUBMISSION#{created_at_iso}",
+        }
+        
+        logger.info("contact.submit.creating", extra={
+            "email": _mask_email(email),
+            "name": name[:50] if len(name) > 50 else name,  # Truncate for logging
+            "subject": subject[:100] if len(subject) > 100 else subject,
+            "message_length": len(message),
+            "table": settings.core_table_name,
+            "cid": cid
+        })
+        
+        core.put_item(Item=contact_item)
+        
+        log_event(logger, "contact.submit.success", cid=cid, email=_mask_email(email), ip=client_ip)
+        
+        return ContactResponse(
+            message="Thank you for contacting us! We'll get back to you within 24 hours.",
+            submitted=True
+        )
+        
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        error_msg = e.response.get("Error", {}).get("Message", str(e))
+        logger.error("contact.submit.ddb_error", extra={
+            "email": _mask_email(email),
+            "error_code": error_code,
+            "error_message": error_msg,
+            "table": settings.core_table_name,
+            "cid": cid
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail="Unable to process your request. Please try again later.")
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors, rate limits, etc.)
+        raise
+    except Exception as e:
+        logger.error("contact.submit.error", extra={
+            "email": _mask_email(email) if email else None,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "table": settings.core_table_name,
+            "cid": cid
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred processing your request. Please try again later.")
 
 # --- SIGNUP (LOCAL) — send confirmation email ---
 @app.post("/users/signup", response_model=None)
@@ -1478,6 +1722,76 @@ def send_temp_password(body: SendTempPassword, request: Request):
 
     return {"message": "If the account exists and is eligible, an email will be sent."}
 
+# --- PASSWORD RESET REQUEST ---
+@app.post("/password/reset-request", response_model=None)
+def request_password_reset(body: PasswordResetRequest, request: Request):
+    cid = request.headers.get("x-correlation-id") if request else None
+    email = body.email.lower()
+    
+    # Query user by email using GSI3 (email index)
+    try:
+        r = core.query(
+            IndexName="GSI3",
+            KeyConditionExpression="#pk = :v",
+            ExpressionAttributeNames={"#pk": "GSI3PK"},
+            ExpressionAttributeValues={":v": f"EMAIL#{email}"},
+            Limit=1,
+        )
+    except Exception:
+        logger.error("reset_request.core_query_error", exc_info=True)
+        # Do not reveal existence to caller
+        return {"message": "If the account exists and email is confirmed, a reset link will be sent."}
+    
+    items = r.get("Items") or []
+    item = items[0] if items else None
+    
+    # Check if user exists and provider is local
+    if not item or item.get("provider") != "local":
+        return {"message": "If the account exists and email is confirmed, a reset link will be sent."}
+    
+    # Check email_confirmed - this is the key requirement
+    if not item.get("email_confirmed", False):
+        _safe_event("reset_request.email_not_confirmed", cid=cid, email=_mask_email(email))
+        raise HTTPException(status_code=403, detail="Email not confirmed. Please confirm your email before requesting a password reset.")
+    
+    # Generate reset token
+    user_id = item.get("id")
+    try:
+        tok = issue_link_token(f"{email}|{user_id}", TokenPurpose.RESET_PASSWORD, RESET_PASSWORD_TTL)
+        _ddb_call(
+            core.update_item,
+            op="core.update_item.reset_token",
+            Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"},
+            UpdateExpression="SET password_reset_jti=:j, password_reset_expires_at=:e",
+            ExpressionAttributeValues={":j": tok["jti"], ":e": tok["exp"]},
+        )
+        reset_link = f"{settings.app_base_url}/reset-password?token={tok['token']}"
+    except Exception:
+        logger.error("reset_request.token_issue_or_store_error", exc_info=True)
+        # Still respond generically
+        return {"message": "If the account exists and email is confirmed, a reset link will be sent."}
+    
+    # Send email with reset link
+    html = (
+        "<p>You requested a password reset for your account.</p>"
+        f"<p>Click <a href='{reset_link}'>this link</a> to reset your password (valid 1 hour).</p>"
+        "<p>If you didn't request this, please ignore this email.</p>"
+    )
+    try:
+        send_email(
+            to=email,
+            subject="Reset your password",
+            html=html,
+            text=f"Reset your password: {reset_link}",
+        )
+        _safe_event("password_reset_requested", cid=cid, email=_mask_email(email), jti=tok.get("jti"))
+    except Exception:
+        logger.error("reset_request.email_send_error", exc_info=True)
+        # Still respond generically for security
+        return {"message": "If the account exists and email is confirmed, a reset link will be sent."}
+    
+    return {"message": "If the account exists and email is confirmed, a reset link will be sent."}
+
 # --- CHANGE PASSWORD (local users) ---
 @app.post("/password/change", response_model=None)
 def change_password(
@@ -1488,6 +1802,7 @@ def change_password(
     cid = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
     email: Optional[str] = None
     item: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
 
     def _load_user_by_email(_email: str):
         try:
@@ -1497,18 +1812,57 @@ def change_password(
             logger.error("change_pwd.ddb_get_error", exc_info=True)
             raise HTTPException(status_code=500, detail="Could not load user")
 
+    # Password reset via reset token (no current password required)
+    if body.reset_token:
+        try:
+            claims = decode_link_token(body.reset_token, TokenPurpose.RESET_PASSWORD)
+        except Exception:
+            _safe_event("change_pwd.invalid_reset_token", cid=cid)
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        try:
+            email_token, user_id = claims["sub"].split("|", 1)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Malformed reset token")
+        email = email_token
+        
+        # Load user from core profile to check token metadata
+        try:
+            resp = _ddb_call(core.get_item, op="core.get_item.reset_pwd", Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"})
+            core_item = resp.get("Item")
+        except Exception:
+            logger.error("change_pwd.core_get_error", exc_info=True)
+            raise HTTPException(status_code=500, detail="Could not validate token")
+        
+        if not core_item or (core_item.get("email") or "").lower() != email.lower():
+            raise HTTPException(status_code=400, detail="Reset token subject mismatch")
+        
+        # Verify token jti matches stored value
+        if core_item.get("password_reset_jti") != claims.get("jti"):
+            raise HTTPException(status_code=400, detail="Reset token no longer valid")
+        
+        # Verify token hasn't expired
+        if int(time.time()) > int(core_item.get("password_reset_expires_at", 0)):
+            raise HTTPException(status_code=400, detail="Reset token expired")
+        
+        # Load user item for password update
+        item = _load_user_by_email(email)
+        if not item or item.get("user_id") != user_id:
+            raise HTTPException(status_code=400, detail="Reset token subject mismatch")
+        # No current_password check needed for reset flow
+
     # Must-change via challenge token
-    if body.challenge_token:
+    elif body.challenge_token:
         try:
             claims = decode_link_token(body.challenge_token, TokenPurpose.CHANGE_PASSWORD)
         except Exception:
             _safe_event("change_pwd.invalid_challenge_token", cid=cid)
             raise HTTPException(status_code=400, detail="Invalid or expired challenge token")
         try:
-            email_token, user_id = claims["sub"].split("|", 1)
+            email_token, challenge_user_id = claims["sub"].split("|", 1)
         except Exception:
             raise HTTPException(status_code=400, detail="Malformed challenge token")
         email = email_token
+        user_id = challenge_user_id
         item = _load_user_by_email(email)
         if not item or item.get("user_id") != user_id:
             raise HTTPException(status_code=400, detail="Challenge token subject mismatch")
@@ -1536,7 +1890,7 @@ def change_password(
             raise HTTPException(status_code=401, detail="Current password is incorrect")
 
     else:
-        raise HTTPException(status_code=400, detail="Provide Authorization header or challenge_token")
+        raise HTTPException(status_code=400, detail="Provide Authorization header, challenge_token, or reset_token")
 
     # Validate + rotate
     try:
@@ -1546,6 +1900,10 @@ def change_password(
         raise HTTPException(status_code=400, detail=str(ve))
 
     new_hash = hash_password(body.new_password)
+    
+    # Determine if this is a reset flow (no JWT needed)
+    is_reset_flow = body.reset_token is not None
+    
     try:
         _ddb_call(
             users.update_item,
@@ -1555,11 +1913,30 @@ def change_password(
             ExpressionAttributeNames={"#s": "status"},
             ExpressionAttributeValues={":ph": new_hash, ":f": False, ":a": "ACTIVE"},
         )
+        
+        # Clear reset token metadata from core profile if this was a reset flow
+        if is_reset_flow and user_id:
+            try:
+                _ddb_call(
+                    core.update_item,
+                    op="core.update_item.clear_reset_token",
+                    Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"},
+                    UpdateExpression="REMOVE password_reset_jti, password_reset_expires_at",
+                )
+            except Exception:
+                logger.warning("change_pwd.clear_reset_token_error", exc_info=True)
+                # Non-fatal, continue
     except Exception:
         logger.error("change_pwd.ddb_update_error", exc_info=True)
         raise HTTPException(status_code=500, detail="Could not update password")
 
     _safe_event("password_changed", cid=cid, email=_mask_email(email))
+    
+    # For reset flow, don't return JWT - user should login separately
+    if is_reset_flow:
+        return {"message": "Password reset successfully. Please log in with your new password."}
+    
+    # For other flows, return JWT as before
     token = issue_local_jwt(item["user_id"], email, nickname=item.get("nickname"))
     return TokenResponse(**token).model_dump()
 

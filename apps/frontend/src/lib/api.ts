@@ -4,6 +4,7 @@ import awsConfigProd from '@/config/aws-exports.prod';
 import { IS_EMAIL_AVAILABLE, IS_NICKNAME_AVAILABLE, IS_NICKNAME_AVAILABLE_FOR_USER, GOALS_BY_USER, ACTIVE_GOALS_COUNT } from "@/graphql/queries";
 import { emailConfirmationEnabled } from "@/config/featureFlags";
 import { getAccessToken, getApiBase, getTokenExpiry, renewToken, getUserIdFromToken, graphqlWithApiKey } from '@/lib/utils';
+import { isTokenValid } from '@/lib/auth';
 import { logger } from './logger';
 
 
@@ -115,6 +116,11 @@ export async function graphqlRaw<T = any>(query: string, variables: any = {}, op
 
   let token = getToken();
   if (!token) throw new Error('NO_TOKEN');
+  
+  // Don't make GraphQL calls if token is invalid (prevents unnecessary API calls on public pages)
+  if (!isTokenValid()) {
+    throw new Error('INVALID_TOKEN');
+  }
 
   logger.debug('Executing raw GraphQL query', { operation, endpoint });
   let { res, json } = await execute(token);
@@ -122,9 +128,8 @@ export async function graphqlRaw<T = any>(query: string, variables: any = {}, op
 
   if (!res.ok || json.errors?.length) {
     if (shouldRetryAuth(res.status, json)) {
-      // Only attempt token renewal if user is authenticated (reduces unnecessary API calls)
-      const currentToken = getToken();
-      if (currentToken) {
+      // Only attempt token renewal if user has a valid token (reduces unnecessary API calls)
+      if (isTokenValid()) {
         try {
           await renewToken();
           token = getToken();
@@ -135,6 +140,9 @@ export async function graphqlRaw<T = any>(query: string, variables: any = {}, op
         } catch (e) {
           if (!opts?.quiet) logger.error('Token renew failed', { operation, error: (e as any)?.message });
         }
+      } else {
+        // Token is invalid or expired, don't attempt renewal
+        if (!opts?.quiet) logger.debug('Skipping token renewal - token invalid or expired', { operation });
       }
     }
   }
@@ -295,6 +303,74 @@ export async function changePassword(input: ChangePasswordInput): Promise<LoginR
   }
   try { localStorage.setItem('auth', JSON.stringify(body)); window.dispatchEvent(new CustomEvent('auth:change')); } catch {}
   return body as LoginResponse;
+}
+
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  const base = getApiBase();
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  if (!base) throw new Error('API base URL not configured');
+  const url = base.replace(/\/$/, '') + '/password/reset-request';
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (apiKey) headers['x-api-key'] = apiKey;
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email }),
+  });
+  
+  const text = await res.text();
+  let body: any = {};
+  try { body = text ? JSON.parse(text) : {}; } catch {}
+  
+  if (!res.ok) {
+    const msg = body?.detail || body?.message || text || 'Password reset request failed';
+    logger.error('Password reset request failed', {
+      operation: 'requestPasswordReset',
+      status: res.status,
+      error: msg,
+      email,
+    });
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  
+  logger.info('Password reset request sent', { operation: 'requestPasswordReset', email });
+  return body;
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  const base = getApiBase();
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  if (!base) throw new Error('API base URL not configured');
+  const url = base.replace(/\/$/, '') + '/password/change';
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (apiKey) headers['x-api-key'] = apiKey;
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      reset_token: token,
+      new_password: newPassword,
+    }),
+  });
+  
+  const text = await res.text();
+  let body: any = {};
+  try { body = text ? JSON.parse(text) : {}; } catch {}
+  
+  if (!res.ok) {
+    const msg = body?.detail || body?.message || text || 'Password reset failed';
+    logger.error('Password reset failed', {
+      operation: 'resetPassword',
+      status: res.status,
+      error: msg,
+    });
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+  }
+  
+  logger.info('Password reset successful', { operation: 'resetPassword' });
+  return body;
 }
 
 export async function authFetch(input: string, init: RequestInit = {}): Promise<Response> {
@@ -476,6 +552,53 @@ export async function subscribeToNewsletter(
       statusText: response.statusText,
       errorBody,
       url,
+      timestamp: new Date().toISOString()
+    });
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
+
+export interface ContactSubmit {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  honeypot?: string; // Honeypot field for bot detection
+}
+
+export interface ContactResponse {
+  message: string;
+  submitted: boolean;
+}
+
+export async function submitContact(formData: ContactSubmit): Promise<ContactResponse> {
+  const base = getApiBase();
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  
+  if (!base) throw new Error('API base URL not configured');
+  if (!apiKey) throw new Error('API Gateway key not configured');
+  
+  const url = `${base.replace(/\/$/, '')}/contact/submit`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify(formData),
+  });
+  
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || response.statusText || 'Failed to submit contact form';
+    console.error('Contact API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      input: formData,
       timestamp: new Date().toISOString()
     });
     throw new Error(message);

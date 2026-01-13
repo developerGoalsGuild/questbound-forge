@@ -59,10 +59,15 @@ class SendTempPassword(BaseModel):
   email: EmailStr
 
 
+class PasswordResetRequest(BaseModel):
+  email: EmailStr
+
+
 class PasswordChangeRequest(BaseModel):
   current_password: str | None = None # required for both flows
   new_password: str
   challenge_token: str | None = None # when must-change flow is triggered
+  reset_token: str | None = None # when password reset flow is triggered
 
 
 class ConfirmEmailResponse(BaseModel):
@@ -146,3 +151,16 @@ class NewsletterResponse(BaseModel):
   message: str
   email: str
   subscribed: bool
+
+
+class ContactSubmit(BaseModel):
+  name: str
+  email: EmailStr
+  subject: str
+  message: str
+  honeypot: Optional[str] = None  # Honeypot field for bot detection
+
+
+class ContactResponse(BaseModel):
+  message: str
+  submitted: bool
