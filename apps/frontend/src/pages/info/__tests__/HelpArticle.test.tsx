@@ -9,13 +9,7 @@ import HelpArticle from '../HelpArticle';
 // Mock useTranslation
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
-    t: {
-      help: {
-        backToHelp: 'Back to Help Center',
-        articleNotFound: 'Article Not Found'
-      },
-      common: { back: 'Back' }
-    }
+    language: 'en'
   })
 }));
 
@@ -36,10 +30,24 @@ vi.mock('@/data/help/articles', () => ({
   helpArticles: [
     {
       slug: 'test-article',
-      title: 'Test Article',
-      excerpt: 'Test excerpt',
-      category: 'getting-started',
-      content: '# Test Article\n\nContent here'
+      translations: {
+        en: {
+          title: 'Test Article',
+          excerpt: 'Test excerpt',
+          content: '# Test Article\n\nContent here'
+        },
+        es: {
+          title: 'Artículo de prueba',
+          excerpt: 'Extracto de prueba',
+          content: '# Artículo de prueba\n\nContenido aquí'
+        },
+        fr: {
+          title: 'Article de test',
+          excerpt: 'Extrait de test',
+          content: '# Article de test\n\nContenu ici'
+        }
+      },
+      category: 'getting-started'
     }
   ]
 }));

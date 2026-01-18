@@ -4,6 +4,7 @@ import React from 'react';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import Login from '../Login';
 import { TranslationProvider, useTranslation } from '@/hooks/useTranslation';
 
@@ -13,12 +14,29 @@ vi.mock('@/lib/api', () => ({
 
 import * as api from '@/lib/api';
 
-const renderComponent = () =>
+const renderComponent = () => {
+  let currentLocation: ReturnType<typeof useLocation> | null = null;
+  const LocationCapture = () => {
+    const location = useLocation();
+    React.useEffect(() => {
+      currentLocation = location;
+    }, [location]);
+    return null;
+  };
+
   render(
-    <TranslationProvider>
-      <Login />
-    </TranslationProvider>
+    <MemoryRouter>
+      <TranslationProvider>
+        <LocationCapture />
+        <Login />
+      </TranslationProvider>
+    </MemoryRouter>
   );
+
+  return {
+    getLocation: () => currentLocation,
+  };
+};
 
 const renderWithLanguage = (lang: 'en'|'es'|'fr') => {
   const LangSetter = () => {
@@ -27,16 +45,17 @@ const renderWithLanguage = (lang: 'en'|'es'|'fr') => {
     return null;
   };
   return render(
-    <TranslationProvider>
-      <LangSetter />
-      <Login />
-    </TranslationProvider>
+    <MemoryRouter>
+      <TranslationProvider>
+        <LangSetter />
+        <Login />
+      </TranslationProvider>
+    </MemoryRouter>
   );
 };
 
 describe('Login page', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     vi.clearAllMocks();
     localStorage.clear();
     // default env for API base URL
@@ -44,8 +63,6 @@ describe('Login page', () => {
   });
   afterEach(() => {
     cleanup();
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -131,13 +148,14 @@ describe('Login page', () => {
     delete (window as any).location;
     (window as any).location = { href: '', assign: vi.fn() } as any;
 
-    renderComponent();
+    const { getLocation } = renderComponent();
     await user.type(screen.getByLabelText(/email/i), 'p@example.com');
     await user.type(screen.getByLabelText(/password/i, { selector: 'input' }), 'Aa1!aaaa');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
-      expect((window as any).location.href).toMatch(/\/dashboard\?type=partner/);
+      expect(getLocation()?.pathname).toBe('/dashboard');
+      expect(getLocation()?.search).toBe('?type=partner');
     });
   });
 
@@ -146,7 +164,7 @@ describe('Login page', () => {
     vi.mocked(api.login).mockRejectedValue(new Error('Invalid credentials'));
     renderComponent();
     await user.type(screen.getByLabelText(/email/i), 'fail@example.com');
-    await user.type(screen.getByLabelText(/password/i), { target: { value: 'bad' } });
+    await user.type(screen.getByLabelText(/password/i), 'bad');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid credentials/i);
   });

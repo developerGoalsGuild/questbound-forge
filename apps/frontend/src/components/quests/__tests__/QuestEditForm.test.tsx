@@ -780,8 +780,8 @@ describe('QuestEditForm', () => {
       await user.click(screen.getByText('Next'));
       await user.click(screen.getByText('Next'));
 
-      // Look for the XP reward specifically in the reward section
-      expect(screen.getByText('100', { selector: '[class*="text-muted-foreground"]' })).toBeInTheDocument();
+      // Look for the XP reward in the review details
+      expect(screen.getAllByText(/100 XP/i).length).toBeGreaterThan(0);
     });
   });
 

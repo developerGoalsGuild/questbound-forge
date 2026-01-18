@@ -74,6 +74,10 @@ class ConfirmEmailResponse(BaseModel):
   message: str
 
 
+class ResendConfirmationRequest(BaseModel):
+  email: EmailStr
+
+
 class NotificationPreferences(BaseModel):
   """User notification preferences for quest-related events"""
   questStarted: bool = True

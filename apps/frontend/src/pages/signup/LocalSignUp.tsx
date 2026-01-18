@@ -138,12 +138,6 @@ const LocalSignUp: React.FC = () => {
   const [countryQuery, setCountryQuery] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
   const countryInputRef = useRef<HTMLInputElement | null>(null);
-  const roleOptions = [
-    { value: 'user', label: signup.options?.roles?.user || 'User' },
-    { value: 'partner', label: signup.options?.roles?.partner || 'Partner' },
-    { value: 'patron', label: signup.options?.roles?.patron || 'Patron' },
-  ];
-
   const filteredCountries = useMemo(() => {
     const q = countryQuery.trim().toLowerCase();
     if (!q) return countries;
@@ -357,7 +351,7 @@ const LocalSignUp: React.FC = () => {
         fullName: formData.fullName,
         password: formData.password,
         status,
-        role: formData.role,
+        role: 'user',
         nickname: formData.nickname,
         pronouns: formData.pronouns,
         bio: formData.bio,
@@ -515,30 +509,8 @@ const LocalSignUp: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded shadow">
-      {emailConfirmationEnabled && (
-        <div role="note" className="mb-4 text-sm rounded border border-blue-200 bg-blue-50 text-blue-800 px-3 py-2">
-          {(signup.successConfirmMessage as string) || 'Email confirmation is required. Please check your inbox after signing up.'}
-        </div>
-      )}
       <h2 className="text-2xl font-semibold mb-4">{signup.title}</h2>
       <form onSubmit={handleSubmit} noValidate>
-        <div className="mb-4">
-          <label htmlFor="role" className="block font-medium mb-1">
-            {signup.role || 'Role'}
-          </label>
-          <select
-            id="role"
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            aria-label={(signup.role as string) || 'Role'}
-            className={'w-full border rounded px-3 py-2 ' + (((errors as any).role) ? 'border-red-500' : 'border-gray-300')}
-          >
-            {roleOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
         <div className="mb-4">
           <label htmlFor="email" className="block font-medium mb-1">
             {signup.email}

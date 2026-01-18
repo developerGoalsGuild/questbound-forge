@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,14 +6,94 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { login as apiLogin, LoginResponse } from '@/lib/api';
 import { PasswordInput } from '@/components/ui/password-input';
 import { logger } from '@/lib/logger';
+import { Globe } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Language } from '@/i18n/translations';
+import { loginTranslations } from '@/i18n/login';
+import { navTranslations } from '@/i18n/nav';
 
 const Login = () => {
-  const { t } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
+  // Access translations directly from the translation files with safe fallbacks
+  const loginT = loginTranslations[language] || loginTranslations.en;
+  const navT = navTranslations[language] || navTranslations.en;
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const languages: { code: Language; name: string; flag: string }[] = [
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  ];
+
+  // Function to translate API error messages
+  const translateErrorMessage = (errorMessage: string): string => {
+    if (!errorMessage) return loginT?.messages?.loginFailed || 'Login failed';
+    
+    const msg = errorMessage.toLowerCase();
+    
+    // Map common API error messages to translated versions
+    if (msg.includes('invalid credentials') || msg.includes('invalid credential')) {
+      return loginT?.messages?.invalidCredentials || 'Invalid credentials';
+    }
+    if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+      return loginT?.messages?.emailNotConfirmed || 'Email not confirmed';
+    }
+    if (msg.includes('locked') || msg.includes('blocked') || msg.includes('temporarily locked')) {
+      return loginT?.messages?.accountLocked || 'Account temporarily locked';
+    }
+    if (msg.includes('password change required') || msg.includes('change required')) {
+      return loginT?.messages?.passwordChangeRequired || 'Password change required';
+    }
+    if (msg.includes('unable to process') || msg.includes('unable to process login')) {
+      return loginT?.messages?.unableToProcess || 'Unable to process login';
+    }
+    
+    // If no match, return the generic login failed message
+    return loginT?.messages?.loginFailed || 'Login failed';
+  };
+
+  // Ensure login page follows language selected on main page
+  // This syncs with localStorage on mount in case language was changed on another page
+  useEffect(() => {
+    try {
+      const storedLanguage = localStorage.getItem('userLanguage');
+      if (storedLanguage && (storedLanguage === 'en' || storedLanguage === 'es' || storedLanguage === 'fr')) {
+        const storedLang = storedLanguage as Language;
+        // Only update if different to avoid unnecessary updates
+        // The context should already have the correct language, but this ensures sync
+        if (storedLang !== language) {
+          setLanguage(storedLang);
+        }
+      }
+    } catch (e) {
+      // localStorage not available or error
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - context handles updates during navigation
+
+  // Listen for storage events to sync language changes across tabs/pages
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'userLanguage' && e.newValue) {
+        const newLang = e.newValue as Language;
+        if ((newLang === 'en' || newLang === 'es' || newLang === 'fr') && newLang !== language) {
+          setLanguage(newLang);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [language, setLanguage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,15 +105,15 @@ const Login = () => {
       const pwdTrim = password.trim();
       const emailRe = /.+@.+\..+/;
       if (!emailTrim) {
-        setError(t?.login?.validation?.requiredEmail || 'Email is required');
+        setError(loginT?.validation?.requiredEmail || 'Email is required');
         return;
       }
       if (!emailRe.test(emailTrim)) {
-        setError(t?.login?.validation?.invalidEmail || 'Please enter a valid email address');
+        setError(loginT?.validation?.invalidEmail || 'Please enter a valid email address');
         return;
       }
       if (!pwdTrim) {
-        setError(t?.login?.validation?.requiredPassword || 'Password is required');
+        setError(loginT?.validation?.requiredPassword || 'Password is required');
         return;
       }
 
@@ -58,8 +138,9 @@ const Login = () => {
       const dest = userType ? `/dashboard?type=${encodeURIComponent(userType)}` : '/dashboard';
       navigate(dest, { replace: true });
     } catch (err: any) {
-      const msg = err?.message || t?.login?.messages?.loginFailed || 'Login failed';
-      setError(msg);
+      const errorMsg = err?.message || '';
+      const translatedMsg = translateErrorMessage(errorMsg);
+      setError(translatedMsg);
     } finally {
       setLoading(false);
     }
@@ -127,48 +208,72 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold mb-6 text-foreground">
-          {t?.login?.title || t?.nav?.login || 'Sign In'}
+      <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 shadow-sm relative">
+        {/* Language Selector */}
+        <div className="absolute top-4 right-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2" aria-label="Select language">
+                <Globe className="h-4 w-4" />
+                {languages.find(lang => lang.code === language)?.flag}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover border border-border">
+              {languages.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.code}
+                  onClick={() => setLanguage(lang.code)}
+                  className={`cursor-pointer ${language === lang.code ? 'bg-accent' : ''}`}
+                >
+                  <span className="mr-2">{lang.flag}</span>
+                  {lang.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <h1 className="text-2xl font-semibold mb-6 text-foreground pr-16">
+          {loginT?.title || 'Sign In'}
         </h1>
         <form noValidate onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm mb-1 text-muted-foreground">{t?.login?.emailLabel || 'Email'}</label>
+            <label htmlFor="email" className="block text-sm mb-1 text-muted-foreground">{loginT?.emailLabel || 'Email'}</label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={t?.login?.emailPlaceholder || 'you@example.com'}
+              placeholder={loginT?.emailPlaceholder || 'you@example.com'}
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm mb-1 text-muted-foreground">{t?.login?.passwordLabel || 'Password'}</label>
+            <label htmlFor="password" className="block text-sm mb-1 text-muted-foreground">{loginT?.passwordLabel || 'Password'}</label>
             <PasswordInput
               id="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={t?.login?.passwordPlaceholder || '••••••••'}
+              placeholder={loginT?.passwordPlaceholder || '••••••••'}
             />
           </div>
           {error && (
             <p className="text-sm text-red-600" role="alert">{error}</p>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (t?.common?.loading || 'Loading...') : (t?.login?.submit || t?.nav?.login || 'Sign In')}
+            {loading ? (t?.common?.loading || 'Loading...') : (loginT?.submit || 'Sign In')}
           </Button>
         </form>
         <div className="text-sm text-muted-foreground mt-4 flex items-center justify-between">
-          <a href="/signup/LocalSignUp" className="hover:text-foreground">{t?.nav?.signup || 'Create account'}</a>
-          <Link to="/forgot-password" className="hover:text-foreground">{t?.login?.forgotPassword || 'Forgot password?'}</Link>
+          <a href="/signup/LocalSignUp" className="hover:text-foreground">{loginT?.createAccount || 'Create account'}</a>
+          <Link to="/forgot-password" className="hover:text-foreground">{loginT?.forgotPassword || 'Forgot password?'}</Link>
         </div>
 
         {/* Divider */}
         <div className="flex items-center gap-3 my-6">
           <div className="h-px bg-border flex-1" />
-          <span className="text-xs text-muted-foreground">{t?.login?.orContinueWith || 'or continue with'}</span>
+          <span className="text-xs text-muted-foreground">{loginT?.orContinueWith || 'or continue with'}</span>
           <div className="h-px bg-border flex-1" />
         </div>
 

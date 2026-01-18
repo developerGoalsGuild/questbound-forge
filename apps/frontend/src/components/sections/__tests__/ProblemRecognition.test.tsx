@@ -126,7 +126,7 @@ describe('ProblemRecognition', () => {
     render(<ProblemRecognition />);
 
     const cards = screen.getAllByTestId('card');
-    expect(cards.length).toBe(7); // 6 scenarios + 1 closing message
+    expect(cards.length).toBe(6);
   });
 
   test('scenarios have proper styling classes', () => {

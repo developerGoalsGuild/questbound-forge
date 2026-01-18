@@ -47,6 +47,16 @@ resource "aws_api_gateway_resource" "users" {
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
   path_part   = "users"
 }
+resource "aws_api_gateway_resource" "password" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "password"
+}
+resource "aws_api_gateway_resource" "password_reset_request" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.password.id
+  path_part   = "reset-request"
+}
 resource "aws_api_gateway_resource" "auth"  {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -853,6 +863,16 @@ resource "aws_api_gateway_resource" "user_signup" {
   parent_id   = aws_api_gateway_resource.users.id
   path_part   = "signup"
 }
+resource "aws_api_gateway_resource" "user_confirm_email" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.users.id
+  path_part   = "confirm-email"
+}
+resource "aws_api_gateway_resource" "user_resend_confirmation" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.users.id
+  path_part   = "resend-confirmation"
+}
 resource "aws_api_gateway_method" "user_signup_post" {
   rest_api_id      = aws_api_gateway_rest_api.rest_api.id
   resource_id      = aws_api_gateway_resource.user_signup.id
@@ -901,6 +921,128 @@ resource "aws_api_gateway_integration_response" "user_signup_options_integration
   resource_id = aws_api_gateway_resource.user_signup.id
   http_method = aws_api_gateway_method.user_signup_options.http_method
   status_code = aws_api_gateway_method_response.user_signup_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# GET /users/confirm-email (public)
+resource "aws_api_gateway_method" "user_confirm_email_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.user_confirm_email.id
+  http_method      = "GET"
+  authorization    = "NONE"
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "user_confirm_email_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_confirm_email.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "user_confirm_email_get_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_confirm_email.id
+  http_method             = aws_api_gateway_method.user_confirm_email_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "user_confirm_email_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_confirm_email.id
+  http_method = aws_api_gateway_method.user_confirm_email_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "user_confirm_email_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_confirm_email.id
+  http_method = aws_api_gateway_method.user_confirm_email_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "user_confirm_email_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_confirm_email.id
+  http_method = aws_api_gateway_method.user_confirm_email_options.http_method
+  status_code = aws_api_gateway_method_response.user_confirm_email_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /users/resend-confirmation (public)
+resource "aws_api_gateway_method" "user_resend_confirmation_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.user_resend_confirmation.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "user_resend_confirmation_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.user_resend_confirmation.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "user_resend_confirmation_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.user_resend_confirmation.id
+  http_method             = aws_api_gateway_method.user_resend_confirmation_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "user_resend_confirmation_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_resend_confirmation.id
+  http_method = aws_api_gateway_method.user_resend_confirmation_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "user_resend_confirmation_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_resend_confirmation.id
+  http_method = aws_api_gateway_method.user_resend_confirmation_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "user_resend_confirmation_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.user_resend_confirmation.id
+  http_method = aws_api_gateway_method.user_resend_confirmation_options.http_method
+  status_code = aws_api_gateway_method_response.user_resend_confirmation_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
@@ -1062,6 +1204,67 @@ resource "aws_api_gateway_integration_response" "user_login_options_integration_
   resource_id = aws_api_gateway_resource.user_login.id
   http_method = aws_api_gateway_method.user_login_options.http_method
   status_code = aws_api_gateway_method_response.user_login_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /password/reset-request (public)
+resource "aws_api_gateway_method" "password_reset_request_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.password_reset_request.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "password_reset_request_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.password_reset_request.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "password_reset_request_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.password_reset_request.id
+  http_method             = aws_api_gateway_method.password_reset_request_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "password_reset_request_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.password_reset_request.id
+  http_method = aws_api_gateway_method.password_reset_request_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "password_reset_request_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.password_reset_request.id
+  http_method = aws_api_gateway_method.password_reset_request_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "password_reset_request_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.password_reset_request.id
+  http_method = aws_api_gateway_method.password_reset_request_options.http_method
+  status_code = aws_api_gateway_method_response.password_reset_request_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
@@ -5605,8 +5808,14 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_rest_api.rest_api,
       aws_api_gateway_method.user_signup_post,
       aws_api_gateway_method.user_signup_options,
+      aws_api_gateway_method.user_confirm_email_get,
+      aws_api_gateway_method.user_confirm_email_options,
+      aws_api_gateway_method.user_resend_confirmation_post,
+      aws_api_gateway_method.user_resend_confirmation_options,
       aws_api_gateway_method.user_login_post,
       aws_api_gateway_method.user_login_options,
+      aws_api_gateway_method.password_reset_request_post,
+      aws_api_gateway_method.password_reset_request_options,
       aws_api_gateway_method.health_get,
       aws_api_gateway_method.health_options,
       aws_api_gateway_method.auth_renew_post,
@@ -5809,8 +6018,14 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.quests_tasks_options_integration,
     aws_api_gateway_integration.user_signup_post_integration,
     aws_api_gateway_integration.user_signup_options_integration,
+    aws_api_gateway_integration.user_confirm_email_get_integration,
+    aws_api_gateway_integration.user_confirm_email_options_integration,
+    aws_api_gateway_integration.user_resend_confirmation_post_integration,
+    aws_api_gateway_integration.user_resend_confirmation_options_integration,
     aws_api_gateway_integration.user_login_post_integration,
     aws_api_gateway_integration.user_login_options_integration,
+    aws_api_gateway_integration.password_reset_request_post_integration,
+    aws_api_gateway_integration.password_reset_request_options_integration,
     aws_api_gateway_integration.health_get_integration,
     aws_api_gateway_integration.health_options_integration,
     aws_api_gateway_integration.auth_renew_post_integration,

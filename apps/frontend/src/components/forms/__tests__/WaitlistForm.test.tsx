@@ -108,11 +108,11 @@ describe('WaitlistForm', () => {
     expect(button).toBeInTheDocument();
   });
 
-  test('button is disabled when email is empty', () => {
+  test('button is enabled when email is empty', () => {
     render(<WaitlistForm />);
 
     const button = screen.getByRole('button', { name: /Join the Community/i });
-    expect(button).toBeDisabled();
+    expect(button).not.toBeDisabled();
   });
 
   test('button is enabled when email is entered', async () => {

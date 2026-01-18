@@ -64,7 +64,7 @@ describe('Empathy', () => {
     render(<Empathy />);
 
     // Initially stats should be at 0
-    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getAllByText('0%').length).toBeGreaterThan(0);
     expect(screen.getByText('0x')).toBeInTheDocument();
 
     // Wait for animation to complete
@@ -75,12 +75,14 @@ describe('Empathy', () => {
     }, { timeout: 1000 });
   });
 
-  test('renders statistic labels', () => {
+  test('renders statistic labels', async () => {
     render(<Empathy />);
 
-    expect(screen.getByText(/of people give up on their goals within 3 months/)).toBeInTheDocument();
-    expect(screen.getByText(/feel more motivated when working with others/)).toBeInTheDocument();
-    expect(screen.getByText(/more likely to succeed with accountability/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/of people give up on their goals within 3 months/)).toBeInTheDocument();
+      expect(screen.getByText(/feel more motivated when working with others/)).toBeInTheDocument();
+      expect(screen.getByText(/more likely to succeed with accountability/)).toBeInTheDocument();
+    });
   });
 
   test('has proper accessibility attributes', () => {
@@ -93,10 +95,12 @@ describe('Empathy', () => {
     expect(title).toHaveAttribute('id', 'empathy-title');
   });
 
-  test('renders statistics in grid layout', () => {
+  test('renders statistics in grid layout', async () => {
     render(<Empathy />);
 
-    const stats = screen.getAllByText(/^(92%|78%|3x|0%|0x)$/);
-    expect(stats.length).toBeGreaterThanOrEqual(3);
+    await waitFor(() => {
+      const stats = screen.getAllByText(/^(92%|78%|3x)$/);
+      expect(stats.length).toBe(3);
+    });
   });
 });

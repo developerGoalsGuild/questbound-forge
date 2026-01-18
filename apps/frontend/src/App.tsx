@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound";
 import Goals from "./pages/goals/Goals";
 import GoalsList from "./pages/goals/GoalsList";
 import GoalDetails from "./pages/goals/GoalDetails";
-//import ConfirmEmail from "./pages/ConfirmEmail";
+import ConfirmEmail from "./pages/ConfirmEmail";
 import { SessionKeepAlive } from '@/lib/session';
 import { ProtectedRoute, AuthWatcher } from '@/lib/auth';
 import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
@@ -104,6 +104,7 @@ const App = () => (
             <Route path="/login/Login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
             <Route path="/signup/LocalSignUp" element={<LocalSignup />} />
             
             {/* Info pages (public) */}

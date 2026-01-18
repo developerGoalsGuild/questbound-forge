@@ -132,13 +132,13 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
     JWT_ISSUER                                = "https://auth.local"
     JWT_AUDIENCE                              = "api://default"
     COGNITO_DOMAIN                            = "goalsguild.auth.us-east-2.amazoncognito.com"
-    SES_SENDER_EMAIL                          = "no-reply@goalsguild.com"
+    SES_SENDER_EMAIL                          = var.ses_sender_email
     FRONTEND_BASE_URL                         = var.frontend_base_url
     ALLOWED_ORIGINS                           = var.frontend_allowed_origins
     PASSWORD_KEY                              = "your-encrypted-password-key"
     DYNAMODB_USERS_TABLE                      = "gg_core"
     CORE_TABLE                                = var.ddb_table_name
-    APP_BASE_URL                              = "http://localhost:5050"
+    APP_BASE_URL                              = var.frontend_base_url
     LOGIN_ATTEMPTS_TABLE                      = "goalsguild_login_attempts"
     ENVIRONMENT                               = var.environment
     APPSYNC_SUBSCRIPTION_KEY_PARAM            = "/goalsguild/${var.environment}/appsync/subscription_key"

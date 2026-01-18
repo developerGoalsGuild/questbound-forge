@@ -60,3 +60,9 @@ variable "api_gateway_key" {
     sensitive   = true
     default     = "placeholder-api-gateway-key"
 }
+
+variable "ses_sender_email" {
+    description = "SES verified sender email address (e.g., no-reply@goalsguild.com)"
+    type        = string
+    default     = "no-reply@goalsguild.com"
+}

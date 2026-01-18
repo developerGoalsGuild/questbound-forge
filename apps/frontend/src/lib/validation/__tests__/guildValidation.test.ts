@@ -25,7 +25,7 @@ describe('Guild Validation Schemas', () => {
         name: 'Test Guild',
         description: 'A test guild description',
         tags: ['test', 'guild'],
-        isPublic: true,
+        guildType: 'public',
       };
 
       const result = guildCreateSchema.parse(validData);
@@ -33,13 +33,12 @@ describe('Guild Validation Schemas', () => {
       expect(result.name).toBe('Test Guild');
       expect(result.description).toBe('A test guild description');
       expect(result.tags).toEqual(['test', 'guild']);
-      expect(result.isPublic).toBe(true);
+      expect(result.guildType).toBe('public');
     });
 
     it('should handle minimal valid data', () => {
       const minimalData = {
         name: 'Min',
-        isPublic: false,
       };
 
       const result = guildCreateSchema.parse(minimalData);
@@ -47,7 +46,7 @@ describe('Guild Validation Schemas', () => {
       expect(result.name).toBe('Min');
       expect(result.description).toBeUndefined();
       expect(result.tags).toEqual([]);
-      expect(result.isPublic).toBe(false);
+      expect(result.guildType).toBe('public');
     });
 
     it('should transform and normalize data', () => {
@@ -55,7 +54,7 @@ describe('Guild Validation Schemas', () => {
         name: '  Test Guild  ',
         description: '  A test description  ',
         tags: ['  TEST  ', '  GUILD  '],
-        isPublic: true,
+        guildType: 'public',
       };
 
       const result = guildCreateSchema.parse(dataWithWhitespace);
@@ -69,7 +68,7 @@ describe('Guild Validation Schemas', () => {
       const dataWithDuplicates = {
         name: 'Test Guild',
         tags: ['test', 'guild', 'test', 'guild', 'unique'],
-        isPublic: true,
+        guildType: 'public',
       };
 
       const result = guildCreateSchema.parse(dataWithDuplicates);
@@ -89,7 +88,7 @@ describe('Guild Validation Schemas', () => {
 
       invalidNames.forEach(name => {
         expect(() => {
-          guildCreateSchema.parse({ name, isPublic: true });
+          guildCreateSchema.parse({ name, guildType: 'public' });
         }).toThrow();
       });
     });
@@ -101,7 +100,7 @@ describe('Guild Validation Schemas', () => {
         guildCreateSchema.parse({
           name: 'Test Guild',
           description: longDescription,
-          isPublic: true,
+          guildType: 'public',
         });
       }).toThrow();
     });
@@ -110,7 +109,7 @@ describe('Guild Validation Schemas', () => {
       const invalidTagData = {
         name: 'Test Guild',
         tags: ['a'.repeat(21)], // too long
-        isPublic: true,
+        guildType: 'public',
       };
 
       expect(() => {
@@ -125,7 +124,7 @@ describe('Guild Validation Schemas', () => {
         guildCreateSchema.parse({
           name: 'Test Guild',
           tags: manyTags,
-          isPublic: true,
+          guildType: 'public',
         });
       }).toThrow();
     });
@@ -137,7 +136,7 @@ describe('Guild Validation Schemas', () => {
         name: 'Updated Guild',
         description: 'Updated description',
         tags: ['updated', 'guild'],
-        isPublic: false,
+        guildType: 'private',
       };
 
       const result = guildUpdateSchema.parse(validData);
@@ -145,7 +144,7 @@ describe('Guild Validation Schemas', () => {
       expect(result.name).toBe('Updated Guild');
       expect(result.description).toBe('Updated description');
       expect(result.tags).toEqual(['updated', 'guild']);
-      expect(result.isPublic).toBe(false);
+      expect(result.guildType).toBe('private');
     });
 
     it('should handle partial updates', () => {
@@ -169,7 +168,8 @@ describe('Guild Validation Schemas', () => {
       expect(result.name).toBeUndefined();
       expect(result.description).toBeUndefined();
       expect(result.tags).toBeUndefined();
-      expect(result.isPublic).toBeUndefined();
+      expect(result.guildType).toBeUndefined();
+      expect(result.guildType).toBeUndefined();
     });
   });
 

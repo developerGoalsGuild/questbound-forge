@@ -4,7 +4,7 @@ import React from 'react';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import ResetPassword from '../ResetPassword';
 import { TranslationProvider } from '@/hooks/useTranslation';
 
@@ -32,17 +32,20 @@ const renderComponent = (token?: string) => {
   );
 };
 
+const setupUser = () => (
+  vi.isFakeTimers()
+    ? userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    : userEvent.setup()
+);
+
 describe('ResetPassword page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
     vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/dev');
   });
 
   afterEach(() => {
     cleanup();
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -62,33 +65,36 @@ describe('ResetPassword page', () => {
   });
 
   test('shows validation error for empty password', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     vi.mocked(api.resetPassword).mockRejectedValue(new Error('API should not be called'));
     
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     
-    expect(await screen.findByRole('alert')).toHaveTextContent(/password is required/i);
+    expect(await screen.findByText(/password is required/i)).toBeInTheDocument();
+    expect(await screen.findByText(/please confirm your password/i)).toBeInTheDocument();
     expect(api.resetPassword).not.toHaveBeenCalled();
   });
 
   test('shows validation error for weak password', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     vi.mocked(api.resetPassword).mockRejectedValue(new Error('API should not be called'));
     
     const passwordInput = screen.getByLabelText(/new password/i);
+    const confirmInput = screen.getByLabelText(/confirm password/i);
     await user.type(passwordInput, 'weak');
+    await user.type(confirmInput, 'weak');
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     
-    expect(await screen.findByRole('alert')).toHaveTextContent(/at least 8 characters/i);
+    expect(await screen.findByText(/at least 8 characters/i)).toBeInTheDocument();
     expect(api.resetPassword).not.toHaveBeenCalled();
   });
 
   test('shows validation error when passwords do not match', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     vi.mocked(api.resetPassword).mockRejectedValue(new Error('API should not be called'));
@@ -102,7 +108,7 @@ describe('ResetPassword page', () => {
   });
 
   test('validates password strength requirements', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     const passwordInput = screen.getByLabelText(/new password/i);
@@ -134,7 +140,7 @@ describe('ResetPassword page', () => {
   });
 
   test('calls API with token and new password on valid submission', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     vi.mocked(api.resetPassword).mockResolvedValue({
@@ -151,7 +157,7 @@ describe('ResetPassword page', () => {
   });
 
   test('shows success message and redirects after successful reset', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     vi.mocked(api.resetPassword).mockResolvedValue({
@@ -163,16 +169,11 @@ describe('ResetPassword page', () => {
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     
     expect(await screen.findByText(/password reset successfully/i)).toBeInTheDocument();
-    
-    // Wait for redirect (2 seconds)
-    vi.advanceTimersByTime(2000);
-    
-    // Verify the success message is shown
     expect(screen.getByText(/go to login/i)).toBeInTheDocument();
   });
 
   test('shows error for expired token', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('expired-token');
     
     vi.mocked(api.resetPassword).mockRejectedValue(
@@ -187,7 +188,7 @@ describe('ResetPassword page', () => {
   });
 
   test('shows error for invalid token', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('invalid-token');
     
     vi.mocked(api.resetPassword).mockRejectedValue(
@@ -202,7 +203,7 @@ describe('ResetPassword page', () => {
   });
 
   test('clears field errors when user starts typing', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     const passwordInput = screen.getByLabelText(/new password/i);
@@ -218,7 +219,7 @@ describe('ResetPassword page', () => {
   });
 
   test('disables submit button while loading', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderComponent('valid-token-123');
     
     let resolveRequest: (value: any) => void;
@@ -238,7 +239,7 @@ describe('ResetPassword page', () => {
     
     resolveRequest!({ message: 'Success' });
     await waitFor(() => {
-      expect(submitButton).not.toBeDisabled();
+      expect(screen.getByText(/password reset successfully/i)).toBeInTheDocument();
     });
   });
 

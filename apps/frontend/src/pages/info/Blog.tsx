@@ -22,9 +22,10 @@ const Blog: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
-  // Access translations directly from translation files
-  const blogT = blogTranslations[language];
-  const commonT = commonTranslations[language];
+  // Access translations directly from translation files with safe fallback
+  const currentLanguage = language && blogTranslations[language] ? language : 'en';
+  const blogT = blogTranslations[currentLanguage];
+  const commonT = commonTranslations[currentLanguage] || commonTranslations.en;
 
   const categories = [
     { id: 'product-updates', label: blogT.categories.productUpdates },
@@ -38,7 +39,7 @@ const Blog: React.FC = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(post => {
-        const t = post.translations[language];
+        const t = post.translations[currentLanguage] || post.translations.en;
         return t.title.toLowerCase().includes(query) ||
           t.excerpt.toLowerCase().includes(query) ||
           t.author.toLowerCase().includes(query);
@@ -50,7 +51,7 @@ const Blog: React.FC = () => {
     }
 
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [searchQuery, selectedCategory, language]);
+  }, [searchQuery, selectedCategory, currentLanguage]);
 
   const featuredPosts = blogPosts.filter(post => post.featured).slice(0, 2);
 
@@ -130,14 +131,14 @@ const Blog: React.FC = () => {
                       <Badge>{categories.find(c => c.id === post.category)?.label}</Badge>
                       {post.featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                     </div>
-                    <CardTitle className="line-clamp-2">{post.translations[language].title}</CardTitle>
-                    <CardDescription className="line-clamp-2">{post.translations[language].excerpt}</CardDescription>
+                    <CardTitle className="line-clamp-2">{(post.translations[currentLanguage] || post.translations.en).title}</CardTitle>
+                    <CardDescription className="line-clamp-2">{(post.translations[currentLanguage] || post.translations.en).excerpt}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-4 w-4" />
-                        {post.translations[language].author}
+                        {(post.translations[currentLanguage] || post.translations.en).author}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
@@ -179,14 +180,14 @@ const Blog: React.FC = () => {
                       <Badge>{categories.find(c => c.id === post.category)?.label}</Badge>
                       {post.featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
                     </div>
-                    <CardTitle className="line-clamp-2">{post.translations[language].title}</CardTitle>
-                    <CardDescription className="line-clamp-3">{post.translations[language].excerpt}</CardDescription>
+                    <CardTitle className="line-clamp-2">{(post.translations[currentLanguage] || post.translations.en).title}</CardTitle>
+                    <CardDescription className="line-clamp-3">{(post.translations[currentLanguage] || post.translations.en).excerpt}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-4 w-4" />
-                        {post.translations[language].author}
+                        {(post.translations[currentLanguage] || post.translations.en).author}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />

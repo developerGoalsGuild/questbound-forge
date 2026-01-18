@@ -82,6 +82,24 @@ resource "aws_iam_role_policy" "lambda_dynamodb_access" {
   })
 }
 
+resource "aws_iam_role_policy" "lambda_ses_access" {
+  name = "goalsguild_lambda_ses_access_${var.environment}"
+  role = var.existing_lambda_exec_role_name != "" ? data.aws_iam_role.existing_lambda_exec[0].id : aws_iam_role.lambda_exec_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "ses:SendEmail",
+        "ses:SendRawEmail",
+        "sesv2:SendEmail",
+        "sesv2:SendBulkEmail"
+      ],
+      Resource = "*"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "lambda_s3_access" {
   name = "goalsguild_lambda_s3_access_${var.environment}"
   role = var.existing_lambda_exec_role_name != "" ? data.aws_iam_role.existing_lambda_exec[0].id : aws_iam_role.lambda_exec_role[0].id

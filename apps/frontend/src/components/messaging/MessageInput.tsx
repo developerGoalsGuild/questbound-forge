@@ -242,6 +242,7 @@ export function MessageInput({
               variant="ghost"
               onClick={onCancelReply}
               className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 flex-shrink-0"
+              aria-label="Cancel reply"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -332,6 +333,7 @@ export function MessageInput({
                 onClick={handleSend}
                 disabled={!canSend}
                 className="h-8 w-8 p-0 rounded-full"
+                aria-label={isSending ? 'Sending message' : 'Send message'}
               >
                 <Send className="h-4 w-4" />
               </Button>

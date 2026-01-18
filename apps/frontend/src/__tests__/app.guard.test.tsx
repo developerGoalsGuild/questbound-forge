@@ -27,6 +27,11 @@ describe('App router guard placement', () => {
         dispatchEvent: vi.fn(),
       })),
     });
+    window.IntersectionObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
   });
   afterEach(() => {
     console.error = origError;

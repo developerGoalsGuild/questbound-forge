@@ -9,10 +9,11 @@ interface Stat {
 }
 
 const Empathy = () => {
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const sectionRef = useRef<HTMLElement>(null);
   // empathy is a property in translations, access it directly from landingPageTranslations
-  const empathyT = landingPageTranslations[language].empathy;
+  const currentLanguage = language && landingPageTranslations[language] ? language : 'en';
+  const empathyT = (t as any)?.empathy || landingPageTranslations[currentLanguage].empathy;
   const [animatedStats, setAnimatedStats] = useState<Stat[]>([
     { value: '0%', label: '', reference: '' },
     { value: '0%', label: '', reference: '' },

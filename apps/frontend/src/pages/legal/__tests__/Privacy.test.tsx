@@ -9,16 +9,7 @@ import Privacy from '../Privacy';
 // Mock useTranslation
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
-    t: {
-      privacy: {
-        title: 'Privacy Policy',
-        subtitle: 'How we protect your data',
-        lastUpdated: 'Last Updated',
-        print: 'Print',
-        tableOfContents: 'Table of Contents'
-      },
-      common: { back: 'Back' }
-    }
+    language: 'en'
   })
 }));
 
@@ -35,12 +26,18 @@ vi.mock('react-router-dom', async () => {
 // Mock privacy policy data
 vi.mock('@/data/legal/privacy', () => ({
   privacyPolicyContent: {
-    lastUpdated: 'December 23, 2024',
+    lastUpdated: {
+      en: 'December 23, 2024'
+    },
     sections: [
       {
         id: 'introduction',
-        title: 'Introduction',
-        content: ['Test content']
+        translations: {
+          en: {
+            title: 'Introduction',
+            content: ['Test content']
+          }
+        }
       }
     ]
   }

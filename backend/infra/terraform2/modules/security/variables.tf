@@ -106,3 +106,9 @@ variable "stripe_publishable_key" {
   sensitive   = true
   default     = ""
 }
+
+variable "ses_sender_email" {
+  description = "SES verified sender email address (e.g., no-reply@goalsguild.com)"
+  type        = string
+  default     = "no-reply@goalsguild.com"
+}

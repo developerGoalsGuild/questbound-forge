@@ -145,6 +145,9 @@ describe('useCarousel', () => {
 
     act(() => {
       result.current.toggleAutoPlay();
+    });
+
+    act(() => {
       vi.advanceTimersByTime(1000);
     });
 
@@ -167,6 +170,9 @@ describe('useCarousel', () => {
 
     act(() => {
       result.current.toggleAutoPlay(); // Pause first
+    });
+
+    act(() => {
       Object.defineProperty(document, 'hidden', { value: false, configurable: true });
       document.dispatchEvent(new Event('visibilitychange'));
     });

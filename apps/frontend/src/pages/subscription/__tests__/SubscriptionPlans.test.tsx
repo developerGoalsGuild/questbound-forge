@@ -126,7 +126,10 @@ describe('SubscriptionPlans', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('Subscription Plans')).toBeInTheDocument();
+    const skeletons = screen.getAllByRole('generic').filter((el) =>
+      el.className.includes('animate-pulse')
+    );
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('should display subscription plans', async () => {
@@ -171,10 +174,9 @@ describe('SubscriptionPlans', () => {
       </TestWrapper>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/Current Plan/i)).toBeInTheDocument();
-      expect(screen.getByText(/Journeyman/i)).toBeInTheDocument();
-    });
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/Current Plan/i);
+    expect(alert).toHaveTextContent(/Journeyman/i);
   });
 
   it('should create checkout session when plan is selected', async () => {

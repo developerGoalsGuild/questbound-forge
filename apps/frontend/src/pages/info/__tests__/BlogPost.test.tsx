@@ -38,13 +38,30 @@ vi.mock('@/data/blog/posts', () => ({
   blogPosts: [
     {
       slug: 'test-post',
-      title: 'Test Post',
-      excerpt: 'Test excerpt',
-      author: 'Test Author',
       date: '2024-12-01',
       category: 'product-updates',
       featured: true,
-      readTime: 5
+      readTime: 5,
+      translations: {
+        en: {
+          title: 'Test Post',
+          excerpt: 'Test excerpt',
+          author: 'Test Author',
+          content: 'Test content'
+        },
+        es: {
+          title: 'Publicación de prueba',
+          excerpt: 'Extracto de prueba',
+          author: 'Autor de prueba',
+          content: 'Contenido de prueba'
+        },
+        fr: {
+          title: 'Article de test',
+          excerpt: 'Extrait de test',
+          author: 'Auteur de test',
+          content: 'Contenu de test'
+        }
+      }
     }
   ]
 }));

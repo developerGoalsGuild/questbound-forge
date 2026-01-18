@@ -41,7 +41,19 @@ const mockUseCarousel = {
 };
 
 vi.mock('@/hooks/useCarousel', () => ({
-  useCarousel: () => mockUseCarousel,
+  useCarousel: () => {
+    const React = require('react');
+    React.useEffect(() => {
+      const handler = (event: KeyboardEvent) => {
+        if (event.key === 'ArrowRight') mockUseCarousel.nextSlide();
+        if (event.key === 'ArrowLeft') mockUseCarousel.previousSlide();
+        if (event.key === ' ') mockUseCarousel.toggleAutoPlay();
+      };
+      window.addEventListener('keydown', handler);
+      return () => window.removeEventListener('keydown', handler);
+    }, []);
+    return mockUseCarousel;
+  },
 }));
 
 // Mock translation hook
@@ -203,21 +215,28 @@ describe('FeatureCarousel', () => {
     expect(carousel).toBeInTheDocument();
     
     // Check that slides are rendered
-    const slides = screen.getAllByRole('group', { name: /Slide \d+ of 4/ });
+    const slides = screen.getAllByRole('group', { name: /Slide \d+ of 4/ })
+      .filter((slide) => slide.getAttribute('aria-roledescription') === 'slide');
     expect(slides.length).toBe(4);
   });
 
-  test('keyboard navigation works via window events', () => {
+  test('keyboard navigation works via window events', async () => {
     render(<FeatureCarousel />);
 
     // The useCarousel hook listens to window keydown events
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    expect(mockUseCarousel.nextSlide).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockUseCarousel.nextSlide).toHaveBeenCalledTimes(1);
+    });
 
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
-    expect(mockUseCarousel.previousSlide).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockUseCarousel.previousSlide).toHaveBeenCalledTimes(1);
+    });
 
     fireEvent.keyDown(window, { key: ' ' });
-    expect(mockUseCarousel.toggleAutoPlay).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockUseCarousel.toggleAutoPlay).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -29,6 +29,9 @@ existing_lambda_exec_role_name = "goalsguild_lambda_exec_role_dev"
 # Email token secret for email verification
 email_token_secret = "email-verification-secret-key-dev"
 
+# SES Configuration
+ses_sender_email = "no-reply@goalsguild.com"
+
 # Google OAuth credentials (placeholders for dev)
 google_client_id = "placeholder-google-client-id"
 google_client_secret = "placeholder-google-client-secret"

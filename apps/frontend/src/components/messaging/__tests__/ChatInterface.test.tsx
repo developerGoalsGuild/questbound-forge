@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ChatInterface } from '../ChatInterface';
 import { useMessaging } from '../../../hooks/useMessaging';
@@ -60,7 +61,7 @@ describe('ChatInterface', () => {
     render(<ChatInterface {...defaultProps} />);
     
     expect(screen.getByText('Test Room')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Message Test Room/i)).toBeInTheDocument();
   });
 
   it('shows loading state when messages are loading', () => {
@@ -119,7 +120,7 @@ describe('ChatInterface', () => {
 
     render(<ChatInterface {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/Type a message/i);
+    const input = screen.getByPlaceholderText(/Message Test Room/i);
     const sendButton = screen.getByRole('button', { name: /send message/i });
     
     fireEvent.change(input, { target: { value: 'Test message' } });
@@ -160,7 +161,7 @@ describe('ChatInterface', () => {
 
     render(<ChatInterface {...defaultProps} />);
     
-    expect(screen.getByText(/rate limit exceeded/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/rate limit exceeded/i).length).toBeGreaterThan(0);
   });
 
   it('disables input when not connected', () => {
@@ -172,7 +173,7 @@ describe('ChatInterface', () => {
 
     render(<ChatInterface {...defaultProps} />);
     
-    const input = screen.getByPlaceholderText(/connection error/i);
+    const input = screen.getByPlaceholderText(/connecting to chat/i);
     expect(input).toBeDisabled();
   });
 
@@ -192,6 +193,7 @@ describe('ChatInterface', () => {
   });
 
   it('calls onMessageSent when message is sent successfully', async () => {
+    const user = userEvent.setup();
     const onMessageSent = vi.fn();
     const messages = [
       {
@@ -211,9 +213,8 @@ describe('ChatInterface', () => {
 
     render(<ChatInterface {...defaultProps} onMessageSent={onMessageSent} />);
     
-    const input = screen.getByPlaceholderText(/Type a message/i);
-    fireEvent.change(input, { target: { value: 'Test message' } });
-    fireEvent.keyPress(input, { key: 'Enter' });
+    const input = screen.getByPlaceholderText(/Message Test Room/i);
+    await user.type(input, 'Test message{enter}');
     
     await waitFor(() => {
       expect(onMessageSent).toHaveBeenCalled();
@@ -221,6 +222,7 @@ describe('ChatInterface', () => {
   });
 
   it('calls onError when message sending fails', async () => {
+    const user = userEvent.setup();
     const onError = vi.fn();
     const mockSendMessage = vi.fn().mockResolvedValue({ 
       success: false, 
@@ -234,9 +236,8 @@ describe('ChatInterface', () => {
 
     render(<ChatInterface {...defaultProps} onError={onError} />);
     
-    const input = screen.getByPlaceholderText(/Type a message/i);
-    fireEvent.change(input, { target: { value: 'Test message' } });
-    fireEvent.keyPress(input, { key: 'Enter' });
+    const input = screen.getByPlaceholderText(/Message Test Room/i);
+    await user.type(input, 'Test message{enter}');
     
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith('Rate limit exceeded');
@@ -256,6 +257,7 @@ describe('ChatInterface', () => {
       ...mockMessagingReturn,
       isConnected: false,
       hasError: true,
+      connectionStatus: 'error',
       retryConnection: mockRetryConnection
     });
 

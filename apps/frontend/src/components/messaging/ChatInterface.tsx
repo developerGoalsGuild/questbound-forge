@@ -156,7 +156,8 @@ export function ChatInterface({
         {/* Messages Area */}
         <div className="flex-1 flex flex-col min-h-0">
           {isLoading && messages.length === 0 ? (
-            <div className="flex-1 p-4">
+            <div className="flex-1 p-4" aria-live="polite">
+              <span className="sr-only">Loading messages...</span>
               <div className="space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex space-x-3">

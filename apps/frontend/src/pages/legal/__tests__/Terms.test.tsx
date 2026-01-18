@@ -9,16 +9,7 @@ import Terms from '../Terms';
 // Mock useTranslation
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
-    t: {
-      terms: {
-        title: 'Terms of Service',
-        subtitle: 'Terms and conditions',
-        lastUpdated: 'Last Updated',
-        print: 'Print',
-        tableOfContents: 'Table of Contents'
-      },
-      common: { back: 'Back' }
-    }
+    language: 'en'
   })
 }));
 
@@ -35,12 +26,18 @@ vi.mock('react-router-dom', async () => {
 // Mock terms data
 vi.mock('@/data/legal/terms', () => ({
   termsOfServiceContent: {
-    lastUpdated: 'December 23, 2024',
+    lastUpdated: {
+      en: 'December 23, 2024'
+    },
     sections: [
       {
         id: 'acceptance',
-        title: 'Acceptance of Terms',
-        content: ['Test content']
+        translations: {
+          en: {
+            title: 'Acceptance of Terms',
+            content: ['Test content']
+          }
+        }
       }
     ]
   }

@@ -12,6 +12,7 @@ module "security" {
   frontend_allowed_origins = var.frontend_allowed_origins
   ddb_table_name        = var.ddb_table_name
   api_gateway_key       = var.api_gateway_key
+  ses_sender_email      = var.ses_sender_email
   tags = {
     Project     = "goalsguild"
     Environment = var.environment

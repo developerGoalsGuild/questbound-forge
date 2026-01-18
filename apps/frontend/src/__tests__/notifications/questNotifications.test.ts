@@ -13,14 +13,14 @@ describe('questNotifications', () => {
       const event = { type: 'questStarted' as QuestEventType, quest };
       const message = getNotificationMessage(event, null);
       // When translations is null, it returns the basic fallback
-      expect(message).toBe('Quest questStarted');
+      expect(message).toBe('Quest "Test Quest" has been started!');
     });
 
     it('should return correct message for quest completed', () => {
       const quest = { title: 'Test Quest' };
       const event = { type: 'questCompleted' as QuestEventType, quest };
       const message = getNotificationMessage(event, null);
-      expect(message).toBe('Quest questCompleted');
+      expect(message).toBe('Congratulations! Quest "Test Quest" completed!');
     });
 
     it('should return correct message for progress milestone', () => {
@@ -31,7 +31,7 @@ describe('questNotifications', () => {
         data: { percentage: 50 } 
       };
       const message = getNotificationMessage(event, null);
-      expect(message).toBe('Quest progressMilestone');
+      expect(message).toBe('You\'ve reached 50% on quest "Test Quest"!');
     });
 
     it('should return correct message for streak achieved', () => {
@@ -42,7 +42,7 @@ describe('questNotifications', () => {
         data: { days: 7 } 
       };
       const message = getNotificationMessage(event, null);
-      expect(message).toBe('Quest streakAchieved');
+      expect(message).toBe('Amazing! You\'ve achieved a 7-day quest streak!');
     });
   });
 

@@ -143,7 +143,8 @@ vi.mock('@/lib/apiGoal', () => ({
 }));
 
 vi.mock('@/lib/utils', () => ({
-  getUserIdFromToken: vi.fn().mockReturnValue('user123')
+  getUserIdFromToken: vi.fn().mockReturnValue('user123'),
+  getApiBase: vi.fn(() => '/v1'),
 }));
 
 describe.skip('UserDashboard', () => {

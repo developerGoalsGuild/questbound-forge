@@ -346,7 +346,7 @@ describe('goalValidation', () => {
       const result = goalUpdateSchema.safeParse(updateWithInvalidStatus);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toContain('Invalid option');
+        expect(result.error.issues[0].message).toContain('Invalid enum value');
       }
     });
 
@@ -407,9 +407,12 @@ describe('goalValidation', () => {
     });
 
     test('handles extra fields gracefully', () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const futureDate = tomorrow.toISOString().split('T')[0];
       const goalWithExtraFields = {
         title: 'Learn TypeScript',
-        deadline: '2025-12-31', // Use future date
+        deadline: futureDate,
         nlpAnswers: {
           positive: 'I will learn TypeScript programming language',
           specific: 'Complete 3 comprehensive TypeScript courses',

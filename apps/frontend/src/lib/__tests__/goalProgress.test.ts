@@ -9,10 +9,16 @@ import {
   type GoalProgressData
 } from '../goalProgress';
 
+const now = new Date('2024-01-01T00:00:00Z');
+const oneWeekAgo = new Date(now);
+oneWeekAgo.setDate(now.getDate() - 7);
+const oneMonthAgo = new Date(now);
+oneMonthAgo.setMonth(now.getMonth() - 1);
+
 describe('goalProgress', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.setSystemTime(now);
   });
 
   afterEach(() => {
@@ -23,31 +29,31 @@ describe('goalProgress', () => {
     test('calculates progress correctly for goal with deadline', () => {
       const goal = { createdAt: new Date('2023-12-01T00:00:00Z').getTime(), deadline: '2024-01-31' };
       const progress = calculateTimeProgress(goal);
-      expect(progress).toBeCloseTo(51.6, 1); // Approx 31 days out of 61
+      expect(progress.percentage).toBeCloseTo(50.82, 2);
     });
 
     test('identifies overdue goals', () => {
       const goal = { createdAt: new Date('2023-11-01T00:00:00Z').getTime(), deadline: '2023-12-31' };
       const progress = calculateTimeProgress(goal);
-      expect(progress).toBe(100);
+      expect(progress.percentage).toBe(100);
     });
 
     test('identifies urgent goals', () => {
       const goal = { createdAt: new Date('2023-12-01T00:00:00Z').getTime(), deadline: '2024-01-05' };
       const progress = calculateTimeProgress(goal);
-      expect(progress).toBeCloseTo(88.5, 1);
+      expect(progress.percentage).toBeCloseTo(88.57, 2);
     });
 
     test('handles goals without deadline', () => {
       const goal = { createdAt: new Date('2023-12-01T00:00:00Z').getTime(), deadline: null };
       const progress = calculateTimeProgress(goal);
-      expect(progress).toBe(0);
+      expect(progress.percentage).toBe(0);
     });
 
     test('handles goals created in the future', () => {
       const goal = { createdAt: new Date('2024-02-01T00:00:00Z').getTime(), deadline: '2024-03-01' };
       const progress = calculateTimeProgress(goal);
-      expect(progress).toBe(0);
+      expect(progress.percentage).toBe(0);
     });
   });
 

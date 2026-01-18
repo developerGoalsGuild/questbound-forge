@@ -116,7 +116,7 @@ describe('ForgotPassword page', () => {
     await user.type(screen.getByLabelText(/email/i), 'test@example.com');
     await user.click(screen.getByRole('button', { name: /send reset link/i }));
     
-    expect(await screen.findByRole('alert')).toHaveTextContent(/network error/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to request password reset/i);
   });
 
   test('clears error when user starts typing', async () => {

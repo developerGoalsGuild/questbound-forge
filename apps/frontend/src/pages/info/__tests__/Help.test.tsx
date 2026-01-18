@@ -47,9 +47,21 @@ vi.mock('@/data/help/faq', () => ({
   faqs: [
     {
       id: 'test-faq',
-      question: 'Test Question?',
-      answer: 'Test Answer',
-      category: 'getting-started'
+      category: 'getting-started',
+      translations: {
+        en: {
+          question: 'Test Question?',
+          answer: 'Test Answer'
+        },
+        es: {
+          question: '¿Pregunta de prueba?',
+          answer: 'Respuesta de prueba'
+        },
+        fr: {
+          question: 'Question de test ?',
+          answer: 'Réponse de test'
+        }
+      }
     }
   ]
 }));
@@ -58,10 +70,24 @@ vi.mock('@/data/help/articles', () => ({
   helpArticles: [
     {
       slug: 'test-article',
-      title: 'Test Article',
-      excerpt: 'Test excerpt',
       category: 'getting-started',
-      content: 'Test content'
+      translations: {
+        en: {
+          title: 'Test Article',
+          excerpt: 'Test excerpt',
+          content: 'Test content'
+        },
+        es: {
+          title: 'Artículo de prueba',
+          excerpt: 'Extracto de prueba',
+          content: 'Contenido de prueba'
+        },
+        fr: {
+          title: 'Article de test',
+          excerpt: 'Extrait de test',
+          content: 'Contenu de test'
+        }
+      }
     }
   ]
 }));

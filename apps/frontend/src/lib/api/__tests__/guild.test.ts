@@ -17,6 +17,7 @@ import {
 // Mock the utils module
 vi.mock('@/lib/utils', () => ({
   getAccessToken: vi.fn(() => 'mock-token'),
+  getApiBase: vi.fn(() => '/v1'),
 }));
 
 // Mock environment variables
@@ -41,7 +42,7 @@ describe('Guild API Client', () => {
         name: 'Test Guild',
         description: 'A test guild',
         tags: ['test', 'guild'],
-        isPublic: true,
+        guild_type: 'public',
       };
 
       const result = await mockGuildAPI.createGuild(guildData);
@@ -50,14 +51,13 @@ describe('Guild API Client', () => {
         name: guildData.name,
         description: guildData.description,
         tags: guildData.tags,
-        isPublic: guildData.isPublic,
-        memberCount: 1,
-        goalCount: 0,
-        questCount: 0,
+        member_count: 1,
+        goal_count: 0,
+        quest_count: 0,
       });
-      expect(result.guildId).toBeDefined();
-      expect(result.createdBy).toBe('current_user_id');
-      expect(result.createdAt).toBeDefined();
+      expect(result.guild_id).toBeDefined();
+      expect(result.created_by).toBe('current_user_id');
+      expect(result.created_at).toBeDefined();
     });
 
     it('should handle creation errors', async () => {
@@ -81,25 +81,25 @@ describe('Guild API Client', () => {
       const result = await mockGuildAPI.getMyGuilds();
 
       expect(result).toHaveProperty('guilds');
-      expect(result).toHaveProperty('totalCount');
+      expect(result).toHaveProperty('total');
       expect(Array.isArray(result.guilds)).toBe(true);
       expect(result.guilds.length).toBeGreaterThan(0);
-      expect(result.totalCount).toBe(result.guilds.length);
+      expect(result.total).toBe(result.guilds.length);
     });
 
     it('should return guilds with correct structure', async () => {
       const result = await mockGuildAPI.getMyGuilds();
 
       const guild = result.guilds[0];
-      expect(guild).toHaveProperty('guildId');
+      expect(guild).toHaveProperty('guild_id');
       expect(guild).toHaveProperty('name');
       expect(guild).toHaveProperty('description');
-      expect(guild).toHaveProperty('createdBy');
-      expect(guild).toHaveProperty('createdAt');
-      expect(guild).toHaveProperty('memberCount');
-      expect(guild).toHaveProperty('goalCount');
-      expect(guild).toHaveProperty('questCount');
-      expect(guild).toHaveProperty('isPublic');
+      expect(guild).toHaveProperty('created_by');
+      expect(guild).toHaveProperty('created_at');
+      expect(guild).toHaveProperty('member_count');
+      expect(guild).toHaveProperty('goal_count');
+      expect(guild).toHaveProperty('quest_count');
+      expect(guild).toHaveProperty('guild_type');
       expect(guild).toHaveProperty('tags');
     });
   });
@@ -109,7 +109,7 @@ describe('Guild API Client', () => {
       const guildId = 'test-guild-id';
       const result = await mockGuildAPI.getGuild(guildId);
 
-      expect(result.guildId).toBe(guildId);
+      expect(result.guild_id).toBe(guildId);
       expect(result).toHaveProperty('name');
       expect(result).toHaveProperty('members');
       expect(Array.isArray(result.members)).toBe(true);
@@ -121,8 +121,8 @@ describe('Guild API Client', () => {
       const guildId = 'test-guild-id';
       const result = await mockGuildAPI.joinGuild(guildId);
 
-      expect(result.guildId).toBe(guildId);
-      expect(result.memberCount).toBeGreaterThan(0);
+      expect(result.guild_id).toBe(guildId);
+      expect(result.member_count).toBeGreaterThan(0);
     });
   });
 
@@ -145,16 +145,16 @@ describe('Guild API Client', () => {
       const updateData = {
         name: 'Updated Guild Name',
         description: 'Updated description',
-        isPublic: false,
+        guild_type: 'private',
       };
 
       const result = await mockGuildAPI.updateGuild(guildId, updateData);
 
-      expect(result.guildId).toBe(guildId);
+      expect(result.guild_id).toBe(guildId);
       expect(result.name).toBe(updateData.name);
       expect(result.description).toBe(updateData.description);
-      expect(result.isPublic).toBe(updateData.isPublic);
-      expect(result.updatedAt).toBeDefined();
+      expect(result.guild_type).toBe(updateData.guild_type);
+      expect(result.updated_at).toBeDefined();
     });
   });
 
@@ -182,10 +182,10 @@ describe('Guild API Client', () => {
       expect(result.members.length).toBeGreaterThan(0);
 
       const member = result.members[0];
-      expect(member).toHaveProperty('userId');
+      expect(member).toHaveProperty('user_id');
       expect(member).toHaveProperty('username');
       expect(member).toHaveProperty('role');
-      expect(member).toHaveProperty('joinedAt');
+      expect(member).toHaveProperty('joined_at');
       expect(['owner', 'member']).toContain(member.role);
     });
   });
@@ -210,8 +210,8 @@ describe('Guild API Client', () => {
       const goalId = 'test-goal-id';
       const result = await mockGuildAPI.addGoalToGuild(guildId, goalId);
 
-      expect(result.guildId).toBe(guildId);
-      expect(result.goalCount).toBeGreaterThan(0);
+      expect(result.guild_id).toBe(guildId);
+      expect(result.goal_count).toBeGreaterThan(0);
     });
   });
 
@@ -221,8 +221,8 @@ describe('Guild API Client', () => {
       const goalId = 'test-goal-id';
       const result = await mockGuildAPI.removeGoalFromGuild(guildId, goalId);
 
-      expect(result.guildId).toBe(guildId);
-      expect(result.goalCount).toBeGreaterThanOrEqual(0);
+      expect(result.guild_id).toBe(guildId);
+      expect(result.goal_count).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -232,8 +232,8 @@ describe('Guild API Client', () => {
       const questId = 'test-quest-id';
       const result = await mockGuildAPI.addQuestToGuild(guildId, questId);
 
-      expect(result.guildId).toBe(guildId);
-      expect(result.questCount).toBeGreaterThan(0);
+      expect(result.guild_id).toBe(guildId);
+      expect(result.quest_count).toBeGreaterThan(0);
     });
   });
 
@@ -243,8 +243,8 @@ describe('Guild API Client', () => {
       const questId = 'test-quest-id';
       const result = await mockGuildAPI.removeQuestFromGuild(guildId, questId);
 
-      expect(result.guildId).toBe(guildId);
-      expect(result.questCount).toBeGreaterThanOrEqual(0);
+      expect(result.guild_id).toBe(guildId);
+      expect(result.quest_count).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -253,7 +253,7 @@ describe('Guild API Client', () => {
       const result = await mockGuildAPI.discoverGuilds();
 
       expect(result).toHaveProperty('guilds');
-      expect(result).toHaveProperty('totalCount');
+      expect(result).toHaveProperty('total');
       expect(Array.isArray(result.guilds)).toBe(true);
       expect(result.guilds.length).toBeGreaterThan(0);
     });
@@ -287,7 +287,7 @@ describe('Guild API Client', () => {
 
   describe('API Integration', () => {
     it('should use mock API in development', () => {
-      expect(guildAPI).toBe(mockGuildAPI);
+      expect(guildAPI).not.toBe(mockGuildAPI);
     });
 
     it('should handle async operations with proper timing', async () => {

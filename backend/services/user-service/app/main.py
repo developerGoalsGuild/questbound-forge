@@ -32,6 +32,7 @@ from .models import (
     PasswordChangeRequest,
     PasswordResetRequest,
     SendTempPassword,
+    ResendConfirmationRequest,
     SignupLocal,
     SignupGoogle,
     LoginLocal,
@@ -64,6 +65,38 @@ from .ses_email import send_email
 from .tokens import TokenPurpose, decode_link_token, issue_link_token
 
 # Configure AWS SDK for optimal Lambda performance
+# --- EMAIL CONFIRMATION HELPERS ---
+def _issue_and_send_confirmation(email: str, user_id: str, cid: str | None, raise_on_failure: bool = False) -> None:
+    """Issue confirmation token, store it, and send email. Optionally raise on failure."""
+    try:
+        tok = issue_link_token(f"{email}|{user_id}", TokenPurpose.EMAIL_CONFIRM, CONFIRM_TTL)
+        _ddb_call(
+            core.update_item,
+            op="core.update_item.confirm_token",
+            Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"},
+            UpdateExpression="SET email_confirm_jti=:j, email_confirm_expires_at=:e",
+            ExpressionAttributeValues={":j": tok["jti"], ":e": tok["exp"]},
+        )
+        confirm_link = f"{settings.app_base_url}/confirm-email?token={tok['token']}"
+    except Exception:
+        logger.error("confirm_email.token_issue_or_store_error", exc_info=True)
+        if raise_on_failure:
+            raise HTTPException(status_code=500, detail="Could not issue confirmation")
+        return
+
+    try:
+        send_email(
+            to=email,
+            subject="Confirm your email",
+            html=f"<p>Welcome!</p><p>Confirm your email by clicking <a href='{confirm_link}'>this link</a> (valid 24h).</p>",
+            text=f"Confirm your email: {confirm_link}",
+        )
+        _safe_event("email_confirmation_sent", cid=cid, email=_mask_email(email), jti=tok.get("jti"))
+    except Exception:
+        logger.error("confirm_email.send_error", exc_info=True)
+        if raise_on_failure:
+            raise HTTPException(status_code=500, detail="Unable to send confirmation email")
+        return
 AWS_CONFIG = Config(
     # Enable HTTP keep-alive for better connection reuse
     max_pool_connections=50,
@@ -1234,30 +1267,10 @@ def signup(payload: dict, request: Request):
                 raise HTTPException(status_code=500, detail="Could not create profile")
         # end core-profile-create block
 
-        # email confirmation token stored on core profile
         try:
-            tok = issue_link_token(f"{email}|{user_id}", TokenPurpose.EMAIL_CONFIRM, CONFIRM_TTL)
-            _ddb_call(
-                core.update_item,
-                op="core.update_item.confirm_token",
-                Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"},
-                UpdateExpression="SET email_confirm_jti=:j, email_confirm_expires_at=:e",
-                ExpressionAttributeValues={":j": tok["jti"], ":e": tok["exp"]},
-            )
-            confirm_link = f"{settings.app_base_url}/confirm-email?token={tok['token']}"
-        except Exception:
-            logger.error("signup.local.token_issue_or_store_error", exc_info=True)
-            raise HTTPException(status_code=500, detail="Could not issue confirmation")
-
-        # send email (best effort)
-        try:
-            send_email(
-                to=email,
-                subject="Confirm your email",
-                html=f"<p>Welcome!</p><p>Confirm your email by clicking <a href='{confirm_link}'>this link</a> (valid 24h).</p>",
-                text=f"Confirm your email: {confirm_link}",
-            )
-            _safe_event("email_confirmation_sent", cid=cid, email=_mask_email(email), jti=tok.get("jti"))
+            _issue_and_send_confirmation(email=email, user_id=user_id, cid=cid, raise_on_failure=True)
+        except HTTPException:
+            raise
         except Exception:
             logger.error("signup.local.email_send_error", exc_info=True)
 
@@ -1484,6 +1497,48 @@ def confirm_email(request: Request, token: str = Query(..., min_length=20)):
 
     _safe_event("email_confirmed", cid=cid, email=_mask_email(email))
     return {"message": "Email confirmed. You may now log in."}
+
+
+# --- RESEND CONFIRMATION EMAIL ---
+@app.post("/users/resend-confirmation", response_model=None)
+def resend_confirmation(body: ResendConfirmationRequest, request: Request):
+    cid = request.headers.get("x-correlation-id") if request else None
+    email = body.email.lower()
+
+    # Always respond generically to prevent email enumeration
+    generic_msg = {"message": "If the account exists, a confirmation email has been sent."}
+
+    try:
+        r = core.query(
+            IndexName="GSI3",
+            KeyConditionExpression="#pk = :v",
+            ExpressionAttributeNames={"#pk": "GSI3PK"},
+            ExpressionAttributeValues={":v": f"EMAIL#{email}"},
+            Limit=1,
+        )
+    except Exception:
+        logger.error("resend_confirm.core_query_error", exc_info=True)
+        return generic_msg
+
+    items = r.get("Items") or []
+    item = items[0] if items else None
+    if not item or item.get("provider") != "local":
+        return generic_msg
+
+    if item.get("email_confirmed", False):
+        return generic_msg
+
+    user_id = item.get("id")
+    if not user_id:
+        return generic_msg
+
+    try:
+        _issue_and_send_confirmation(email=email, user_id=user_id, cid=cid, raise_on_failure=False)
+    except Exception:
+        logger.error("resend_confirm.send_error", exc_info=True)
+        return generic_msg
+
+    return generic_msg
 
 # --- LOGIN ENFORCEMENTS ---
 @app.post("/users/login", response_model=None)

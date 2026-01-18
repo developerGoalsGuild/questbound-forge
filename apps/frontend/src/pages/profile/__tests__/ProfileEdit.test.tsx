@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { TranslationProvider } from '@/hooks/useTranslation';
 import ProfileEdit from '../ProfileEdit';
@@ -167,13 +168,23 @@ const mockUserProfile = {
 
 const mockCheckNicknameAvailability = vi.mocked(checkNicknameAvailability);
 
+  const createQueryClient = () =>
+    new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
   const renderProfileEdit = () => {
+    const queryClient = createQueryClient();
     return render(
-      <BrowserRouter>
-        <TranslationProvider>
-          <ProfileEdit />
-        </TranslationProvider>
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <TranslationProvider>
+            <ProfileEdit />
+          </TranslationProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
     );
   };
 

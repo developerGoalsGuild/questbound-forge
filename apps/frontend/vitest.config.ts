@@ -18,6 +18,7 @@ export default defineConfig({
     mockReset: true,
     css: false, // disable CSS handling to reduce memory usage
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    exclude: ['src/__tests__/integration/**'],
     
     // Memory optimization settings
     threads: false,

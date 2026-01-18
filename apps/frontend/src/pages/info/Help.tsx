@@ -23,9 +23,10 @@ const Help: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
-  // Access translations directly from translation files
-  const helpT = helpTranslations[language];
-  const commonT = commonTranslations[language];
+  // Access translations directly from translation files with safe fallback
+  const currentLanguage = language && helpTranslations[language] ? language : 'en';
+  const helpT = helpTranslations[currentLanguage];
+  const commonT = commonTranslations[currentLanguage] || commonTranslations.en;
 
   const categories = [
     { id: 'getting-started', label: helpT.categories.gettingStarted },
@@ -41,7 +42,7 @@ const Help: React.FC = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(faq => {
-        const t = faq.translations[language];
+        const t = faq.translations[currentLanguage] || faq.translations.en;
         return t.question.toLowerCase().includes(query) ||
           t.answer.toLowerCase().includes(query);
       });
@@ -52,7 +53,7 @@ const Help: React.FC = () => {
     }
 
     return filtered;
-  }, [searchQuery, selectedCategory, language]);
+  }, [searchQuery, selectedCategory, currentLanguage]);
 
   const filteredArticles = useMemo(() => {
     let filtered = helpArticles;
@@ -60,7 +61,7 @@ const Help: React.FC = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(article => {
-        const t = article.translations[language];
+        const t = article.translations[currentLanguage] || article.translations.en;
         return t.title.toLowerCase().includes(query) ||
           t.excerpt.toLowerCase().includes(query) ||
           t.content.toLowerCase().includes(query);
@@ -72,7 +73,7 @@ const Help: React.FC = () => {
     }
 
     return filtered;
-  }, [searchQuery, selectedCategory, language]);
+  }, [searchQuery, selectedCategory, currentLanguage]);
 
   const popularArticles = helpArticles.slice(0, 3);
 
@@ -152,7 +153,7 @@ const Help: React.FC = () => {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {popularArticles.map((article) => {
-                const t = article.translations[language];
+                const t = article.translations[currentLanguage] || article.translations.en;
                 return (
                   <Card
                     key={article.slug}
@@ -187,7 +188,7 @@ const Help: React.FC = () => {
               <CardContent className="pt-6">
                 <Accordion type="single" collapsible className="w-full">
                   {filteredFaqs.map((faq) => {
-                    const t = faq.translations[language];
+                    const t = faq.translations[currentLanguage] || faq.translations.en;
                     return (
                       <AccordionItem key={faq.id} value={faq.id}>
                         <AccordionTrigger>{t.question}</AccordionTrigger>
@@ -209,7 +210,7 @@ const Help: React.FC = () => {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredArticles.map((article) => {
-                const t = article.translations[language];
+                const t = article.translations[currentLanguage] || article.translations.en;
                 return (
                   <Card
                     key={article.slug}

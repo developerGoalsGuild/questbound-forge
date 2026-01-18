@@ -313,29 +313,117 @@ export async function requestPasswordReset(email: string): Promise<{ message: st
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (apiKey) headers['x-api-key'] = apiKey;
   
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ email }),
-  });
-  
-  const text = await res.text();
-  let body: any = {};
-  try { body = text ? JSON.parse(text) : {}; } catch {}
-  
-  if (!res.ok) {
-    const msg = body?.detail || body?.message || text || 'Password reset request failed';
-    logger.error('Password reset request failed', {
-      operation: 'requestPasswordReset',
-      status: res.status,
-      error: msg,
-      email,
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email }),
     });
-    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    
+    const text = await res.text();
+    let body: any = {};
+    try { body = text ? JSON.parse(text) : {}; } catch {}
+    
+    if (!res.ok) {
+      const msg = body?.detail || body?.message || text || res.statusText || 'Password reset request failed';
+      const errorMessage = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      logger.error('Password reset request failed', {
+        operation: 'requestPasswordReset',
+        status: res.status,
+        statusText: res.statusText,
+        error: errorMessage,
+        errorBody: body,
+        responseText: text,
+        url,
+        email,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(errorMessage);
+    }
+    
+    logger.info('Password reset request sent', { operation: 'requestPasswordReset', email });
+    return body;
+  } catch (err: any) {
+    // Handle network errors, CORS errors, and other fetch failures
+    const errorMessage = err?.message || err?.toString() || 'Network error. Please check your connection.';
+    logger.error('Password reset request error', {
+      operation: 'requestPasswordReset',
+      error: err,
+      errorMessage,
+      errorType: err?.constructor?.name,
+      errorStack: err?.stack,
+      url,
+      email,
+      timestamp: new Date().toISOString()
+    });
+    
+    // If it's already an Error with a message, re-throw it
+    if (err instanceof Error && err.message) {
+      throw err;
+    }
+    
+    // Otherwise, throw a new error with a user-friendly message
+    throw new Error(errorMessage);
   }
-  
-  logger.info('Password reset request sent', { operation: 'requestPasswordReset', email });
-  return body;
+}
+
+export async function resendConfirmationEmail(email: string): Promise<{ message: string }> {
+  const base = getApiBase();
+  const apiKey = import.meta.env.VITE_API_GATEWAY_KEY;
+  if (!base) throw new Error('API base URL not configured');
+  const url = base.replace(/\/$/, '') + '/users/resend-confirmation';
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (apiKey) headers['x-api-key'] = apiKey;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email }),
+    });
+
+    const text = await res.text();
+    let body: any = {};
+    try { body = text ? JSON.parse(text) : {}; } catch {}
+
+    if (!res.ok) {
+      const msg = body?.detail || body?.message || text || res.statusText || 'Failed to resend confirmation email';
+      const errorMessage = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      logger.error('Resend confirmation failed', {
+        operation: 'resendConfirmationEmail',
+        status: res.status,
+        statusText: res.statusText,
+        error: errorMessage,
+        errorBody: body,
+        responseText: text,
+        url,
+        email,
+        timestamp: new Date().toISOString()
+      });
+      throw new Error(errorMessage);
+    }
+
+    logger.info('Resend confirmation sent', { operation: 'resendConfirmationEmail', email });
+    return body;
+  } catch (err: any) {
+    const errorMessage = err?.message || err?.toString() || 'Network error. Please check your connection.';
+    logger.error('Resend confirmation error', {
+      operation: 'resendConfirmationEmail',
+      error: err,
+      errorMessage,
+      errorType: err?.constructor?.name,
+      errorStack: err?.stack,
+      url,
+      email,
+      timestamp: new Date().toISOString()
+    });
+
+    if (err instanceof Error && err.message) {
+      throw err;
+    }
+
+    throw new Error(errorMessage);
+  }
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {

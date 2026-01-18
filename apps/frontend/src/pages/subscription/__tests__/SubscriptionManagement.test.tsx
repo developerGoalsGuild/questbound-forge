@@ -86,7 +86,10 @@ describe('SubscriptionManagement', () => {
       </TestWrapper>
     );
 
-    expect(screen.getByText('Billing & Subscription')).toBeInTheDocument();
+    const skeletons = screen.getAllByRole('generic').filter((el) =>
+      el.className.includes('animate-pulse')
+    );
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('should display active subscription', async () => {
@@ -109,7 +112,7 @@ describe('SubscriptionManagement', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Current Plan')).toBeInTheDocument();
-      expect(screen.getByText('JOURNEYMAN')).toBeInTheDocument();
+      expect(screen.getByText('Journeyman')).toBeInTheDocument();
       expect(screen.getByText('Active')).toBeInTheDocument();
     });
   });
@@ -166,7 +169,7 @@ describe('SubscriptionManagement', () => {
       expect(screen.getByText(/Are you sure/i)).toBeInTheDocument();
     });
 
-    const confirmButton = screen.getByText(/Cancel Subscription/i);
+    const confirmButton = screen.getByRole('button', { name: /Cancel Subscription/i });
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
@@ -204,7 +207,7 @@ describe('SubscriptionManagement', () => {
       expect(screen.getByText(/Are you sure/i)).toBeInTheDocument();
     });
 
-    const confirmButton = screen.getByText(/Cancel Subscription/i);
+    const confirmButton = screen.getByRole('button', { name: /Cancel Subscription/i });
     fireEvent.click(confirmButton);
 
     await waitFor(() => {

@@ -38,7 +38,9 @@ vi.mock('@/components/ui/tooltip', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  QueryClient: vi.fn().mockImplementation(() => ({})),
+  QueryClient: function QueryClient() {
+    return {};
+  },
   QueryClientProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="query-provider">{children}</div>
 }));
 

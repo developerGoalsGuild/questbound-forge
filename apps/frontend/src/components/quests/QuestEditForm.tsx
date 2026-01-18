@@ -140,7 +140,8 @@ const BasicInfoStep: React.FC<StepProps> = ({
   formData, 
   errors, 
   onFieldChange, 
-  onNext 
+  onNext,
+  quest
 }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;

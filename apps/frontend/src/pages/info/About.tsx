@@ -17,9 +17,10 @@ const About: React.FC = () => {
   const navigate = useNavigate();
   const { language } = useTranslation();
   
-  // Access translations directly from translation files
-  const aboutT = aboutTranslations[language];
-  const commonT = commonTranslations[language];
+  // Access translations directly from translation files with safe fallback
+  const currentLanguage = language && aboutTranslations[language] ? language : 'en';
+  const aboutT = aboutTranslations[currentLanguage];
+  const commonT = commonTranslations[currentLanguage] || commonTranslations.en;
 
   const values = [
     {

@@ -23,9 +23,10 @@ const BlogPost: React.FC = () => {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   
-  // Access translations directly from translation files
-  const blogT = blogTranslations[language];
-  const commonT = commonTranslations[language];
+  // Access translations directly from translation files with safe fallback
+  const currentLanguage = language && blogTranslations[language] ? language : 'en';
+  const blogT = blogTranslations[currentLanguage];
+  const commonT = commonTranslations[currentLanguage] || commonTranslations.en;
 
   const post = blogPosts.find(p => p.slug === slug);
 
@@ -42,13 +43,13 @@ const BlogPost: React.FC = () => {
     }
 
     // Load markdown content - using fetch directly with language-specific file
-    fetch(`/src/data/blog/posts/${post.slug}.${language}.md`)
+    fetch(`/src/data/blog/posts/${post.slug}.${currentLanguage}.md`)
       .then(res => {
         if (res.ok) {
           return res.text();
         }
         // Fallback to English if language-specific file doesn't exist
-        if (language !== 'en') {
+        if (currentLanguage !== 'en') {
           return fetch(`/src/data/blog/posts/${post.slug}.en.md`)
             .then(res => res.ok ? res.text() : Promise.reject());
         }
@@ -60,11 +61,11 @@ const BlogPost: React.FC = () => {
       })
       .catch(() => {
         // Fallback if markdown file doesn't exist
-        const t = post.translations[language];
+        const t = post.translations[currentLanguage] || post.translations.en;
         setContent('# ' + t.title + '\n\n' + t.excerpt);
         setLoading(false);
       });
-  }, [post, language]);
+  }, [post, currentLanguage]);
 
   if (!post) {
     return (
@@ -112,15 +113,15 @@ const BlogPost: React.FC = () => {
               <Badge>{categoryLabel}</Badge>
               {post.featured && <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />}
             </div>
-            <CardTitle className="text-3xl mb-4">{post.translations[language].title}</CardTitle>
+            <CardTitle className="text-3xl mb-4">{(post.translations[currentLanguage] || post.translations.en).title}</CardTitle>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <User className="h-4 w-4" />
-                {post.translations[language].author}
+                {(post.translations[currentLanguage] || post.translations.en).author}
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {new Date(post.date).toLocaleDateString(language === 'en' ? 'en-US' : language === 'es' ? 'es-ES' : 'fr-FR', {
+                {new Date(post.date).toLocaleDateString(currentLanguage === 'en' ? 'en-US' : currentLanguage === 'es' ? 'es-ES' : 'fr-FR', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'

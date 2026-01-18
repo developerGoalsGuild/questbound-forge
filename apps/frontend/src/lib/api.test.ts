@@ -19,6 +19,23 @@ vi.mock('@/graphql/queries', () => ({
   ACTIVE_GOALS_COUNT: 'ACTIVE_GOALS_COUNT',
 }));
 
+vi.mock('@/lib/utils', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    getApiBase: () => 'https://api.example.com/dev',
+    graphqlWithApiKey: vi.fn(async (query: string, variables: any) => {
+      if (query === 'IS_EMAIL_AVAILABLE') {
+        return { isEmailAvailable: variables?.email !== 'taken@example.com' };
+      }
+      if (query === 'IS_NICKNAME_AVAILABLE') {
+        return { isNicknameAvailable: variables?.nickname !== 'neo' };
+      }
+      return {};
+    }),
+  };
+});
+
 import { createUser, isEmailAvailable, isNicknameAvailable, login, authFetch, getAccessToken, renewToken, getUserIdFromToken, requestPasswordReset, resetPassword } from './api';
 import { getActiveGoalsCountForUser } from './apiGoal';
 

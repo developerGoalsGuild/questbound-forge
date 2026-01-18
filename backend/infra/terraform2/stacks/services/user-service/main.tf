@@ -5,7 +5,7 @@
 
 # Use existing ECR image directly (temporarily)
 locals {
-  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_user_service:v3"
+  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_user_service:v4"
 }
 
 module "user_lambda" {

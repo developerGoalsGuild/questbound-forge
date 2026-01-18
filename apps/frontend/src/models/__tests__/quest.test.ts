@@ -93,9 +93,8 @@ describe('Quest Models', () => {
     updatedAt: Date.now(),
     kind: 'quantitative',
     targetCount: 5,
-    countScope: 'any',
-    startAt: Date.now(),
-    periodSeconds: 7 * 24 * 60 * 60, // 7 days
+    countScope: 'completed_tasks',
+    periodDays: 7,
   };
 
   const validLinkedQuest: Quest = {
@@ -107,8 +106,7 @@ describe('Quest Models', () => {
     dependsOnQuestIds: [],
     targetCount: undefined,
     countScope: undefined,
-    startAt: undefined,
-    periodSeconds: undefined,
+    periodDays: undefined,
   };
 
   // ============================================================================
@@ -138,9 +136,9 @@ describe('Quest Models', () => {
     });
 
     it('should have correct QuestCountScope values', () => {
-      const validScopes: QuestCountScope[] = ['any', 'linked'];
+      const validScopes: QuestCountScope[] = ['completed_tasks', 'completed_goals'];
       validScopes.forEach(scope => {
-        expect(['any', 'linked']).toContain(scope);
+        expect(['completed_tasks', 'completed_goals']).toContain(scope);
       });
     });
 
@@ -359,9 +357,9 @@ describe('Quest Models', () => {
       expect(() => QuestRewardXpSchema.parse(50.5)).toThrow();
     });
 
-    it('should default to DEFAULT_REWARD_XP when undefined', () => {
+    it('should allow undefined reward XP', () => {
       const result = QuestRewardXpSchema.parse(undefined);
-      expect(result).toBe(DEFAULT_REWARD_XP);
+      expect(result).toBeUndefined();
     });
   });
 
@@ -396,13 +394,11 @@ describe('Quest Models', () => {
       category: 'Work',
       difficulty: 'medium',
       description: 'Test description',
-      rewardXp: 75,
       tags: ['test'],
       kind: 'quantitative',
       targetCount: 5,
-      countScope: 'any',
-      startAt: Date.now() + 60 * 60 * 1000, // 1 hour from now
-      periodSeconds: 7 * 24 * 60 * 60, // 7 days
+      countScope: 'completed_tasks',
+      periodDays: 7,
     };
 
     it('should validate complete valid input', () => {
@@ -422,7 +418,7 @@ describe('Quest Models', () => {
         title: 'Test Quest',
         category: 'Work',
         kind: 'quantitative',
-        // missing targetCount, countScope, startAt, periodSeconds
+        // missing targetCount, countScope, periodDays
       };
       expect(() => QuestCreateInputSchema.parse(incompleteQuantitative)).toThrow();
     });
@@ -454,7 +450,6 @@ describe('Quest Models', () => {
       expect(result.difficulty).toBe('medium');
       expect(result.privacy).toBe('private');
       expect(result.kind).toBe('linked');
-      expect(result.rewardXp).toBe(DEFAULT_REWARD_XP);
       expect(result.tags).toEqual([]);
     });
   });
@@ -571,8 +566,8 @@ describe('Quest Models', () => {
     });
 
     it('should reject invalid categories', () => {
-      expect(validateQuestCategory('Invalid')).toContain('Invalid option');
-      expect(validateQuestCategory('')).toContain('Invalid option');
+      expect(validateQuestCategory('Invalid')).toContain('Invalid');
+      expect(validateQuestCategory('')).toContain('Invalid');
     });
   });
 
@@ -651,7 +646,6 @@ describe('Quest Models', () => {
       description: 'Valid description',
       category: 'Work',
       difficulty: 'medium',
-      rewardXp: 75,
       tags: ['valid', 'tags'],
       privacy: 'private',
       kind: 'linked',
@@ -677,7 +671,7 @@ describe('Quest Models', () => {
       const invalidFormData = { ...validFormData, category: 'Invalid' };
       const result = validateQuestForm(invalidFormData);
       expect(result.isValid).toBe(false);
-      expect(result.errors.category).toContain('Invalid option');
+      expect(result.errors.category).toContain('Invalid');
     });
 
     it('should initialize touched as empty object', () => {
@@ -697,15 +691,13 @@ describe('Quest Models', () => {
         category: 'Work',
         difficulty: 'hard',
         description: 'Testing all validation rules together',
-        rewardXp: 100,
         tags: ['integration', 'test'],
         deadline: Date.now() + 7 * 24 * 60 * 60 * 1000,
         privacy: 'public',
         kind: 'quantitative',
         targetCount: 10,
-        countScope: 'linked',
-        startAt: Date.now() + 60 * 60 * 1000,
-        periodSeconds: 14 * 24 * 60 * 60,
+        countScope: 'completed_goals',
+        periodDays: 14,
         linkedGoalIds: [validGoalId],
         linkedTaskIds: [validTaskId],
         dependsOnQuestIds: [],
@@ -721,9 +713,8 @@ describe('Quest Models', () => {
         category: 'Fitness',
         kind: 'quantitative',
         targetCount: 30,
-        countScope: 'any',
-        startAt: Date.now() + 60 * 60 * 1000,
-        periodSeconds: 30 * 24 * 60 * 60,
+        countScope: 'completed_tasks',
+        periodDays: 30,
       };
 
       expect(() => QuestCreateInputSchema.parse(quantitativeQuest)).not.toThrow();
@@ -733,7 +724,7 @@ describe('Quest Models', () => {
         title: 'Incomplete Quest',
         category: 'Fitness',
         kind: 'quantitative',
-        // missing targetCount, countScope, startAt, periodSeconds
+        // missing targetCount, countScope, periodDays
       };
 
       expect(() => QuestCreateInputSchema.parse(incompleteQuantitative)).toThrow();

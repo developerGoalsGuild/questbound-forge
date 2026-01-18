@@ -19,11 +19,12 @@ const HelpArticle: React.FC = () => {
   const navigate = useNavigate();
   const { language } = useTranslation();
   
-  // Access translations directly from translation files
-  const helpT = helpTranslations[language];
-  const commonT = commonTranslations[language];
+  // Access translations directly from translation files with safe fallbacks
+  const helpT = helpTranslations[language] || helpTranslations.en;
+  const commonT = commonTranslations[language] || commonTranslations.en;
 
   const article = helpArticles.find(a => a.slug === slug);
+  const articleTranslation = article?.translations?.[language] || article?.translations?.en;
 
   if (!article) {
     return (
@@ -65,13 +66,15 @@ const HelpArticle: React.FC = () => {
         {/* Article */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl">{article.translations[language].title}</CardTitle>
+            <CardTitle className="text-3xl">
+              {articleTranslation?.title || 'Help Article'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div 
               className="prose prose-lg max-w-none"
               dangerouslySetInnerHTML={{ 
-                __html: article.translations[language].content
+                __html: (articleTranslation?.content || '')
                   .replace(/^# (.*$)/gim, '<h1>$1</h1>')
                   .replace(/^## (.*$)/gim, '<h2>$1</h2>')
                   .replace(/^### (.*$)/gim, '<h3>$1</h3>')

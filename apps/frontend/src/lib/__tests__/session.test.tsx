@@ -6,6 +6,7 @@ import '@testing-library/jest-dom/vitest';
 import { SessionKeepAlive } from '@/lib/session';
 
 vi.mock('@/lib/utils', () => ({
+  getAccessToken: vi.fn(() => null),
   getTokenExpiry: vi.fn(),
   renewToken: vi.fn(),
 }));
@@ -15,6 +16,7 @@ import * as api from '@/lib/utils';
 describe('SessionKeepAlive', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (api.getAccessToken as any).mockReturnValue('mock-token');
   });
   afterEach(() => {
     cleanup();

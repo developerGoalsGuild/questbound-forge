@@ -1,7 +1,8 @@
-﻿// src/pages/signup/__tests__/LocalSignUp.test.tsx
+// src/pages/signup/__tests__/LocalSignUp.test.tsx
 import React from 'react';
 import { describe, test, beforeEach, afterEach, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // ----------------------- Mocks -----------------------
 vi.mock('@/hooks/useTranslation', () => {
@@ -94,7 +95,10 @@ vi.mock('@/components/ui/password-input', () => ({
   ),
 }));
 
-vi.mock('@/lib/utils', () => ({ cn: (...xs: string[]) => xs.filter(Boolean).join(' ') }));
+vi.mock('@/lib/utils', () => ({
+  cn: (...xs: string[]) => xs.filter(Boolean).join(' '),
+  getApiBase: () => 'https://api.example.com'
+}));
 
 async function loadComponentWithEmailConfirmation(flag: boolean) {
   vi.resetModules();
@@ -112,6 +116,9 @@ const submitBtn = (container: HTMLElement) =>
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+const renderWithRouter = (ui: React.ReactElement) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
+
 async function selectCountry(container: HTMLElement, query = 'Bra', buttonRe = /Brazil \(BR\)/i) {
   const input = screen.getByPlaceholderText('Select your country') as HTMLInputElement;
   fireEvent.focus(input);
@@ -124,7 +131,6 @@ async function selectCountry(container: HTMLElement, query = 'Bra', buttonRe = /
 }
 
 function fillMinimalValidForm(container: HTMLElement) {
-  fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'user' } });
   fireEvent.change(byId<HTMLInputElement>(container, 'email'), { target: { value: 'user@example.com' } });
   fireEvent.change(byId<HTMLInputElement>(container, 'fullName'), { target: { value: 'Luna Lovegood' } });
   fireEvent.change(byId<HTMLInputElement>(container, 'nickname'), { target: { value: 'lunal' } });
@@ -158,7 +164,7 @@ afterEach(() => {
 describe('LocalSignUp (finalized)', () => {
   test('shows required-field state on empty submit', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     fireEvent.click(submitBtn(container));
 
@@ -171,7 +177,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('debounced email availability toggles color (green then red)', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     const email = byId<HTMLInputElement>(container, 'email');
 
@@ -190,7 +196,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('debounced nickname availability toggles color (green then red)', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     const nick = byId<HTMLInputElement>(container, 'nickname');
 
@@ -209,7 +215,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('validates password complexity and mismatch via aria-invalid', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     // Minimal fields
     fireEvent.change(byId<HTMLInputElement>(container, 'email'), { target: { value: 'a@b.com' } });
@@ -233,7 +239,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('country autocomplete clears invalid after selecting', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     fireEvent.click(submitBtn(container));
     await waitFor(() => expect(byId<HTMLInputElement>(container, 'country')).toHaveAttribute('aria-invalid', 'true'));
@@ -245,7 +251,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('submit WITHOUT email confirmation: creates user; shows success; no confirmEmail', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     api.isEmailAvailable.mockResolvedValue(true);
 
@@ -262,12 +268,14 @@ describe('LocalSignUp (finalized)', () => {
       country: 'BR',
     });
     expect(api.confirmEmail).not.toHaveBeenCalled();
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    }, { timeout: 6000 });
   }, 15000);
 
   test('submit WITH email confirmation: creates user + confirmEmail; shows success', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(true);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     api.isEmailAvailable.mockResolvedValue(true);
 
@@ -283,7 +291,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('maps server error to field (current UI shows global alert)', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     api.isEmailAvailable.mockResolvedValue(true);
     api.createUser.mockRejectedValue({ mapped: true });
@@ -300,7 +308,7 @@ describe('LocalSignUp (finalized)', () => {
 
   test('server-side email re-check failure (current behavior proceeds and shows success)', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);
-    const { container } = render(<LocalSignUp />);
+    const { container } = renderWithRouter(<LocalSignUp />);
 
     // initial debounce OK (we don't explicitly debounce here; just ensure API is true first)
     api.isEmailAvailable.mockResolvedValueOnce(true);
@@ -313,8 +321,9 @@ describe('LocalSignUp (finalized)', () => {
     fireEvent.click(submitBtn(container));
 
     await waitFor(() => expect(api.createUser).toHaveBeenCalledTimes(1));
-    const alert = await screen.findByRole('alert');
-    expect(alert).toBeInTheDocument();
-    expect(alert).toHaveTextContent(/OK/i);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    }, { timeout: 6000 });
+    expect(screen.getByRole('alert')).toHaveTextContent(/OK/i);
   }, 12000);
 });
