@@ -119,3 +119,6 @@ frontend/.env.development
 frontend/.env.development
 backend/services/authorizer-service/build/*
 *.zip
+apps/frontend/.env.development
+backend/services/gamification-service/.version
+apps/frontend/.env.development
