@@ -57,6 +57,11 @@ resource "aws_api_gateway_resource" "password_reset_request" {
   parent_id   = aws_api_gateway_resource.password.id
   path_part   = "reset-request"
 }
+resource "aws_api_gateway_resource" "password_change" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.password.id
+  path_part   = "change"
+}
 resource "aws_api_gateway_resource" "auth"  {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -92,6 +97,618 @@ resource "aws_api_gateway_resource" "waitlist_subscribe" {
   parent_id   = aws_api_gateway_resource.waitlist.id
   path_part   = "subscribe"
 }
+
+# Subscription resources
+resource "aws_api_gateway_resource" "subscriptions" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "subscriptions"
+}
+resource "aws_api_gateway_resource" "subscriptions_current" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.subscriptions.id
+  path_part   = "current"
+}
+resource "aws_api_gateway_resource" "subscriptions_create_checkout" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.subscriptions.id
+  path_part   = "create-checkout"
+}
+resource "aws_api_gateway_resource" "subscriptions_cancel" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.subscriptions.id
+  path_part   = "cancel"
+}
+resource "aws_api_gateway_resource" "subscriptions_portal" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.subscriptions.id
+  path_part   = "portal"
+}
+resource "aws_api_gateway_resource" "subscriptions_update_plan" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.subscriptions.id
+  path_part   = "update-plan"
+}
+
+# Credits resources
+resource "aws_api_gateway_resource" "credits" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "credits"
+}
+resource "aws_api_gateway_resource" "credits_balance" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.credits.id
+  path_part   = "balance"
+}
+resource "aws_api_gateway_resource" "credits_topup" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.credits.id
+  path_part   = "topup"
+}
+
+# Webhook resources
+resource "aws_api_gateway_resource" "webhooks" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
+  path_part   = "webhooks"
+}
+
+resource "aws_api_gateway_resource" "webhooks_stripe" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  parent_id   = aws_api_gateway_resource.webhooks.id
+  path_part   = "stripe"
+}
+
+# POST /subscriptions/create-checkout (authenticated)
+# POST /subscriptions/create-checkout (authenticated)
+resource "aws_api_gateway_method" "subscriptions_create_checkout_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.subscriptions_create_checkout.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "subscriptions_create_checkout_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.subscriptions_create_checkout.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "subscriptions_create_checkout_post_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.subscriptions_create_checkout.id
+  http_method             = aws_api_gateway_method.subscriptions_create_checkout_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "subscriptions_create_checkout_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_create_checkout.id
+  http_method = aws_api_gateway_method.subscriptions_create_checkout_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "subscriptions_create_checkout_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_create_checkout.id
+  http_method = aws_api_gateway_method.subscriptions_create_checkout_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+resource "aws_api_gateway_integration_response" "subscriptions_create_checkout_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_create_checkout.id
+  http_method = aws_api_gateway_method.subscriptions_create_checkout_options.http_method
+  status_code = aws_api_gateway_method_response.subscriptions_create_checkout_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /webhooks/stripe (unauthenticated)
+resource "aws_api_gateway_method" "webhooks_stripe_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.webhooks_stripe.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = false
+}
+
+resource "aws_api_gateway_method" "webhooks_stripe_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.webhooks_stripe.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "webhooks_stripe_post_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.webhooks_stripe.id
+  http_method             = aws_api_gateway_method.webhooks_stripe_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "webhooks_stripe_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.webhooks_stripe.id
+  http_method = aws_api_gateway_method.webhooks_stripe_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "webhooks_stripe_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.webhooks_stripe.id
+  http_method = aws_api_gateway_method.webhooks_stripe_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "webhooks_stripe_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.webhooks_stripe.id
+  http_method = aws_api_gateway_method.webhooks_stripe_options.http_method
+  status_code = aws_api_gateway_method_response.webhooks_stripe_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+# GET /subscriptions/current (authenticated)
+resource "aws_api_gateway_method" "subscriptions_current_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.subscriptions_current.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+
+resource "aws_api_gateway_method" "subscriptions_current_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.subscriptions_current.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+
+resource "aws_api_gateway_integration" "subscriptions_current_get_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.subscriptions_current.id
+  http_method             = aws_api_gateway_method.subscriptions_current_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+
+resource "aws_api_gateway_integration" "subscriptions_current_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_current.id
+  http_method = aws_api_gateway_method.subscriptions_current_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "subscriptions_current_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_current.id
+  http_method = aws_api_gateway_method.subscriptions_current_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "subscriptions_current_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_current.id
+  http_method = aws_api_gateway_method.subscriptions_current_options.http_method
+  status_code = aws_api_gateway_method_response.subscriptions_current_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+
+# POST /subscriptions/cancel (authenticated)
+resource "aws_api_gateway_method" "subscriptions_cancel_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.subscriptions_cancel.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "subscriptions_cancel_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.subscriptions_cancel.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "subscriptions_cancel_post_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.subscriptions_cancel.id
+  http_method             = aws_api_gateway_method.subscriptions_cancel_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "subscriptions_cancel_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_cancel.id
+  http_method = aws_api_gateway_method.subscriptions_cancel_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "subscriptions_cancel_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_cancel.id
+  http_method = aws_api_gateway_method.subscriptions_cancel_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+resource "aws_api_gateway_integration_response" "subscriptions_cancel_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_cancel.id
+  http_method = aws_api_gateway_method.subscriptions_cancel_options.http_method
+  status_code = aws_api_gateway_method_response.subscriptions_cancel_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+
+# GET /subscriptions/portal (authenticated)
+resource "aws_api_gateway_method" "subscriptions_portal_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.subscriptions_portal.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "subscriptions_portal_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.subscriptions_portal.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "subscriptions_portal_get_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.subscriptions_portal.id
+  http_method             = aws_api_gateway_method.subscriptions_portal_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "subscriptions_portal_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_portal.id
+  http_method = aws_api_gateway_method.subscriptions_portal_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "subscriptions_portal_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_portal.id
+  http_method = aws_api_gateway_method.subscriptions_portal_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+resource "aws_api_gateway_integration_response" "subscriptions_portal_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_portal.id
+  http_method = aws_api_gateway_method.subscriptions_portal_options.http_method
+  status_code = aws_api_gateway_method_response.subscriptions_portal_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+
+# POST /subscriptions/update-plan (authenticated)
+resource "aws_api_gateway_method" "subscriptions_update_plan_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.subscriptions_update_plan.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "subscriptions_update_plan_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.subscriptions_update_plan.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "subscriptions_update_plan_post_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.subscriptions_update_plan.id
+  http_method             = aws_api_gateway_method.subscriptions_update_plan_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "subscriptions_update_plan_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_update_plan.id
+  http_method = aws_api_gateway_method.subscriptions_update_plan_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "subscriptions_update_plan_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_update_plan.id
+  http_method = aws_api_gateway_method.subscriptions_update_plan_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+resource "aws_api_gateway_integration_response" "subscriptions_update_plan_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.subscriptions_update_plan.id
+  http_method = aws_api_gateway_method.subscriptions_update_plan_options.http_method
+  status_code = aws_api_gateway_method_response.subscriptions_update_plan_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+
+# GET /credits/balance (authenticated)
+resource "aws_api_gateway_method" "credits_balance_get" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.credits_balance.id
+  http_method      = "GET"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "credits_balance_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.credits_balance.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "credits_balance_get_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.credits_balance.id
+  http_method             = aws_api_gateway_method.credits_balance_get.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "credits_balance_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.credits_balance.id
+  http_method = aws_api_gateway_method.credits_balance_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "credits_balance_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.credits_balance.id
+  http_method = aws_api_gateway_method.credits_balance_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+resource "aws_api_gateway_integration_response" "credits_balance_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.credits_balance.id
+  http_method = aws_api_gateway_method.credits_balance_options.http_method
+  status_code = aws_api_gateway_method_response.credits_balance_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+
+# POST /credits/topup (authenticated)
+resource "aws_api_gateway_method" "credits_topup_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.credits_topup.id
+  http_method      = "POST"
+  authorization    = "CUSTOM"
+  authorizer_id    = aws_api_gateway_authorizer.lambda_authorizer.id
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "credits_topup_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.credits_topup.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "credits_topup_post_integration" {
+  count                    = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.credits_topup.id
+  http_method             = aws_api_gateway_method.credits_topup_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.subscription_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "credits_topup_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.credits_topup.id
+  http_method = aws_api_gateway_method.credits_topup_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "credits_topup_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.credits_topup.id
+  http_method = aws_api_gateway_method.credits_topup_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+    "method.response.header.Access-Control-Max-Age"       = true
+  }
+}
+resource "aws_api_gateway_integration_response" "credits_topup_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.credits_topup.id
+  http_method = aws_api_gateway_method.credits_topup_options.http_method
+  status_code = aws_api_gateway_method_response.credits_topup_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+    "method.response.header.Access-Control-Max-Age"       = "'3600'"
+  }
+  response_templates = {
+    "application/json" = ""
+  }
+}
+
 resource "aws_api_gateway_resource" "quests" {
   rest_api_id = aws_api_gateway_rest_api.rest_api.id
   parent_id   = aws_api_gateway_rest_api.rest_api.root_resource_id
@@ -1265,6 +1882,67 @@ resource "aws_api_gateway_integration_response" "password_reset_request_options_
   resource_id = aws_api_gateway_resource.password_reset_request.id
   http_method = aws_api_gateway_method.password_reset_request_options.http_method
   status_code = aws_api_gateway_method_response.password_reset_request_options_response.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'${local.cors_allow_origin}'"
+  }
+}
+
+# POST /password/change (public + api key, backend validates reset/auth tokens)
+resource "aws_api_gateway_method" "password_change_post" {
+  rest_api_id      = aws_api_gateway_rest_api.rest_api.id
+  resource_id      = aws_api_gateway_resource.password_change.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+resource "aws_api_gateway_method" "password_change_options" {
+  rest_api_id   = aws_api_gateway_rest_api.rest_api.id
+  resource_id   = aws_api_gateway_resource.password_change.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+  request_parameters = {
+    "method.request.header.Access-Control-Request-Headers" = false
+    "method.request.header.Access-Control-Request-Method" = false
+    "method.request.header.Origin" = false
+  }
+}
+resource "aws_api_gateway_integration" "password_change_post_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.rest_api.id
+  resource_id             = aws_api_gateway_resource.password_change.id
+  http_method             = aws_api_gateway_method.password_change_post.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.user_service_lambda_arn}/invocations"
+}
+resource "aws_api_gateway_integration" "password_change_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.password_change.id
+  http_method = aws_api_gateway_method.password_change_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+resource "aws_api_gateway_method_response" "password_change_options_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.password_change.id
+  http_method = aws_api_gateway_method.password_change_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+resource "aws_api_gateway_integration_response" "password_change_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.rest_api.id
+  resource_id = aws_api_gateway_resource.password_change.id
+  http_method = aws_api_gateway_method.password_change_options.http_method
+  status_code = aws_api_gateway_method_response.password_change_options_response.status_code
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'${local.cors_allow_headers}'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT,DELETE'"
@@ -5816,6 +6494,8 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.user_login_options,
       aws_api_gateway_method.password_reset_request_post,
       aws_api_gateway_method.password_reset_request_options,
+      aws_api_gateway_method.password_change_post,
+      aws_api_gateway_method.password_change_options,
       aws_api_gateway_method.health_get,
       aws_api_gateway_method.health_options,
       aws_api_gateway_method.auth_renew_post,
@@ -5989,6 +6669,39 @@ resource "aws_api_gateway_deployment" "deployment" {
       aws_api_gateway_method.xp_current_options,
       aws_api_gateway_method.xp_history_get,
       aws_api_gateway_method.xp_history_options,
+      # Subscription service methods
+      aws_api_gateway_method.subscriptions_create_checkout_post,
+      aws_api_gateway_method.subscriptions_create_checkout_options,
+      aws_api_gateway_method_response.subscriptions_create_checkout_options_response,
+      aws_api_gateway_integration_response.subscriptions_create_checkout_options_integration_response,
+      aws_api_gateway_method.webhooks_stripe_post,
+      aws_api_gateway_method.webhooks_stripe_options,
+      aws_api_gateway_method_response.webhooks_stripe_options_response,
+      aws_api_gateway_integration_response.webhooks_stripe_options_integration_response,
+      aws_api_gateway_method.subscriptions_current_get,
+      aws_api_gateway_method.subscriptions_current_options,
+      aws_api_gateway_method_response.subscriptions_current_options_response,
+      aws_api_gateway_integration_response.subscriptions_current_options_integration_response,
+      aws_api_gateway_method.subscriptions_cancel_post,
+      aws_api_gateway_method.subscriptions_cancel_options,
+      aws_api_gateway_method_response.subscriptions_cancel_options_response,
+      aws_api_gateway_integration_response.subscriptions_cancel_options_integration_response,
+      aws_api_gateway_method.subscriptions_portal_get,
+      aws_api_gateway_method.subscriptions_portal_options,
+      aws_api_gateway_method_response.subscriptions_portal_options_response,
+      aws_api_gateway_integration_response.subscriptions_portal_options_integration_response,
+      aws_api_gateway_method.subscriptions_update_plan_post,
+      aws_api_gateway_method.subscriptions_update_plan_options,
+      aws_api_gateway_method_response.subscriptions_update_plan_options_response,
+      aws_api_gateway_integration_response.subscriptions_update_plan_options_integration_response,
+      aws_api_gateway_method.credits_balance_get,
+      aws_api_gateway_method.credits_balance_options,
+      aws_api_gateway_method_response.credits_balance_options_response,
+      aws_api_gateway_integration_response.credits_balance_options_integration_response,
+      aws_api_gateway_method.credits_topup_post,
+      aws_api_gateway_method.credits_topup_options,
+      aws_api_gateway_method_response.credits_topup_options_response,
+      aws_api_gateway_integration_response.credits_topup_options_integration_response,
       aws_api_gateway_method.levels_me_get,
       aws_api_gateway_method.levels_me_options,
       aws_api_gateway_method.levels_history_get,
@@ -6026,6 +6739,8 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.user_login_options_integration,
     aws_api_gateway_integration.password_reset_request_post_integration,
     aws_api_gateway_integration.password_reset_request_options_integration,
+    aws_api_gateway_integration.password_change_post_integration,
+    aws_api_gateway_integration.password_change_options_integration,
     aws_api_gateway_integration.health_get_integration,
     aws_api_gateway_integration.health_options_integration,
     aws_api_gateway_integration.auth_renew_post_integration,
@@ -7347,6 +8062,15 @@ resource "aws_lambda_permission" "allow_gamification" {
   statement_id  = "AllowAPIGatewayInvokeGamification"
   action        = "lambda:InvokeFunction"
   function_name = split(":", var.gamification_service_lambda_arn)[6]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "allow_subscription" {
+  count         = var.subscription_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.subscription_service_lambda_arn)) > 0 ? 1 : 0
+  statement_id  = "AllowAPIGatewayInvokeSubscription"
+  action        = "lambda:InvokeFunction"
+  function_name = split(":", var.subscription_service_lambda_arn)[6]
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.rest_api.execution_arn}/*/*"
 }

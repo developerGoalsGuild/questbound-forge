@@ -111,6 +111,7 @@ describe('frontend api lib', () => {
         clear: () => store.clear(),
       }
     });
+    vi.stubEnv('VITE_API_GATEWAY_KEY', 'test-api-key');
     const tok = 'eyJhbGciOiJIUzI1NiJ9.' + btoa(JSON.stringify({ sub: 'u' })) + '.sig';
     localStorage.setItem('auth', JSON.stringify({ token_type: 'Bearer', access_token: tok, expires_in: 3600 }));
     const spy = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: true, text: async () => '' } as any);
@@ -120,6 +121,43 @@ describe('frontend api lib', () => {
     const headers = (init as any).headers;
     const auth = headers.get ? headers.get('authorization') : headers['authorization'];
     expect(auth).toMatch(/^Bearer /);
+    const apiKey = headers.get ? headers.get('x-api-key') : headers['x-api-key'];
+    expect(apiKey).toBe('test-api-key');
+  });
+
+  it('authFetch throws when no token is available', async () => {
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => store.clear(),
+      }
+    });
+    const spy = vi.spyOn(globalThis, 'fetch' as any);
+    await expect(authFetch('/protected', { method: 'GET' })).rejects.toThrow(/session expired/i);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('authFetch clears invalid tokens and throws before request', async () => {
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v); },
+        removeItem: (k: string) => { store.delete(k); },
+        clear: () => store.clear(),
+      }
+    });
+    localStorage.setItem('auth', JSON.stringify({ token_type: 'Bearer', access_token: 'not-a-jwt', expires_in: 3600 }));
+    const spy = vi.spyOn(globalThis, 'fetch' as any);
+
+    await expect(authFetch('/protected', { method: 'GET' })).rejects.toThrow(/session expired/i);
+    expect(localStorage.getItem('auth')).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('authFetch renews token when expiring soon', async () => {

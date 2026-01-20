@@ -34,6 +34,32 @@ class CheckoutSessionResponse(BaseModel):
     url: str
 
 
+class CancelSubscriptionRequest(BaseModel):
+    """Request to cancel subscription."""
+    cancel_at_period_end: bool = True
+
+
+class CancelSubscriptionResponse(BaseModel):
+    """Subscription cancellation response."""
+    subscription_id: str
+    status: SubscriptionStatus
+    cancel_at_period_end: bool
+
+
+class UpdatePlanRequest(BaseModel):
+    """Request to update subscription plan."""
+    plan_tier: SubscriptionTier
+    change_timing: Optional[Literal["immediate", "period_end"]] = None
+
+
+class UpdatePlanResponse(BaseModel):
+    """Subscription plan update response."""
+    subscription_id: str
+    plan_tier: SubscriptionTier
+    status: SubscriptionStatus
+    cancel_at_period_end: bool
+
+
 class FounderPassCheckoutRequest(BaseModel):
     """Request to create a founder pass checkout."""
     pass_type: FounderPassType

@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { TranslationProvider } from '@/hooks/useTranslation';
 import ProfileEdit from '../ProfileEdit';
 import { checkNicknameAvailability, getProfile } from '@/lib/apiProfile';
+import { getCurrentSubscription, createCheckoutSession } from '@/lib/api/subscription';
 
 // Mock the API module
 vi.mock('@/lib/apiProfile', () => ({
@@ -16,6 +17,12 @@ vi.mock('@/lib/apiProfile', () => ({
     { code: 'CA', name: 'Canada' },
     { code: 'MX', name: 'Mexico' },
   ]),
+}));
+
+vi.mock('@/lib/api/subscription', () => ({
+  getCurrentSubscription: vi.fn(),
+  createCheckoutSession: vi.fn(),
+  updateSubscriptionPlan: vi.fn(),
 }));
 
 // Mock the GraphQL API module
@@ -195,6 +202,20 @@ describe('ProfileEdit', () => {
     vi.mocked(getProfile).mockResolvedValue(mockUserProfile);
     // Mock successful nickname availability check
     mockCheckNicknameAvailability.mockResolvedValue(true);
+    vi.mocked(getCurrentSubscription).mockResolvedValue({
+      subscription_id: null,
+      plan_tier: null,
+      status: null,
+      stripe_customer_id: null,
+      current_period_start: null,
+      current_period_end: null,
+      cancel_at_period_end: false,
+      has_active_subscription: false,
+    });
+    vi.mocked(createCheckoutSession).mockResolvedValue({
+      session_id: 'cs_123',
+      url: 'https://checkout.example.com/session',
+    });
   });
 
   describe('Nickname Validation', () => {
@@ -383,6 +404,23 @@ describe('ProfileEdit', () => {
         expect(screen.getByText('developer')).toBeInTheDocument();
         expect(screen.getByText('gamer')).toBeInTheDocument();
       }, { timeout: 3000 });
+    });
+
+    it('should render subscription plans when tab is selected', async () => {
+      renderProfileEdit();
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit Profile')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Subscription' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Subscription Plans')).toBeInTheDocument();
+        expect(screen.getByText('INITIATE')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      expect(getCurrentSubscription).toHaveBeenCalledTimes(1);
     });
   });
 });

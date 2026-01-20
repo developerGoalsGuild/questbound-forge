@@ -1,20 +1,11 @@
 from __future__ import annotations
 import logging
-import os
 from typing import Optional, Literal
+import stripe
 from .settings import Settings
+from .mock_stripe import MockStripe as mock_stripe_module, MockStripeClient
 
 logger = logging.getLogger(__name__)
-
-# Check if we should use mock Stripe in dev
-USE_MOCK_STRIPE = os.getenv("ENVIRONMENT", "dev").lower() == "dev" and not os.getenv("STRIPE_SECRET_KEY")
-
-if USE_MOCK_STRIPE:
-    logger.info("Using mock Stripe client for development")
-    from .mock_stripe import MockStripe as stripe, MockStripeClient
-else:
-    import stripe
-    MockStripeClient = None
 
 # Stripe plan tier mapping
 TIER_TO_PRICE_ID = {
@@ -35,7 +26,8 @@ class StripeClient:
     
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.is_mock = USE_MOCK_STRIPE
+        self.is_mock = settings.use_mock_stripe
+        self._stripe = mock_stripe_module if self.is_mock else stripe
         
         if self.is_mock:
             # Use mock client in dev
@@ -47,7 +39,7 @@ class StripeClient:
             if not settings.stripe_secret_key:
                 raise ValueError("Stripe secret key is required")
             
-            stripe.api_key = settings.stripe_secret_key
+            self._stripe.api_key = settings.stripe_secret_key
             self.webhook_secret = settings.stripe_webhook_secret
         
         # Initialize price IDs from environment (can be overridden)
@@ -55,6 +47,15 @@ class StripeClient:
             tier: getattr(settings, f"stripe_price_id_{tier.lower()}", None)
             for tier in TIER_TO_PRICE_ID.keys()
         }
+
+    def get_tier_for_price_id(self, price_id: Optional[str]) -> Optional[str]:
+        """Map Stripe price ID to subscription tier."""
+        if not price_id:
+            return None
+        for tier, configured_price_id in self.price_ids.items():
+            if configured_price_id == price_id:
+                return tier
+        return None
     
     def create_customer(
         self,
@@ -85,7 +86,7 @@ class StripeClient:
             
             # Real Stripe API
             # Search for existing customer by metadata
-            customers = stripe.Customer.search(
+            customers = self._stripe.Customer.search(
                 query=f"metadata['user_id']:'{user_id}'"
             )
             
@@ -94,7 +95,7 @@ class StripeClient:
                 return customers.data[0]
             
             # Create new customer
-            customer = stripe.Customer.create(
+            customer = self._stripe.Customer.create(
                 email=email,
                 metadata=metadata,
             )
@@ -131,7 +132,7 @@ class StripeClient:
                 )
             
             # Real Stripe API
-            session = stripe.checkout.Session.create(
+            session = self._stripe.checkout.Session.create(
                 customer=customer_id,
                 payment_method_types=["card"],
                 line_items=[{
@@ -142,6 +143,9 @@ class StripeClient:
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata=metadata,
+                subscription_data={
+                    "metadata": metadata,
+                },
                 allow_promotion_codes=True,
             )
             logger.info(f"Created checkout session: {session.id}")
@@ -179,7 +183,7 @@ class StripeClient:
                 )
             
             # Real Stripe API
-            session = stripe.checkout.Session.create(
+            session = self._stripe.checkout.Session.create(
                 customer=customer_id,
                 payment_method_types=["card"],
                 line_items=[{
@@ -222,7 +226,7 @@ class StripeClient:
                 )
             
             # Real Stripe API
-            session = stripe.billing_portal.Session.create(
+            session = self._stripe.billing_portal.Session.create(
                 customer=customer_id,
                 return_url=return_url,
             )
@@ -251,12 +255,12 @@ class StripeClient:
             
             # Real Stripe API
             if cancel_at_period_end:
-                subscription = stripe.Subscription.modify(
+                subscription = self._stripe.Subscription.modify(
                     subscription_id,
                     cancel_at_period_end=True,
                 )
             else:
-                subscription = stripe.Subscription.cancel(subscription_id)
+                subscription = self._stripe.Subscription.cancel(subscription_id)
             
             logger.info(f"Canceled subscription {subscription_id} (at_period_end={cancel_at_period_end})")
             return subscription
@@ -265,6 +269,48 @@ class StripeClient:
                 logger.error(f"Mock Stripe error canceling subscription: {e}")
             else:
                 logger.error(f"Stripe error canceling subscription: {e}")
+            raise
+
+    def update_subscription_plan(
+        self,
+        subscription_id: str,
+        price_id: str,
+        proration_behavior: str = "create_prorations",
+        billing_cycle_anchor: str = "now"
+    ):
+        """Update subscription plan."""
+        try:
+            if self.is_mock and self.mock_client:
+                return self.mock_client.update_subscription_plan(
+                    subscription_id=subscription_id,
+                    price_id=price_id,
+                    proration_behavior=proration_behavior,
+                    billing_cycle_anchor=billing_cycle_anchor,
+                )
+
+            subscription = self._stripe.Subscription.retrieve(subscription_id)
+            subscription = self._stripe.Subscription.retrieve(subscription_id)
+            items = subscription.get("items", {}).get("data", [])
+            if not items:
+                raise ValueError("Subscription has no items to update")
+
+            item_id = items[0].get("id")
+            if not item_id:
+                raise ValueError("Subscription item ID not found")
+
+            updated = self._stripe.Subscription.modify(
+                subscription_id,
+                items=[{"id": item_id, "price": price_id}],
+                proration_behavior=proration_behavior,
+                billing_cycle_anchor=billing_cycle_anchor,
+            )
+            logger.info(f"Updated subscription {subscription_id} to price {price_id}")
+            return updated
+        except Exception as e:
+            if self.is_mock:
+                logger.error(f"Mock Stripe error updating subscription plan: {e}")
+            else:
+                logger.error(f"Stripe error updating subscription plan: {e}")
             raise
     
     def get_subscription(self, subscription_id: str):
@@ -302,7 +348,7 @@ class StripeClient:
             if not signature:
                 raise ValueError("Webhook signature is required")
             
-            return stripe.Webhook.construct_event(
+            return self._stripe.Webhook.construct_event(
                 payload, signature, self.webhook_secret
             )
         except ValueError as e:

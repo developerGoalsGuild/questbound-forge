@@ -23,6 +23,7 @@ vi.mock('@/hooks/useTranslation', () => ({
           portal: 'Billing Portal',
           manageBilling: 'Manage Billing',
           portalFailed: 'Failed to access billing portal',
+          portalUnavailable: 'Billing portal is not available for this account.',
         },
       },
     },
@@ -130,6 +131,25 @@ describe('BillingPortal', () => {
     await waitFor(() => {
       expect(getBillingPortalUrl).toHaveBeenCalledWith(customReturnUrl);
     });
+  });
+
+  it('should show warning when portal URL is unavailable', async () => {
+    vi.mocked(getBillingPortalUrl).mockResolvedValueOnce(null);
+
+    render(
+      <TestWrapper>
+        <BillingPortal />
+      </TestWrapper>
+    );
+
+    const button = screen.getByText('Manage Billing');
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(getBillingPortalUrl).toHaveBeenCalled();
+    });
+
+    expect(window.location.href).toBe('http://localhost:3000/test');
   });
 
   it('should show loading state while opening portal', async () => {

@@ -23,6 +23,9 @@ vi.mock('@/hooks/useTranslation', () => ({
         checkout: {
           success: 'Payment Successful!',
           error: 'Payment error occurred',
+          processing: 'Processing...',
+          verifying: 'Verifying your subscription...',
+          delayed: 'Payment delayed',
         },
       },
     },
@@ -102,7 +105,35 @@ describe('CheckoutSuccess', () => {
     });
   });
 
-  it('should display error message for inactive subscription', async () => {
+  it('should stop polling after subscription becomes active', async () => {
+    vi.useFakeTimers();
+    const mockSubscription = {
+      subscription_id: 'sub_123',
+      plan_tier: 'JOURNEYMAN',
+      status: 'active',
+      has_active_subscription: true,
+      cancel_at_period_end: false,
+    };
+
+    vi.mocked(getCurrentSubscription).mockResolvedValueOnce(mockSubscription);
+
+    render(
+      <TestWrapper>
+        <CheckoutSuccess />
+      </TestWrapper>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Payment Successful!')).toBeInTheDocument();
+    });
+
+    await vi.advanceTimersByTimeAsync(4000);
+
+    expect(getCurrentSubscription).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('should display verification message for inactive subscription', async () => {
     const mockSubscription = {
       subscription_id: null,
       plan_tier: null,
@@ -120,7 +151,7 @@ describe('CheckoutSuccess', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Payment error occurred/i)).toBeInTheDocument();
+      expect(screen.getByText(/Verifying your subscription/i)).toBeInTheDocument();
     });
   });
 

@@ -36,6 +36,7 @@ export interface SubscriptionTranslations {
     billing: BillingTranslations;
     founder: FounderTranslations;
     errors: ErrorTranslations;
+    messages: MessageTranslations;
   };
 }
 
@@ -68,6 +69,9 @@ interface CheckoutTranslations {
   success: string;
   canceled: string;
   error: string;
+  processing: string;
+  verifying: string;
+  delayed: string;
 }
 
 interface BillingTranslations {
@@ -101,6 +105,13 @@ interface ErrorTranslations {
   portalFailed: string;
   balanceFailed: string;
   topUpFailed: string;
+  updateFailed: string;
+}
+
+interface MessageTranslations {
+  updated: string;
+  updateSuccess: string;
+  processing: string;
 }
 
 export const subscriptionTranslations = {
@@ -207,6 +218,9 @@ export const subscriptionTranslations = {
         success: 'Payment successful!',
         canceled: 'Payment canceled',
         error: 'Payment error occurred',
+        processing: 'Processing...',
+        verifying: 'Verifying your subscription...',
+        delayed: 'Payment is taking longer than expected',
       },
       billing: {
         title: 'Billing & Subscription',
@@ -250,6 +264,12 @@ export const subscriptionTranslations = {
         portalFailed: 'Failed to access billing portal',
         balanceFailed: 'Failed to load credit balance',
         topUpFailed: 'Failed to top up credits',
+        updateFailed: 'Failed to update subscription plan',
+      },
+      messages: {
+        updated: 'Subscription updated',
+        updateSuccess: 'Your subscription plan has been updated.',
+        processing: 'Processing subscription request',
       },
     },
   },
@@ -356,6 +376,9 @@ export const subscriptionTranslations = {
         success: '¡Pago exitoso!',
         canceled: 'Pago cancelado',
         error: 'Ocurrió un error en el pago',
+        processing: 'Procesando...',
+        verifying: 'Verificando tu suscripción...',
+        delayed: 'El pago está tardando más de lo esperado',
       },
       billing: {
         title: 'Facturación y Suscripción',
@@ -399,6 +422,12 @@ export const subscriptionTranslations = {
         portalFailed: 'Error al acceder al portal de facturación',
         balanceFailed: 'Error al cargar saldo de créditos',
         topUpFailed: 'Error al recargar créditos',
+        updateFailed: 'Error al actualizar el plan de suscripción',
+      },
+      messages: {
+        updated: 'Suscripción actualizada',
+        updateSuccess: 'Tu plan de suscripción ha sido actualizado.',
+        processing: 'Procesando solicitud de suscripción',
       },
     },
   },
@@ -505,6 +534,9 @@ export const subscriptionTranslations = {
         success: 'Paiement réussi!',
         canceled: 'Paiement annulé',
         error: 'Une erreur de paiement s\'est produite',
+        processing: 'Traitement...',
+        verifying: 'Vérification de votre abonnement...',
+        delayed: 'Le paiement prend plus de temps que prévu',
       },
       billing: {
         title: 'Facturation et Abonnement',
@@ -548,6 +580,12 @@ export const subscriptionTranslations = {
         portalFailed: 'Échec de l\'accès au portail de facturation',
         balanceFailed: 'Échec du chargement du solde de crédits',
         topUpFailed: 'Échec du rechargement des crédits',
+        updateFailed: 'Échec de la mise à jour du plan d\'abonnement',
+      },
+      messages: {
+        updated: 'Abonnement mis à jour',
+        updateSuccess: 'Votre plan d\'abonnement a été mis à jour.',
+        processing: 'Traitement de la demande d\'abonnement',
       },
     },
   },

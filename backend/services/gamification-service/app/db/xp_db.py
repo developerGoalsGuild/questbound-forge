@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 XP database operations for the gamification service.
 

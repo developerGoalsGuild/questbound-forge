@@ -10,6 +10,7 @@ import {
   getCurrentSubscription,
   createCheckoutSession,
   cancelSubscription,
+  updateSubscriptionPlan,
   getBillingPortalUrl,
   getCreditBalance,
   topUpCredits,
@@ -77,9 +78,32 @@ describe('Subscription API Client', () => {
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
             Authorization: 'Bearer mock-token',
+            'x-api-key': 'mock-api-key',
           }),
         })
       );
+    });
+
+    it('should return empty subscription on forbidden response', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ detail: 'Forbidden' }),
+      });
+
+      const result = await getCurrentSubscription();
+
+      expect(result).toEqual({
+        subscription_id: null,
+        plan_tier: null,
+        status: null,
+        stripe_customer_id: null,
+        current_period_start: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        has_active_subscription: false,
+      });
     });
 
     it('should handle API errors', async () => {
@@ -148,15 +172,22 @@ describe('Subscription API Client', () => {
 
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
+      const mockResponse = {
+        subscription_id: 'sub_123',
+        status: 'canceled',
+        cancel_at_period_end: true,
+      };
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
+        json: async () => mockResponse,
       });
 
-      await expect(cancelSubscription()).resolves.not.toThrow();
+      await expect(cancelSubscription()).resolves.toEqual(mockResponse);
       expect(global.fetch).toHaveBeenCalledWith(
         '/v1/subscriptions/cancel',
         expect.objectContaining({
           method: 'POST',
+          body: JSON.stringify({}),
         })
       );
     });
@@ -170,6 +201,45 @@ describe('Subscription API Client', () => {
       });
 
       await expect(cancelSubscription()).rejects.toThrow('Cannot cancel inactive subscription');
+    });
+  });
+
+  describe('updateSubscriptionPlan', () => {
+    it('should update subscription plan successfully', async () => {
+      const mockResponse = {
+        subscription_id: 'sub_123',
+        plan_tier: 'SAGE',
+        status: 'active',
+        cancel_at_period_end: false,
+      };
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await updateSubscriptionPlan({ plan_tier: 'SAGE', change_timing: 'immediate' });
+
+      expect(result).toEqual(mockResponse);
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/v1/subscriptions/update-plan',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ plan_tier: 'SAGE', change_timing: 'immediate' }),
+        })
+      );
+    });
+
+    it('should handle update plan errors', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: async () => ({ detail: 'Already on selected plan' }),
+      });
+
+      await expect(
+        updateSubscriptionPlan({ plan_tier: 'SAGE', change_timing: 'immediate' })
+      ).rejects.toThrow('Already on selected plan');
     });
   });
 
@@ -204,6 +274,17 @@ describe('Subscription API Client', () => {
       });
 
       await expect(getBillingPortalUrl('https://example.com/return')).rejects.toThrow('No customer found');
+    });
+
+    it('should return null when portal access is forbidden', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ detail: 'Forbidden' }),
+      });
+
+      await expect(getBillingPortalUrl('https://example.com/return')).resolves.toBeNull();
     });
   });
 
@@ -240,6 +321,21 @@ describe('Subscription API Client', () => {
       });
 
       await expect(getCreditBalance()).rejects.toThrow('Database error');
+    });
+
+    it('should return empty balance when forbidden', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ detail: 'Forbidden' }),
+      });
+
+      await expect(getCreditBalance()).resolves.toEqual({
+        balance: 0,
+        last_top_up: null,
+        last_reset: null,
+      });
     });
   });
 

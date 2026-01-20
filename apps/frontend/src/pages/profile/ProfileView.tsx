@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useTranslation } from '@/hooks/useTranslation';
 import { XPDisplay } from '@/components/gamification/XPDisplay';
 import { BadgeDisplay } from '@/components/gamification/BadgeDisplay';
+import { getCurrentSubscription } from '@/lib/api/subscription';
 import {
   User,
   Mail,
@@ -28,6 +30,17 @@ const ProfileView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { profile, loading, error, refetch } = useUserProfile();
+
+  // Fetch current subscription to get the actual tier
+  const {
+    data: subscription,
+    isLoading: subscriptionLoading,
+  } = useQuery({
+    queryKey: ['current-subscription'],
+    queryFn: getCurrentSubscription,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
@@ -326,7 +339,13 @@ const ProfileView = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">{profile.tier.toUpperCase()}</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {subscriptionLoading ? (
+                      <Skeleton className="h-8 w-20 mx-auto" />
+                    ) : (
+                      (subscription?.plan_tier || profile.tier || 'FREE').toUpperCase()
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground">Tier</p>
                 </div>
                 <div className="text-center">

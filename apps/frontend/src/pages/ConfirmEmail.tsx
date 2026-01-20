@@ -14,7 +14,8 @@ import {
 import { Language } from '@/i18n/translations';
 import { logger } from '@/lib/logger';
 import { getApiBase } from '@/lib/utils';
-import { resendConfirmationEmail } from '@/lib/api';
+import { resendConfirmationEmail, login } from '@/lib/api';
+import { createCheckoutSession, SubscriptionTier } from '@/lib/api/subscription';
 
 const ConfirmEmail = () => {
   const { t, language, setLanguage } = useTranslation();
@@ -122,9 +123,33 @@ const ConfirmEmail = () => {
           timestamp: new Date().toISOString()
         });
 
-        // Redirect to login after 3 seconds
+        // Check if user has a pending subscription tier
+        // If email is in the response, try to auto-login and redirect to checkout
+        const userEmail = body.email || searchParams.get('email');
+        const subscriptionTier = body.subscription_tier || searchParams.get('subscription_tier');
+        
+        if (userEmail && subscriptionTier) {
+          // Try to auto-login and redirect to checkout
+          try {
+            // Note: We need the password, but we don't have it here
+            // The user will need to log in manually, but we can redirect them
+            // to a page that prompts for subscription checkout after login
+            // For now, store the subscription tier in sessionStorage
+            sessionStorage.setItem('pending_subscription_tier', subscriptionTier);
+            logger.info('Pending subscription tier stored', { tier: subscriptionTier });
+          } catch (err) {
+            logger.warn('Could not store pending subscription tier', { error: err });
+          }
+        }
+
+        // Redirect to login after 3 seconds (or immediately if we have subscription info)
         setTimeout(() => {
-          navigate('/login');
+          if (subscriptionTier) {
+            // Redirect to login with a hint to complete subscription
+            navigate('/login?subscription_pending=true');
+          } else {
+            navigate('/login');
+          }
         }, 3000);
       } catch (err: any) {
         const errorMsg = err?.message || 'Network error. Please check your connection and try again.';

@@ -137,13 +137,13 @@ const SubscriptionManagement: React.FC = () => {
               <span>{billingTranslations.currentPlan || 'Current Plan'}</span>
               {currentTier && <TierBadge tier={currentTier} />}
             </CardTitle>
-            <CardDescription>
+            <div className="text-sm text-muted-foreground">
               {status && (
                 <Badge variant={status === 'active' ? 'default' : 'secondary'} className="mt-2">
                   {subscriptionTranslations[status] || status}
                 </Badge>
               )}
-            </CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {hasActiveSubscription ? (

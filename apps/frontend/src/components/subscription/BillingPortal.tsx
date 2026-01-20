@@ -36,6 +36,14 @@ export const BillingPortal: React.FC<BillingPortalProps> = ({
     mutationFn: (url: string) => getBillingPortalUrl(url),
     onSuccess: (portalUrl) => {
       setIsOpening(false);
+      if (!portalUrl) {
+        toast({
+          title: billingTranslations.portalFailed || 'Billing Portal Unavailable',
+          description: billingTranslations.portalUnavailable || 'Billing portal is not available for this account.',
+          variant: 'destructive',
+        });
+        return;
+      }
       window.location.href = portalUrl;
     },
     onError: (error: any) => {

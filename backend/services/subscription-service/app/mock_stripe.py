@@ -181,6 +181,22 @@ class MockStripeClient:
             logger.info(f"Mock subscription {subscription_id} canceled immediately")
         
         return subscription
+
+    def update_subscription_plan(
+        self,
+        subscription_id: str,
+        price_id: str,
+        proration_behavior: str = "create_prorations",
+        billing_cycle_anchor: str = "now"
+    ) -> MockSubscription:
+        """Update mock subscription plan."""
+        subscription = self.get_subscription(subscription_id)
+        subscription.items = {"data": [{"price": {"id": price_id}}]}
+        logger.info(
+            f"Updated mock subscription {subscription_id} to price {price_id} "
+            f"(proration={proration_behavior}, anchor={billing_cycle_anchor})"
+        )
+        return subscription
     
     def get_subscription(self, subscription_id: str) -> MockSubscription:
         """Retrieve mock subscription."""

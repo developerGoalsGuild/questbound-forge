@@ -1049,6 +1049,7 @@ def signup(payload: dict, request: Request):
             # Store selected subscription tier for tracking (actual subscription created via Stripe webhook)
             if subscription_tier:
                 profile_item["selected_subscription_tier"] = subscription_tier
+                profile_item["selected_subscription_tier_updated_at"] = created_at_iso
 
             # Only set nickname keys if a valid nickname was provided
             def _valid_nickname(n: str) -> bool:
@@ -1267,10 +1268,19 @@ def signup(payload: dict, request: Request):
                 raise HTTPException(status_code=500, detail="Could not create profile")
         # end core-profile-create block
 
+        # In development mode, don't fail signup if email sending fails (SES might not be configured)
         try:
-            _issue_and_send_confirmation(email=email, user_id=user_id, cid=cid, raise_on_failure=True)
+            _issue_and_send_confirmation(
+                email=email, 
+                user_id=user_id, 
+                cid=cid, 
+                raise_on_failure=not settings.is_development()
+            )
         except HTTPException:
-            raise
+            # Only raise HTTPException if not in development mode
+            if not settings.is_development():
+                raise
+            logger.warning("signup.local.email_send_error_dev", extra={"email": _mask_email(email)}, exc_info=True)
         except Exception:
             logger.error("signup.local.email_send_error", exc_info=True)
 
@@ -1861,8 +1871,18 @@ def change_password(
 
     def _load_user_by_email(_email: str):
         try:
-            r = _ddb_call(users.get_item, op="users.get_item.change_pwd", Key={"pk": f"USER#{_email}", "sk": "PROFILE"})
-            return r.get("Item")
+            # Query core table via GSI3 (same approach as login)
+            r = _ddb_call(
+                core.query,
+                op="core.query.change_pwd",
+                IndexName="GSI3",
+                KeyConditionExpression="#pk = :v",
+                ExpressionAttributeNames={"#pk": "GSI3PK"},
+                ExpressionAttributeValues={":v": f"EMAIL#{_email.lower()}"},
+                Limit=1,
+            )
+            items = r.get("Items") or []
+            return items[0] if items else None
         except Exception:
             logger.error("change_pwd.ddb_get_error", exc_info=True)
             raise HTTPException(status_code=500, detail="Could not load user")
@@ -1901,7 +1921,8 @@ def change_password(
         
         # Load user item for password update
         item = _load_user_by_email(email)
-        if not item or item.get("user_id") != user_id:
+        item_user_id = item.get("id") or item.get("user_id") if item else None
+        if not item or item_user_id != user_id:
             raise HTTPException(status_code=400, detail="Reset token subject mismatch")
         # No current_password check needed for reset flow
 
@@ -1919,7 +1940,8 @@ def change_password(
         email = email_token
         user_id = challenge_user_id
         item = _load_user_by_email(email)
-        if not item or item.get("user_id") != user_id:
+        item_user_id = item.get("id") or item.get("user_id") if item else None
+        if not item or item_user_id != user_id:
             raise HTTPException(status_code=400, detail="Challenge token subject mismatch")
         if not body.current_password:
             raise HTTPException(status_code=400, detail="Current password required")
@@ -1936,9 +1958,14 @@ def change_password(
         if claims.get("provider") != "local":
             raise HTTPException(status_code=400, detail="Password change only valid for local accounts")
         email = claims.get("email")
+        user_id = claims.get("sub")  # Get user_id from JWT token
         item = _load_user_by_email(email)
         if not item:
             raise HTTPException(status_code=404, detail="User not found")
+        # Verify the user_id matches
+        item_user_id = item.get("id") or item.get("user_id")
+        if item_user_id != user_id:
+            raise HTTPException(status_code=400, detail="User ID mismatch")
         if not body.current_password:
             raise HTTPException(status_code=400, detail="Current password required")
         if not verify_password(body.current_password, item.get("password_hash", "")):
@@ -1959,23 +1986,34 @@ def change_password(
     # Determine if this is a reset flow (no JWT needed)
     is_reset_flow = body.reset_token is not None
     
+    # Get user_id from item (item comes from core table)
+    # The core table uses "id" field (as seen in login flow)
+    user_id_for_update = item.get("id") or item.get("user_id") or user_id
+    if not user_id_for_update:
+        logger.error("change_pwd.missing_user_id", extra={
+            "email": email,
+            "item_keys": list(item.keys()) if item else [],
+            "user_id_from_context": user_id,
+        })
+        raise HTTPException(status_code=500, detail="Could not determine user ID for update")
+    
     try:
         _ddb_call(
-            users.update_item,
-            op="users.update_item.rotate_pwd",
-            Key={"pk": f"USER#{email}", "sk": "PROFILE"},
+            core.update_item,
+            op="core.update_item.rotate_pwd",
+            Key={"PK": f"USER#{user_id_for_update}", "SK": f"PROFILE#{user_id_for_update}"},
             UpdateExpression="SET password_hash=:ph, must_change_password=:f, #s=:a REMOVE blocked_at, blocked_reason",
             ExpressionAttributeNames={"#s": "status"},
             ExpressionAttributeValues={":ph": new_hash, ":f": False, ":a": "ACTIVE"},
         )
         
         # Clear reset token metadata from core profile if this was a reset flow
-        if is_reset_flow and user_id:
+        if is_reset_flow and user_id_for_update:
             try:
                 _ddb_call(
                     core.update_item,
                     op="core.update_item.clear_reset_token",
-                    Key={"PK": f"USER#{user_id}", "SK": f"PROFILE#{user_id}"},
+                    Key={"PK": f"USER#{user_id_for_update}", "SK": f"PROFILE#{user_id_for_update}"},
                     UpdateExpression="REMOVE password_reset_jti, password_reset_expires_at",
                 )
             except Exception:
@@ -1992,7 +2030,8 @@ def change_password(
         return {"message": "Password reset successfully. Please log in with your new password."}
     
     # For other flows, return JWT as before
-    token = issue_local_jwt(item["user_id"], email, nickname=item.get("nickname"))
+    # Use user_id_for_update which we already calculated (handles both "id" and "user_id" fields)
+    token = issue_local_jwt(user_id_for_update, email, nickname=item.get("nickname"))
     return TokenResponse(**token).model_dump()
 
 

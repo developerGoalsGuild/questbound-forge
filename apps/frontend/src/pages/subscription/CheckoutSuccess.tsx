@@ -14,6 +14,7 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { getCurrentSubscription } from '@/lib/api/subscription';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
+import ARIALiveRegion from '@/components/ui/ARIALiveRegion';
 
 const CheckoutSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -24,15 +25,40 @@ const CheckoutSuccess: React.FC = () => {
   const checkoutTranslations = subscriptionTranslations.checkout || {};
 
   const sessionId = searchParams.get('session_id');
+  const [pollAttempts, setPollAttempts] = React.useState(0);
+  const [shouldPoll, setShouldPoll] = React.useState(Boolean(sessionId));
+  const maxPollAttempts = 10;
 
   // Refetch subscription to get updated status
-  const { data: subscription, isLoading } = useQuery({
+  const { data: subscription, isLoading, isFetching } = useQuery({
     queryKey: ['current-subscription'],
     queryFn: getCurrentSubscription,
-    enabled: !!sessionId,
+    enabled: shouldPoll,
     retry: 3,
-    retryDelay: 1000,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    refetchInterval: shouldPoll ? 2000 : false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    onSuccess: (data) => {
+      if (data?.has_active_subscription) {
+        setShouldPoll(false);
+        return;
+      }
+      setPollAttempts((prev) => {
+        const next = prev + 1;
+        if (next >= maxPollAttempts) {
+          setShouldPoll(false);
+        }
+        return next;
+      });
+    },
   });
+
+  React.useEffect(() => {
+    setShouldPoll(Boolean(sessionId));
+    setPollAttempts(0);
+  }, [sessionId]);
 
   React.useEffect(() => {
     if (subscription?.has_active_subscription) {
@@ -44,16 +70,19 @@ const CheckoutSuccess: React.FC = () => {
     }
   }, [subscription, toast, checkoutTranslations]);
 
+  const isProcessing = isLoading || isFetching || (shouldPoll && !subscription?.has_active_subscription);
+  const hasTimedOut = !shouldPoll && !subscription?.has_active_subscription;
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {isLoading ? (
+              {isProcessing ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Processing...
+                  {checkoutTranslations.processing || 'Processing...'}
                 </>
               ) : (
                 <>
@@ -67,10 +96,10 @@ const CheckoutSuccess: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isLoading ? (
+            {isProcessing ? (
               <Alert>
                 <AlertDescription>
-                  Verifying your subscription...
+                  {checkoutTranslations.verifying || 'Verifying your subscription...'}
                 </AlertDescription>
               </Alert>
             ) : subscription?.has_active_subscription ? (
@@ -93,12 +122,25 @@ const CheckoutSuccess: React.FC = () => {
             ) : (
               <Alert variant="destructive">
                 <AlertDescription>
-                  {checkoutTranslations.error || 'Payment error occurred'}. Please contact support if you believe this is an error.
+                  {hasTimedOut
+                    ? checkoutTranslations.delayed || 'Your payment is taking longer than expected. Please refresh or contact support.'
+                    : checkoutTranslations.error || 'Payment error occurred'}. Please contact support if you believe this is an error.
                 </AlertDescription>
               </Alert>
             )}
           </CardContent>
         </Card>
+        <ARIALiveRegion
+          message={
+            isProcessing
+              ? checkoutTranslations.verifying || 'Verifying your subscription...'
+              : subscription?.has_active_subscription
+              ? checkoutTranslations.success || 'Payment Successful!'
+              : checkoutTranslations.error || 'Payment error occurred'
+          }
+          priority="polite"
+          className="sr-only"
+        />
       </div>
     </div>
   );

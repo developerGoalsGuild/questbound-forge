@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, KeyboardEvent } from
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,16 @@ import { useToast } from '@/hooks/use-toast';
 import { type ProfileFormData } from '@/models/profile';
 import { profileUpdateSchema } from '@/lib/validation/profileValidation';
 import { getProfile, updateProfile, getCountries, checkNicknameAvailability } from '@/lib/apiProfile';
-import { SubscriptionTier, getCurrentSubscription, createCheckoutSession } from '@/lib/api/subscription';
+import {
+  SubscriptionTier,
+  getCurrentSubscription,
+  createCheckoutSession,
+  updateSubscriptionPlan,
+} from '@/lib/api/subscription';
+import ARIALiveRegion from '@/components/ui/ARIALiveRegion';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 import NotificationPreferences from './NotificationPreferences';
 
 const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
@@ -29,6 +36,7 @@ const ProfileEdit = () => {
   const navigate = useNavigate();
   const { language, t } = useTranslation();
   const { toast: toastNotification } = useToast();
+  const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -36,7 +44,15 @@ const ProfileEdit = () => {
   const [nicknameTaken, setNicknameTaken] = useState<boolean>(false);
   const [tagInput, setTagInput] = useState<string>('');
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
+  const [processingTier, setProcessingTier] = useState<SubscriptionTier | null>(null);
   const [activeTab, setActiveTab] = useState<string>('basic');
+  const [shouldFetchSubscription, setShouldFetchSubscription] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (activeTab === 'subscription') {
+      setShouldFetchSubscription(true);
+    }
+  }, [activeTab]);
 
   // Fetch current subscription - only when subscription tab is active
   const {
@@ -46,13 +62,67 @@ const ProfileEdit = () => {
   } = useQuery({
     queryKey: ['current-subscription'],
     queryFn: getCurrentSubscription,
-    enabled: activeTab === 'subscription', // Only fetch when subscription tab is active
+    enabled: activeTab === 'subscription' && shouldFetchSubscription, // Only fetch when subscription tab is active
     retry: false, // Don't retry on error to prevent spam
     refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    staleTime: 60_000,
+    onSuccess: () => {
+      setShouldFetchSubscription(false);
+    },
+    onError: () => {
+      setShouldFetchSubscription(false);
+    },
   });
 
   const subscriptionTranslations = useMemo(() => (t as any)?.subscription || {}, [t]);
   const plansTranslations = subscriptionTranslations.plans || {};
+
+  const checkoutMutation = useMutation({
+    mutationFn: (tier: SubscriptionTier) => {
+      const successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${window.location.origin}/profile/edit?tab=subscription`;
+      return createCheckoutSession(tier, successUrl, cancelUrl);
+    },
+    onSuccess: (response) => {
+      window.location.href = response.url;
+    },
+    onError: (error: any) => {
+      logger.error('Failed to create checkout session', { error: error.message });
+      toastNotification({
+        title: subscriptionTranslations.errors?.checkoutFailed || 'Error',
+        description: error.message || 'Failed to create checkout session',
+        variant: 'destructive',
+      });
+      setSelectedTier(null);
+    },
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: ({ tier, changeTiming }: { tier: SubscriptionTier; changeTiming: 'immediate' | 'period_end' }) => (
+      updateSubscriptionPlan({ plan_tier: tier, change_timing: changeTiming })
+    ),
+    onSuccess: () => {
+      toastNotification({
+        title: subscriptionTranslations.messages?.updated || 'Subscription updated',
+        description: subscriptionTranslations.messages?.updateSuccess || 'Your subscription plan has been updated.',
+        variant: 'default',
+      });
+      setShouldFetchSubscription(true);
+      queryClient.invalidateQueries({ queryKey: ['current-subscription'] });
+      setSelectedTier(null);
+    },
+    onError: (error: any) => {
+      logger.error('Failed to update subscription plan', { error: error.message });
+      toastNotification({
+        title: subscriptionTranslations.errors?.updateFailed || 'Error',
+        description: error.message || 'Failed to update subscription plan',
+        variant: 'destructive',
+      });
+      setSelectedTier(null);
+    },
+  });
 
   const countries = useMemo(() => getCountries(language), [language]);
 
@@ -413,24 +483,34 @@ const ProfileEdit = () => {
                     subscriptionTranslations={subscriptionTranslations}
                     selectedTier={selectedTier}
                     onTierSelect={setSelectedTier}
-                    onCheckout={(tier) => {
-                      const successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
-                      const cancelUrl = `${window.location.origin}/profile/edit?tab=subscription`;
-                      createCheckoutSession(tier, successUrl, cancelUrl)
-                        .then((response) => {
-                          window.location.href = response.url;
-                        })
-                        .catch((error: any) => {
-                          logger.error('Failed to create checkout session', { error: error.message });
-                          toastNotification({
-                            title: subscriptionTranslations.errors?.checkoutFailed || 'Error',
-                            description: error.message || 'Failed to create checkout session',
-                            variant: 'destructive',
-                          });
-                        });
+                    processingTier={processingTier}
+                    isProcessing={checkoutMutation.isPending || updatePlanMutation.isPending}
+                    onCheckout={(tier, changeTiming) => {
+                      setProcessingTier(tier);
+                      if (subscription?.has_active_subscription) {
+                        updatePlanMutation.mutate(
+                          { tier, changeTiming },
+                          {
+                            onSettled: () => setProcessingTier(null),
+                          }
+                        );
+                        return;
+                      }
+                      checkoutMutation.mutate(tier, {
+                        onSettled: () => setProcessingTier(null),
+                      });
                     }}
                   />
                 )}
+                <ARIALiveRegion
+                  message={
+                    checkoutMutation.isPending || updatePlanMutation.isPending
+                      ? subscriptionTranslations.messages?.processing || 'Processing subscription request'
+                      : ''
+                  }
+                  priority="polite"
+                  className="sr-only"
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -447,7 +527,9 @@ interface SubscriptionPlanSelectorProps {
   subscriptionTranslations: any;
   selectedTier: SubscriptionTier | null;
   onTierSelect: (tier: SubscriptionTier | null) => void;
-  onCheckout: (tier: SubscriptionTier) => void;
+  onCheckout: (tier: SubscriptionTier, changeTiming: 'immediate' | 'period_end') => void;
+  processingTier: SubscriptionTier | null;
+  isProcessing: boolean;
 }
 
 const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
@@ -458,6 +540,8 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
   selectedTier,
   onTierSelect,
   onCheckout,
+  processingTier,
+  isProcessing,
 }) => {
   const plans: Array<{ tier: SubscriptionTier; name: string; price: string; period: string; description: string; features: string[]; popular: boolean }> = [
     {
@@ -498,6 +582,11 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
     return getTierHierarchy(tier) < getTierHierarchy(currentTier);
   };
 
+  const getChangeTiming = (tier: SubscriptionTier): 'immediate' | 'period_end' => {
+    if (!currentTier) return 'immediate';
+    return isDowngrade(tier) ? 'period_end' : 'immediate';
+  };
+
   return (
     <div className="space-y-6">
       {hasActiveSubscription && currentTier && (
@@ -515,6 +604,7 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
           const isSelected = selectedTier === plan.tier;
           const isUpgradePlan = isUpgrade(plan.tier);
           const isDowngradePlan = isDowngrade(plan.tier);
+          const isLoading = isProcessing && processingTier === plan.tier;
 
           return (
             <Card
@@ -557,19 +647,26 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
                   onClick={() => {
                     if (isCurrentPlan) return;
                     onTierSelect(plan.tier);
-                    onCheckout(plan.tier);
+                    onCheckout(plan.tier, getChangeTiming(plan.tier));
                   }}
-                  disabled={isCurrentPlan || selectedTier === plan.tier}
+                  disabled={isCurrentPlan || selectedTier === plan.tier || isProcessing}
                   className="w-full"
                   variant={isCurrentPlan ? 'outline' : isSelected ? 'default' : 'outline'}
                 >
-                  {isCurrentPlan
-                    ? 'Current Plan'
-                    : isUpgradePlan
-                    ? subscriptionTranslations.upgrade || 'Upgrade'
-                    : isDowngradePlan
-                    ? subscriptionTranslations.downgrade || 'Downgrade'
-                    : plan.cta || 'Select'}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      {subscriptionTranslations.messages?.processing || 'Processing...'}
+                    </>
+                  ) : isCurrentPlan ? (
+                    'Current Plan'
+                  ) : isUpgradePlan ? (
+                    subscriptionTranslations.upgrade || 'Upgrade'
+                  ) : isDowngradePlan ? (
+                    subscriptionTranslations.downgrade || 'Downgrade'
+                  ) : (
+                    plan.cta || 'Select'
+                  )}
                 </Button>
               </CardContent>
             </Card>

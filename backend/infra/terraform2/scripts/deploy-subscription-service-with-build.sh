@@ -13,6 +13,10 @@ SKIP_INIT=""
 TF_LOG_PATH="$HOME/terraform-logs/tf-user-service.log"
 SERVICE_NAME="subscription-service"
 ECR_REPOSITORY="goalsguild_subscription_service"
+AWS_PROFILE="${AWS_PROFILE:-${AWS_DEFAULT_PROFILE:-}}"
+export AWS_SDK_LOAD_CONFIG=1
+export AWS_CONFIG_FILE="${AWS_CONFIG_FILE:-$HOME/.aws/config}"
+export AWS_SHARED_CREDENTIALS_FILE="${AWS_SHARED_CREDENTIALS_FILE:-$HOME/.aws/credentials}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -56,6 +60,10 @@ while [[ $# -gt 0 ]]; do
             TF_LOG_PATH="$2"
             shift 2
             ;;
+        --profile)
+            AWS_PROFILE="$2"
+            shift 2
+            ;;
         *)
             print_error "Unknown parameter: $1"
             exit 1
@@ -66,7 +74,7 @@ done
 # Get script directory and paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAFORM_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd "$TERRAFORM_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$TERRAFORM_DIR/../../.." && pwd)"
 SERVICE_PATH="$REPO_ROOT/backend/services/$SERVICE_NAME"
 STACK_PATH="$TERRAFORM_DIR/stacks/services/$SERVICE_NAME"
 ENV_FILE="$TERRAFORM_DIR/environments/$ENV.tfvars"
@@ -87,15 +95,45 @@ export TF_LOG_PATH="$TF_LOG_PATH"
 
 print_info "Starting $SERVICE_NAME build and deployment for environment: $ENV"
 
+# Ensure AWS credentials are available (supports SSO auto-renew)
+CREDENTIALS_HELPER="$SCRIPT_DIR/get-aws-credentials.sh"
+if [ -f "$CREDENTIALS_HELPER" ]; then
+    print_info "Validating AWS credentials..."
+    if [ -n "$AWS_PROFILE" ]; then
+        if ! "$CREDENTIALS_HELPER" --test --profile "$AWS_PROFILE"; then
+            print_error "AWS credentials validation failed for profile: $AWS_PROFILE"
+            exit 1
+        fi
+        export AWS_PROFILE
+    else
+        if ! "$CREDENTIALS_HELPER" --test; then
+            print_error "AWS credentials validation failed"
+            exit 1
+        fi
+        AWS_PROFILE="default"
+        export AWS_PROFILE
+    fi
+fi
+
+export AWS_DEFAULT_PROFILE="$AWS_PROFILE"
+
 # Get AWS account ID and region
 print_info "Getting AWS account ID and region..."
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
+if [ -n "$AWS_PROFILE" ]; then
+    ACCOUNT_ID=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text 2>/dev/null)
+else
+    ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
+fi
 if [ $? -ne 0 ] || [ -z "$ACCOUNT_ID" ]; then
     print_error "Failed to get AWS account ID. Make sure AWS CLI is configured and you have valid credentials."
     exit 1
 fi
 
-REGION=$(aws configure get region 2>/dev/null || echo "${AWS_REGION:-us-east-2}")
+if [ -n "$AWS_PROFILE" ]; then
+    REGION=$(aws configure get region --profile "$AWS_PROFILE" 2>/dev/null || echo "${AWS_REGION:-us-east-2}")
+else
+    REGION=$(aws configure get region 2>/dev/null || echo "${AWS_REGION:-us-east-2}")
+fi
 if [ -z "$REGION" ]; then
     print_error "Failed to get AWS region. Make sure AWS CLI is configured."
     exit 1
@@ -152,7 +190,12 @@ if [ -z "$PLAN_ONLY" ]; then
         print_info "Logging in to ECR..."
         REGISTRY_HOST="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
         
-        if ! aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"; then
+        if [ -n "$AWS_PROFILE" ]; then
+            if ! aws ecr get-login-password --profile "$AWS_PROFILE" --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"; then
+                print_error "ECR login failed"
+                exit 1
+            fi
+        elif ! aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY_HOST"; then
             print_error "ECR login failed"
             exit 1
         fi
@@ -208,24 +251,29 @@ if [ -n "$IMAGE_URI" ] && [ -f "$STACK_PATH/main.tf" ]; then
     fi
 fi
 
+TF_IMAGE_VAR=""
+if [ -n "$IMAGE_URI" ]; then
+    TF_IMAGE_VAR="-var=existing_image_uri=$IMAGE_URI"
+fi
+
 (
     cd "$STACK_PATH"
     
     if [ -z "$SKIP_INIT" ]; then
         print_info "Running terraform init for $SERVICE_NAME"
-        terraform init -upgrade
+        AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform init -upgrade
     fi
     
     if [ -n "$PLAN_ONLY" ]; then
         print_info "Running terraform plan for $SERVICE_NAME"
-        terraform plan -var-file="$ENV_FILE"
+        AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform plan -var-file="$ENV_FILE" $TF_IMAGE_VAR
     else
         if [ "$AUTO_APPROVE" = "true" ]; then
             print_info "Running terraform apply with auto-approve for $SERVICE_NAME"
-            terraform apply -var-file="$ENV_FILE" -auto-approve
+            AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform apply -var-file="$ENV_FILE" $TF_IMAGE_VAR -auto-approve
         else
             print_info "Running terraform apply for $SERVICE_NAME"
-            terraform apply -var-file="$ENV_FILE"
+            AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform apply -var-file="$ENV_FILE" $TF_IMAGE_VAR
         fi
     fi
     

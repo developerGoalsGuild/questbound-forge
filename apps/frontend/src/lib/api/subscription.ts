@@ -34,6 +34,28 @@ export interface CheckoutSessionResponse {
   url: string;
 }
 
+export interface CancelSubscriptionRequest {
+  cancel_at_period_end?: boolean;
+}
+
+export interface CancelSubscriptionResponse {
+  subscription_id: string;
+  status: SubscriptionStatus;
+  cancel_at_period_end: boolean;
+}
+
+export interface UpdatePlanRequest {
+  plan_tier: SubscriptionTier;
+  change_timing?: 'immediate' | 'period_end';
+}
+
+export interface UpdatePlanResponse {
+  subscription_id: string;
+  plan_tier: SubscriptionTier;
+  status: SubscriptionStatus;
+  cancel_at_period_end: boolean;
+}
+
 export interface CreditBalanceResponse {
   balance: number;
   last_top_up?: string | null;
@@ -57,8 +79,8 @@ function getAuthHeaders(): Record<string, string> {
   
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(apiKey ? { 'x-api-key': apiKey } : {}),
+    Authorization: `Bearer ${token || ''}`,
+    'x-api-key': apiKey,
   };
 }
 
@@ -72,6 +94,27 @@ export async function getCurrentSubscription(): Promise<SubscriptionResponse> {
       method: 'GET',
       headers: getAuthHeaders(),
     });
+
+    if (response.status === 403) {
+      const errorBody = await response.json().catch(() => ({}));
+      logger.warn('Subscription access forbidden, returning empty subscription', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url,
+        timestamp: new Date().toISOString(),
+      });
+      return {
+        subscription_id: null,
+        plan_tier: null,
+        status: null,
+        stripe_customer_id: null,
+        current_period_start: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        has_active_subscription: false,
+      };
+    }
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
@@ -139,12 +182,15 @@ export async function createCheckoutSession(
 /**
  * Cancel current subscription
  */
-export async function cancelSubscription(): Promise<void> {
+export async function cancelSubscription(
+  payload: CancelSubscriptionRequest = {}
+): Promise<CancelSubscriptionResponse> {
   try {
     const url = `${API_BASE}/subscriptions/cancel`;
     const response = await fetch(url, {
       method: 'POST',
       headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -159,6 +205,7 @@ export async function cancelSubscription(): Promise<void> {
       });
       throw new Error(message);
     }
+    return (await response.json()) as CancelSubscriptionResponse;
   } catch (error: any) {
     logger.error('Error canceling subscription', { error: error.message });
     throw error;
@@ -166,9 +213,44 @@ export async function cancelSubscription(): Promise<void> {
 }
 
 /**
+ * Update subscription plan
+ */
+export async function updateSubscriptionPlan(
+  payload: UpdatePlanRequest
+): Promise<UpdatePlanResponse> {
+  try {
+    const url = `${API_BASE}/subscriptions/update-plan`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody.detail || response.statusText || 'Failed to update subscription plan';
+      logger.error('Failed to update subscription plan', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody,
+        url,
+        payload,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(message);
+    }
+
+    return (await response.json()) as UpdatePlanResponse;
+  } catch (error: any) {
+    logger.error('Error updating subscription plan', { error: error.message });
+    throw error;
+  }
+}
+
+/**
  * Get billing portal URL
  */
-export async function getBillingPortalUrl(returnUrl: string): Promise<string> {
+export async function getBillingPortalUrl(returnUrl: string): Promise<string | null> {
   try {
     const url = `${API_BASE}/subscriptions/portal?return_url=${encodeURIComponent(returnUrl)}`;
     const response = await fetch(url, {
@@ -177,6 +259,15 @@ export async function getBillingPortalUrl(returnUrl: string): Promise<string> {
     });
 
     if (!response.ok) {
+      if (response.status === 403) {
+        logger.warn('Billing portal access forbidden, returning null', {
+          status: response.status,
+          statusText: response.statusText,
+          url,
+          timestamp: new Date().toISOString(),
+        });
+        return null;
+      }
       const errorBody = await response.json().catch(() => ({}));
       const message = errorBody.detail || response.statusText || 'Failed to get billing portal URL';
       logger.error('Failed to get billing portal URL', {
@@ -209,6 +300,19 @@ export async function getCreditBalance(): Promise<CreditBalanceResponse> {
     });
 
     if (!response.ok) {
+      if (response.status === 403) {
+        logger.warn('Credit balance access forbidden, returning empty balance', {
+          status: response.status,
+          statusText: response.statusText,
+          url,
+          timestamp: new Date().toISOString(),
+        });
+        return {
+          balance: 0,
+          last_top_up: null,
+          last_reset: null,
+        };
+      }
       const errorBody = await response.json().catch(() => ({}));
       const message = errorBody.detail || response.statusText || 'Failed to get credit balance';
       logger.error('Failed to get credit balance', {

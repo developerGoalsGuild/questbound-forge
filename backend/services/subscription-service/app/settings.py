@@ -11,9 +11,15 @@ class Settings:
         
         # Stripe settings - from SSM Parameter Store
         # In dev, these can be empty to use mock mode
-        self.stripe_secret_key = self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_SECRET_KEY") or os.getenv("STRIPE_SECRET_KEY") or ""
-        self.stripe_webhook_secret = self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_WEBHOOK_SECRET") or os.getenv("STRIPE_WEBHOOK_SECRET") or ""
-        self.stripe_publishable_key = self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_PUBLISHABLE_KEY") or os.getenv("STRIPE_PUBLISHABLE_KEY") or ""
+        self.stripe_secret_key = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_SECRET_KEY") or os.getenv("STRIPE_SECRET_KEY") or "").strip()
+        self.stripe_webhook_secret = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_WEBHOOK_SECRET") or os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()
+        self.stripe_publishable_key = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_PUBLISHABLE_KEY") or os.getenv("STRIPE_PUBLISHABLE_KEY") or "").strip()
+        
+        # Stripe Price IDs - from SSM Parameter Store
+        self.stripe_price_id_initiate = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_PRICE_ID_INITIATE") or os.getenv("STRIPE_PRICE_ID_INITIATE") or "").strip()
+        self.stripe_price_id_journeyman = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_PRICE_ID_JOURNEYMAN") or os.getenv("STRIPE_PRICE_ID_JOURNEYMAN") or "").strip()
+        self.stripe_price_id_sage = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_PRICE_ID_SAGE") or os.getenv("STRIPE_PRICE_ID_SAGE") or "").strip()
+        self.stripe_price_id_guildmaster = (self._get_ssm_parameter_from_path("/goalsguild/subscription-service/STRIPE_PRICE_ID_GUILDMASTER") or os.getenv("STRIPE_PRICE_ID_GUILDMASTER") or "").strip()
         
         # Check if we're in dev mode (will use mock Stripe)
         self.use_mock_stripe = (

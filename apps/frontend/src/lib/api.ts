@@ -468,6 +468,20 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
   
   // Check if user is authenticated before attempting token renewal (reduces unnecessary API calls)
   const token = getAccessToken();
+  const isLikelyJwt = token ? token.split('.').length === 3 : false;
+  if (!token) {
+    throw new Error('Session expired. Please log in again.');
+  }
+  if (token && !isLikelyJwt) {
+    logger.warn('Invalid auth token format, clearing session', {
+      tokenPreview: token.slice(0, 8),
+    });
+    try {
+      localStorage.removeItem('auth');
+      window.dispatchEvent(new CustomEvent('auth:change'));
+    } catch {}
+    throw new Error('Session expired. Please log in again.');
+  }
   if (token) {
     // Sliding expiration: proactively renew if expiring within 5 minutes (only if authenticated)
     const exp = getTokenExpiry();
@@ -484,8 +498,8 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
   
   const headers = new Headers(init.headers as any);
   headers.set('content-type', headers.get('content-type') || 'application/json');
-  if (apiKey) headers.set('x-api-key', apiKey);
-  if (token) headers.set('authorization', `Bearer ${token}`);
+  headers.set('x-api-key', apiKey || '');
+  headers.set('Authorization', `Bearer ${token}`);
   return fetch(url, { ...init, headers });
 }
 

@@ -150,7 +150,11 @@ describe('SubscriptionManagement', () => {
     };
 
     vi.mocked(getCurrentSubscription).mockResolvedValueOnce(mockSubscription);
-    vi.mocked(cancelSubscription).mockResolvedValueOnce();
+    vi.mocked(cancelSubscription).mockResolvedValueOnce({
+      subscription_id: 'sub_123',
+      status: 'canceled',
+      cancel_at_period_end: true,
+    });
 
     render(
       <TestWrapper>

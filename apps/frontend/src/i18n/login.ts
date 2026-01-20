@@ -48,10 +48,19 @@ export interface LoginTranslations {
     invalidToken?: string;
     emailConfirmed?: string;
   };
+  newPasswordLabel: string;
+  confirmPasswordLabel: string;
   validation: {
     requiredEmail: string;
     invalidEmail: string;
     requiredPassword: string;
+    passwordRequired?: string;
+    passwordMismatch?: string;
+    passwordMinLength?: string;
+    passwordLower?: string;
+    passwordUpper?: string;
+    passwordDigit?: string;
+    passwordSpecial?: string;
   };
 }
 
@@ -104,10 +113,19 @@ export const loginTranslations: Record<Language, LoginTranslations> = {
       invalidToken: 'Invalid confirmation link. Please check your email and try again.',
       emailConfirmed: 'Email confirmed successfully! You can now log in.',
     },
+    newPasswordLabel: 'New Password',
+    confirmPasswordLabel: 'Confirm Password',
     validation: {
       requiredEmail: 'Email is required',
       invalidEmail: 'Please enter a valid email address',
       requiredPassword: 'Password is required',
+      passwordRequired: 'Password is required',
+      passwordMismatch: 'Passwords do not match',
+      passwordMinLength: 'Password must be at least 8 characters',
+      passwordLower: 'Must include a lowercase letter',
+      passwordUpper: 'Must include an uppercase letter',
+      passwordDigit: 'Must include a digit',
+      passwordSpecial: 'Must include a special character',
     },
   },
   es: {
@@ -158,10 +176,19 @@ export const loginTranslations: Record<Language, LoginTranslations> = {
       invalidToken: 'Enlace de confirmación inválido. Por favor verifica tu correo e intenta nuevamente.',
       emailConfirmed: '¡Correo electrónico confirmado exitosamente! Ahora puedes iniciar sesión.',
     },
+    newPasswordLabel: 'Nueva contraseña',
+    confirmPasswordLabel: 'Confirmar contraseña',
     validation: {
       requiredEmail: 'El correo electrónico es obligatorio',
       invalidEmail: 'Introduce un correo válido',
       requiredPassword: 'La contraseña es obligatoria',
+      passwordRequired: 'La contraseña es obligatoria',
+      passwordMismatch: 'Las contraseñas no coinciden',
+      passwordMinLength: 'Mínimo 8 caracteres',
+      passwordLower: 'Debe incluir una minúscula',
+      passwordUpper: 'Debe incluir una mayúscula',
+      passwordDigit: 'Debe incluir un dígito',
+      passwordSpecial: 'Debe incluir un carácter especial',
     },
   },
   fr: {
@@ -212,10 +239,19 @@ export const loginTranslations: Record<Language, LoginTranslations> = {
       invalidToken: 'Lien de confirmation invalide. Veuillez vérifier votre e-mail et réessayer.',
       emailConfirmed: 'E-mail confirmé avec succès ! Vous pouvez maintenant vous connecter.',
     },
+    newPasswordLabel: 'Nouveau mot de passe',
+    confirmPasswordLabel: 'Confirmer le mot de passe',
     validation: {
       requiredEmail: "L'e-mail est requis",
       invalidEmail: 'Veuillez saisir une adresse e-mail valide',
       requiredPassword: 'Mot de passe requis',
+      passwordRequired: 'Mot de passe requis',
+      passwordMismatch: 'Les mots de passe ne correspondent pas',
+      passwordMinLength: 'Minimum 8 caractères',
+      passwordLower: 'Doit inclure une minuscule',
+      passwordUpper: 'Doit inclure une majuscule',
+      passwordDigit: 'Doit inclure un chiffre',
+      passwordSpecial: 'Doit inclure un caractère spécial',
     },
   },
 };

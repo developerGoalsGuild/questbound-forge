@@ -58,6 +58,9 @@ tags = {
 # Collaboration service override (use actual ARN for API Gateway integration)
 collaboration_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_collaboration_service_dev"
 
+# Subscription service override (use actual ARN for API Gateway integration)
+subscription_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_subscription_service_dev"
+
 # S3 Guild Avatar Bucket Configuration
 guild_avatar_bucket_name = ""  # Leave empty to auto-generate
 guild_avatar_bucket_versioning = true

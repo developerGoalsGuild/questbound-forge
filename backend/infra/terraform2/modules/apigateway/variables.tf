@@ -30,7 +30,9 @@ variable "gamification_service_lambda_arn" {
 }
 
 variable "subscription_service_lambda_arn" {
-  type = string
+  type    = string
+  default = ""
+  description = "ARN of the subscription service Lambda function. Leave empty if not deployed yet."
 }
 variable "lambda_authorizer_arn" {
   type = string

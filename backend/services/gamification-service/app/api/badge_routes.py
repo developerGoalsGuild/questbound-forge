@@ -58,7 +58,15 @@ async def authenticate(authorization: Optional[str] = Header(None)):
     token = authorization[7:]
     
     try:
-        verifier = _get_verifier()
+        get_verifier = globals().get("_get_verifier")
+        if callable(get_verifier):
+            verifier = get_verifier()
+        else:
+            global _verifier
+            if _verifier is None:
+                from ..auth import TokenVerifier
+                _verifier = TokenVerifier(_get_settings())
+            verifier = _verifier
         claims, provider = verifier.verify(token)
         return claims.get("sub")
     except TokenVerificationError:

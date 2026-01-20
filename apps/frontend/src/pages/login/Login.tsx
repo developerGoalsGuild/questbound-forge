@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -16,6 +16,7 @@ import {
 import { Language } from '@/i18n/translations';
 import { loginTranslations } from '@/i18n/login';
 import { navTranslations } from '@/i18n/nav';
+import { getCurrentSubscription, createCheckoutSession, SubscriptionTier } from '@/lib/api/subscription';
 
 const Login = () => {
   const { t, language, setLanguage } = useTranslation();
@@ -23,6 +24,7 @@ const Login = () => {
   const loginT = loginTranslations[language] || loginTranslations.en;
   const navT = navTranslations[language] || navTranslations.en;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -125,6 +127,46 @@ const Login = () => {
 
       // Try to infer user type from token payload (id_token preferred)
       const token = resp.id_token || resp.access_token;
+      // Check for pending subscription tier
+      const subscriptionPending = searchParams.get('subscription_pending') === 'true';
+      const pendingTierFromStorage = sessionStorage.getItem('pending_subscription_tier') as SubscriptionTier | null;
+      
+      if (subscriptionPending || pendingTierFromStorage) {
+        try {
+          // Check current subscription status
+          const subscription = await getCurrentSubscription();
+          
+          // If no active subscription, redirect to checkout
+          if (!subscription.has_active_subscription) {
+            const tierToUse = pendingTierFromStorage || 'INITIATE'; // Default if not specified
+            
+            // Clear the pending tier from storage
+            if (pendingTierFromStorage) {
+              sessionStorage.removeItem('pending_subscription_tier');
+            }
+            
+            try {
+              const successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+              const cancelUrl = `${window.location.origin}/dashboard`;
+              const checkoutResponse = await createCheckoutSession(
+                tierToUse,
+                successUrl,
+                cancelUrl
+              );
+              // Redirect to Stripe checkout
+              window.location.href = checkoutResponse.url;
+              return; // Exit early, user will be redirected
+            } catch (checkoutError: any) {
+              logger.error('Failed to create checkout session after login', { error: checkoutError });
+              // Continue with normal flow if checkout fails
+            }
+          }
+        } catch (subError: any) {
+          logger.warn('Could not check subscription status', { error: subError });
+          // Continue with normal flow
+        }
+      }
+      
       let userType: 'user' | 'partner' | 'patron' = 'user';
       if (token && token.split('.').length >= 2) {
         try {
