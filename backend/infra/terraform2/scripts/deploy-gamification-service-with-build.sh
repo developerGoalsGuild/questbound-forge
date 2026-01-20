@@ -193,20 +193,7 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# Update Terraform file with new image URI if provided
-if [ -n "$IMAGE_URI" ] && [ -f "$STACK_PATH/main.tf" ]; then
-    # Use sed to update existing_image_uri in main.tf
-    if grep -q "existing_image_uri" "$STACK_PATH/main.tf"; then
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS sed
-            sed -i '' "s|existing_image_uri = \"[^\"]*\"|existing_image_uri = \"$IMAGE_URI\"|g" "$STACK_PATH/main.tf"
-        else
-            # Linux sed
-            sed -i "s|existing_image_uri = \"[^\"]*\"|existing_image_uri = \"$IMAGE_URI\"|g" "$STACK_PATH/main.tf"
-        fi
-        print_info "Updated $STACK_PATH/main.tf with new image URI"
-    fi
-fi
+# Terraform expects gamification_image_uri override instead of main.tf edits.
 
 (
     cd "$STACK_PATH"
@@ -218,14 +205,26 @@ fi
     
     if [ -n "$PLAN_ONLY" ]; then
         print_info "Running terraform plan for $SERVICE_NAME"
-        terraform plan -var-file="$ENV_FILE"
+        if [ -n "$IMAGE_URI" ]; then
+            terraform plan -var-file="$ENV_FILE" -var="gamification_image_uri=$IMAGE_URI"
+        else
+            terraform plan -var-file="$ENV_FILE"
+        fi
     else
         if [ "$AUTO_APPROVE" = "true" ]; then
             print_info "Running terraform apply with auto-approve for $SERVICE_NAME"
-            terraform apply -var-file="$ENV_FILE" -auto-approve
+            if [ -n "$IMAGE_URI" ]; then
+                terraform apply -var-file="$ENV_FILE" -var="gamification_image_uri=$IMAGE_URI" -auto-approve
+            else
+                terraform apply -var-file="$ENV_FILE" -auto-approve
+            fi
         else
             print_info "Running terraform apply for $SERVICE_NAME"
-            terraform apply -var-file="$ENV_FILE"
+            if [ -n "$IMAGE_URI" ]; then
+                terraform apply -var-file="$ENV_FILE" -var="gamification_image_uri=$IMAGE_URI"
+            else
+                terraform apply -var-file="$ENV_FILE"
+            fi
         fi
     fi
     
