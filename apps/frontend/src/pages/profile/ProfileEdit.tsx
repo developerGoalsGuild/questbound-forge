@@ -34,9 +34,11 @@ const TAG_REGEX = /^[a-zA-Z0-9-_]+$/;
 
 const ProfileEdit = () => {
   const navigate = useNavigate();
-  const { language, t } = useTranslation();
+  const { language, t, changeLanguage } = useTranslation();
   const { toast: toastNotification } = useToast();
   const queryClient = useQueryClient();
+  const editTranslations = (t as any)?.profile?.edit || {};
+  const languageLabels = editTranslations.languages || {};
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -78,6 +80,20 @@ const ProfileEdit = () => {
 
   const subscriptionTranslations = useMemo(() => (t as any)?.subscription || {}, [t]);
   const plansTranslations = subscriptionTranslations.plans || {};
+  const signupTranslations = useMemo(() => (t as any)?.signup?.local || {}, [t]);
+
+  // Pronoun options with translations
+  const pronounOptions = useMemo(() => {
+    const options = [
+      { value: 'she/her', label: signupTranslations.options?.pronouns?.sheHer || 'She/Her' },
+      { value: 'he/him', label: signupTranslations.options?.pronouns?.heHim || 'He/Him' },
+      { value: 'they/them', label: signupTranslations.options?.pronouns?.theyThem || 'They/Them' },
+      { value: 'she/they', label: signupTranslations.options?.pronouns?.sheThey || 'She/They' },
+      { value: 'he/they', label: signupTranslations.options?.pronouns?.heThey || 'He/They' },
+      { value: 'other', label: signupTranslations.options?.common?.other || 'Other' },
+    ];
+    return options;
+  }, [signupTranslations]);
 
   const checkoutMutation = useMutation({
     mutationFn: (tier: SubscriptionTier) => {
@@ -163,7 +179,7 @@ const ProfileEdit = () => {
           tags: p.tags || [],
         });
       } catch (err: any) {
-        setLoadError(err?.message || 'Failed to load profile');
+        setLoadError(err?.message || editTranslations.loadError || 'Failed to load profile');
       } finally {
         setIsLoading(false);
       }
@@ -190,11 +206,11 @@ const ProfileEdit = () => {
     const newTag = tagInput.trim();
     if (!newTag) return;
     if (!TAG_REGEX.test(newTag)) {
-      toast.error('Tags can only contain letters, numbers, hyphens, and underscores');
+      toast.error(editTranslations.validation?.tagFormat || 'Tags can only contain letters, numbers, hyphens, and underscores');
       return;
     }
     if (tags.includes(newTag)) {
-      toast.error('Duplicate tags are not allowed');
+      toast.error(editTranslations.validation?.tagDuplicate || 'Duplicate tags are not allowed');
       return;
     }
     const newTags = [...tags, newTag];
@@ -236,6 +252,9 @@ const ProfileEdit = () => {
       logger.info('Sending profile update data to API', { updateData });
       await updateProfile(updateData);
       logger.info('Profile updated successfully');
+      if (data.language && data.language !== language) {
+        await changeLanguage(data.language as any);
+      }
       toast.success(t.profile.messages.saveSuccess);
       navigate('/profile');
     } catch (err: any) {
@@ -244,7 +263,7 @@ const ProfileEdit = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [navigate, t, formState.errors]);
+  }, [navigate, t, formState.errors, changeLanguage, language]);
 
   if (isLoading) {
     return (
@@ -275,7 +294,7 @@ const ProfileEdit = () => {
           {loadError === 'PROFILE_NOT_FOUND' && (
             <div className="mt-4">
               <Button onClick={() => navigate('/signup/LocalSignUp')}>
-                Go to Sign Up
+                {t.profile.actions.goToSignUp}
               </Button>
             </div>
           )}
@@ -294,15 +313,15 @@ const ProfileEdit = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
+            <TabsTrigger value="basic">{editTranslations.tabs?.basic || 'Basic Info'}</TabsTrigger>
+            <TabsTrigger value="notifications">{editTranslations.tabs?.notifications || 'Notifications'}</TabsTrigger>
+            <TabsTrigger value="subscription">{editTranslations.tabs?.subscription || 'Subscription'}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
             <form onSubmit={handleSubmit(onSubmit, (errors) => {
               logger.warn('Profile edit form validation failed on submit', { errors });
-              toast.error('Please fix the form errors before saving');
+              toast.error(editTranslations.formFixErrors || 'Please fix the form errors before saving');
             })} aria-label="Edit Profile Form">
               {/* Basic Information */}
               <Card className="mb-6">
@@ -364,9 +383,9 @@ const ProfileEdit = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Español</SelectItem>
-                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="en">{languageLabels.en || 'English'}</SelectItem>
+                    <SelectItem value="es">{languageLabels.es || 'Español'}</SelectItem>
+                    <SelectItem value="fr">{languageLabels.fr || 'Français'}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -385,7 +404,21 @@ const ProfileEdit = () => {
               </div>
               <div>
                 <label className="block text-sm mb-1">{t.profile.identity.pronouns.label}</label>
-                <Input aria-label={t.profile.identity.pronouns.label} placeholder={t.profile.identity.pronouns.placeholder} {...register('pronouns')} />
+                <Select 
+                  value={watch('pronouns') || undefined} 
+                  onValueChange={(v) => setValue('pronouns', v)}
+                >
+                  <SelectTrigger aria-label={t.profile.identity.pronouns.label}>
+                    <SelectValue placeholder={signupTranslations.selectPronouns || t.profile.identity.pronouns.placeholder || 'Select pronouns'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pronounOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -405,7 +438,7 @@ const ProfileEdit = () => {
                 <label className="block text-sm mb-1">{t.profile.about.tags.label}</label>
                 <Input 
                   aria-label={t.profile.about.tags.label} 
-                  placeholder={t.profile.about.tags.placeholder || 'Add tag and press Enter'} 
+                  placeholder={t.profile.about.tags.placeholder || editTranslations.addTagPlaceholder || 'Add tag and press Enter'} 
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={onTagInputKeyDown}
@@ -419,7 +452,7 @@ const ProfileEdit = () => {
                       {tag}
                       <button
                         type="button"
-                        aria-label={`Remove tag ${tag}`}
+                        aria-label={`${editTranslations.removeTagAria || 'Remove tag'} ${tag}`}
                         onClick={() => removeTag(idx)}
                         className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-blue-600 hover:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
@@ -428,7 +461,7 @@ const ProfileEdit = () => {
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Type a tag and press Enter to add it. Up to 10 tags allowed.</p>
+                <p className="text-xs text-muted-foreground mt-1">{editTranslations.tagsHelp || 'Type a tag and press Enter to add it. Up to 10 tags allowed.'}</p>
                 {formState.errors.tags && (
                   <p className="text-xs text-red-600 mt-1" role="alert">{formState.errors.tags.message}</p>
                 )}
@@ -543,6 +576,11 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
   processingTier,
   isProcessing,
 }) => {
+  const popularLabel = subscriptionTranslations.mostPopular || 'Most Popular';
+  const currentBadgeLabel = subscriptionTranslations.currentBadge || 'Current';
+  const currentPlanLabel = subscriptionTranslations.currentPlan || 'Current Plan';
+  const freeTierNotice = subscriptionTranslations.freeTierNotice
+    || "You're currently on the free tier. Select a plan above to upgrade and unlock premium features.";
   const plans: Array<{ tier: SubscriptionTier; name: string; price: string; period: string; description: string; features: string[]; popular: boolean }> = [
     {
       tier: 'INITIATE',
@@ -618,12 +656,12 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
             >
               {plan.popular && (
                 <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary z-10">
-                  Most Popular
+                  {popularLabel}
                 </Badge>
               )}
               {isCurrentPlan && (
                 <Badge className="absolute -top-3 right-4 bg-green-500 z-10">
-                  Current
+                  {currentBadgeLabel}
                 </Badge>
               )}
               <CardHeader>
@@ -659,7 +697,7 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
                       {subscriptionTranslations.messages?.processing || 'Processing...'}
                     </>
                   ) : isCurrentPlan ? (
-                    'Current Plan'
+                    currentPlanLabel
                   ) : isUpgradePlan ? (
                     subscriptionTranslations.upgrade || 'Upgrade'
                   ) : isDowngradePlan ? (
@@ -677,7 +715,7 @@ const SubscriptionPlanSelector: React.FC<SubscriptionPlanSelectorProps> = ({
       {!hasActiveSubscription && (
         <Alert>
           <AlertDescription>
-            You're currently on the free tier. Select a plan above to upgrade and unlock premium features.
+            {freeTierNotice}
           </AlertDescription>
         </Alert>
       )}

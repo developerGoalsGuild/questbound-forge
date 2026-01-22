@@ -20,6 +20,8 @@ export interface SignupTranslations {
     successMessage: string;
     successConfirmMessage: string;
     errorMessage: string;
+    termsAcceptance: string;
+    termsLinkText: string;
     options: {
       pronouns: {
         sheHer: string;
@@ -61,6 +63,7 @@ export interface SignupTranslations {
       passwordUpper: string;
       passwordDigit: string;
       passwordSpecial: string;
+      termsRequired: string;
     };
   };
 }
@@ -86,6 +89,8 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
       successMessage: 'Account created!',
       successConfirmMessage: 'Account created! Please check your email to confirm your address.',
       errorMessage: 'Failed to create account. Please try again.',
+      termsAcceptance: 'I agree to the',
+      termsLinkText: 'Terms of Service',
       options: {
         pronouns: {
           sheHer: 'She/Her',
@@ -127,6 +132,7 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
         passwordUpper: 'Must include an uppercase letter',
         passwordDigit: 'Must include a digit',
         passwordSpecial: 'Must include a special character',
+        termsRequired: 'You must accept the Terms of Service',
       },
     },
   },
@@ -150,6 +156,8 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
       successMessage: '¡Cuenta creada!',
       successConfirmMessage: '¡Cuenta creada! Revisa tu correo para confirmar tu dirección.',
       errorMessage: 'Error al crear la cuenta. Inténtalo de nuevo.',
+      termsAcceptance: 'Acepto los',
+      termsLinkText: 'Términos de servicio',
       options: {
         pronouns: {
           sheHer: 'Ella',
@@ -191,6 +199,7 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
         passwordUpper: 'Debe incluir una mayúscula',
         passwordDigit: 'Debe incluir un dígito',
         passwordSpecial: 'Debe incluir un carácter especial',
+        termsRequired: 'Debes aceptar los Términos de servicio',
       },
     },
   },
@@ -214,6 +223,8 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
       successMessage: 'Compte créé !',
       successConfirmMessage: 'Compte créé ! Vérifiez votre e-mail pour confirmer.',
       errorMessage: 'Échec de la création du compte. Veuillez réessayer.',
+      termsAcceptance: "J'accepte les",
+      termsLinkText: "Conditions d'utilisation",
       options: {
         pronouns: {
           sheHer: 'Elle',
@@ -255,6 +266,7 @@ export const signupTranslations: Record<Language, SignupTranslations> = {
         passwordUpper: 'Doit inclure une majuscule',
         passwordDigit: 'Doit inclure un chiffre',
         passwordSpecial: 'Doit inclure un caractère spécial',
+        termsRequired: "Vous devez accepter les Conditions d'utilisation",
       },
     },
   },

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createUser, isEmailAvailable, isNicknameAvailable, confirmEmail, login } from '@/lib/api';
 import { getCountries, initialsFor, isValidCountryCode } from '@/i18n/countries';
@@ -25,6 +25,7 @@ interface FormData {
   country: string;
   gender: string;
   role: 'user' | 'partner' | 'patron';
+  termsAccepted: boolean;
   subscriptionTier?: SubscriptionTier;
 }
 
@@ -58,8 +59,9 @@ const LocalSignUp: React.FC = () => {
     bio: '',
     birthDate: '',
     country: '',
-        gender: '',
-        role: 'user',
+    gender: '',
+    role: 'user',
+    termsAccepted: false,
     subscriptionTier: initialSubscriptionTier
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -102,6 +104,11 @@ const LocalSignUp: React.FC = () => {
   const countries = useMemo(() => getCountries(language), [language]);
   const subscriptionTranslations = useMemo(() => (t as any)?.subscription || {}, [t]);
   const plansTranslations = subscriptionTranslations.plans || {};
+  const freePlan = subscriptionTranslations.freePlan || {};
+  const popularLabel = subscriptionTranslations.mostPopular || 'Most Popular';
+  const selectedLabel = subscriptionTranslations.selected || 'Selected';
+  const selectedPlanLabel = subscriptionTranslations.selectedPlan || 'Selected Plan';
+  const freeTabLabel = subscriptionTranslations.freePlanTabLabel || freePlan.name || 'Free';
   // Build diacritic-safe placeholders to keep queries robust across encodings
   const normalizeDisplay = (raw: string) => {
     try {
@@ -218,6 +225,9 @@ const LocalSignUp: React.FC = () => {
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = validation.passwordMismatch;
     }
+    if (!formData.termsAccepted) {
+      newErrors.termsAccepted = validation.termsRequired || 'You must accept the Terms of Service';
+    }
 
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
@@ -263,7 +273,9 @@ const LocalSignUp: React.FC = () => {
   }, [formData.email, signup.validation]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const target = e.target as HTMLInputElement;
+    const { name } = target;
+    const value = target.type === 'checkbox' ? target.checked : target.value;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
     // Clear availability status when email changes
@@ -379,6 +391,7 @@ const LocalSignUp: React.FC = () => {
           country: '',
           gender: '',
           role: 'user',
+          termsAccepted: false,
           subscriptionTier: undefined,
         });
       } else {
@@ -490,6 +503,7 @@ const LocalSignUp: React.FC = () => {
               country: '',
               gender: '',
               role: 'user',
+              termsAccepted: false,
               subscriptionTier: undefined,
             });
           }
@@ -785,6 +799,32 @@ const LocalSignUp: React.FC = () => {
           )}
         </div>
 
+        <div className="mb-6">
+          <div className="flex items-start gap-2">
+            <input
+              id="termsAccepted"
+              name="termsAccepted"
+              type="checkbox"
+              checked={formData.termsAccepted}
+              onChange={handleChange}
+              className={cn('mt-1 h-4 w-4', errors.termsAccepted ? 'text-red-600' : 'text-blue-600')}
+              aria-invalid={!!errors.termsAccepted}
+              aria-describedby="termsAccepted-error"
+            />
+            <label htmlFor="termsAccepted" className="text-sm text-muted-foreground">
+              {(signup.termsAcceptance as string) || 'I agree to the'}{' '}
+              <Link to="/terms" className="text-primary underline hover:text-primary/80">
+                {(signup.termsLinkText as string) || 'Terms of Service'}
+              </Link>
+            </label>
+          </div>
+          {errors.termsAccepted && (
+            <p id="termsAccepted-error" className="text-red-600 text-sm mt-1" role="alert">
+              {errors.termsAccepted}
+            </p>
+          )}
+        </div>
+
         {/* Subscription Selection Section */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-3">
@@ -814,7 +854,7 @@ const LocalSignUp: React.FC = () => {
                   !formData.subscriptionTier && 'bg-primary text-primary-foreground'
                 )}
               >
-                Free
+                {freeTabLabel}
               </TabsTrigger>
               {(['INITIATE', 'JOURNEYMAN', 'SAGE', 'GUILDMASTER'] as SubscriptionTier[]).map((tier) => {
                 const planKey = tier.toLowerCase() as keyof typeof plansTranslations;
@@ -835,7 +875,7 @@ const LocalSignUp: React.FC = () => {
                   >
                     <span className="truncate w-full text-center">{displayName}</span>
                     {isPopular && (
-                      <Badge className="h-4 px-1 text-[10px] leading-tight">Popular</Badge>
+                      <Badge className="h-4 px-1 text-[10px] leading-tight">{popularLabel}</Badge>
                     )}
                   </TabsTrigger>
                 );
@@ -845,32 +885,26 @@ const LocalSignUp: React.FC = () => {
             <TabsContent value="free" className="mt-0">
               <Card>
                 <CardHeader>
-                  <CardTitle>Free Tier</CardTitle>
-                  <CardDescription>Get started with basic features</CardDescription>
+                  <CardTitle>{freePlan.name || 'Free Tier'}</CardTitle>
+                  <CardDescription>{freePlan.description || 'Get started with basic features'}</CardDescription>
                   <div className="mt-2">
-                    <span className="text-3xl font-bold">$0</span>
-                    <span className="text-muted-foreground ml-1">/month</span>
+                    <span className="text-3xl font-bold">{freePlan.price || '$0'}</span>
+                    <span className="text-muted-foreground ml-1">{freePlan.period || '/month'}</span>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    <li className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>Basic quest templates</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>Community access</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>Standard support</span>
-                    </li>
+                    {(freePlan.features || ['Basic quest templates', 'Community access', 'Standard support']).map((feature: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
                   </ul>
                   {!formData.subscriptionTier && (
                     <div className="mt-4 text-center">
                       <Badge variant="default" className="bg-primary">
-                        Selected
+                        {selectedLabel}
                       </Badge>
                     </div>
                   )}
@@ -891,7 +925,7 @@ const LocalSignUp: React.FC = () => {
                   )}>
                     {plan.popular && (
                       <Badge className="absolute -top-3 right-4 bg-primary">
-                        Most Popular
+                        {popularLabel}
                       </Badge>
                     )}
                     <CardHeader>
@@ -914,7 +948,7 @@ const LocalSignUp: React.FC = () => {
                       {isSelected && (
                         <div className="mt-6 text-center">
                           <Badge variant="default" className="bg-primary text-lg px-4 py-2">
-                            Selected Plan
+                            {selectedPlanLabel}
                           </Badge>
                         </div>
                       )}

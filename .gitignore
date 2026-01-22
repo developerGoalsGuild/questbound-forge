@@ -122,3 +122,4 @@ backend/services/authorizer-service/build/*
 apps/frontend/.env.development
 backend/services/gamification-service/.version
 apps/frontend/.env.development
+backend/infra/terraform2/scripts/deploy-quest-service-with-build.sh

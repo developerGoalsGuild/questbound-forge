@@ -27,6 +27,8 @@ vi.mock('@/hooks/useTranslation', () => {
         successMessage: 'OK',
         successConfirmMessage: 'OK-CONFIRM',
         errorMessage: 'ERR',
+        termsAcceptance: 'I agree to the',
+        termsLinkText: 'Terms of Service',
         options: { roles: { user: 'User', partner: 'Partner', patron: 'Patron' } },
         validation: {
           required: 'Required',
@@ -46,8 +48,25 @@ vi.mock('@/hooks/useTranslation', () => {
           passwordSpecial: 'Must include a special character',
           passwordMismatch: 'Passwords do not match',
           available: 'Available',
+          termsRequired: 'Terms required',
         },
       },
+    },
+    subscription: {
+      title: 'Subscription Title Localized',
+      subtitle: 'Subscription Subtitle Localized',
+      mostPopular: 'Popular Localized',
+      selected: 'Selected Localized',
+      selectedPlan: 'Selected Plan Localized',
+      freePlanTabLabel: 'Free Localized',
+      freePlan: {
+        name: 'Free Tier Localized',
+        price: '$0',
+        period: '/month',
+        description: 'Free description localized',
+        features: ['Feature A', 'Feature B', 'Feature C'],
+      },
+      plans: {},
     },
   };
   return { useTranslation: () => ({ t, language: 'en' }) };
@@ -144,6 +163,7 @@ function fillMinimalValidForm(container: HTMLElement) {
 
   fireEvent.change(screen.getByTestId('password'), { target: { value: 'StrongP@ssw0rd' } });
   fireEvent.change(screen.getByTestId('confirmPassword'), { target: { value: 'StrongP@ssw0rd' } });
+  fireEvent.click(byId<HTMLInputElement>(container, 'termsAccepted'));
 }
 
 // ----------------------- Lifecycle -----------------------
@@ -173,7 +193,31 @@ describe('LocalSignUp (finalized)', () => {
     await waitFor(() => expect(byId<HTMLInputElement>(container, 'country')).toHaveAttribute('aria-invalid', 'true'));
     await waitFor(() => expect(screen.getByTestId('password')).toHaveAttribute('aria-invalid', 'true'));
     await waitFor(() => expect(screen.getByTestId('confirmPassword')).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(byId<HTMLInputElement>(container, 'termsAccepted')).toHaveAttribute('aria-invalid', 'true'));
   }, 10000);
+
+  test('renders localized subscription copy for free plan', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    renderWithRouter(<LocalSignUp />);
+
+    expect(screen.getByText('Free Localized')).toBeInTheDocument();
+    expect(screen.getByText('Free Tier Localized')).toBeInTheDocument();
+    expect(screen.getByText('Free description localized')).toBeInTheDocument();
+    expect(screen.getByText('Selected Localized')).toBeInTheDocument();
+  }, 10000);
+
+  test('requires accepting terms before submit', async () => {
+    const LocalSignUp = await loadComponentWithEmailConfirmation(false);
+    const { container } = renderWithRouter(<LocalSignUp />);
+
+    fillMinimalValidForm(container);
+    await selectCountry(container, 'Bra', /Brazil \(BR\)/i);
+    fireEvent.click(byId<HTMLInputElement>(container, 'termsAccepted')); // uncheck
+    fireEvent.click(submitBtn(container));
+
+    await waitFor(() => expect(api.createUser).not.toHaveBeenCalled());
+    expect(screen.getByText('Terms required')).toBeInTheDocument();
+  }, 12000);
 
   test('debounced email availability toggles color (green then red)', async () => {
     const LocalSignUp = await loadComponentWithEmailConfirmation(false);

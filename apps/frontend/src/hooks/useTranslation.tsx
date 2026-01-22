@@ -33,10 +33,11 @@ export const TranslationProvider = ({ children }: { children: ReactNode }) => {
   // Update language when detection completes (only on initial load)
   useEffect(() => {
     if (!isLoading && detectedLanguage && !hasInitialized) {
-      // Only set from detection if no manual language is stored
-      const stored = localStorage.getItem('userLanguage');
-      if (!stored) {
-        setLanguage(detectedLanguage);
+      setLanguage(detectedLanguage);
+      try {
+        localStorage.setItem('userLanguage', detectedLanguage);
+      } catch (e) {
+        // localStorage not available or error
       }
       setHasInitialized(true);
     }

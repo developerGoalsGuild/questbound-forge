@@ -2007,7 +2007,8 @@ async def list_goal_quests_endpoint(
         raise HTTPException(status_code=500, detail="Failed to list goal quests")
 
 
-@app.get("/quests/{quest_id}", response_model=QuestResponse)
+# Exclude reserved static paths from the dynamic matcher to prevent misrouting
+@app.get("/quests/{quest_id:(?!analytics$)(?!templates$)(?!progress$)(?!quests$)[^/]+}", response_model=QuestResponse)
 async def get_quest_simple_endpoint(
     quest_id: str,
     auth: AuthContext = Depends(authenticate),
@@ -2017,6 +2018,11 @@ async def get_quest_simple_endpoint(
     Get a specific quest by ID with collaboration access support.
     Simple endpoint for direct quest access.
     """
+    if quest_id in {"analytics", "templates", "progress", "quests"}:
+        logger.warning('quest.dynamic_route_misroute',
+                      quest_id=quest_id,
+                      user_id=auth.user_id,
+                      hint="Static endpoint likely shadowed by dynamic route")
     logger.info('quest.get_requested', quest_id=quest_id, user_id=auth.user_id)
     
     try:

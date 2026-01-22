@@ -7,6 +7,18 @@ export interface SubscriptionTranslations {
     title: string;
     subtitle: string;
     mostPopular: string;
+    currentBadge: string;
+    freeTierNotice: string;
+    selected: string;
+    selectedPlan: string;
+    freePlanTabLabel: string;
+    freePlan: {
+      name: string;
+      price: string;
+      period: string;
+      description: string;
+      features: string[];
+    };
     allPlansInclude: string;
     allPlansFeatures: {
       goalTracking: string;
@@ -37,6 +49,12 @@ export interface SubscriptionTranslations {
     founder: FounderTranslations;
     errors: ErrorTranslations;
     messages: MessageTranslations;
+    planTier?: string;
+    status?: string;
+    currentPeriodStart?: string;
+    currentPeriodEnd?: string;
+    cancelAtPeriodEnd?: string;
+    noActiveSubscription?: string;
   };
 }
 
@@ -120,6 +138,22 @@ export const subscriptionTranslations = {
       title: 'Choose Your Path',
       subtitle: 'Select the plan that best fits your journey to success',
       mostPopular: 'Most Popular',
+      currentBadge: 'Current',
+      freeTierNotice: "You're currently on the free tier. Select a plan above to upgrade and unlock premium features.",
+      selected: 'Selected',
+      selectedPlan: 'Selected Plan',
+      freePlanTabLabel: 'Free',
+      freePlan: {
+        name: 'Free Tier',
+        price: '$0',
+        period: '/month',
+        description: 'Get started with basic features',
+        features: [
+          'Basic quest templates',
+          'Community access',
+          'Standard support',
+        ],
+      },
       allPlansInclude: 'All Plans Include',
       allPlansFeatures: {
         goalTracking: 'Goal Tracking',
@@ -271,6 +305,12 @@ export const subscriptionTranslations = {
         updateSuccess: 'Your subscription plan has been updated.',
         processing: 'Processing subscription request',
       },
+      planTier: 'Plan Tier',
+      status: 'Status',
+      currentPeriodStart: 'Current Period Start',
+      currentPeriodEnd: 'Current Period End',
+      cancelAtPeriodEnd: 'This subscription will be canceled at the end of the current period.',
+      noActiveSubscription: 'No active subscription. Edit your profile to upgrade.',
     },
   },
   es: {
@@ -278,6 +318,22 @@ export const subscriptionTranslations = {
       title: 'Elige Tu Camino',
       subtitle: 'Selecciona el plan que mejor se ajuste a tu viaje al éxito',
       mostPopular: 'Más Popular',
+      currentBadge: 'Actual',
+      freeTierNotice: 'Actualmente estás en el plan gratuito. Elige un plan arriba para actualizar y desbloquear funciones premium.',
+      selected: 'Seleccionado',
+      selectedPlan: 'Plan seleccionado',
+      freePlanTabLabel: 'Gratis',
+      freePlan: {
+        name: 'Plan gratuito',
+        price: '$0',
+        period: '/mes',
+        description: 'Comienza con funciones básicas',
+        features: [
+          'Plantillas de misiones básicas',
+          'Acceso a la comunidad',
+          'Soporte estándar',
+        ],
+      },
       allPlansInclude: 'Todos los Planes Incluyen',
       allPlansFeatures: {
         goalTracking: 'Seguimiento de Metas',
@@ -429,6 +485,12 @@ export const subscriptionTranslations = {
         updateSuccess: 'Tu plan de suscripción ha sido actualizado.',
         processing: 'Procesando solicitud de suscripción',
       },
+      planTier: 'Nivel del Plan',
+      status: 'Estado',
+      currentPeriodStart: 'Inicio del Período Actual',
+      currentPeriodEnd: 'Fin del Período Actual',
+      cancelAtPeriodEnd: 'Esta suscripción se cancelará al final del período actual.',
+      noActiveSubscription: 'No hay suscripción activa. Edita tu perfil para actualizar.',
     },
   },
   fr: {
@@ -436,6 +498,22 @@ export const subscriptionTranslations = {
       title: 'Choisissez Votre Chemin',
       subtitle: 'Sélectionnez le plan qui correspond le mieux à votre parcours vers le succès',
       mostPopular: 'Le Plus Populaire',
+      currentBadge: 'Actuel',
+      freeTierNotice: 'Vous êtes actuellement sur le plan gratuit. Sélectionnez un plan ci-dessus pour passer à la version premium.',
+      selected: 'Sélectionné',
+      selectedPlan: 'Plan sélectionné',
+      freePlanTabLabel: 'Gratuit',
+      freePlan: {
+        name: 'Formule gratuite',
+        price: '0 €',
+        period: '/mois',
+        description: 'Commencez avec les fonctionnalités de base',
+        features: [
+          'Modèles de quêtes de base',
+          'Accès à la communauté',
+          'Support standard',
+        ],
+      },
       allPlansInclude: 'Tous les Plans Incluent',
       allPlansFeatures: {
         goalTracking: 'Suivi des Objectifs',
@@ -587,6 +665,12 @@ export const subscriptionTranslations = {
         updateSuccess: 'Votre plan d\'abonnement a été mis à jour.',
         processing: 'Traitement de la demande d\'abonnement',
       },
+      planTier: 'Niveau du Plan',
+      status: 'Statut',
+      currentPeriodStart: 'Début de la Période Actuelle',
+      currentPeriodEnd: 'Fin de la Période Actuelle',
+      cancelAtPeriodEnd: 'Cet abonnement sera annulé à la fin de la période actuelle.',
+      noActiveSubscription: 'Aucun abonnement actif. Modifiez votre profil pour mettre à niveau.',
     },
   },
 };
