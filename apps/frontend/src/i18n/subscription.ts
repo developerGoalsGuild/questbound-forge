@@ -57,7 +57,10 @@ export interface SubscriptionTranslations {
     currentPeriodEnd?: string;
     cancelAtPeriodEnd?: string;
     noActiveSubscription?: string;
+<<<<<<< HEAD
     planFeatures?: string;
+=======
+>>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
   };
 }
 
@@ -316,7 +319,10 @@ export const subscriptionTranslations = {
       currentPeriodEnd: 'Current Period End',
       cancelAtPeriodEnd: 'This subscription will be canceled at the end of the current period.',
       noActiveSubscription: 'No active subscription. Edit your profile to upgrade.',
+<<<<<<< HEAD
       planFeatures: 'Plan Features',
+=======
+>>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
     },
   },
   es: {
@@ -499,7 +505,10 @@ export const subscriptionTranslations = {
       currentPeriodEnd: 'Fin del Período Actual',
       cancelAtPeriodEnd: 'Esta suscripción se cancelará al final del período actual.',
       noActiveSubscription: 'No hay suscripción activa. Edita tu perfil para actualizar.',
+<<<<<<< HEAD
       planFeatures: 'Características del Plan',
+=======
+>>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
     },
   },
   fr: {
@@ -682,7 +691,10 @@ export const subscriptionTranslations = {
       currentPeriodEnd: 'Fin de la Période Actuelle',
       cancelAtPeriodEnd: 'Cet abonnement sera annulé à la fin de la période actuelle.',
       noActiveSubscription: 'Aucun abonnement actif. Modifiez votre profil pour mettre à niveau.',
+<<<<<<< HEAD
       planFeatures: 'Caractéristiques du Plan',
+=======
+>>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
     },
   },
 };
