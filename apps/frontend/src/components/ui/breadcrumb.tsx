@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,8 @@ interface BreadcrumbProps {
 const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const breadcrumbTranslations = (t as any)?.common?.breadcrumb;
 
   // Generate breadcrumb items based on current path
   const getBreadcrumbItems = (): BreadcrumbItem[] => {
@@ -25,7 +28,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
 
     // Always start with Dashboard
     items.push({
-      label: 'Dashboard',
+      label: breadcrumbTranslations?.dashboard || 'Dashboard',
       path: '/dashboard',
       current: location.pathname === '/dashboard'
     });
@@ -34,7 +37,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
     if (location.pathname.startsWith('/quests')) {
       // Add Quests as parent
       items.push({
-        label: 'Quests',
+        label: breadcrumbTranslations?.quests || 'Quests',
         path: '/quests',
         current: location.pathname === '/quests'
       });
@@ -66,30 +69,33 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
   // Get quest page label based on path
   const getQuestPageLabel = (path: string): string => {
     if (path === '/quests/create') {
-      return 'Create';
+      return breadcrumbTranslations?.create || 'Create';
     }
     if (path.startsWith('/quests/edit/')) {
-      return 'Edit';
+      return breadcrumbTranslations?.edit || 'Edit';
     }
     if (path.startsWith('/quests/details/')) {
-      return 'View';
+      return breadcrumbTranslations?.view || 'View';
     }
     
     // Default fallback for quest pages
-    return 'Quest';
+    return breadcrumbTranslations?.quest || 'Quest';
   };
 
   // Get page label based on path
   const getPageLabel = (path: string): string => {
     const pathMap: Record<string, string> = {
-      '/profile': 'Profile',
-      '/profile/edit': 'Edit Profile',
-      '/goals': 'Goals',
-      '/goals/list': 'Goals List',
-      '/goals/create': 'Create Goal',
-      '/goals/edit': 'Edit Goal',
-      '/goals/details': 'Goal Details',
-      '/account/change-password': 'Change Password',
+      '/profile': breadcrumbTranslations?.profile || 'Profile',
+      '/profile/edit': breadcrumbTranslations?.editProfile || 'Edit Profile',
+      '/goals': breadcrumbTranslations?.goals || 'Goals',
+      '/goals/list': breadcrumbTranslations?.goalsList || 'Goals List',
+      '/goals/create': breadcrumbTranslations?.createGoal || 'Create Goal',
+      '/goals/edit': breadcrumbTranslations?.editGoal || 'Edit Goal',
+      '/goals/details': breadcrumbTranslations?.goalDetails || 'Goal Details',
+      '/account/change-password': breadcrumbTranslations?.changePassword || 'Change Password',
+      '/guilds': breadcrumbTranslations?.guilds || 'Guilds',
+      '/chat': breadcrumbTranslations?.chat || 'Chat',
+      '/subscription': breadcrumbTranslations?.subscription || 'Subscription',
     };
 
     // Check for exact matches first
@@ -99,14 +105,20 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
 
     // Check for dynamic routes
     if (path.startsWith('/goals/edit/')) {
-      return 'Edit Goal';
+      return breadcrumbTranslations?.editGoal || 'Edit Goal';
     }
     if (path.startsWith('/goals/details/')) {
-      return 'Goal Details';
+      return breadcrumbTranslations?.goalDetails || 'Goal Details';
+    }
+    if (path.startsWith('/guilds/')) {
+      return breadcrumbTranslations?.guilds || 'Guilds';
+    }
+    if (path.startsWith('/subscription/')) {
+      return breadcrumbTranslations?.subscription || 'Subscription';
     }
 
     // Default fallback
-    return path.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Page';
+    return path.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || (breadcrumbTranslations?.page || 'Page');
   };
 
   const breadcrumbItems = getBreadcrumbItems();

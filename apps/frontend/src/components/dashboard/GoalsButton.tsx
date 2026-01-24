@@ -179,8 +179,8 @@ const GoalsButton: React.FC = () => {
               <TrendingUp className="w-4 h-4" />
               <span>
                 {activeCount === 1 
-                  ? '1 active goal' 
-                  : `${activeCount} active goals`
+                  ? (goalDashboardTranslations?.stats?.activeGoalCount || '1 active goal')
+                  : (goalDashboardTranslations?.stats?.activeGoalsCount || '{count} active goals').replace('{count}', String(activeCount))
                 }
               </span>
             </div>

@@ -40,6 +40,16 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
 
+  // Get translated difficulty labels
+  const getDifficultyLabel = (value: QuestDifficulty): string => {
+    const difficultyMap: Record<QuestDifficulty, string> = {
+      easy: questTranslations?.difficulty?.easy || 'Easy',
+      medium: questTranslations?.difficulty?.medium || 'Medium',
+      hard: questTranslations?.difficulty?.hard || 'Hard'
+    };
+    return difficultyMap[value] || value;
+  };
+
   // Keep local input state so typing reflects immediately in the UI
   const [title, setTitle] = useState(formData.title || '');
   const [description, setDescription] = useState(formData.description || '');
@@ -194,7 +204,7 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
               <SelectContent>
                 {QUEST_DIFFICULTIES.map((difficulty) => (
                   <SelectItem key={difficulty.value} value={difficulty.value}>
-                    {difficulty.label}
+                    {getDifficultyLabel(difficulty.value)}
                   </SelectItem>
                 ))}
               </SelectContent>

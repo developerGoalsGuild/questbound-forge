@@ -118,7 +118,23 @@ export const isValidGoalStatus = (status: string): status is GoalStatus => {
 };
 
 // Helper function to format goal status for display
-export const formatGoalStatus = (status: GoalStatus): string => {
+export const formatGoalStatus = (status: GoalStatus, translations?: {
+  active?: string;
+  paused?: string;
+  completed?: string;
+  archived?: string;
+}): string => {
+  if (translations) {
+    const statusMap: Record<GoalStatus, string> = {
+      [GoalStatus.ACTIVE]: translations.active || 'Active',
+      [GoalStatus.PAUSED]: translations.paused || 'Paused',
+      [GoalStatus.COMPLETED]: translations.completed || 'Completed',
+      [GoalStatus.ARCHIVED]: translations.archived || 'Archived'
+    };
+    return statusMap[status] || status;
+  }
+  
+  // Fallback to English if no translations provided
   const statusMap: Record<GoalStatus, string> = {
     [GoalStatus.ACTIVE]: 'Active',
     [GoalStatus.PAUSED]: 'Paused',
@@ -126,6 +142,48 @@ export const formatGoalStatus = (status: GoalStatus): string => {
     [GoalStatus.ARCHIVED]: 'Archived'
   };
   return statusMap[status] || status;
+};
+
+// Helper function to get translated category name
+export const getCategoryName = (
+  categoryId: string | null | undefined,
+  translations?: {
+    categories?: {
+      [key: string]: { name?: string; description?: string };
+    };
+  }
+): string => {
+  if (!categoryId) return '';
+  
+  // If translations provided, use them
+  if (translations?.categories?.[categoryId]?.name) {
+    return translations.categories[categoryId].name!;
+  }
+  
+  // Fallback to English category name
+  const category = getCategoryById(categoryId);
+  return category?.name || categoryId;
+};
+
+// Helper function to get translated category description
+export const getCategoryDescription = (
+  categoryId: string | null | undefined,
+  translations?: {
+    categories?: {
+      [key: string]: { name?: string; description?: string };
+    };
+  }
+): string => {
+  if (!categoryId) return '';
+  
+  // If translations provided, use them
+  if (translations?.categories?.[categoryId]?.description) {
+    return translations.categories[categoryId].description!;
+  }
+  
+  // Fallback to English category description
+  const category = getCategoryById(categoryId);
+  return category?.description || '';
 };
 
 // Helper function to get status color class

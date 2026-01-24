@@ -62,6 +62,19 @@ export interface GoalDetailsTranslations {
     completed: string;
     inProgress: string;
     notStarted: string;
+    overallProgress: string;
+    taskProgress: string;
+    timeProgress: string;
+    tasks: string;
+    milestones: string;
+    achieved: string;
+    upcoming: string;
+    noGoalData: string;
+    loadingProgress: string;
+  };
+  tabs: {
+    details: string;
+    tasks: string;
   };
   nlpAnswers: {
     title: string;
@@ -149,6 +162,19 @@ export const goalDetailsTranslations: Record<Language, GoalDetailsTranslations> 
       completed: 'Completed',
       inProgress: 'In Progress',
       notStarted: 'Not Started',
+      overallProgress: 'Overall Progress',
+      taskProgress: 'Task Progress',
+      timeProgress: 'Time Progress',
+      tasks: 'tasks',
+      milestones: 'Milestones',
+      achieved: 'Achieved',
+      upcoming: 'Upcoming',
+      noGoalData: 'No goal data available',
+      loadingProgress: 'Loading progress data...',
+    },
+    tabs: {
+      details: 'Details',
+      tasks: 'Tasks',
     },
     nlpAnswers: {
       title: 'NLP Answers',
@@ -234,6 +260,19 @@ export const goalDetailsTranslations: Record<Language, GoalDetailsTranslations> 
       completed: 'Completado',
       inProgress: 'En Progreso',
       notStarted: 'No Iniciado',
+      overallProgress: 'Progreso General',
+      taskProgress: 'Progreso de Tareas',
+      timeProgress: 'Progreso de Tiempo',
+      tasks: 'tareas',
+      milestones: 'Hitos',
+      achieved: 'Logrado',
+      upcoming: 'Próximo',
+      noGoalData: 'No hay datos del objetivo disponibles',
+      loadingProgress: 'Cargando datos de progreso...',
+    },
+    tabs: {
+      details: 'Detalles',
+      tasks: 'Tareas',
     },
     nlpAnswers: {
       title: 'Respuestas NLP',
@@ -319,6 +358,19 @@ export const goalDetailsTranslations: Record<Language, GoalDetailsTranslations> 
       completed: 'Terminé',
       inProgress: 'En Cours',
       notStarted: 'Non Commencé',
+      overallProgress: 'Progrès Global',
+      taskProgress: 'Progrès des Tâches',
+      timeProgress: 'Progrès Temporel',
+      tasks: 'tâches',
+      milestones: 'Jalons',
+      achieved: 'Atteint',
+      upcoming: 'À Venir',
+      noGoalData: 'Aucune donnée d\'objectif disponible',
+      loadingProgress: 'Chargement des données de progrès...',
+    },
+    tabs: {
+      details: 'Détails',
+      tasks: 'Tâches',
     },
     nlpAnswers: {
       title: 'Réponses NLP',

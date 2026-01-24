@@ -47,7 +47,12 @@ export interface GoalEditTranslations {
     saveSuccess: string;
     saveError: string;
     loading: string;
+    loadingGoalData: string;
+    updating: string;
     goalNotFound: string;
+    taskCreated: string;
+    taskUpdated: string;
+    taskDeleted: string;
   };
   nlp: {
     title: string;
@@ -123,7 +128,12 @@ export const goalEditTranslations: Record<Language, GoalEditTranslations> = {
       saveSuccess: 'Goal updated successfully',
       saveError: 'Failed to update goal',
       loading: 'Loading goal...',
+      loadingGoalData: 'Loading goal data...',
+      updating: 'Updating...',
       goalNotFound: 'Goal not found',
+      taskCreated: 'Task created successfully',
+      taskUpdated: 'Task updated successfully',
+      taskDeleted: 'Task deleted successfully',
     },
     nlp: {
       title: 'Well-formed Outcome (NLP)',
@@ -197,7 +207,12 @@ export const goalEditTranslations: Record<Language, GoalEditTranslations> = {
       saveSuccess: 'Objetivo actualizado exitosamente',
       saveError: 'Error al actualizar objetivo',
       loading: 'Cargando objetivo...',
+      loadingGoalData: 'Cargando datos del objetivo...',
+      updating: 'Actualizando...',
       goalNotFound: 'Objetivo no encontrado',
+      taskCreated: 'Tarea creada exitosamente',
+      taskUpdated: 'Tarea actualizada exitosamente',
+      taskDeleted: 'Tarea eliminada exitosamente',
     },
     nlp: {
       title: 'Resultado Bien Formado (PNL)',
@@ -271,7 +286,12 @@ export const goalEditTranslations: Record<Language, GoalEditTranslations> = {
       saveSuccess: 'Objectif mis à jour avec succès',
       saveError: 'Échec de la mise à jour de l\'objectif',
       loading: 'Chargement de l\'objectif...',
+      loadingGoalData: 'Chargement des données de l\'objectif...',
+      updating: 'Mise à jour...',
       goalNotFound: 'Objectif non trouvé',
+      taskCreated: 'Tâche créée avec succès',
+      taskUpdated: 'Tâche mise à jour avec succès',
+      taskDeleted: 'Tâche supprimée avec succès',
     },
     nlp: {
       title: 'Objectif Bien Formé (PNL)',

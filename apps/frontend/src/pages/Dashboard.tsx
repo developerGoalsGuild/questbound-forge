@@ -77,26 +77,26 @@ const Dashboard = () => {
     return null;
   }, []);
 
-  const dashboardTypes = [
+  const dashboardTypes = useMemo(() => [
     {
       key: 'user' as DashboardType,
       icon: User,
-      label: 'Adventurer',
-      description: 'Personal goal tracking',
+      label: (t as any)?.user?.selectorLabel || 'Adventurer',
+      description: (t as any)?.user?.selectorDescription || 'Personal goal tracking',
     },
     {
       key: 'partner' as DashboardType,
       icon: Building2,
-      label: 'Partner Company',
-      description: 'Business services',
+      label: (t as any)?.partner?.selectorLabel || 'Partner Company',
+      description: (t as any)?.partner?.selectorDescription || 'Business services',
     },
     {
       key: 'patron' as DashboardType,
       icon: Crown,
-      label: 'Noble Patron',
-      description: 'Community support',
+      label: (t as any)?.patron?.selectorLabel || 'Noble Patron',
+      description: (t as any)?.patron?.selectorDescription || 'Community support',
     },
-  ];
+  ], [t]);
 
   const renderDashboard = () => {
     switch (activeDashboard) {

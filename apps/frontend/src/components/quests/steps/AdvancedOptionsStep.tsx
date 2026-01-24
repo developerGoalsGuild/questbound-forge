@@ -457,7 +457,7 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
                     max="365"
                     value={formData.periodDays || ''}
                     onChange={(e) => onFieldChange('periodDays', parseInt(e.target.value) || 1)}
-                    placeholder="Enter number of days..."
+                    placeholder={questTranslations?.placeholders?.periodDays || 'Enter number of days...'}
                     className={errors.periodDays ? 'border-red-500' : ''}
                     aria-invalid={!!errors.periodDays}
                     aria-describedby={errors.periodDays ? 'periodDays-error' : undefined}
@@ -536,7 +536,7 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
                 {/* Show linked goals */}
                 {formData.linkedGoalIds && formData.linkedGoalIds.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-sm font-medium">Selected Goals:</div>
+                    <div className="text-sm font-medium">{questTranslations?.messages?.selectedGoals || 'Selected Goals:'}</div>
                     <div className="flex flex-wrap gap-2">
                       {formData.linkedGoalIds.map((goalId) => {
                         const goal = goals.find(g => g.id === goalId);
@@ -609,7 +609,7 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
                   {/* Show linked tasks */}
                   {formData.linkedTaskIds && formData.linkedTaskIds.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-sm font-medium">Selected Tasks:</div>
+                      <div className="text-sm font-medium">{questTranslations?.messages?.selectedTasks || 'Selected Tasks:'}</div>
                       <div className="flex flex-wrap gap-2">
                         {formData.linkedTaskIds.map((taskId) => {
                           const task = tasks.find(t => t.id === taskId);

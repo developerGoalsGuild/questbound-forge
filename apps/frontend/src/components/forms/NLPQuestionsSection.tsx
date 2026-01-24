@@ -32,6 +32,7 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
 
   // Get translations with safety checks - use goal creation translations
   const goalCreationTranslations = (t as any)?.goalCreation;
+  const goalsTranslations = (t as any)?.goals;
   const nlpTranslations = goalCreationTranslations?.nlp ?? {};
   const questions = nlpTranslations.questions ?? {};
   const hints = nlpTranslations.hints ?? {};
@@ -220,20 +221,39 @@ const NLPQuestionsSection: React.FC<NLPQuestionsSectionProps> = ({
         </div>
 
         {/* Validation Summary */}
-        {Object.keys(errors).length > 0 && (
-          <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
-            <h3 className="text-sm font-medium text-destructive mb-2">
-              Please fix the following errors:
-            </h3>
-            <ul className="text-sm text-destructive space-y-1">
-              {Object.entries(errors).map(([key, error]) => (
-                <li key={key}>
-                  • {questions[key as NLPQuestionKey] || key}: {error}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {(() => {
+          // Helper function to extract error message (handles both string and object with message property)
+          const getErrorMessage = (error: any): string | null => {
+            if (!error) return null;
+            if (typeof error === 'string' && error.trim().length > 0) {
+              return error.trim();
+            }
+            if (typeof error === 'object' && error.message && typeof error.message === 'string' && error.message.trim().length > 0) {
+              return error.message.trim();
+            }
+            return null;
+          };
+
+          // Filter errors that have actual messages
+          const errorEntries = Object.entries(errors)
+            .map(([key, error]) => [key, getErrorMessage(error)] as [string, string | null])
+            .filter(([_, message]) => message !== null);
+
+          return errorEntries.length > 0 ? (
+            <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
+              <h3 className="text-sm font-medium text-destructive mb-2">
+                {goalsTranslations?.validation?.formErrorsTitle || 'Please fix the following errors:'}
+              </h3>
+              <ul className="text-sm text-destructive space-y-1">
+                {errorEntries.map(([key, message]) => (
+                  <li key={key}>
+                    • {questions[key as NLPQuestionKey] || key}: {message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null;
+        })()}
       </div>
     </TooltipProvider>
   );

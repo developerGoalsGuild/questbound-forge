@@ -9,6 +9,8 @@ export interface GoalDashboardTranslations {
   };
   stats: {
     activeGoals: string;
+    activeGoalsCount: string; // Format: "{count} active goals"
+    activeGoalCount: string; // Format: "1 active goal" (singular)
     completedGoals: string;
     totalGoals: string;
   };
@@ -71,6 +73,8 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
     },
     stats: {
       activeGoals: 'Active Goals',
+      activeGoalsCount: '{count} active goals',
+      activeGoalCount: '1 active goal',
       completedGoals: 'Completed Goals',
       totalGoals: 'Total Goals',
     },
@@ -131,6 +135,8 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
     },
     stats: {
       activeGoals: 'Objetivos Activos',
+      activeGoalsCount: '{count} objetivos activos',
+      activeGoalCount: '1 objetivo activo',
       completedGoals: 'Objetivos Completados',
       totalGoals: 'Total de Objetivos',
     },
@@ -191,6 +197,8 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
     },
     stats: {
       activeGoals: 'Objectifs Actifs',
+      activeGoalsCount: '{count} objectifs actifs',
+      activeGoalCount: '1 objectif actif',
       completedGoals: 'Objectifs Terminés',
       totalGoals: 'Total des Objectifs',
     },

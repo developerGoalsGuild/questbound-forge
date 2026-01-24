@@ -13,6 +13,10 @@
  */
 
 export interface QuestTranslations {
+  // Root level page titles and descriptions
+  title: string;
+  description: string;
+  
   // Status translations
   status: {
     draft: string;
@@ -89,6 +93,7 @@ export interface QuestTranslations {
     description: string;
     category: string;
     difficulty: string;
+    rewardXp: string;
     privacy: string;
     kind: string;
     tags: string;
@@ -206,6 +211,11 @@ export interface QuestTranslations {
     noGoals: string;
     noTasks: string;
     loading: string;
+    calculated: string;
+    autoCalculated: string;
+    rewardCalculatedNote: string;
+    selectedGoals: string;
+    selectedTasks: string;
   };
 
   // Goal Integration
@@ -344,10 +354,33 @@ export interface QuestTranslations {
   // Steps
   steps: {
     basicInfo: string;
+    basicInfoDescription: string;
     advancedOptions: string;
+    advancedOptionsDescription: string;
     review: string;
+    reviewDescription: string;
     step: string;
     of: string;
+  };
+  
+  // Placeholders
+  placeholders: {
+    title: string;
+    description: string;
+    category: string;
+    difficulty: string;
+    privacy: string;
+    kind: string;
+    tags: string;
+    targetCount: string;
+    countScope: string;
+    periodDays: string;
+    noDescription: string;
+  };
+  
+  // Help text
+  help: {
+    requiredFields: string;
   };
   
   // Loading
@@ -590,6 +623,8 @@ export interface QuestTranslations {
  */
 export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = {
   en: {
+    title: 'Create Quest',
+    description: 'Create a new quest to track your progress',
     status: {
       draft: 'Draft',
       active: 'Active',
@@ -753,7 +788,9 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       loading: 'Loading quest...',
       calculated: 'Calculated automatically',
       autoCalculated: 'Auto-calculated',
-      rewardCalculatedNote: 'Reward XP is calculated automatically based on quest scope, period, and difficulty.'
+      rewardCalculatedNote: 'Reward XP is calculated automatically based on quest scope, period, and difficulty.',
+      selectedGoals: 'Selected Goals:',
+      selectedTasks: 'Selected Tasks:'
     },
 
     sections: {
@@ -821,10 +858,29 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     steps: {
       basicInfo: 'Basic Info',
+      basicInfoDescription: 'Provide the essential details for your quest.',
       advancedOptions: 'Advanced',
+      advancedOptionsDescription: 'Configure additional quest settings.',
       review: 'Review',
+      reviewDescription: 'Review your quest details before creating.',
       step: 'Step',
       of: 'of'
+    },
+    placeholders: {
+      title: 'Enter quest title...',
+      description: 'Describe your quest...',
+      category: 'Select category...',
+      difficulty: 'Select difficulty...',
+      privacy: 'Select privacy...',
+      kind: 'Select quest type...',
+      tags: 'Add a tag...',
+      targetCount: 'Enter target count...',
+      countScope: 'Select count scope...',
+      periodDays: 'Enter number of days...',
+      noDescription: 'No description provided'
+    },
+    help: {
+      requiredFields: 'Fields marked with * are required'
     },
     loading: {
       loadingQuest: 'Loading quest...'
@@ -1122,6 +1178,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     }
   },
   es: {
+    title: 'Crear Misión',
+    description: 'Crea una nueva misión para rastrear tu progreso',
     status: {
       draft: 'Borrador',
       active: 'Activo',
@@ -1304,7 +1362,9 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       loading: 'Cargando misión...',
       calculated: 'Calculado automáticamente',
       autoCalculated: 'Auto-calculado',
-      rewardCalculatedNote: 'La XP de recompensa se calcula automáticamente según el alcance de la misión, el período y la dificultad.'
+      rewardCalculatedNote: 'La XP de recompensa se calcula automáticamente según el alcance de la misión, el período y la dificultad.',
+      selectedGoals: 'Objetivos Seleccionados:',
+      selectedTasks: 'Tareas Seleccionadas:'
     },
 
     sections: {
@@ -1372,10 +1432,29 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     steps: {
       basicInfo: 'Información Básica',
+      basicInfoDescription: 'Proporciona los detalles esenciales para tu misión.',
       advancedOptions: 'Avanzado',
+      advancedOptionsDescription: 'Configura opciones adicionales de la misión.',
       review: 'Revisar',
+      reviewDescription: 'Revisa los detalles de tu misión antes de crear.',
       step: 'Paso',
       of: 'de'
+    },
+    placeholders: {
+      title: 'Ingresa el título de la misión...',
+      description: 'Describe tu misión...',
+      category: 'Selecciona categoría...',
+      difficulty: 'Selecciona dificultad...',
+      privacy: 'Selecciona privacidad...',
+      kind: 'Selecciona tipo de misión...',
+      tags: 'Agrega una etiqueta...',
+      targetCount: 'Ingresa cantidad objetivo...',
+      countScope: 'Selecciona alcance del conteo...',
+      periodDays: 'Ingresa número de días...',
+      noDescription: 'No se proporcionó descripción'
+    },
+    help: {
+      requiredFields: 'Los campos marcados con * son obligatorios'
     },
     loading: {
       loadingQuest: 'Cargando misión...'
@@ -1654,6 +1733,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     }
   },
   fr: {
+    title: 'Créer une Quête',
+    description: 'Créez une nouvelle quête pour suivre vos progrès',
     status: {
       draft: 'Brouillon',
       active: 'Actif',
@@ -1817,7 +1898,9 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       loading: 'Chargement de la quête...',
       calculated: 'Calculé automatiquement',
       autoCalculated: 'Auto-calculé',
-      rewardCalculatedNote: 'L\'XP de récompense est calculée automatiquement selon la portée de la quête, la période et la difficulté.'
+      rewardCalculatedNote: 'L\'XP de récompense est calculée automatiquement selon la portée de la quête, la période et la difficulté.',
+      selectedGoals: 'Objectifs Sélectionnés:',
+      selectedTasks: 'Tâches Sélectionnées:'
     },
 
     sections: {
@@ -1885,10 +1968,29 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
     },
     steps: {
       basicInfo: 'Informations de Base',
+      basicInfoDescription: 'Fournissez les détails essentiels pour votre quête.',
       advancedOptions: 'Avancé',
+      advancedOptionsDescription: 'Configurez les paramètres supplémentaires de la quête.',
       review: 'Révision',
+      reviewDescription: 'Révisez les détails de votre quête avant de créer.',
       step: 'Étape',
       of: 'de'
+    },
+    placeholders: {
+      title: 'Entrez le titre de la quête...',
+      description: 'Décrivez votre quête...',
+      category: 'Sélectionnez la catégorie...',
+      difficulty: 'Sélectionnez la difficulté...',
+      privacy: 'Sélectionnez la confidentialité...',
+      kind: 'Sélectionnez le type de quête...',
+      tags: 'Ajoutez une étiquette...',
+      targetCount: 'Entrez le nombre cible...',
+      countScope: 'Sélectionnez la portée du comptage...',
+      periodDays: 'Entrez le nombre de jours...',
+      noDescription: 'Aucune description fournie'
+    },
+    help: {
+      requiredFields: 'Les champs marqués d\'un * sont obligatoires'
     },
     loading: {
       loadingQuest: 'Chargement de la quête...'

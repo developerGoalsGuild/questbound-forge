@@ -27,7 +27,8 @@ import {
   CheckCircle,
   Clock,
   Bell,
-  CreditCard
+  CreditCard,
+  Check
 } from 'lucide-react';
 
 const ProfileView = () => {
@@ -42,6 +43,8 @@ const ProfileView = () => {
   const signupTranslations = (t as any)?.signup?.local || {};
   const questTranslations = (t as any)?.quest?.notifications?.preferences || {};
   const subscriptionTranslations = (t as any)?.subscription || {};
+  const plansTranslations = subscriptionTranslations.plans || {};
+  const freePlanTranslations = subscriptionTranslations.freePlan || {};
 
   // Get countries list for country name lookup
   const countries = useMemo(() => getCountries(language), [language]);
@@ -73,6 +76,54 @@ const ProfileView = () => {
     retry: false,
     refetchOnWindowFocus: false,
   });
+
+  // Get plan features based on tier (must be after subscription is defined)
+  const getPlanFeatures = useMemo(() => {
+    const tier = subscription?.plan_tier || profile?.tier || 'FREE';
+    const tierLower = tier.toLowerCase();
+    
+    if (tier === 'FREE' || !subscription?.has_active_subscription) {
+      return freePlanTranslations.features || [];
+    }
+    
+    const planKey = tierLower as 'initiate' | 'journeyman' | 'sage' | 'guildmaster';
+    return plansTranslations[planKey]?.features || [];
+  }, [subscription, profile?.tier, plansTranslations, freePlanTranslations]);
+
+  // Get plan name and description (must be after subscription is defined)
+  const getPlanInfo = useMemo(() => {
+    const tier = subscription?.plan_tier || profile?.tier || 'FREE';
+    const tierLower = tier.toLowerCase();
+    
+    if (tier === 'FREE' || !subscription?.has_active_subscription) {
+      return {
+        name: freePlanTranslations.name || 'Free Tier',
+        description: freePlanTranslations.description || 'Get started with basic features',
+      };
+    }
+    
+    const planKey = tierLower as 'initiate' | 'journeyman' | 'sage' | 'guildmaster';
+    return {
+      name: plansTranslations[planKey]?.name || tier,
+      description: plansTranslations[planKey]?.description || '',
+    };
+  }, [subscription, profile?.tier, plansTranslations, freePlanTranslations]);
+
+  // Get subscription status translation
+  const getSubscriptionStatusLabel = (status: string | null | undefined): string => {
+    if (!status) return 'N/A';
+    
+    const statusMap: Record<string, string> = {
+      'active': subscriptionTranslations.active || 'Active',
+      'canceled': subscriptionTranslations.canceled || 'Canceled',
+      'past_due': subscriptionTranslations.pastDue || 'Past Due',
+      'trialing': subscriptionTranslations.trialing || 'Trialing',
+      'incomplete': subscriptionTranslations.incomplete || 'Incomplete',
+      'incomplete_expired': subscriptionTranslations.incompleteExpired || 'Incomplete Expired',
+    };
+    
+    return statusMap[status.toLowerCase()] || status;
+  };
 
   const formatDate = (timestamp: number) => {
     const localeMap: Record<string, string> = {
@@ -392,13 +443,13 @@ const ProfileView = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">
-                    {subscriptionLoading ? (
-                      <Skeleton className="h-8 w-20 mx-auto" />
-                    ) : (
-                      (subscription?.plan_tier || profile.tier || 'FREE').toUpperCase()
-                    )}
-                  </p>
+                  {subscriptionLoading ? (
+                    <Skeleton className="h-8 w-20 mx-auto" />
+                  ) : (
+                    <p className="text-2xl font-bold text-primary">
+                      {(subscription?.plan_tier || profile.tier || 'FREE').toUpperCase()}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">{view.tier || 'Tier'}</p>
                 </div>
                 <div className="text-center">
@@ -600,7 +651,7 @@ const ProfileView = () => {
                           {subscriptionTranslations.status || 'Status'}
                         </p>
                         <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
-                          {subscription.status || 'N/A'}
+                          {getSubscriptionStatusLabel(subscription.status)}
                         </Badge>
                       </div>
 
@@ -633,6 +684,71 @@ const ProfileView = () => {
                               {subscriptionTranslations.cancelAtPeriodEnd || 'This subscription will be canceled at the end of the current period.'}
                             </AlertDescription>
                           </Alert>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Plan Characteristics */}
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">
+                          {getPlanInfo.name}
+                        </h3>
+                        {getPlanInfo.description && (
+                          <p className="text-sm text-muted-foreground mb-4">
+                            {getPlanInfo.description}
+                          </p>
+                        )}
+                      </div>
+
+                      {getPlanFeatures.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">
+                            {subscriptionTranslations.planFeatures || 'Plan Features'}
+                          </h4>
+                          <ul className="space-y-2">
+                            {getPlanFeatures.map((feature: string, index: number) => (
+                              <li key={index} className="flex items-start gap-2">
+                                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* All Plans Include Section */}
+                      {subscriptionTranslations.allPlansInclude && subscriptionTranslations.allPlansFeatures && (
+                        <div className="pt-4 border-t">
+                          <h4 className="text-sm font-medium mb-3">
+                            {subscriptionTranslations.allPlansInclude}
+                          </h4>
+                          <ul className="space-y-2">
+                            {subscriptionTranslations.allPlansFeatures.goalTracking && (
+                              <li className="flex items-start gap-2">
+                                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">
+                                  {subscriptionTranslations.allPlansFeatures.goalTracking}
+                                </span>
+                              </li>
+                            )}
+                            {subscriptionTranslations.allPlansFeatures.communityAccess && (
+                              <li className="flex items-start gap-2">
+                                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">
+                                  {subscriptionTranslations.allPlansFeatures.communityAccess}
+                                </span>
+                              </li>
+                            )}
+                            {subscriptionTranslations.allPlansFeatures.mobileApp && (
+                              <li className="flex items-start gap-2">
+                                <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-muted-foreground">
+                                  {subscriptionTranslations.allPlansFeatures.mobileApp}
+                                </span>
+                              </li>
+                            )}
+                          </ul>
                         </div>
                       )}
                     </div>

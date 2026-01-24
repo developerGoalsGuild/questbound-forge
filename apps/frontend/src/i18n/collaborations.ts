@@ -68,15 +68,25 @@ export interface CollaborationsTranslations {
       messageTooLong: string;
     };
   };
-  collaborators: {
-    title: string;
-    empty: string;
-    invite: string;
-    inviteFirst: string;
-    owner: string;
-    you: string;
-    joined: string;
-    remove: {
+    collaborators: {
+      title: string;
+      empty: string;
+      invite: string;
+      inviteFirst: string;
+      cleanup: string;
+      cleanupTooltip: string;
+      cleanupSuccess: {
+        title: string;
+        description: string;
+      };
+      cleanupError: {
+        title: string;
+        description: string;
+      };
+      owner: string;
+      you: string;
+      joined: string;
+      remove: {
       confirm: {
         title: string;
         description: string;
@@ -226,6 +236,16 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
       empty: "No collaborators yet",
       invite: "Invite",
       inviteFirst: "Invite your first collaborator",
+      cleanup: "Cleanup",
+      cleanupTooltip: "Clean up orphaned invite records for removed collaborators",
+      cleanupSuccess: {
+        title: "Cleanup Complete",
+        description: "Orphaned invites have been cleaned up successfully"
+      },
+      cleanupError: {
+        title: "Cleanup Failed",
+        description: "Failed to cleanup orphaned invites. Please try again."
+      },
       owner: "Owner",
       you: "You",
       joined: "Joined {date}",
@@ -377,6 +397,16 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
       empty: "Aún no hay colaboradores",
       invite: "Invitar",
       inviteFirst: "Invita a tu primer colaborador",
+      cleanup: "Limpiar",
+      cleanupTooltip: "Limpiar registros de invitaciones huérfanas para colaboradores removidos",
+      cleanupSuccess: {
+        title: "Limpieza Completada",
+        description: "Las invitaciones huérfanas han sido limpiadas exitosamente"
+      },
+      cleanupError: {
+        title: "Error en la Limpieza",
+        description: "Error al limpiar invitaciones huérfanas. Por favor intenta de nuevo."
+      },
       owner: "Propietario",
       you: "Tú",
       joined: "Se unió {date}",
@@ -528,6 +558,16 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
       empty: "Aucun collaborateur pour le moment",
       invite: "Inviter",
       inviteFirst: "Invitez votre premier collaborateur",
+      cleanup: "Nettoyer",
+      cleanupTooltip: "Nettoyer les enregistrements d'invitations orphelines pour les collaborateurs retirés",
+      cleanupSuccess: {
+        title: "Nettoyage Terminé",
+        description: "Les invitations orphelines ont été nettoyées avec succès"
+      },
+      cleanupError: {
+        title: "Échec du Nettoyage",
+        description: "Échec du nettoyage des invitations orphelines. Veuillez réessayer."
+      },
       owner: "Propriétaire",
       you: "Vous",
       joined: "Rejoint {date}",

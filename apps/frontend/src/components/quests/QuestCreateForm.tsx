@@ -97,10 +97,10 @@ export const QuestCreateForm: React.FC<QuestCreateFormProps> = ({
       {/* Header */}
       <div className="space-y-2">
         <h2 className="text-2xl font-bold">
-          {questTranslations?.title || 'Create New Quest'}
+          {questTranslations?.create?.title || 'Create New Quest'}
         </h2>
         <p className="text-muted-foreground">
-          {questTranslations?.description || 'Create a new quest to track your progress and achieve your goals.'}
+          {questTranslations?.create?.description || 'Create a new quest to track your progress and achieve your goals.'}
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export const QuestCreateForm: React.FC<QuestCreateFormProps> = ({
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span>
-            {questTranslations?.progress?.step || 'Step'} {currentStep + 1} {questTranslations?.progress?.of || 'of'} {steps.length}
+            {questTranslations?.steps?.step || 'Step'} {currentStep + 1} {questTranslations?.steps?.of || 'of'} {steps.length}
           </span>
           <span>{Math.round(progress)}%</span>
         </div>
@@ -196,7 +196,7 @@ export const QuestCreateForm: React.FC<QuestCreateFormProps> = ({
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {questTranslations?.progress?.creating || 'Creating...'}
+                  {questTranslations?.actions?.creating || 'Creating...'}
                 </>
               ) : (
                 questTranslations?.actions?.createQuest || 'Create Quest'

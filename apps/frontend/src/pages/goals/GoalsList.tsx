@@ -35,7 +35,7 @@ import {
   Target,
   MoreHorizontal
 } from 'lucide-react';
-import { formatDeadline, getStatusColorClass, formatGoalStatus } from '@/models/goal';
+import { formatDeadline, getStatusColorClass, formatGoalStatus, getCategoryName } from '@/models/goal';
 import FieldTooltip from '@/components/ui/FieldTooltip';
 import { logger } from '@/lib/logger';
 
@@ -64,6 +64,7 @@ const GoalsListPage: React.FC = () => {
 
   // Get translations
   const goalListTranslations = (t as any)?.goalList;
+  const goalsTranslations = (t as any)?.goals;
   const commonTranslations = (t as any)?.common;
 
   // Load goals
@@ -266,10 +267,10 @@ const GoalsListPage: React.FC = () => {
 
   // Sort options
   const sortOptions = [
-    { value: 'createdAt', label: 'Created Date' },
-    { value: 'title', label: 'Title' },
-    { value: 'deadline', label: 'Deadline' },
-    { value: 'status', label: 'Status' },
+    { value: 'createdAt', label: goalListTranslations?.filters?.sortOptions?.createdAt || 'Created Date' },
+    { value: 'title', label: goalListTranslations?.filters?.sortOptions?.title || 'Title' },
+    { value: 'deadline', label: goalListTranslations?.filters?.sortOptions?.deadline || 'Deadline' },
+    { value: 'status', label: goalListTranslations?.filters?.sortOptions?.status || 'Status' },
   ];
 
   // Items per page options
@@ -294,7 +295,9 @@ const GoalsListPage: React.FC = () => {
     return (
       <div className="container mx-auto py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive mb-4">Error</h2>
+          <h2 className="text-2xl font-bold text-destructive mb-4">
+            {goalListTranslations?.messages?.error || 'Error'}
+          </h2>
           <p className="text-muted-foreground mb-4">{error}</p>
           <Button onClick={loadMyGoals}>
             {commonTranslations?.retry || 'Try Again'}
@@ -386,7 +389,9 @@ const GoalsListPage: React.FC = () => {
 
             {/* Sort By */}
             <div className="space-y-2">
-              <Label htmlFor="sort-by">Sort By</Label>
+              <Label htmlFor="sort-by">
+                {goalListTranslations?.filters?.sortBy || 'Sort By'}
+              </Label>
               <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -403,14 +408,20 @@ const GoalsListPage: React.FC = () => {
 
             {/* Sort Order */}
             <div className="space-y-2">
-              <Label htmlFor="sort-order">Order</Label>
+              <Label htmlFor="sort-order">
+                {goalListTranslations?.filters?.order || 'Order'}
+              </Label>
               <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desc">Newest First</SelectItem>
-                  <SelectItem value="asc">Oldest First</SelectItem>
+                  <SelectItem value="desc">
+                    {goalListTranslations?.filters?.orderOptions?.newestFirst || 'Newest First'}
+                  </SelectItem>
+                  <SelectItem value="asc">
+                    {goalListTranslations?.filters?.orderOptions?.oldestFirst || 'Oldest First'}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -448,7 +459,7 @@ const GoalsListPage: React.FC = () => {
                     <TableHead>{goalListTranslations?.table?.columns?.deadline || 'Deadline'}</TableHead>
                     <TableHead>{goalListTranslations?.table?.columns?.status || 'Status'}</TableHead>
                     <TableHead>{goalListTranslations?.table?.columns?.category || 'Category'}</TableHead>
-                    <TableHead className="text-right">{goalListTranslations?.table?.columns?.actions || 'Actions'}</TableHead>
+                    <TableHead className="text-right">{(t as any)?.goalList?.table?.columns?.actions || goalListTranslations?.table?.columns?.actions || 'Actions'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -473,11 +484,16 @@ const GoalsListPage: React.FC = () => {
                           variant="secondary" 
                           className={getStatusColorClass(goal.status as GoalStatus)}
                         >
-                          {formatGoalStatus(goal.status as GoalStatus)}
+                          {formatGoalStatus(goal.status as GoalStatus, {
+                            active: goalListTranslations?.filters?.statusActive,
+                            paused: goalListTranslations?.filters?.statusPaused,
+                            completed: goalListTranslations?.filters?.statusCompleted,
+                            archived: goalListTranslations?.filters?.statusArchived,
+                          })}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {goal.category || '-'}
+                        {goal.category ? getCategoryName(goal.category, { categories: goalsTranslations?.categories }) : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         <GoalActions
@@ -489,6 +505,7 @@ const GoalsListPage: React.FC = () => {
                           onStatusChange={handleStatusChange}
                           onViewDetails={handleViewDetails}
                           variant="compact"
+                          showStatusBadge={false}
                         />
                       </TableCell>
                     </TableRow>
@@ -516,7 +533,12 @@ const GoalsListPage: React.FC = () => {
                       variant="secondary" 
                       className={`ml-2 ${getStatusColorClass(goal.status as GoalStatus)}`}
                     >
-                      {formatGoalStatus(goal.status as GoalStatus)}
+                      {formatGoalStatus(goal.status as GoalStatus, {
+                        active: goalListTranslations?.filters?.statusActive,
+                        paused: goalListTranslations?.filters?.statusPaused,
+                        completed: goalListTranslations?.filters?.statusCompleted,
+                        archived: goalListTranslations?.filters?.statusArchived,
+                      })}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -530,7 +552,7 @@ const GoalsListPage: React.FC = () => {
                     )}
                     {goal.category && (
                       <div className="text-sm text-muted-foreground">
-                        Category: {goal.category}
+                        {goalListTranslations?.filters?.categoryLabel || 'Category:'} {getCategoryName(goal.category, { categories: goalsTranslations?.categories })}
                       </div>
                     )}
                   </div>
@@ -562,7 +584,9 @@ const GoalsListPage: React.FC = () => {
                   
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="items-per-page" className="text-sm">Items per page:</Label>
+                      <Label htmlFor="items-per-page" className="text-sm">
+                        {goalListTranslations?.filters?.itemsPerPage || 'Items per page:'}
+                      </Label>
                       <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
                         <SelectTrigger className="w-20">
                           <SelectValue />

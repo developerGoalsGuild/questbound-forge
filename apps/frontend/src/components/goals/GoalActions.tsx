@@ -73,35 +73,38 @@ const GoalActions: React.FC<GoalActionsProps> = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Get translations with safety checks
+  const goalListTranslations = (t as any)?.goalList;
   const goalsTranslations = (t as any)?.goals;
+  const goalActionsTranslations = (t as any)?.goalActions;
   const list = goalsTranslations?.list ?? {};
-  const actions = goalsTranslations?.actions ?? {};
+  const actions = goalListTranslations?.actions ?? {};
+  const confirmations = goalActionsTranslations?.confirmations ?? {};
 
   // Status change options
   const statusOptions = [
     { 
       status: GoalStatus.ACTIVE, 
-      label: list.statusActive || 'Active', 
+      label: list.statusActive || goalListTranslations?.filters?.statusActive || 'Active', 
       icon: Play,
-      description: 'Resume working on this goal'
+      description: actions?.statusDescriptions?.active || 'Resume working on this goal'
     },
     { 
       status: GoalStatus.PAUSED, 
-      label: list.statusPaused || 'Pause', 
+      label: list.statusPaused || goalListTranslations?.filters?.statusPaused || 'Pause', 
       icon: Pause,
-      description: 'Temporarily pause this goal'
+      description: actions?.statusDescriptions?.paused || 'Temporarily pause this goal'
     },
     { 
       status: GoalStatus.COMPLETED, 
-      label: list.statusCompleted || 'Complete', 
+      label: list.statusCompleted || goalListTranslations?.filters?.statusCompleted || 'Complete', 
       icon: CheckCircle,
-      description: 'Mark this goal as completed'
+      description: actions?.statusDescriptions?.completed || 'Mark this goal as completed'
     },
     { 
       status: GoalStatus.ARCHIVED, 
-      label: list.statusArchived || 'Archive', 
+      label: list.statusArchived || goalListTranslations?.filters?.statusArchived || 'Archive', 
       icon: Archive,
-      description: 'Archive this goal'
+      description: actions?.statusDescriptions?.archived || 'Archive this goal'
     }
   ];
 
@@ -111,35 +114,40 @@ const GoalActions: React.FC<GoalActionsProps> = ({
       setIsChangingStatus(true);
       try {
         await onStatusChange(goalId, newStatus);
+        const statusLabel = formatGoalStatus(newStatus, {
+          active: list.statusActive || goalListTranslations?.filters?.statusActive,
+          paused: list.statusPaused || goalListTranslations?.filters?.statusPaused,
+          completed: list.statusCompleted || goalListTranslations?.filters?.statusCompleted,
+          archived: list.statusArchived || goalListTranslations?.filters?.statusArchived,
+        });
         toast({
-          title: 'Success',
-          description: `Goal status changed to ${formatGoalStatus(newStatus)}`,
+          title: actions?.statusChangeSuccess?.replace('{status}', statusLabel) || `Goal status changed to ${statusLabel}`,
           variant: 'default'
         });
-      } catch (error: any) {
-        logger.error('Error changing goal status', { goalId, newStatus, error });
-        
-        // Parse API error response
-        let errorMessage = error?.message || 'Failed to change goal status';
-        
-        try {
-          // Try to parse error response if it's a string
-          if (typeof error?.message === 'string') {
-            const parsedError = JSON.parse(error.message);
-            if (parsedError.message) {
-              errorMessage = parsedError.message;
+        } catch (error: any) {
+          logger.error('Error changing goal status', { goalId, newStatus, error });
+          
+          // Parse API error response
+          let errorMessage = error?.message || 'Failed to change goal status';
+          
+          try {
+            // Try to parse error response if it's a string
+            if (typeof error?.message === 'string') {
+              const parsedError = JSON.parse(error.message);
+              if (parsedError.message) {
+                errorMessage = parsedError.message;
+              }
             }
+          } catch (parseError) {
+            // If parsing fails, use the original error message
+            logger.warn('Could not parse status change error response', { parseError });
           }
-        } catch (parseError) {
-          // If parsing fails, use the original error message
-          logger.warn('Could not parse status change error response', { parseError });
-        }
-        
-        toast({
-          title: 'Error',
-          description: errorMessage,
-          variant: 'destructive'
-        });
+          
+          toast({
+            title: actions?.error || 'Error',
+            description: errorMessage,
+            variant: 'destructive'
+          });
       } finally {
         setIsChangingStatus(false);
       }
@@ -154,34 +162,34 @@ const GoalActions: React.FC<GoalActionsProps> = ({
         await onDelete(goalId);
         setShowDeleteDialog(false);
         toast({
-          title: 'Success',
-          description: 'Goal deleted successfully',
+          title: actions?.deleteSuccess || 'Success',
+          description: actions?.deleteSuccess || 'Goal deleted successfully',
           variant: 'default'
         });
-      } catch (error: any) {
-        logger.error('Error deleting goal', { goalId, error });
-        
-        // Parse API error response
-        let errorMessage = error?.message || 'Failed to delete goal';
-        
-        try {
-          // Try to parse error response if it's a string
-          if (typeof error?.message === 'string') {
-            const parsedError = JSON.parse(error.message);
-            if (parsedError.message) {
-              errorMessage = parsedError.message;
+        } catch (error: any) {
+          logger.error('Error deleting goal', { goalId, error });
+          
+          // Parse API error response
+          let errorMessage = error?.message || 'Failed to delete goal';
+          
+          try {
+            // Try to parse error response if it's a string
+            if (typeof error?.message === 'string') {
+              const parsedError = JSON.parse(error.message);
+              if (parsedError.message) {
+                errorMessage = parsedError.message;
+              }
             }
+          } catch (parseError) {
+            // If parsing fails, use the original error message
+            logger.warn('Could not parse delete error response', { parseError });
           }
-        } catch (parseError) {
-          // If parsing fails, use the original error message
-          logger.warn('Could not parse delete error response', { parseError });
-        }
-        
-        toast({
-          title: 'Error',
-          description: errorMessage,
-          variant: 'destructive'
-        });
+          
+          toast({
+            title: actions?.error || 'Error',
+            description: errorMessage,
+            variant: 'destructive'
+          });
       } finally {
         setIsDeleting(false);
       }
@@ -202,7 +210,12 @@ const GoalActions: React.FC<GoalActionsProps> = ({
         variant="secondary" 
         className={`${getStatusColorClass(currentStatus)} text-xs`}
       >
-        {formatGoalStatus(currentStatus)}
+        {formatGoalStatus(currentStatus, {
+          active: list.statusActive || goalListTranslations?.filters?.statusActive,
+          paused: list.statusPaused || goalListTranslations?.filters?.statusPaused,
+          completed: list.statusCompleted || goalListTranslations?.filters?.statusCompleted,
+          archived: list.statusArchived || goalListTranslations?.filters?.statusArchived,
+        })}
       </Badge>
     );
   };
@@ -225,34 +238,34 @@ const GoalActions: React.FC<GoalActionsProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuLabel>{actions?.actions || 'Actions'}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             
             {onViewDetails && (
               <DropdownMenuItem onClick={() => onViewDetails(goalId)}>
                 <Eye className="mr-2 h-4 w-4" />
-                View Details
+                {actions?.viewDetails || 'View Details'}
               </DropdownMenuItem>
             )}
             
             {onViewTasks && (
               <DropdownMenuItem onClick={() => onViewTasks(goalId)}>
                 <Calendar className="mr-2 h-4 w-4" />
-                {list.viewTasks || 'View Tasks'}
+                {list.viewTasks || actions?.viewTasks || 'View Tasks'}
               </DropdownMenuItem>
             )}
             
             {onEdit && (
               <DropdownMenuItem onClick={() => onEdit(goalId)}>
                 <Edit className="mr-2 h-4 w-4" />
-                Edit
+                {actions?.edit || 'Edit'}
               </DropdownMenuItem>
             )}
             
             {availableStatusOptions.length > 0 && onStatusChange && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                <DropdownMenuLabel>{actions?.changeStatus || 'Change Status'}</DropdownMenuLabel>
                 {availableStatusOptions.map((option) => {
                   const Icon = option.icon;
                   return (
@@ -281,7 +294,7 @@ const GoalActions: React.FC<GoalActionsProps> = ({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  {actions?.delete || confirmations?.deleteConfirm || 'Delete'}
                 </DropdownMenuItem>
               </>
             )}
@@ -292,19 +305,19 @@ const GoalActions: React.FC<GoalActionsProps> = ({
           <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                <AlertDialogTitle>{confirmations?.deleteTitle || 'Delete Goal'}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{goalTitle}"? This action cannot be undone.
+                  {(confirmations?.deleteMessage || 'Are you sure you want to delete "{goalTitle}"? This action cannot be undone.').replace('{goalTitle}', goalTitle)}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{confirmations?.deleteCancel || 'Cancel'}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDeleteConfirm}
                   disabled={isDeleting}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? (confirmations?.deleting || 'Deleting...') : (confirmations?.deleteConfirm || 'Delete')}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -352,26 +365,26 @@ const GoalActions: React.FC<GoalActionsProps> = ({
                 size="sm"
                 disabled={disabled}
                 className="h-8 px-2 text-destructive hover:text-destructive"
-                aria-label={`Delete ${goalTitle}`}
+                aria-label={`${actions?.delete || confirmations?.deleteConfirm || 'Delete'} ${goalTitle}`}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                <AlertDialogTitle>{confirmations?.deleteTitle || 'Delete Goal'}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{goalTitle}"? This action cannot be undone.
+                  {(confirmations?.deleteMessage || 'Are you sure you want to delete "{goalTitle}"? This action cannot be undone.').replace('{goalTitle}', goalTitle)}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{confirmations?.deleteCancel || 'Cancel'}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDeleteConfirm}
                   disabled={isDeleting}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? (confirmations?.deleting || 'Deleting...') : (confirmations?.deleteConfirm || 'Delete')}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -482,24 +495,24 @@ const GoalActions: React.FC<GoalActionsProps> = ({
                 className="text-xs sm:text-sm"
               >
                 <Trash2 className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-                Delete
+                {actions?.delete || confirmations?.deleteConfirm || 'Delete'}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                <AlertDialogTitle>{confirmations?.deleteTitle || 'Delete Goal'}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{goalTitle}"? This action cannot be undone.
+                  {(confirmations?.deleteMessage || 'Are you sure you want to delete "{goalTitle}"? This action cannot be undone.').replace('{goalTitle}', goalTitle)}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{confirmations?.deleteCancel || 'Cancel'}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDeleteConfirm}
                   disabled={isDeleting}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? (confirmations?.deleting || 'Deleting...') : (confirmations?.deleteConfirm || 'Delete')}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -114,9 +114,11 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
       setIsLoading(true);
       setError(null);
       
+      // Always check stored language first - it takes priority over everything
+      const storedLanguage = getStoredLanguage();
+      
       // Skip API calls on public routes
       if (isPublicRoute()) {
-        const storedLanguage = getStoredLanguage();
         const browserLang = detectBrowserLanguage();
         const resolvedLanguage = storedLanguage || browserLang;
         setLanguage(resolvedLanguage);
@@ -131,8 +133,7 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
       
       // Check if user is authenticated with a valid token
       if (!isTokenValid()) {
-        // User not logged in or token expired, use browser language
-        const storedLanguage = getStoredLanguage();
+        // User not logged in or token expired, use stored or browser language
         const browserLang = detectBrowserLanguage();
         const resolvedLanguage = storedLanguage || browserLang;
         setLanguage(resolvedLanguage);
@@ -142,6 +143,11 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
         });
         setIsLoading(false);
         return;
+      }
+
+      // If we have a stored language, use it immediately (don't wait for profile fetch)
+      if (storedLanguage) {
+        setLanguage(storedLanguage);
       }
 
       try {
@@ -160,8 +166,7 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
           }
           logger.info('Using user profile language', { language: profileLanguage });
         } else {
-          // Profile has unsupported language, fall back to browser
-          const storedLanguage = getStoredLanguage();
+          // Profile has unsupported language, fall back to stored or browser
           const browserLang = detectBrowserLanguage();
           const resolvedLanguage = storedLanguage || browserLang;
           setLanguage(resolvedLanguage);
@@ -172,15 +177,16 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
           });
         }
       } catch (profileError) {
-        // Profile fetch failed, use browser language
-        const storedLanguage = getStoredLanguage();
-        const browserLang = detectBrowserLanguage();
-        const resolvedLanguage = storedLanguage || browserLang;
-        setLanguage(resolvedLanguage);
+        // Profile fetch failed, use stored language (already set above) or browser language
+        // Don't change language if we already set it from storedLanguage
+        if (!storedLanguage) {
+          const browserLang = detectBrowserLanguage();
+          setLanguage(browserLang);
+        }
         logger.warn('Failed to fetch user profile, using stored or browser language', { 
           error: profileError,
           storedLanguage,
-          fallbackLanguage: resolvedLanguage 
+          fallbackLanguage: storedLanguage || detectBrowserLanguage()
         });
       }
     } catch (err) {
@@ -188,9 +194,10 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
       setError(errorMessage);
       logger.error('Language initialization failed', { error: errorMessage });
       
-      // Fallback to browser language even on error
+      // Fallback to stored language first, then browser language
+      const storedLanguage = getStoredLanguage();
       const browserLang = detectBrowserLanguage();
-      setLanguage(browserLang);
+      setLanguage(storedLanguage || browserLang);
     } finally {
       setIsLoading(false);
     }

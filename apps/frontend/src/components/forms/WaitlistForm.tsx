@@ -163,7 +163,7 @@ const WaitlistForm = ({ className = '', variant = 'default' }: WaitlistFormProps
           
           <Button
             type="submit"
-            disabled={submitting || hasValidationErrors}
+            disabled={submitting || hasValidationErrors || !email.trim()}
             className={isInline ? 'whitespace-nowrap' : 'w-full'}
             size={isCompact ? 'sm' : 'default'}
           >

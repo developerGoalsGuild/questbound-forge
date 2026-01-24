@@ -12,6 +12,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { GoalCreateFormData } from '@/hooks/useGoalCreateForm';
 import { nlpQuestionOrder } from '@/pages/goals/questions';
 import { Calendar, Tag, FolderOpen } from 'lucide-react';
+import { getCategoryName } from '@/models/goal';
 
 interface ReviewStepProps {
   formData: GoalCreateFormData;
@@ -24,6 +25,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
 }) => {
   const { t } = useTranslation();
   const goalCreationTranslations = (t as any)?.goalCreation;
+  const goalsTranslations = (t as any)?.goals;
   const nlpTranslations = goalCreationTranslations?.nlp ?? {};
   const questions = nlpTranslations.questions ?? {};
 
@@ -91,7 +93,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
                 <span className="font-medium text-muted-foreground">
                   {goalCreationTranslations?.fields?.category || 'Category'}:
                 </span>
-                <span>{formData.category}</span>
+                <span>{getCategoryName(formData.category, { categories: goalsTranslations?.categories })}</span>
               </div>
             )}
 

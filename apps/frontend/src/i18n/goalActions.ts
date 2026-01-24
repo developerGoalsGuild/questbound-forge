@@ -14,12 +14,13 @@ export interface GoalActionsTranslations {
     completed: string;
     archived: string;
   };
-  confirmations: {
-    deleteTitle: string;
-    deleteMessage: string;
-    deleteConfirm: string;
-    deleteCancel: string;
-  };
+    confirmations: {
+      deleteTitle: string;
+      deleteMessage: string;
+      deleteConfirm: string;
+      deleteCancel: string;
+      deleting: string;
+    };
   messages: {
     deleteSuccess: string;
     deleteError: string;
@@ -53,9 +54,10 @@ export const goalActionsTranslations: Record<Language, GoalActionsTranslations> 
     },
     confirmations: {
       deleteTitle: 'Delete Goal',
-      deleteMessage: 'Are you sure you want to delete this goal? This action cannot be undone.',
+      deleteMessage: 'Are you sure you want to delete "{goalTitle}"? This action cannot be undone.',
       deleteConfirm: 'Delete',
       deleteCancel: 'Cancel',
+      deleting: 'Deleting...',
     },
     messages: {
       deleteSuccess: 'Goal deleted successfully',
@@ -88,9 +90,10 @@ export const goalActionsTranslations: Record<Language, GoalActionsTranslations> 
     },
     confirmations: {
       deleteTitle: 'Eliminar Objetivo',
-      deleteMessage: '¿Estás seguro de que quieres eliminar este objetivo? Esta acción no se puede deshacer.',
+      deleteMessage: '¿Estás seguro de que quieres eliminar "{goalTitle}"? Esta acción no se puede deshacer.',
       deleteConfirm: 'Eliminar',
       deleteCancel: 'Cancelar',
+      deleting: 'Eliminando...',
     },
     messages: {
       deleteSuccess: 'Objetivo eliminado exitosamente',
@@ -123,9 +126,10 @@ export const goalActionsTranslations: Record<Language, GoalActionsTranslations> 
     },
     confirmations: {
       deleteTitle: 'Supprimer l\'Objectif',
-      deleteMessage: 'Êtes-vous sûr de vouloir supprimer cet objectif ? Cette action ne peut pas être annulée.',
+      deleteMessage: 'Êtes-vous sûr de vouloir supprimer "{goalTitle}" ? Cette action ne peut pas être annulée.',
       deleteConfirm: 'Supprimer',
       deleteCancel: 'Annuler',
+      deleting: 'Suppression...',
     },
     messages: {
       deleteSuccess: 'Objectif supprimé avec succès',

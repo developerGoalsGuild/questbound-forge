@@ -37,6 +37,8 @@ export interface SubscriptionTranslations {
     canceled: string;
     pastDue: string;
     trialing: string;
+    incomplete?: string;
+    incompleteExpired?: string;
     plans: {
       initiate: PlanTranslations;
       journeyman: PlanTranslations;
@@ -55,6 +57,7 @@ export interface SubscriptionTranslations {
     currentPeriodEnd?: string;
     cancelAtPeriodEnd?: string;
     noActiveSubscription?: string;
+    planFeatures?: string;
   };
 }
 
@@ -172,6 +175,8 @@ export const subscriptionTranslations = {
       canceled: 'Canceled',
       pastDue: 'Past Due',
       trialing: 'Trialing',
+      incomplete: 'Incomplete',
+      incompleteExpired: 'Incomplete Expired',
       plans: {
         initiate: {
           name: 'Initiate',
@@ -311,6 +316,7 @@ export const subscriptionTranslations = {
       currentPeriodEnd: 'Current Period End',
       cancelAtPeriodEnd: 'This subscription will be canceled at the end of the current period.',
       noActiveSubscription: 'No active subscription. Edit your profile to upgrade.',
+      planFeatures: 'Plan Features',
     },
   },
   es: {
@@ -352,6 +358,8 @@ export const subscriptionTranslations = {
       canceled: 'Cancelado',
       pastDue: 'Vencido',
       trialing: 'Prueba',
+      incomplete: 'Incompleto',
+      incompleteExpired: 'Incompleto Expirado',
       plans: {
         initiate: {
           name: 'Iniciado',
@@ -491,6 +499,7 @@ export const subscriptionTranslations = {
       currentPeriodEnd: 'Fin del Período Actual',
       cancelAtPeriodEnd: 'Esta suscripción se cancelará al final del período actual.',
       noActiveSubscription: 'No hay suscripción activa. Edita tu perfil para actualizar.',
+      planFeatures: 'Características del Plan',
     },
   },
   fr: {
@@ -532,6 +541,8 @@ export const subscriptionTranslations = {
       canceled: 'Annulé',
       pastDue: 'En Retard',
       trialing: 'Essai',
+      incomplete: 'Incomplet',
+      incompleteExpired: 'Incomplet Expiré',
       plans: {
         initiate: {
           name: 'Initié',
@@ -671,6 +682,7 @@ export const subscriptionTranslations = {
       currentPeriodEnd: 'Fin de la Période Actuelle',
       cancelAtPeriodEnd: 'Cet abonnement sera annulé à la fin de la période actuelle.',
       noActiveSubscription: 'Aucun abonnement actif. Modifiez votre profil pour mettre à niveau.',
+      planFeatures: 'Caractéristiques du Plan',
     },
   },
 };

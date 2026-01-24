@@ -72,6 +72,7 @@ import { blogTranslations } from './blog';
 import { helpTranslations } from './help';
 import { privacyTranslations } from './privacy';
 import { termsTranslations } from './terms';
+import { gamificationTranslations } from './gamification';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -106,6 +107,7 @@ export type Translations = { [key: string]: any } & {
   help: HelpTranslations;
   privacy: PrivacyTranslations;
   terms: TermsTranslations;
+  gamification: typeof gamificationTranslations.en.gamification;
 } & CollaborationsTranslations;
 
 /**
@@ -119,6 +121,7 @@ export const translations: Record<Language, Translations> = {
     ...featuresTranslations.en,
     ...dashboardTranslations.en,
     ...goalsTranslations.en,
+    goals: goalsTranslations.en,
     signup: signupTranslations.en,
     profile: profileTranslations.en,
     goalList: goalListTranslations.en,
@@ -147,6 +150,7 @@ export const translations: Record<Language, Translations> = {
     help: helpTranslations.en,
     privacy: privacyTranslations.en,
     terms: termsTranslations.en,
+    gamification: gamificationTranslations.en.gamification,
   },
   es: {
     ...navTranslations.es,
@@ -155,6 +159,7 @@ export const translations: Record<Language, Translations> = {
     ...featuresTranslations.es,
     ...dashboardTranslations.es,
     ...goalsTranslations.es,
+    goals: goalsTranslations.es,
     signup: signupTranslations.es,
     profile: profileTranslations.es,
     goalList: goalListTranslations.es,
@@ -183,6 +188,7 @@ export const translations: Record<Language, Translations> = {
     help: helpTranslations.es,
     privacy: privacyTranslations.es,
     terms: termsTranslations.es,
+    gamification: gamificationTranslations.es.gamification,
   },
   fr: {
     ...navTranslations.fr,
@@ -191,6 +197,7 @@ export const translations: Record<Language, Translations> = {
     ...featuresTranslations.fr,
     ...dashboardTranslations.fr,
     ...goalsTranslations.fr,
+    goals: goalsTranslations.fr,
     signup: signupTranslations.fr,
     profile: profileTranslations.fr,
     goalList: goalListTranslations.fr,
@@ -219,5 +226,6 @@ export const translations: Record<Language, Translations> = {
     help: helpTranslations.fr,
     privacy: privacyTranslations.fr,
     terms: termsTranslations.fr,
+    gamification: gamificationTranslations.fr.gamification,
   },
 };

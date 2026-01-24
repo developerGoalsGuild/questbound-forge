@@ -14,6 +14,20 @@ export interface GoalListTranslations {
     statusPaused: string;
     statusCompleted: string;
     statusArchived: string;
+    sortBy: string;
+    order: string;
+    sortOptions: {
+      createdAt: string;
+      title: string;
+      deadline: string;
+      status: string;
+    };
+    orderOptions: {
+      newestFirst: string;
+      oldestFirst: string;
+    };
+    itemsPerPage: string;
+    categoryLabel: string;
   };
   hints: {
     iconLabel: string;
@@ -36,6 +50,27 @@ export interface GoalListTranslations {
     deleteGoal: string;
     viewTasks: string;
     viewDetails: string;
+    actions: string;
+    edit: string;
+    delete: string;
+    changeStatus: string;
+    statusDescriptions: {
+      active: string;
+      paused: string;
+      completed: string;
+      archived: string;
+    };
+    deleteDialog: {
+      title: string;
+      description: string;
+      cancel: string;
+      delete: string;
+      deleting: string;
+    };
+    statusChangeSuccess: string;
+    deleteSuccess: string;
+    error: string;
+    changing: string;
   };
   table: {
     columns: {
@@ -63,6 +98,7 @@ export interface GoalListTranslations {
     statusUpdateSuccess: string;
     statusUpdateError: string;
     loading: string;
+    error: string;
   };
   validation: {
     searchRequired: string;
@@ -85,6 +121,20 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       statusPaused: 'Paused',
       statusCompleted: 'Completed',
       statusArchived: 'Archived',
+      sortBy: 'Sort By',
+      order: 'Order',
+      sortOptions: {
+        createdAt: 'Created Date',
+        title: 'Title',
+        deadline: 'Deadline',
+        status: 'Status',
+      },
+      orderOptions: {
+        newestFirst: 'Newest First',
+        oldestFirst: 'Oldest First',
+      },
+      itemsPerPage: 'Items per page:',
+      categoryLabel: 'Category:',
     },
     hints: {
       iconLabel: 'More information about {field}',
@@ -107,6 +157,27 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       deleteGoal: 'Delete Goal',
       viewTasks: 'View Tasks',
       viewDetails: 'View Details',
+      actions: 'Actions',
+      edit: 'Edit',
+      delete: 'Delete',
+      changeStatus: 'Change Status',
+      statusDescriptions: {
+        active: 'Resume working on this goal',
+        paused: 'Temporarily pause this goal',
+        completed: 'Mark this goal as completed',
+        archived: 'Archive this goal',
+      },
+      deleteDialog: {
+        title: 'Delete Goal',
+        description: 'Are you sure you want to delete "{goalTitle}"? This action cannot be undone.',
+        cancel: 'Cancel',
+        delete: 'Delete',
+        deleting: 'Deleting...',
+      },
+      statusChangeSuccess: 'Goal status changed to {status}',
+      deleteSuccess: 'Goal deleted successfully',
+      error: 'Error',
+      changing: 'Changing...',
     },
     table: {
       columns: {
@@ -134,6 +205,7 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       statusUpdateSuccess: 'Goal status updated successfully',
       statusUpdateError: 'Failed to update goal status',
       loading: 'Loading goals...',
+      error: 'Error',
     },
     validation: {
       searchRequired: 'Search term is required',
@@ -154,6 +226,20 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       statusPaused: 'Pausado',
       statusCompleted: 'Completado',
       statusArchived: 'Archivado',
+      sortBy: 'Ordenar por',
+      order: 'Orden',
+      sortOptions: {
+        createdAt: 'Fecha de Creación',
+        title: 'Título',
+        deadline: 'Fecha Límite',
+        status: 'Estado',
+      },
+      orderOptions: {
+        newestFirst: 'Más Recientes Primero',
+        oldestFirst: 'Más Antiguos Primero',
+      },
+      itemsPerPage: 'Elementos por página:',
+      categoryLabel: 'Categoría:',
     },
     hints: {
       iconLabel: 'Más información sobre {field}',
@@ -176,6 +262,27 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       deleteGoal: 'Eliminar Objetivo',
       viewTasks: 'Ver Tareas',
       viewDetails: 'Ver Detalles',
+      actions: 'Acciones',
+      edit: 'Editar',
+      delete: 'Eliminar',
+      changeStatus: 'Cambiar Estado',
+      statusDescriptions: {
+        active: 'Reanudar el trabajo en este objetivo',
+        paused: 'Pausar temporalmente este objetivo',
+        completed: 'Marcar este objetivo como completado',
+        archived: 'Archivar este objetivo',
+      },
+      deleteDialog: {
+        title: 'Eliminar Objetivo',
+        description: '¿Estás seguro de que quieres eliminar "{goalTitle}"? Esta acción no se puede deshacer.',
+        cancel: 'Cancelar',
+        delete: 'Eliminar',
+        deleting: 'Eliminando...',
+      },
+      statusChangeSuccess: 'Estado del objetivo cambiado a {status}',
+      deleteSuccess: 'Objetivo eliminado exitosamente',
+      error: 'Error',
+      changing: 'Cambiando...',
     },
     table: {
       columns: {
@@ -203,6 +310,7 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       statusUpdateSuccess: 'Estado del objetivo actualizado exitosamente',
       statusUpdateError: 'Error al actualizar estado del objetivo',
       loading: 'Cargando objetivos...',
+      error: 'Error',
     },
     validation: {
       searchRequired: 'El término de búsqueda es obligatorio',
@@ -223,6 +331,20 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       statusPaused: 'En Pause',
       statusCompleted: 'Terminé',
       statusArchived: 'Archivé',
+      sortBy: 'Trier par',
+      order: 'Ordre',
+      sortOptions: {
+        createdAt: 'Date de Création',
+        title: 'Titre',
+        deadline: 'Échéance',
+        status: 'Statut',
+      },
+      orderOptions: {
+        newestFirst: 'Plus Récent en Premier',
+        oldestFirst: 'Plus Ancien en Premier',
+      },
+      itemsPerPage: 'Éléments par page:',
+      categoryLabel: 'Catégorie:',
     },
     hints: {
       iconLabel: 'Plus d\'informations sur {field}',
@@ -245,6 +367,27 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       deleteGoal: 'Supprimer l\'Objectif',
       viewTasks: 'Voir les Tâches',
       viewDetails: 'Voir les Détails',
+      actions: 'Actions',
+      edit: 'Modifier',
+      delete: 'Supprimer',
+      changeStatus: 'Changer le Statut',
+      statusDescriptions: {
+        active: 'Reprendre le travail sur cet objectif',
+        paused: 'Mettre temporairement en pause cet objectif',
+        completed: 'Marquer cet objectif comme terminé',
+        archived: 'Archiver cet objectif',
+      },
+      deleteDialog: {
+        title: 'Supprimer l\'Objectif',
+        description: 'Êtes-vous sûr de vouloir supprimer "{goalTitle}" ? Cette action ne peut pas être annulée.',
+        cancel: 'Annuler',
+        delete: 'Supprimer',
+        deleting: 'Suppression...',
+      },
+      statusChangeSuccess: 'Statut de l\'objectif changé en {status}',
+      deleteSuccess: 'Objectif supprimé avec succès',
+      error: 'Erreur',
+      changing: 'Changement...',
     },
     table: {
       columns: {
@@ -272,6 +415,7 @@ export const goalListTranslations: Record<Language, GoalListTranslations> = {
       statusUpdateSuccess: 'Statut de l\'objectif mis à jour avec succès',
       statusUpdateError: 'Échec de la mise à jour du statut de l\'objectif',
       loading: 'Chargement des objectifs...',
+      error: 'Erreur',
     },
     validation: {
       searchRequired: 'Le terme de recherche est requis',

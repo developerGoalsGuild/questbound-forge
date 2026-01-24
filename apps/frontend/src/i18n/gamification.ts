@@ -12,6 +12,7 @@ export const gamificationTranslations = {
         progress: 'Progress',
         toNextLevel: 'XP to next level',
         maxLevel: 'Max level reached!',
+        abbreviation: 'XP',
       },
       level: {
         title: 'Level',
@@ -55,6 +56,7 @@ export const gamificationTranslations = {
         progress: 'Progreso',
         toNextLevel: 'XP para el siguiente nivel',
         maxLevel: '¡Nivel máximo alcanzado!',
+        abbreviation: 'XP',
       },
       level: {
         title: 'Nivel',
@@ -98,6 +100,7 @@ export const gamificationTranslations = {
         progress: 'Progression',
         toNextLevel: 'XP jusqu\'au niveau suivant',
         maxLevel: 'Niveau maximum atteint!',
+        abbreviation: 'XP',
       },
       level: {
         title: 'Niveau',

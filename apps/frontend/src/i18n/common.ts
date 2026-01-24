@@ -23,6 +23,26 @@ export interface CommonTranslations {
     quest: string;
     task: string;
   };
+  breadcrumb: {
+    dashboard: string;
+    quests: string;
+    quest: string;
+    create: string;
+    edit: string;
+    view: string;
+    profile: string;
+    editProfile: string;
+    goals: string;
+    goalsList: string;
+    createGoal: string;
+    editGoal: string;
+    goalDetails: string;
+    changePassword: string;
+    guilds: string;
+    chat: string;
+    subscription: string;
+    page: string;
+  };
   footer: {
     sections: {
       product: string;
@@ -86,6 +106,26 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
       quest: 'quest',
       task: 'task',
     },
+    breadcrumb: {
+      dashboard: 'Dashboard',
+      quests: 'Quests',
+      quest: 'Quest',
+      create: 'Create',
+      edit: 'Edit',
+      view: 'View',
+      profile: 'Profile',
+      editProfile: 'Edit Profile',
+      goals: 'Goals',
+      goalsList: 'Goals List',
+      createGoal: 'Create Goal',
+      editGoal: 'Edit Goal',
+      goalDetails: 'Goal Details',
+      changePassword: 'Change Password',
+      guilds: 'Guilds',
+      chat: 'Chat',
+      subscription: 'Subscription',
+      page: 'Page',
+    },
     footer: {
       sections: {
         product: 'Product',
@@ -147,6 +187,26 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
       quest: 'misión',
       task: 'tarea',
     },
+    breadcrumb: {
+      dashboard: 'Tablero',
+      quests: 'Misiones',
+      quest: 'Misión',
+      create: 'Crear',
+      edit: 'Editar',
+      view: 'Ver',
+      profile: 'Perfil',
+      editProfile: 'Editar Perfil',
+      goals: 'Objetivos',
+      goalsList: 'Lista de Objetivos',
+      createGoal: 'Crear Objetivo',
+      editGoal: 'Editar Objetivo',
+      goalDetails: 'Detalles del Objetivo',
+      changePassword: 'Cambiar Contraseña',
+      guilds: 'Gremios',
+      chat: 'Chat',
+      subscription: 'Suscripción',
+      page: 'Página',
+    },
     footer: {
       sections: {
         product: 'Producto',
@@ -207,6 +267,26 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
       goal: 'objectif',
       quest: 'quête',
       task: 'tâche',
+    },
+    breadcrumb: {
+      dashboard: 'Tableau de bord',
+      quests: 'Quêtes',
+      quest: 'Quête',
+      create: 'Créer',
+      edit: 'Modifier',
+      view: 'Voir',
+      profile: 'Profil',
+      editProfile: 'Modifier le Profil',
+      goals: 'Objectifs',
+      goalsList: 'Liste des Objectifs',
+      createGoal: 'Créer un Objectif',
+      editGoal: 'Modifier l\'Objectif',
+      goalDetails: 'Détails de l\'Objectif',
+      changePassword: 'Changer le Mot de Passe',
+      guilds: 'Guildes',
+      chat: 'Chat',
+      subscription: 'Abonnement',
+      page: 'Page',
     },
     footer: {
       sections: {

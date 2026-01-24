@@ -29,6 +29,7 @@ import TagsInput from './TagsInput';
 import FieldTooltip from '@/components/ui/FieldTooltip';
 import TasksListInline from '@/components/goals/TasksListInline';
 import { logger } from '@/lib/logger';
+import { goalEditTranslations } from '@/i18n/goalEdit';
 
 interface GoalEditFormProps {
   goalId: string;
@@ -241,7 +242,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         }
         
         toast({
-          title: 'Error',
+          title: commonTranslations?.error || 'Error',
           description: errorMessage,
           variant: 'destructive'
         });
@@ -291,8 +292,8 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
       });
       await loadGoalTasks();
       toast({
-        title: 'Success',
-        description: 'Task created successfully',
+        title: commonTranslations?.success || 'Success',
+        description: goalEditTranslations?.messages?.taskCreated || 'Task created successfully',
         variant: 'default'
       });
     } catch (error: any) {
@@ -312,8 +313,8 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
       });
       await loadGoalTasks();
       toast({
-        title: 'Success',
-        description: 'Task updated successfully',
+        title: commonTranslations?.success || 'Success',
+        description: goalEditTranslations?.messages?.taskUpdated || 'Task updated successfully',
         variant: 'default'
       });
     } catch (error: any) {
@@ -327,8 +328,8 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
       await deleteTask(taskId);
       await loadGoalTasks();
       toast({
-        title: 'Success',
-        description: 'Task deleted successfully',
+        title: commonTranslations?.success || 'Success',
+        description: goalEditTranslations?.messages?.taskDeleted || 'Task deleted successfully',
         variant: 'default'
       });
     } catch (error: any) {
@@ -407,9 +408,23 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
       
       await updateGoal(goalId, updateData);
       
+      // Get translations - try multiple approaches to ensure we get the right language
+      const goalEditT = (t as any)?.goalEdit;
+      const directT = goalEditTranslations[language as 'en' | 'es' | 'fr'] || goalEditTranslations.en;
+      const successMessage = goalEditT?.messages?.saveSuccess || directT?.messages?.saveSuccess || 'Goal updated successfully';
+      
+      logger.debug('Goal edit success toast', { 
+        language, 
+        goalEditT: !!goalEditT,
+        directT: !!directT,
+        successMessage,
+        goalEditMessages: goalEditT?.messages,
+        directMessages: directT?.messages
+      });
+      
       toast({
-        title: 'Success',
-        description: 'Goal updated successfully',
+        title: (t as any)?.common?.success || 'Success',
+        description: successMessage,
         variant: 'default'
       });
       
@@ -516,7 +531,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading goal data...</p>
+            <p className="text-muted-foreground">{goalEditTranslations?.messages?.loadingGoalData || 'Loading goal data...'}</p>
           </div>
         </div>
       </div>
@@ -770,7 +785,7 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {commonTranslations?.loading || 'Updating...'}
+                {goalEditTranslations?.messages?.updating || commonTranslations?.loading || 'Updating...'}
               </>
             ) : (
               goalEditTranslations?.actions?.save || goalCreationTranslations?.actions?.updateGoal || 'Update Goal'

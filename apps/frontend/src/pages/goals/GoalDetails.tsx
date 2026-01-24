@@ -5,7 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import { getGoal, deleteGoal } from '@/lib/apiGoal';
 import { loadTasks, createTask, updateTask, deleteTask } from '@/lib/apiTask';
-import { GoalStatus, formatGoalStatus, getStatusColorClass, formatDeadline } from '@/models/goal';
+import { GoalStatus, formatGoalStatus, getStatusColorClass, formatDeadline, getCategoryName } from '@/models/goal';
 import DualProgressBar from '@/components/ui/DualProgressBar';
 import { 
   calculateTaskProgress, 
@@ -110,12 +110,14 @@ const GoalDetails: React.FC = () => {
 
   // Get translations
   const goalDetailsTranslations = (t as any)?.goalDetails;
+  const goalActionsTranslations = (t as any)?.goalActions;
   const commonTranslations = (t as any)?.common;
   const goalsTranslations = (t as any)?.goals;
   const goalCreationTranslations = (t as any)?.goalCreation;
   const nlpTranslations = goalCreationTranslations?.nlp ?? {};
   const nlpQuestions = nlpTranslations.questions ?? {};
   const nlpHints = nlpTranslations.hints ?? {};
+  const confirmations = goalActionsTranslations?.confirmations ?? {};
 
   // Load goal details
   const loadGoalDetails = useCallback(async () => {
@@ -265,8 +267,8 @@ const GoalDetails: React.FC = () => {
       });
 
       toast({
-        title: 'Success',
-        description: 'Task created successfully',
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.taskCreated || 'Task created successfully',
         variant: 'default'
       });
 
@@ -274,8 +276,8 @@ const GoalDetails: React.FC = () => {
     } catch (e: any) {
       logger.error('Error creating task', { goalId: goal.id, error: e });
       toast({
-        title: 'Error',
-        description: e?.message || 'Failed to create task',
+        title: commonTranslations?.error || 'Error',
+        description: e?.message || goalsTranslations?.messages?.taskCreateFailed || 'Failed to create task',
         variant: 'destructive'
       });
       throw e;
@@ -293,8 +295,8 @@ const GoalDetails: React.FC = () => {
       });
 
       toast({
-        title: 'Success',
-        description: 'Task updated successfully',
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.taskUpdated || 'Task updated successfully',
         variant: 'default'
       });
 
@@ -302,8 +304,8 @@ const GoalDetails: React.FC = () => {
     } catch (e: any) {
       logger.error('Error updating task', { taskId: task.id, error: e });
       toast({
-        title: 'Error',
-        description: e?.message || 'Failed to update task',
+        title: commonTranslations?.error || 'Error',
+        description: e?.message || goalsTranslations?.messages?.taskUpdateFailed || 'Failed to update task',
         variant: 'destructive'
       });
       throw e;
@@ -314,16 +316,16 @@ const GoalDetails: React.FC = () => {
     try {
       await deleteTask(taskId);
       toast({
-        title: 'Success',
-        description: 'Task deleted successfully',
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.taskDeleted || 'Task deleted successfully',
         variant: 'default'
       });
       await loadGoalTasks();
     } catch (e: any) {
       logger.error('Error deleting task', { taskId, error: e });
       toast({
-        title: 'Error',
-        description: e?.message || 'Failed to delete task',
+        title: commonTranslations?.error || 'Error',
+        description: e?.message || goalsTranslations?.messages?.taskDeleteFailed || 'Failed to delete task',
         variant: 'destructive'
       });
       throw e;
@@ -454,20 +456,20 @@ const GoalDetails: React.FC = () => {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                  <AlertDialogTitle>{confirmations?.deleteTitle || goalDetailsTranslations?.actions?.deleteGoal || 'Delete Goal'}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {goalDetailsTranslations?.messages?.deleteConfirm || 
-                     'Are you sure you want to delete this goal? This action cannot be undone.'}
+                    {(confirmations?.deleteMessage || goalDetailsTranslations?.messages?.deleteConfirm || 
+                     'Are you sure you want to delete "{goalTitle}"? This action cannot be undone.').replace('{goalTitle}', goal?.title || 'this goal')}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{confirmations?.deleteCancel || commonTranslations?.cancel || 'Cancel'}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDeleteGoal}
                     disabled={deleting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {deleting ? 'Deleting...' : 'Delete'}
+                    {deleting ? (confirmations?.deleting || 'Deleting...') : (confirmations?.deleteConfirm || 'Delete')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -481,13 +483,11 @@ const GoalDetails: React.FC = () => {
         <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="details" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">{goalDetailsTranslations?.tabs?.details || 'Details'}</span>
-            <span className="sm:hidden">Details</span>
+            {goalDetailsTranslations?.tabs?.details || 'Details'}
           </TabsTrigger>
           <TabsTrigger value="tasks" className="flex items-center gap-2">
             <ListTodo className="w-4 h-4" />
-            <span className="hidden sm:inline">{goalDetailsTranslations?.tabs?.tasks || 'Tasks'}</span>
-            <span className="sm:hidden">Tasks</span>
+            {goalDetailsTranslations?.tabs?.tasks || 'Tasks'}
           </TabsTrigger>
         </TabsList>
 
@@ -524,7 +524,12 @@ const GoalDetails: React.FC = () => {
                           variant="secondary" 
                           className={`${getStatusColorClass(goal.status)} text-sm px-3 py-1`}
                         >
-                          {formatGoalStatus(goal.status)}
+                          {formatGoalStatus(goal.status, {
+                            active: goalDetailsTranslations?.status?.active,
+                            paused: goalDetailsTranslations?.status?.paused,
+                            completed: goalDetailsTranslations?.status?.completed,
+                            archived: goalDetailsTranslations?.status?.archived,
+                          })}
                         </Badge>
                       </div>
                     </div>
@@ -542,11 +547,11 @@ const GoalDetails: React.FC = () => {
                       </div>
                       {goal.category ? (
                         <p className="text-sm text-foreground font-medium">
-                          {goal.category}
+                          {getCategoryName(goal.category, { categories: goalsTranslations?.categories })}
                         </p>
                       ) : (
                         <p className="text-sm text-muted-foreground italic">
-                          No category assigned
+                          {goalsTranslations?.categorySelector?.noCategoryAssigned || 'No category assigned'}
                         </p>
                       )}
                     </div>
@@ -759,10 +764,20 @@ const GoalDetails: React.FC = () => {
                       goal={goalWithProgress} 
                       showMilestones={true}
                       showLabels={true}
+                      translations={{
+                        overallProgress: goalDetailsTranslations?.progress?.overallProgress,
+                        taskProgress: goalDetailsTranslations?.progress?.taskProgress,
+                        timeProgress: goalDetailsTranslations?.progress?.timeProgress,
+                        tasks: goalDetailsTranslations?.progress?.tasks,
+                        milestones: goalDetailsTranslations?.progress?.milestones,
+                        achieved: goalDetailsTranslations?.progress?.achieved,
+                        upcoming: goalDetailsTranslations?.progress?.upcoming,
+                        noGoalData: goalDetailsTranslations?.progress?.noGoalData,
+                      }}
                     />
                   ) : (
                     <div className="text-center text-muted-foreground py-4">
-                      Loading progress data...
+                      {goalDetailsTranslations?.progress?.loadingProgress || 'Loading progress data...'}
                     </div>
                   )}
                 </CardContent>

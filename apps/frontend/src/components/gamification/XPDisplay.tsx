@@ -91,9 +91,11 @@ export function XPDisplay({ userId, className }: XPDisplayProps) {
       <CardContent className="space-y-4">
         <div data-testid="xp-content">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-2xl font-bold" data-testid="xp-amount">{xpSummary.totalXp.toLocaleString()} XP</span>
+            <span className="text-2xl font-bold" data-testid="xp-amount">
+              {xpSummary.totalXp.toLocaleString()} {t?.gamification?.xp?.abbreviation || 'XP'}
+            </span>
             <span className="text-lg font-semibold text-blue-600" data-testid="xp-level">
-              Level {xpSummary.currentLevel}
+              {t?.gamification?.xp?.level || 'Level'} {xpSummary.currentLevel}
             </span>
           </div>
           
@@ -109,8 +111,8 @@ export function XPDisplay({ userId, className }: XPDisplayProps) {
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>
               {xpRemaining > 0
-                ? `${xpRemaining.toLocaleString()} XP to next level`
-                : 'Max level reached!'}
+                ? `${xpRemaining.toLocaleString()} ${t?.gamification?.xp?.toNextLevel || 'XP to next level'}`
+                : (t?.gamification?.xp?.maxLevel || 'Max level reached!')}
             </span>
             <span className="flex items-center gap-1">
               <TrendingUp className="h-4 w-4" />

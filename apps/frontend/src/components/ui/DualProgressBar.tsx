@@ -19,17 +19,28 @@ interface DualProgressBarProps {
   showMilestones?: boolean;
   showLabels?: boolean;
   className?: string;
+  translations?: {
+    overallProgress?: string;
+    taskProgress?: string;
+    timeProgress?: string;
+    tasks?: string;
+    milestones?: string;
+    achieved?: string;
+    upcoming?: string;
+    noGoalData?: string;
+  };
 }
 
 const DualProgressBar: React.FC<DualProgressBarProps> = ({
   goal,
   showMilestones = true,
   showLabels = true,
-  className = ''
+  className = '',
+  translations
 }) => {
   // Safety check for goal object
   if (!goal) {
-    return <div className={`space-y-3 ${className}`}>No goal data available</div>;
+    return <div className={`space-y-3 ${className}`}>{translations?.noGoalData || 'No goal data available'}</div>;
   }
 
   // Calculate progress values
@@ -54,7 +65,7 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
       <div className="space-y-2">
         {showLabels && (
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Overall Progress</span>
+            <span className="font-medium">{translations?.overallProgress || 'Overall Progress'}</span>
             <span className="text-muted-foreground">{Math.round(overallProgress)}%</span>
           </div>
         )}
@@ -90,9 +101,9 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
       <div className="space-y-2">
         {showLabels && (
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Task Progress</span>
+            <span className="font-medium">{translations?.taskProgress || 'Task Progress'}</span>
             <span className="text-muted-foreground">
-              {goal.completedTasks || 0} / {goal.totalTasks || 0} tasks
+              {goal.completedTasks || 0} / {goal.totalTasks || 0} {translations?.tasks || 'tasks'}
             </span>
           </div>
         )}
@@ -108,7 +119,7 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
       <div className="space-y-2">
         {showLabels && (
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Time Progress</span>
+            <span className="font-medium">{translations?.timeProgress || 'Time Progress'}</span>
             <span className="text-muted-foreground">{Math.round(timeProgress)}%</span>
           </div>
         )}
@@ -123,7 +134,7 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
       {/* Milestone Information */}
       {showMilestones && goal.milestones && goal.milestones.length > 0 && (
         <div className="space-y-2">
-          <div className="text-sm font-medium">Milestones</div>
+          <div className="text-sm font-medium">{translations?.milestones || 'Milestones'}</div>
           <div className="space-y-1">
             {goal.milestones.map((milestone, index) => (
               <div key={index} className="flex items-center justify-between text-xs">
@@ -131,7 +142,7 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
                   {formatMilestoneText(milestone)}
                 </span>
                 <span className="text-muted-foreground">
-                  {milestone.achieved ? 'Achieved' : 'Upcoming'}
+                  {milestone.achieved ? (translations?.achieved || 'Achieved') : (translations?.upcoming || 'Upcoming')}
                 </span>
               </div>
             ))}

@@ -105,19 +105,27 @@ const mockCommunityActivities = [
 vi.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
     t: {
-      dashboard: {
-        user: {
-          title: 'Quest Board',
-          welcome: 'Welcome back, adventurer!',
-          goals: 'Active Goals',
+      user: {
+        title: 'Quest Board',
+        welcome: 'Welcome back, adventurer!',
+        goals: 'Active Goals',
+        achievements: 'Achievements',
+        community: 'Community Activity',
+        stats: {
+          activeQuests: 'Active Quests',
           achievements: 'Achievements',
-          community: 'Community Activity',
-          stats: {
-            activeQuests: 'Active Quests',
-            achievements: 'Achievements',
-            guildPoints: 'Guild Points'
-          }
-        }
+          guildPoints: 'Guild Points',
+          successRate: 'Success Rate'
+        },
+        progressMetrics: {
+          overall: 'Overall Progress',
+          taskProgress: 'Task Progress',
+          timeProgress: 'Time Progress',
+          completedTasks: 'Completed Tasks'
+        },
+        noAchievements: 'No achievements earned yet',
+        completeQuestsMessage: 'Complete quests to earn badges and achievements',
+        achievement: 'Achievement'
       }
     }
   })

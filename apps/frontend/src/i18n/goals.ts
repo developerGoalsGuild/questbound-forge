@@ -6,6 +6,7 @@ export interface GoalsTranslations {
     title: string; 
     description: string; 
     deadline: string;
+    category: string;
     taskTitle: string;
     taskDueAt: string;
     taskTags: string;
@@ -17,6 +18,7 @@ export interface GoalsTranslations {
       title: string; 
       description: string; 
       deadline: string;
+      category: string;
       taskTitle: string;
       taskDueAt: string;
       taskTags: string;
@@ -64,6 +66,23 @@ export interface GoalsTranslations {
   };
   inspiration: { title: string };
   suggestions: { title: string };
+  tasks: {
+    title: string;
+    addTask: string;
+    createTask: string;
+    create: string;
+    noTasks: string;
+    fields: {
+      title: string;
+      dueDate: string;
+      status: string;
+      tags: string;
+    };
+    deleteConfirm: string;
+    noDate: string;
+    invalidDate: string;
+    addTag: string;
+  };
   list: {
     myGoals: string;
     newGoal: string;
@@ -108,6 +127,7 @@ export interface GoalsTranslations {
   };
   placeholders: {
     taskTags: string;
+    taskTitle: string;
   };
   paginationLabel: string;
   paginationFirst: string;
@@ -165,6 +185,24 @@ export interface GoalsTranslations {
     };
   };
   confirmDeleteTask: string;
+  categories: {
+    health: { name: string; description: string };
+    career: { name: string; description: string };
+    education: { name: string; description: string };
+    personal: { name: string; description: string };
+    financial: { name: string; description: string };
+    relationships: { name: string; description: string };
+    hobbies: { name: string; description: string };
+    travel: { name: string; description: string };
+    creative: { name: string; description: string };
+    other: { name: string; description: string };
+  };
+  categorySelector: {
+    customCategory: string;
+    backToPredefined: string;
+    enterCustomCategory: string;
+    noCategoryAssigned: string;
+  };
 }
 
 export const goalsTranslations: Record<Language, GoalsTranslations> = {
@@ -174,6 +212,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       title: 'Title', 
       description: 'Description', 
       deadline: 'Deadline',
+      category: 'Category',
       taskTitle: 'Task Title',
       taskDueAt: 'Task Due Date',
       taskTags: 'Tags',
@@ -185,6 +224,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
         title: 'Give your quest a short, action-focused name so it is easy to recognize later.',
         description: 'Share the motivation, desired outcome, and any context your allies should know.',
         deadline: 'Pick the target date you want to finish; you can adjust it if plans change.',
+        category: 'Optional categorization',
         taskTitle: 'Enter a clear, descriptive title for this task.',
         taskDueAt: 'Select the date when this task should be completed.',
         taskTags: 'Add tags to categorize and organize this task.',
@@ -241,6 +281,23 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     inspiration: { title: 'Inspirational Image' },
     suggestions: { title: 'AI Suggestions' },
+    tasks: {
+      title: 'Tasks',
+      addTask: 'Add Task',
+      createTask: 'Create New Task',
+      create: 'Create Task',
+      noTasks: 'No tasks yet. Create your first task to get started!',
+      fields: {
+        title: 'Title',
+        dueDate: 'Due Date',
+        status: 'Status',
+        tags: 'Tags',
+      },
+      deleteConfirm: 'Delete this task?',
+      noDate: 'No date',
+      invalidDate: 'Invalid date',
+      addTag: 'Add tag...',
+    },
     list: {
       myGoals: 'My Quests',
       newGoal: 'New Goal',
@@ -334,6 +391,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     placeholders: {
       taskTags: 'Add tag and press Enter',
+      taskTitle: 'Task title...',
     },
     paginationLabel: 'Pagination',
     paginationFirst: 'First Page',
@@ -342,6 +400,24 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     paginationOf: 'of',
     paginationNext: 'Next Page',
     paginationLast: 'Last Page',
+    categories: {
+      health: { name: 'Health & Fitness', description: 'Physical and mental health goals' },
+      career: { name: 'Career & Professional', description: 'Work and professional development goals' },
+      education: { name: 'Education & Learning', description: 'Learning and skill development goals' },
+      personal: { name: 'Personal Development', description: 'Personal growth and self-improvement goals' },
+      financial: { name: 'Financial', description: 'Money and financial planning goals' },
+      relationships: { name: 'Relationships', description: 'Social and relationship goals' },
+      hobbies: { name: 'Hobbies & Interests', description: 'Recreational and hobby-related goals' },
+      travel: { name: 'Travel & Adventure', description: 'Travel and adventure goals' },
+      creative: { name: 'Creative & Artistic', description: 'Creative and artistic expression goals' },
+      other: { name: 'Other', description: 'Goals that don\'t fit other categories' },
+    },
+    categorySelector: {
+      customCategory: 'Custom category...',
+      backToPredefined: 'Back to predefined categories',
+      enterCustomCategory: 'Enter custom category',
+      noCategoryAssigned: 'No category assigned',
+    },
   },
   es: {
     title: 'Crea tu Misión',
@@ -349,6 +425,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       title: 'Título', 
       description: 'Descripción', 
       deadline: 'Fecha límite',
+      category: 'Categoría',
       taskTitle: 'Título de la Tarea',
       taskDueAt: 'Fecha de Vencimiento',
       taskTags: 'Etiquetas',
@@ -360,6 +437,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
         title: 'Elige un nombre breve y orientado a la acción para reconocer fácilmente la misión.',
         description: 'Explica la motivación, el resultado deseado y cualquier contexto que el equipo deba conocer.',
         deadline: 'Selecciona la fecha objetivo para terminar; podrás ajustarla si los planes cambian.',
+        category: 'Categorización opcional',
         taskTitle: 'Ingresa un título claro y descriptivo para esta tarea.',
         taskDueAt: 'Selecciona la fecha cuando esta tarea debe completarse.',
         taskTags: 'Agrega etiquetas para categorizar y organizar esta tarea.',
@@ -416,6 +494,23 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     inspiration: { title: 'Imagen inspiradora' },
     suggestions: { title: 'Sugerencias de IA' },
+    tasks: {
+      title: 'Tareas',
+      addTask: 'Agregar Tarea',
+      createTask: 'Crear Nueva Tarea',
+      create: 'Crear Tarea',
+      noTasks: 'Aún no hay tareas. ¡Crea tu primera tarea para comenzar!',
+      fields: {
+        title: 'Título',
+        dueDate: 'Fecha de Vencimiento',
+        status: 'Estado',
+        tags: 'Etiquetas',
+      },
+      deleteConfirm: '¿Eliminar esta tarea?',
+      noDate: 'Sin fecha',
+      invalidDate: 'Fecha inválida',
+      addTag: 'Agregar etiqueta...',
+    },
     list: {
       myGoals: 'Mis misiones',
       newGoal: 'Nueva mision',
@@ -509,6 +604,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     placeholders: {
       taskTags: 'Agregar etiqueta y presionar Enter',
+      taskTitle: 'Título de la tarea...',
     },
     paginationLabel: 'Paginación',
     paginationFirst: 'Primera página',
@@ -517,6 +613,24 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     paginationOf: 'de',
     paginationNext: 'Página siguiente',
     paginationLast: 'Última página',
+    categories: {
+      health: { name: 'Salud y Bienestar', description: 'Objetivos de salud física y mental' },
+      career: { name: 'Carrera y Profesional', description: 'Objetivos laborales y de desarrollo profesional' },
+      education: { name: 'Educación y Aprendizaje', description: 'Objetivos de aprendizaje y desarrollo de habilidades' },
+      personal: { name: 'Desarrollo Personal', description: 'Objetivos de crecimiento personal y superación' },
+      financial: { name: 'Financiero', description: 'Objetivos de dinero y planificación financiera' },
+      relationships: { name: 'Relaciones', description: 'Objetivos sociales y de relaciones' },
+      hobbies: { name: 'Pasatiempos e Intereses', description: 'Objetivos recreativos y relacionados con pasatiempos' },
+      travel: { name: 'Viajes y Aventura', description: 'Objetivos de viajes y aventura' },
+      creative: { name: 'Creativo y Artístico', description: 'Objetivos de expresión creativa y artística' },
+      other: { name: 'Otro', description: 'Objetivos que no encajan en otras categorías' },
+    },
+    categorySelector: {
+      customCategory: 'Categoría personalizada...',
+      backToPredefined: 'Volver a categorías predefinidas',
+      enterCustomCategory: 'Ingresar categoría personalizada',
+      noCategoryAssigned: 'Sin categoría asignada',
+    },
   },
   fr: {
     title: 'Crée ta Quête',
@@ -524,6 +638,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       title: 'Titre', 
       description: 'Description', 
       deadline: 'Échéance',
+      category: 'Catégorie',
       taskTitle: 'Titre de la Tâche',
       taskDueAt: 'Date d\'Échéance',
       taskTags: 'Étiquettes',
@@ -535,6 +650,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
         title: 'Choisis un nom court et orienté vers l\'action pour retrouver facilement la quête.',
         description: 'Partage la motivation, le résultat attendu et tout contexte utile à ton équipe.',
         deadline: 'Sélectionne la date visée pour terminer; tu pourras l\'ajuster si les plans évoluent.',
+        category: 'Catégorisation optionnelle',
         taskTitle: 'Saisis un titre clair et descriptif pour cette tâche.',
         taskDueAt: 'Sélectionne la date à laquelle cette tâche doit être terminée.',
         taskTags: 'Ajoute des étiquettes pour catégoriser et organiser cette tâche.',
@@ -591,6 +707,23 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     inspiration: { title: 'Image inspirante' },
     suggestions: { title: 'Suggestions IA' },
+    tasks: {
+      title: 'Tâches',
+      addTask: 'Ajouter une Tâche',
+      createTask: 'Créer une Nouvelle Tâche',
+      create: 'Créer une Tâche',
+      noTasks: 'Aucune tâche pour le moment. Créez votre première tâche pour commencer !',
+      fields: {
+        title: 'Titre',
+        dueDate: 'Date d\'Échéance',
+        status: 'Statut',
+        tags: 'Étiquettes',
+      },
+      deleteConfirm: 'Supprimer cette tâche ?',
+      noDate: 'Aucune date',
+      invalidDate: 'Date invalide',
+      addTag: 'Ajouter une étiquette...',
+    },
     list: {
       myGoals: 'Mes quêtes',
       newGoal: 'quête',
@@ -684,6 +817,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     placeholders: {
       taskTags: 'Ajouter une étiquette et appuyer sur Entrée',
+      taskTitle: 'Titre de la tâche...',
     },
     paginationLabel: 'Pagination',
     paginationFirst: 'Première page',
@@ -692,5 +826,23 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     paginationOf: 'sur',
     paginationNext: 'Page suivante',
     paginationLast: 'Dernière page',
+    categories: {
+      health: { name: 'Santé et Bien-être', description: 'Objectifs de santé physique et mentale' },
+      career: { name: 'Carrière et Professionnel', description: 'Objectifs professionnels et de développement de carrière' },
+      education: { name: 'Éducation et Apprentissage', description: 'Objectifs d\'apprentissage et de développement de compétences' },
+      personal: { name: 'Développement Personnel', description: 'Objectifs de croissance personnelle et d\'amélioration de soi' },
+      financial: { name: 'Financier', description: 'Objectifs d\'argent et de planification financière' },
+      relationships: { name: 'Relations', description: 'Objectifs sociaux et relationnels' },
+      hobbies: { name: 'Loisirs et Intérêts', description: 'Objectifs récréatifs et liés aux loisirs' },
+      travel: { name: 'Voyage et Aventure', description: 'Objectifs de voyage et d\'aventure' },
+      creative: { name: 'Créatif et Artistique', description: 'Objectifs d\'expression créative et artistique' },
+      other: { name: 'Autre', description: 'Objectifs qui ne correspondent pas à d\'autres catégories' },
+    },
+    categorySelector: {
+      customCategory: 'Catégorie personnalisée...',
+      backToPredefined: 'Retour aux catégories prédéfinies',
+      enterCustomCategory: 'Entrer une catégorie personnalisée',
+      noCategoryAssigned: 'Aucune catégorie assignée',
+    },
   }
 };

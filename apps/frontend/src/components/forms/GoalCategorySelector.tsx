@@ -48,6 +48,8 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
   const hints = goalsTranslations?.hints ?? {};
   const fieldHints = (hints.fields ?? {}) as Record<string, string | undefined>;
   const iconLabelTemplate = typeof hints.iconLabel === 'string' ? hints.iconLabel : 'More information about {field}';
+  const categories = goalsTranslations?.categories ?? {};
+  const categorySelector = goalsTranslations?.categorySelector ?? {};
 
   // Check if current value is a custom category (not in predefined list)
   const isCurrentValueCustom = value && !GOAL_CATEGORIES.some(cat => cat.id === value);
@@ -138,6 +140,10 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
     if (isCustomMode) {
       return customCategory;
     }
+    // Use translated category name if available
+    if (value && categories[value]?.name) {
+      return categories[value].name;
+    }
     const selectedCategory = GOAL_CATEGORIES.find(cat => cat.id === value);
     return selectedCategory ? selectedCategory.name : value;
   };
@@ -207,28 +213,32 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
               </div>
             </SelectTrigger>
             <SelectContent>
-              {GOAL_CATEGORIES.map((category) => (
-                <SelectItem 
-                  key={category.id} 
-                  value={category.id}
-                  data-testid={`category-${category.id}`}
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{category.name}</span>
-                    {category.description && (
-                      <span className="text-xs text-muted-foreground">
-                        {category.description}
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
+              {GOAL_CATEGORIES.map((category) => {
+                const categoryName = categories[category.id]?.name || category.name;
+                const categoryDescription = categories[category.id]?.description || category.description;
+                return (
+                  <SelectItem 
+                    key={category.id} 
+                    value={category.id}
+                    data-testid={`category-${category.id}`}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{categoryName}</span>
+                      {categoryDescription && (
+                        <span className="text-xs text-muted-foreground">
+                          {categoryDescription}
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                );
+              })}
               {allowCustom && (
                 <SelectItem 
                   value="custom"
                   data-testid="category-custom"
                 >
-                  <span className="font-medium">Custom category...</span>
+                  <span className="font-medium">{categorySelector?.customCategory || 'Custom category...'}</span>
                 </SelectItem>
               )}
             </SelectContent>
@@ -242,7 +252,7 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
                 onChange={(e) => handleCustomCategoryChange(e.target.value)}
                 onBlur={handleCustomCategoryBlur}
                 disabled={disabled}
-                placeholder="Enter custom category"
+                placeholder={categorySelector?.enterCustomCategory || 'Enter custom category'}
                 className={`w-full pr-10 ${
                   hasError 
                     ? 'border-destructive focus-visible:ring-destructive' 
@@ -278,7 +288,7 @@ const GoalCategorySelector: React.FC<GoalCategorySelectorProps> = ({
                 className="text-xs text-muted-foreground hover:text-foreground underline"
                 disabled={disabled}
               >
-                Back to predefined categories
+                {categorySelector?.backToPredefined || 'Back to predefined categories'}
               </button>
             </div>
           </div>

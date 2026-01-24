@@ -205,10 +205,10 @@ const UserDashboard = () => {
         {/* Welcome Header */}
         <div className="mb-8">
           <h1 className="font-cinzel text-4xl font-bold text-gradient-royal mb-2">
-            {t.dashboard?.user?.title || "Adventurer's Hall"}
+            {t.user?.title || "Adventurer's Hall"}
           </h1>
           <p className="text-xl text-muted-foreground">
-            {t.dashboard?.user?.welcome || 'Welcome back!'}
+            {t.user?.welcome || 'Welcome back!'}
           </p>
         </div>
 
@@ -218,7 +218,7 @@ const UserDashboard = () => {
             <CardContent className="p-6 text-center">
               <Target className="h-8 w-8 text-primary mx-auto mb-2" />
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">{activeCount ?? 0}</div>
-              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.activeQuests || 'Active Quests'}</div>
+              <div className="text-sm text-muted-foreground">{t.user?.stats?.activeQuests || 'Active Quests'}</div>
             </CardContent>
           </Card>
 
@@ -228,7 +228,7 @@ const UserDashboard = () => {
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">
                 {badgesLoading ? '...' : badges.length}
               </div>
-              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.achievements || 'Achievements'}</div>
+              <div className="text-sm text-muted-foreground">{t.user?.stats?.achievements || 'Achievements'}</div>
             </CardContent>
           </Card>
 
@@ -238,7 +238,7 @@ const UserDashboard = () => {
               <div className="font-cinzel text-2xl font-bold text-gradient-royal">
                 {xpLoading ? '...' : (totalXP ?? 0).toLocaleString()}
               </div>
-              <div className="text-sm text-muted-foreground">{t.dashboard?.user?.stats?.guildPoints || 'Total XP'}</div>
+              <div className="text-sm text-muted-foreground">{t.user?.stats?.guildPoints || 'Total XP'}</div>
             </CardContent>
           </Card>
 
@@ -248,7 +248,7 @@ const UserDashboard = () => {
               <div className="font-cinzel text-2xl font-bold text-gradient-gold">
                 {analyticsLoading ? '...' : (successRate ?? 0)}%
               </div>
-              <div className="text-sm text-muted-foreground">Success Rate</div>
+              <div className="text-sm text-muted-foreground">{t.user?.stats?.successRate || 'Success Rate'}</div>
             </CardContent>
           </Card>
         </div>
@@ -259,7 +259,7 @@ const UserDashboard = () => {
             <CardHeader>
               <CardTitle className="font-cinzel text-lg flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />
-                {t.dashboard?.user?.progressMetrics?.overall || 'Overall Progress'}
+                {t.user?.progressMetrics?.overall || 'Overall Progress'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -268,7 +268,7 @@ const UserDashboard = () => {
                   {progressData?.overallProgress ?? 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {t.dashboard?.user?.progressMetrics?.overall || 'Overall Progress'}
+                  {t.user?.progressMetrics?.overall || 'Overall Progress'}
                 </div>
               </div>
             </CardContent>
@@ -278,7 +278,7 @@ const UserDashboard = () => {
             <CardHeader>
               <CardTitle className="font-cinzel text-lg flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-secondary" />
-                {t.dashboard?.user?.progressMetrics?.taskProgress || 'Task Progress'}
+                {t.user?.progressMetrics?.taskProgress || 'Task Progress'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -287,7 +287,7 @@ const UserDashboard = () => {
                   {progressData?.taskProgress ?? 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {t.dashboard?.user?.progressMetrics?.completedTasks || 'Completed Tasks'}: {progressData?.completedTasks ?? 0} / {progressData?.totalTasks ?? 0}
+                  {t.user?.progressMetrics?.completedTasks || 'Completed Tasks'}: {progressData?.completedTasks ?? 0} / {progressData?.totalTasks ?? 0}
                 </div>
               </div>
             </CardContent>
@@ -297,7 +297,7 @@ const UserDashboard = () => {
             <CardHeader>
               <CardTitle className="font-cinzel text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />
-                {t.dashboard?.user?.progressMetrics?.timeProgress || 'Time Progress'}
+                {t.user?.progressMetrics?.timeProgress || 'Time Progress'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -306,7 +306,7 @@ const UserDashboard = () => {
                   {progressData?.timeProgress ?? 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {t.dashboard?.user?.progressMetrics?.timeProgress || 'Time Progress'}
+                  {t.user?.progressMetrics?.timeProgress || 'Time Progress'}
                 </div>
               </div>
             </CardContent>
@@ -322,7 +322,7 @@ const UserDashboard = () => {
             <CardHeader>
               <CardTitle className="font-cinzel text-xl flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-secondary" />
-                {t.dashboard?.user?.achievements || 'Earned Honors'}
+                {t.user?.achievements || 'Earned Honors'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -345,7 +345,7 @@ const UserDashboard = () => {
                         className="p-4 rounded-lg border text-center transition-all duration-300 bg-gradient-gold border-secondary shadow-gold"
                       >
                         <Icon className="h-8 w-8 mx-auto mb-2 text-secondary-foreground" />
-                        <div className="font-semibold text-sm">{achievement?.name || 'Achievement'}</div>
+                        <div className="font-semibold text-sm">{achievement?.name || (t.user?.achievement || 'Achievement')}</div>
                         {achievement?.description && (
                           <div className="text-xs text-muted-foreground mt-1">{achievement.description}</div>
                         )}
@@ -356,8 +356,8 @@ const UserDashboard = () => {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No achievements earned yet</p>
-                  <p className="text-sm mt-2">Complete quests to earn badges and achievements</p>
+                  <p>{t.user?.noAchievements || 'No achievements earned yet'}</p>
+                  <p className="text-sm mt-2">{t.user?.completeQuestsMessage || 'Complete quests to earn badges and achievements'}</p>
                 </div>
               )}
             </CardContent>

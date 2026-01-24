@@ -88,12 +88,12 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const formatDate = (timestamp: number | null | undefined): string => {
-    if (!timestamp) return 'No date';
+    if (!timestamp) return goalsTranslations?.tasks?.noDate || 'No date';
     try {
       const date = new Date(timestamp * 1000);
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
-      return 'Invalid date';
+      return goalsTranslations?.tasks?.invalidDate || 'Invalid date';
     }
   };
 
@@ -491,7 +491,9 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                 {isEditing ? (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor={`edit-title-${task.id}`}>Title *</Label>
+                      <Label htmlFor={`edit-title-${task.id}`}>
+                        {goalsTranslations?.tasks?.fields?.title || 'Title'} *
+                      </Label>
                       <Input
                         id={`edit-title-${task.id}`}
                         value={editData.title || ''}
@@ -506,7 +508,9 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
 
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-2">
-                        <Label htmlFor={`edit-dueAt-${task.id}`}>Due Date</Label>
+                        <Label htmlFor={`edit-dueAt-${task.id}`}>
+                          {goalsTranslations?.tasks?.fields?.dueDate || 'Due Date'}
+                        </Label>
                         <Input
                           id={`edit-dueAt-${task.id}`}
                           type="date"
@@ -521,7 +525,9 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor={`edit-status-${task.id}`}>Status</Label>
+                        <Label htmlFor={`edit-status-${task.id}`}>
+                          {goalsTranslations?.tasks?.fields?.status || 'Status'}
+                        </Label>
                         <Select
                           value={editData.status || 'active'}
                           onValueChange={(value) => setEditData(prev => ({ ...prev, status: value }))}
@@ -542,7 +548,9 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Tags</Label>
+                      <Label>
+                        {goalsTranslations?.tasks?.fields?.tags || 'Tags'}
+                      </Label>
                       <div className="flex flex-wrap gap-2 mb-2">
                         {(editData.tags || []).map((tag, idx) => (
                           <Badge key={idx} variant="secondary" className="flex items-center gap-1">
@@ -568,7 +576,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                               addTagToEdit();
                             }
                           }}
-                          placeholder="Add tag..."
+                          placeholder={goalsTranslations?.tasks?.addTag || 'Add tag...'}
                           disabled={isLoading}
                         />
                         <Button
@@ -595,7 +603,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                         className="flex-1"
                       >
                         <X className="h-4 w-4 mr-1" />
-                        Cancel
+                        {commonTranslations?.cancel || 'Cancel'}
                       </Button>
                       <Button
                         size="sm"
@@ -608,7 +616,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                         ) : (
                           <Check className="h-4 w-4 mr-1" />
                         )}
-                        Save
+                        {goalsTranslations?.actions?.saveTask || 'Save'}
                       </Button>
                     </div>
                   </>
@@ -670,7 +678,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                       <Alert variant="destructive" className="mt-2">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription className="flex items-center justify-between">
-                          <span>Delete this task?</span>
+                          <span>{goalsTranslations?.tasks?.deleteConfirm || 'Delete this task?'}</span>
                           <div className="flex gap-2 ml-2">
                             <Button
                               variant="ghost"
@@ -678,7 +686,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                               onClick={() => setDeleteConfirmId(null)}
                               disabled={isLoading}
                             >
-                              Cancel
+                              {commonTranslations?.cancel || 'Cancel'}
                             </Button>
                             <Button
                               variant="destructive"
@@ -689,7 +697,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                               {loadingStates[`delete-${task.id}`] ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                'Delete'
+                                goalsTranslations?.actions?.deleteTask || 'Delete'
                               )}
                             </Button>
                           </div>

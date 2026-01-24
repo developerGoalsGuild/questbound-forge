@@ -62,6 +62,16 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
     empty: 'No collaborators yet',
     invite: 'Invite',
     inviteFirst: 'Invite your first collaborator',
+    cleanup: 'Cleanup',
+    cleanupTooltip: 'Clean up orphaned invite records for removed collaborators',
+    cleanupSuccess: {
+      title: 'Cleanup Complete',
+      description: 'Orphaned invites have been cleaned up successfully'
+    },
+    cleanupError: {
+      title: 'Cleanup Failed',
+      description: 'Failed to cleanup orphaned invites. Please try again.'
+    },
     owner: 'Owner',
     you: 'You',
     joined: 'Joined {date}',
@@ -203,8 +213,8 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
       const result = await cleanupOrphanedInvites(resourceType, resourceId);
       
       toast({
-        title: 'Cleanup Complete',
-        description: result.message,
+        title: translations.cleanupSuccess?.title || 'Cleanup Complete',
+        description: result.message || translations.cleanupSuccess?.description || 'Orphaned invites have been cleaned up successfully',
         variant: 'default'
       });
       
@@ -213,8 +223,8 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
     } catch (error) {
       console.error('Failed to cleanup orphaned invites:', error);
       toast({
-        title: 'Cleanup Failed',
-        description: 'Failed to cleanup orphaned invites. Please try again.',
+        title: translations.cleanupError?.title || 'Cleanup Failed',
+        description: translations.cleanupError?.description || 'Failed to cleanup orphaned invites. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -357,14 +367,14 @@ export const CollaboratorList: React.FC<CollaboratorListProps> = ({
                 onClick={handleCleanupOrphanedInvites}
                 disabled={isCleaningUp}
                 className="text-sm text-orange-600 hover:text-orange-700 flex items-center disabled:opacity-50"
-                title="Clean up orphaned invite records for removed collaborators"
+                title={translations.cleanupTooltip || "Clean up orphaned invite records for removed collaborators"}
               >
                 {isCleaningUp ? (
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-orange-600 mr-1" />
                 ) : (
                   <RefreshCw className="h-4 w-4 mr-1" />
                 )}
-                Cleanup
+                {translations.cleanup || 'Cleanup'}
               </button>
             </div>
           )}
