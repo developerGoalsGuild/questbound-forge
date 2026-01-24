@@ -27,12 +27,8 @@ import {
   CheckCircle,
   Clock,
   Bell,
-<<<<<<< HEAD
   CreditCard,
   Check
-=======
-  CreditCard
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
 } from 'lucide-react';
 
 const ProfileView = () => {
@@ -47,11 +43,8 @@ const ProfileView = () => {
   const signupTranslations = (t as any)?.signup?.local || {};
   const questTranslations = (t as any)?.quest?.notifications?.preferences || {};
   const subscriptionTranslations = (t as any)?.subscription || {};
-<<<<<<< HEAD
   const plansTranslations = subscriptionTranslations.plans || {};
   const freePlanTranslations = subscriptionTranslations.freePlan || {};
-=======
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
 
   // Get countries list for country name lookup
   const countries = useMemo(() => getCountries(language), [language]);
@@ -83,6 +76,54 @@ const ProfileView = () => {
     retry: false,
     refetchOnWindowFocus: false,
   });
+
+  // Get plan features based on tier (must be after subscription is defined)
+  const getPlanFeatures = useMemo(() => {
+    const tier = subscription?.plan_tier || profile?.tier || 'FREE';
+    const tierLower = tier.toLowerCase();
+    
+    if (tier === 'FREE' || !subscription?.has_active_subscription) {
+      return freePlanTranslations.features || [];
+    }
+    
+    const planKey = tierLower as 'initiate' | 'journeyman' | 'sage' | 'guildmaster';
+    return plansTranslations[planKey]?.features || [];
+  }, [subscription, profile?.tier, plansTranslations, freePlanTranslations]);
+
+  // Get plan name and description (must be after subscription is defined)
+  const getPlanInfo = useMemo(() => {
+    const tier = subscription?.plan_tier || profile?.tier || 'FREE';
+    const tierLower = tier.toLowerCase();
+    
+    if (tier === 'FREE' || !subscription?.has_active_subscription) {
+      return {
+        name: freePlanTranslations.name || 'Free Tier',
+        description: freePlanTranslations.description || 'Get started with basic features',
+      };
+    }
+    
+    const planKey = tierLower as 'initiate' | 'journeyman' | 'sage' | 'guildmaster';
+    return {
+      name: plansTranslations[planKey]?.name || tier,
+      description: plansTranslations[planKey]?.description || '',
+    };
+  }, [subscription, profile?.tier, plansTranslations, freePlanTranslations]);
+
+  // Get subscription status translation
+  const getSubscriptionStatusLabel = (status: string | null | undefined): string => {
+    if (!status) return 'N/A';
+    
+    const statusMap: Record<string, string> = {
+      'active': subscriptionTranslations.active || 'Active',
+      'canceled': subscriptionTranslations.canceled || 'Canceled',
+      'past_due': subscriptionTranslations.pastDue || 'Past Due',
+      'trialing': subscriptionTranslations.trialing || 'Trialing',
+      'incomplete': subscriptionTranslations.incomplete || 'Incomplete',
+      'incomplete_expired': subscriptionTranslations.incompleteExpired || 'Incomplete Expired',
+    };
+    
+    return statusMap[status.toLowerCase()] || status;
+  };
 
   // Get plan features based on tier (must be after subscription is defined)
   const getPlanFeatures = useMemo(() => {
@@ -450,7 +491,6 @@ const ProfileView = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center">
-<<<<<<< HEAD
                   {subscriptionLoading ? (
                     <Skeleton className="h-8 w-20 mx-auto" />
                   ) : (
@@ -458,15 +498,6 @@ const ProfileView = () => {
                       {(subscription?.plan_tier || profile.tier || 'FREE').toUpperCase()}
                     </p>
                   )}
-=======
-                  <p className="text-2xl font-bold text-primary">
-                    {subscriptionLoading ? (
-                      <Skeleton className="h-8 w-20 mx-auto" />
-                    ) : (
-                      (subscription?.plan_tier || profile.tier || 'FREE').toUpperCase()
-                    )}
-                  </p>
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
                   <p className="text-sm text-muted-foreground">{view.tier || 'Tier'}</p>
                 </div>
                 <div className="text-center">
@@ -668,11 +699,7 @@ const ProfileView = () => {
                           {subscriptionTranslations.status || 'Status'}
                         </p>
                         <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
-<<<<<<< HEAD
                           {getSubscriptionStatusLabel(subscription.status)}
-=======
-                          {subscription.status || 'N/A'}
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
                         </Badge>
                       </div>
 
@@ -709,7 +736,6 @@ const ProfileView = () => {
                       )}
                     </div>
 
-<<<<<<< HEAD
                     {/* Plan Characteristics */}
                     <div className="space-y-4">
                       <div>
@@ -775,8 +801,6 @@ const ProfileView = () => {
                       )}
                     </div>
 
-=======
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
                     {!subscription.has_active_subscription && (
                       <Alert>
                         <AlertDescription>

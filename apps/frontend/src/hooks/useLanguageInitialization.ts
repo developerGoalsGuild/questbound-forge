@@ -122,7 +122,6 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
 >>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
       // Skip API calls on public routes
       if (isPublicRoute()) {
-        const storedLanguage = getStoredLanguage();
         const browserLang = detectBrowserLanguage();
         const resolvedLanguage = storedLanguage || browserLang;
         setLanguage(resolvedLanguage);
