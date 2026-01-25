@@ -77,6 +77,7 @@ export interface GoalsTranslations {
       dueDate: string;
       status: string;
       tags: string;
+      completionNote: string;
     };
     deleteConfirm: string;
     noDate: string;
@@ -128,6 +129,7 @@ export interface GoalsTranslations {
   placeholders: {
     taskTags: string;
     taskTitle: string;
+    taskCompletionNote: string;
   };
   paginationLabel: string;
   paginationFirst: string;
@@ -159,6 +161,7 @@ export interface GoalsTranslations {
     taskTagsInvalid: string;
     taskTagsDuplicate: string;
     taskStatusInvalid: string;
+    taskCompletionNoteRequired: string;
     formErrorsTitle: string;
   };
   modals: {
@@ -292,6 +295,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
         dueDate: 'Due Date',
         status: 'Status',
         tags: 'Tags',
+        completionNote: 'Completion Note',
       },
       deleteConfirm: 'Delete this task?',
       noDate: 'No date',
@@ -342,6 +346,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskTagsInvalid: 'Tags can only contain letters, numbers, hyphens, and underscores',
       taskTagsDuplicate: 'Duplicate tags are not allowed',
       taskStatusInvalid: 'Invalid status selected',
+      taskCompletionNoteRequired: 'Add a completion note (at least 10 characters)',
       formErrorsTitle: 'Please fix the following errors:',
     },
     confirmDeleteTask: 'Are you sure you want to delete this task?',
@@ -392,6 +397,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     placeholders: {
       taskTags: 'Add tag and press Enter',
       taskTitle: 'Task title...',
+      taskCompletionNote: 'Describe what you did to complete this task...',
     },
     paginationLabel: 'Pagination',
     paginationFirst: 'First Page',
@@ -505,6 +511,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
         dueDate: 'Fecha de Vencimiento',
         status: 'Estado',
         tags: 'Etiquetas',
+        completionNote: 'Nota de finalización',
       },
       deleteConfirm: '¿Eliminar esta tarea?',
       noDate: 'Sin fecha',
@@ -555,6 +562,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskTagsInvalid: 'Las etiquetas solo pueden contener letras, números, guiones y guiones bajos',
       taskTagsDuplicate: 'No se permiten etiquetas duplicadas',
       taskStatusInvalid: 'Estado seleccionado inválido',
+      taskCompletionNoteRequired: 'Agrega una nota de finalización (mínimo 10 caracteres)',
       formErrorsTitle: 'Por favor corrige los siguientes errores:',
     },
     confirmDeleteTask: '¿Estás seguro de que quieres eliminar esta tarea?',
@@ -605,6 +613,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     placeholders: {
       taskTags: 'Agregar etiqueta y presionar Enter',
       taskTitle: 'Título de la tarea...',
+      taskCompletionNote: 'Describe lo que hiciste para completar esta tarea...',
     },
     paginationLabel: 'Paginación',
     paginationFirst: 'Primera página',
@@ -718,6 +727,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
         dueDate: 'Date d\'Échéance',
         status: 'Statut',
         tags: 'Étiquettes',
+        completionNote: 'Note de réalisation',
       },
       deleteConfirm: 'Supprimer cette tâche ?',
       noDate: 'Aucune date',
@@ -768,6 +778,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskTagsInvalid: 'Les étiquettes ne peuvent contenir que des lettres, des chiffres, des tirets et des traits de soulignement',
       taskTagsDuplicate: 'Les étiquettes en double ne sont pas autorisées',
       taskStatusInvalid: 'Statut sélectionné invalide',
+      taskCompletionNoteRequired: 'Ajoutez une note de réalisation (au moins 10 caractères)',
       formErrorsTitle: 'Veuillez corriger les erreurs suivantes :',
     },
     confirmDeleteTask: 'Êtes-vous sûr de vouloir supprimer cette tâche ?',
@@ -818,6 +829,7 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     placeholders: {
       taskTags: 'Ajouter une étiquette et appuyer sur Entrée',
       taskTitle: 'Titre de la tâche...',
+      taskCompletionNote: 'Décrivez ce que vous avez fait pour terminer cette tâche...',
     },
     paginationLabel: 'Pagination',
     paginationFirst: 'Première page',

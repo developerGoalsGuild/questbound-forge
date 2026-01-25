@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,7 +30,7 @@ import {
 import { type TaskResponse } from '@/lib/apiTask';
 import { logger } from '@/lib/logger';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { validateTaskTitle, validateTaskDueDate, validateTaskStatus, validateTaskTag } from '@/lib/validation/taskValidation';
+import { validateTaskTitle, validateTaskDueDate, validateTaskStatus, validateTaskTag, validateTaskCompletionNote } from '@/lib/validation/taskValidation';
 
 interface TasksListInlineProps {
   tasks: TaskResponse[];
@@ -121,7 +122,8 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
       title: task.title,
       dueAt: task.dueAt,
       status: task.status,
-      tags: [...task.tags]
+      tags: [...task.tags],
+      completionNote: task.completionNote || ''
     });
     setTagInput('');
     setErrors({});
@@ -163,6 +165,17 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
       newErrors.status = 'Invalid status';
     }
 
+    if (editData.status === 'completed') {
+      const completionNoteValue = (editData.completionNote || '').trim();
+      const completionValidation = validateTaskCompletionNote(completionNoteValue);
+      if (!completionValidation.isValid) {
+        newErrors.completionNote =
+          goalsTranslations?.validation?.taskCompletionNoteRequired ||
+          completionValidation.error ||
+          'Completion note is required';
+      }
+    }
+
     if (editData.tags && editData.tags.length === 0) {
       newErrors.tags = goalsTranslations?.validation?.taskTagsRequired || 'At least one tag is required';
     }
@@ -183,6 +196,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
         dueAt: editData.dueAt!,
         status: editData.status || 'active',
         tags: editData.tags || [],
+        completionNote: editData.completionNote?.trim() || undefined,
         createdAt: 0,
         updatedAt: 0
       });
@@ -530,7 +544,15 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                         </Label>
                         <Select
                           value={editData.status || 'active'}
-                          onValueChange={(value) => setEditData(prev => ({ ...prev, status: value }))}
+                          onValueChange={(value) => {
+                            setEditData(prev => ({ ...prev, status: value }));
+                            if (value !== 'completed') {
+                              setErrors(prev => {
+                                const { completionNote, ...rest } = prev;
+                                return rest;
+                              });
+                            }
+                          }}
                           disabled={isLoading}
                         >
                           <SelectTrigger id={`edit-status-${task.id}`}>
@@ -546,6 +568,25 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                         </Select>
                       </div>
                     </div>
+
+                    {editData.status === 'completed' && (
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-completionNote-${task.id}`}>
+                          {goalsTranslations?.tasks?.fields?.completionNote || 'Completion Note'}
+                        </Label>
+                        <Textarea
+                          id={`edit-completionNote-${task.id}`}
+                          value={editData.completionNote || ''}
+                          onChange={(e) => setEditData(prev => ({ ...prev, completionNote: e.target.value }))}
+                          placeholder={goalsTranslations?.placeholders?.taskCompletionNote || 'Describe what you did...'}
+                          className={errors.completionNote ? 'border-destructive' : ''}
+                          disabled={isLoading}
+                        />
+                        {errors.completionNote && (
+                          <p className="text-xs text-destructive">{errors.completionNote}</p>
+                        )}
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label>
@@ -661,6 +702,12 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                           {goalsTranslations?.statusLabels?.[task.status] || task.status}
                         </Badge>
                       </div>
+
+                      {task.status === 'completed' && task.completionNote && (
+                        <p className="text-xs text-muted-foreground">
+                          {task.completionNote}
+                        </p>
+                      )}
 
                       {task.tags && task.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">

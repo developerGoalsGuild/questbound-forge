@@ -19,7 +19,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalWithAccessResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, GoalProgressResponse, Milestone, QuestCreatePayload, QuestUpdatePayload, QuestCancelPayload, QuestResponse
+from .models import AnswerInput, TaskResponse, AnswerOutput, GoalResponse, GoalWithAccessResponse, GoalCreatePayload, GoalUpdatePayload, TaskInput, TaskUpdateInput, TaskVerificationSubmission, TaskVerificationReview, TaskVerificationFlag, GoalProgressResponse, Milestone, QuestCreatePayload, QuestUpdatePayload, QuestCancelPayload, QuestResponse
 from .models.quest_template import QuestTemplateCreatePayload, QuestTemplateUpdatePayload, QuestTemplateResponse, QuestTemplateListResponse
 from .models.analytics import QuestAnalytics, AnalyticsPeriod
 from .db.quest_db import (
@@ -930,6 +930,10 @@ def _build_task_item(user_id: str, payload: TaskInput) -> Dict:
     "createdAt": now_ms,
     "updatedAt": now_ms,
     "tags": payload.tags,
+    "completionNote": None,
+    "completedAt": None,
+    "verificationStatus": None,
+    "verificationEvidenceIds": [],
     # GSI for querying tasks by user and creation time
     "GSI1PK": f"USER#{user_id}",
     "GSI1SK": f"ENTITY#Task#{now_ms}",
@@ -947,6 +951,10 @@ def _task_to_response(item: Dict) -> TaskResponse:
     createdAt=int(item.get("createdAt")),
     updatedAt=int(item.get("updatedAt")),
     tags=item.get("tags", []),
+    completionNote=item.get("completionNote"),
+    completedAt=item.get("completedAt"),
+    verificationStatus=item.get("verificationStatus"),
+    verificationEvidenceIds=item.get("verificationEvidenceIds", []),
   )
 
 # GraphQL resolver for createTask mutation
@@ -1082,6 +1090,17 @@ async def update_task(
     if not task_item:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # If completing a task, require a completion note for anti-cheat
+    if payload.status == "completed":
+        existing_note = task_item.get("completionNote")
+        incoming_note = payload.completionNote
+        note_to_check = incoming_note if incoming_note is not None else existing_note
+        if not note_to_check or len(str(note_to_check).strip()) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Completion note (min 10 characters) is required to complete a task"
+            )
+
     # If updating dueAt, validate it doesn't exceed goal deadline
     if payload.dueAt is not None:
         goal_id = task_item.get("goalId")
@@ -1123,10 +1142,22 @@ async def update_task(
         update_expression += ", #status = :status"
         expression_attribute_values[":status"] = payload.status
         expression_attribute_names["#status"] = "status"
+        if payload.status == "completed":
+            update_expression += ", completedAt = :completedAt, verificationStatus = :verificationStatus"
+            expression_attribute_values[":completedAt"] = int(time.time() * 1000)
+            expression_attribute_values[":verificationStatus"] = "self_reported"
 
     if payload.tags is not None:
         update_expression += ", tags = :tags"
         expression_attribute_values[":tags"] = payload.tags
+
+    if payload.completionNote is not None:
+        update_expression += ", completionNote = :completionNote"
+        expression_attribute_values[":completionNote"] = _sanitize_string(payload.completionNote)
+
+    if payload.verificationEvidenceIds is not None:
+        update_expression += ", verificationEvidenceIds = :verificationEvidenceIds"
+        expression_attribute_values[":verificationEvidenceIds"] = payload.verificationEvidenceIds
 
     try:
         table.update_item(
@@ -1179,6 +1210,203 @@ async def update_task(
         except Exception as exc:
             # Log error but don't fail the task update
             logger.error('progress.recalculation_failed_after_task_update', goal_id=goal_id, task_id=task_id, exc_info=exc)
+
+    return _task_to_response(updated_task)
+
+
+@app.post("/quests/tasks/{task_id}/verification", response_model=TaskResponse)
+async def submit_task_verification(
+    task_id: str,
+    payload: TaskVerificationSubmission,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    user_id = auth.user_id
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    task_item = response.get("Item")
+    if not task_item:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    now_ms = int(time.time() * 1000)
+    evidence_id = str(uuid4())
+    evidence_record = {
+        "id": evidence_id,
+        "type": payload.evidenceType,
+        "payload": payload.evidencePayload,
+        "submittedAt": now_ms,
+        "submittedBy": user_id,
+    }
+
+    existing_evidence_ids = list(task_item.get("verificationEvidenceIds") or [])
+    existing_evidence_ids.append(evidence_id)
+    existing_evidence_records = list(task_item.get("verificationEvidence") or [])
+    existing_evidence_records.append(evidence_record)
+
+    completed_at = task_item.get("completedAt") or now_ms
+
+    update_expression = (
+        "SET updatedAt = :updatedAt, completionNote = :completionNote, "
+        "#status = :status, completedAt = :completedAt, "
+        "verificationStatus = :verificationStatus, "
+        "verificationEvidenceIds = :verificationEvidenceIds, "
+        "verificationEvidence = :verificationEvidence"
+    )
+    expression_attribute_values = {
+        ":updatedAt": now_ms,
+        ":completionNote": _sanitize_string(payload.completionNote),
+        ":status": "completed",
+        ":completedAt": completed_at,
+        ":verificationStatus": "pending_review",
+        ":verificationEvidenceIds": existing_evidence_ids,
+        ":verificationEvidence": existing_evidence_records,
+    }
+    expression_attribute_names = {"#status": "status"}
+
+    try:
+        table.update_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names,
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Could not submit verification at this time")
+
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    updated_task = response.get("Item")
+    if not updated_task:
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    return _task_to_response(updated_task)
+
+
+@app.post("/quests/tasks/{task_id}/verification/review", response_model=TaskResponse)
+async def review_task_verification(
+    task_id: str,
+    payload: TaskVerificationReview,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    user_id = auth.user_id
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    task_item = response.get("Item")
+    if not task_item:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    now_ms = int(time.time() * 1000)
+    review_record = {
+        "decision": payload.decision,
+        "reason": payload.reason,
+        "reviewedAt": now_ms,
+        "reviewedBy": user_id,
+    }
+
+    update_expression = (
+        "SET updatedAt = :updatedAt, verificationStatus = :verificationStatus, "
+        "verificationReview = :verificationReview"
+    )
+    expression_attribute_values = {
+        ":updatedAt": now_ms,
+        ":verificationStatus": payload.decision,
+        ":verificationReview": review_record,
+    }
+
+    try:
+        table.update_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Could not review verification at this time")
+
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    updated_task = response.get("Item")
+    if not updated_task:
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    return _task_to_response(updated_task)
+
+
+@app.post("/quests/tasks/{task_id}/verification/flag", response_model=TaskResponse)
+async def flag_task_verification(
+    task_id: str,
+    payload: TaskVerificationFlag,
+    auth: AuthContext = Depends(authenticate),
+    table=Depends(get_goals_table),
+):
+    user_id = auth.user_id
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    task_item = response.get("Item")
+    if not task_item:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    now_ms = int(time.time() * 1000)
+    flag_record = {
+        "reason": payload.reason,
+        "flaggedAt": now_ms,
+        "flaggedBy": user_id,
+    }
+
+    update_expression = (
+        "SET updatedAt = :updatedAt, verificationStatus = :verificationStatus, "
+        "verificationFlag = :verificationFlag"
+    )
+    expression_attribute_values = {
+        ":updatedAt": now_ms,
+        ":verificationStatus": "flagged",
+        ":verificationFlag": flag_record,
+    }
+
+    try:
+        table.update_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Could not flag verification at this time")
+
+    try:
+        response = table.get_item(
+            Key={"PK": f"USER#{user_id}", "SK": f"TASK#{task_id}"}
+        )
+    except (ClientError, BotoCoreError):
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
+
+    updated_task = response.get("Item")
+    if not updated_task:
+        raise HTTPException(status_code=500, detail="Could not retrieve updated task")
 
     return _task_to_response(updated_task)
 

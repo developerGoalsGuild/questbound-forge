@@ -60,6 +60,13 @@ export const taskTagSchema = z
   .max(20, 'Tag must be no more than 20 characters')
   .regex(/^[a-zA-Z0-9-_]+$/, 'Tag can only contain letters, numbers, hyphens, and underscores');
 
+// Task completion note validation schema
+export const taskCompletionNoteSchema = z
+  .string()
+  .min(10, 'Completion note must be at least 10 characters')
+  .max(500, 'Completion note must be no more than 500 characters')
+  .refine((val) => val.trim().length >= 10, 'Completion note must be at least 10 characters');
+
 // Main task creation validation schema
 export const taskCreateSchema = z.object({
   title: taskTitleSchema,
@@ -77,6 +84,15 @@ export const taskUpdateSchema = z.object({
   dueAt: taskDueDateSchema.optional(),
   status: taskStatusSchema.optional(),
   tags: taskTagsSchema.optional(),
+  completionNote: taskCompletionNoteSchema.optional(),
+}).superRefine((data, ctx) => {
+  if (data.status === 'completed' && !data.completionNote) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Completion note is required when completing a task',
+      path: ['completionNote'],
+    });
+  }
 });
 
 // Task list filter validation schema
@@ -148,6 +164,18 @@ export const validateTaskStatus = (status: string): { isValid: boolean; error?: 
   }
 };
 
+export const validateTaskCompletionNote = (note: string): { isValid: boolean; error?: string } => {
+  try {
+    taskCompletionNoteSchema.parse(note);
+    return { isValid: true };
+  } catch (error) {
+    if (error instanceof z.ZodError && error.issues && error.issues.length > 0) {
+      return { isValid: false, error: error.issues[0]?.message };
+    }
+    return { isValid: false, error: 'Invalid completion note' };
+  }
+};
+
 // Type exports for use in components
 export type TaskCreateInput = z.infer<typeof taskCreateSchema>;
 export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
@@ -155,3 +183,4 @@ export type TaskListFilter = z.infer<typeof taskListFilterSchema>;
 export type TaskSearchInput = z.infer<typeof taskSearchSchema>;
 export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type TaskTag = z.infer<typeof taskTagSchema>;
+export type TaskCompletionNote = z.infer<typeof taskCompletionNoteSchema>;

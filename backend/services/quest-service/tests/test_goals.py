@@ -443,7 +443,8 @@ def test_update_task_success():
         update_payload = {
             "title": "Updated Task",
             "status": "completed",
-            "tags": ["updated", "important"]
+            "tags": ["updated", "important"],
+            "completionNote": "Completed after finishing the deliverables."
         }
         response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
@@ -452,7 +453,154 @@ def test_update_task_success():
         assert updated_task["title"] == "Updated Task"
         assert updated_task["status"] == "completed"
         assert updated_task["tags"] == ["updated", "important"]
+        assert updated_task["completionNote"] == "Completed after finishing the deliverables."
+        assert updated_task["verificationStatus"] == "self_reported"
         assert updated_task["updatedAt"] > updated_task["createdAt"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_update_task_completed_requires_note():
+    table = FakeTable()
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Original Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["original"]
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        update_payload = {
+            "status": "completed"
+        }
+        response = client.put("/quests/tasks/task-123", json=update_payload, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 400
+        assert "Completion note" in response.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_submit_task_verification_sets_pending_review():
+    table = FakeTable()
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Original Task",
+        "dueAt": 1735689600,
+        "status": "active",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["original"]
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        payload = {
+            "completionNote": "Proof of completion with evidence.",
+            "evidenceType": "text",
+            "evidencePayload": {"note": "Summary of work"}
+        }
+        response = client.post(
+            "/quests/tasks/task-123/verification",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "completed"
+        assert data["completionNote"] == payload["completionNote"]
+        assert data["verificationStatus"] == "pending_review"
+        assert isinstance(data["verificationEvidenceIds"], list)
+        assert len(data["verificationEvidenceIds"]) == 1
+        assert data["completedAt"] is not None
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_review_task_verification_approved():
+    table = FakeTable()
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Original Task",
+        "dueAt": 1735689600,
+        "status": "completed",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["original"],
+        "verificationStatus": "pending_review"
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        payload = {
+            "decision": "approved",
+            "reason": "Looks good"
+        }
+        response = client.post(
+            "/quests/tasks/task-123/verification/review",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["verificationStatus"] == "approved"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_flag_task_verification():
+    table = FakeTable()
+    task_item = {
+        "PK": "USER#user-123",
+        "SK": "TASK#task-123",
+        "type": "Task",
+        "id": "task-123",
+        "goalId": "goal-123",
+        "title": "Original Task",
+        "dueAt": 1735689600,
+        "status": "completed",
+        "createdAt": 1609459200000,
+        "updatedAt": 1609459200000,
+        "tags": ["original"],
+        "verificationStatus": "pending_review"
+    }
+    table.items[("USER#user-123", "TASK#task-123")] = task_item
+
+    app.dependency_overrides[get_goals_table] = lambda: table
+    try:
+        token = _issue_token()
+        payload = {
+            "reason": "Suspicious completion"
+        }
+        response = client.post(
+            "/quests/tasks/task-123/verification/flag",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["verificationStatus"] == "flagged"
     finally:
         app.dependency_overrides.clear()
 

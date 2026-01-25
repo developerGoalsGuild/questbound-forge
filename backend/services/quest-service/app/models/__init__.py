@@ -9,7 +9,10 @@ by domain for better separation of concerns and maintainability.
 from .task import (
     TaskInput,
     TaskResponse,
-    TaskUpdateInput
+    TaskUpdateInput,
+    TaskVerificationSubmission,
+    TaskVerificationReview,
+    TaskVerificationFlag
 )
 
 # Goal models
@@ -44,6 +47,9 @@ __all__ = [
     "TaskInput",
     "TaskResponse", 
     "TaskUpdateInput",
+    "TaskVerificationSubmission",
+    "TaskVerificationReview",
+    "TaskVerificationFlag",
     "AnswerInput",
     "GoalCreatePayload",
     "AnswerOutput",

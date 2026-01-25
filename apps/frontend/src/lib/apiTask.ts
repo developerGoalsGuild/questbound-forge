@@ -12,6 +12,15 @@ interface CreateTaskInput {
   status: string;
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  dueAt?: number;
+  status?: string;
+  tags?: string[];
+  completionNote?: string;
+  goalId?: string;
+}
+
 export interface TaskResponse {
   id: string;
   goalId: string;
@@ -21,6 +30,25 @@ export interface TaskResponse {
   createdAt: number;
   updatedAt: number;
   tags: string[];
+  completionNote?: string;
+  completedAt?: number;
+  verificationStatus?: string;
+  verificationEvidenceIds?: string[];
+}
+
+export interface TaskVerificationSubmission {
+  completionNote: string;
+  evidenceType: string;
+  evidencePayload: Record<string, unknown>;
+}
+
+export interface TaskVerificationReview {
+  decision: 'approved' | 'rejected';
+  reason?: string;
+}
+
+export interface TaskVerificationFlag {
+  reason: string;
 }
 
 /**
@@ -153,7 +181,7 @@ export function getMockTasks(goalId: string): TaskResponse[] {
  * Updates an existing task.
  * Requires authenticated user token.
  */
-export async function updateTask(taskId: string, updates: Partial<CreateTaskInput>): Promise<TaskResponse> {
+export async function updateTask(taskId: string, updates: UpdateTaskInput): Promise<TaskResponse> {
   const operation = 'updateTask';
   const token = getAccessToken();
   if (!token) {
@@ -259,6 +287,129 @@ export async function updateTask(taskId: string, updates: Partial<CreateTaskInpu
     }
   }
 
+  return data as TaskResponse;
+}
+
+export async function submitTaskVerification(
+  taskId: string,
+  payload: TaskVerificationSubmission
+): Promise<TaskResponse> {
+  const operation = 'submitTaskVerification';
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('User is not authenticated');
+  }
+
+  const baseUrl = getApiBase();
+  const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}/verification`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || response.statusText || 'Failed to submit verification';
+    logger.error('SubmitTaskVerification API Error', {
+      operation,
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      payload
+    });
+    throw new Error(message);
+  }
+
+  const data = await response.json();
+  return data as TaskResponse;
+}
+
+export async function reviewTaskVerification(
+  taskId: string,
+  payload: TaskVerificationReview
+): Promise<TaskResponse> {
+  const operation = 'reviewTaskVerification';
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('User is not authenticated');
+  }
+
+  const baseUrl = getApiBase();
+  const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}/verification/review`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || response.statusText || 'Failed to review verification';
+    logger.error('ReviewTaskVerification API Error', {
+      operation,
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      payload
+    });
+    throw new Error(message);
+  }
+
+  const data = await response.json();
+  return data as TaskResponse;
+}
+
+export async function flagTaskVerification(
+  taskId: string,
+  payload: TaskVerificationFlag
+): Promise<TaskResponse> {
+  const operation = 'flagTaskVerification';
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('User is not authenticated');
+  }
+
+  const baseUrl = getApiBase();
+  const url = baseUrl.replace(/\/$/, '') + `/quests/tasks/${taskId}/verification/flag`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'x-api-key': import.meta.env.VITE_API_GATEWAY_KEY || '',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || response.statusText || 'Failed to flag verification';
+    logger.error('FlagTaskVerification API Error', {
+      operation,
+      status: response.status,
+      statusText: response.statusText,
+      errorBody,
+      url,
+      payload
+    });
+    throw new Error(message);
+  }
+
+  const data = await response.json();
   return data as TaskResponse;
 }
 

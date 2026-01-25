@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { X, Pencil, Trash, Check, XCircle, Loader2, Plus, AlertCircle, CheckCircle } from 'lucide-react';
 import { updateTask } from '@/lib/apiTask';
@@ -14,6 +15,7 @@ import {
   validateTaskDueDate, 
   validateTaskTag, 
   validateTaskStatus,
+  validateTaskCompletionNote,
   taskCreateSchema,
   taskUpdateSchema,
   type TaskCreateInput,
@@ -31,6 +33,7 @@ interface Task {
   dueAt: number; // epoch seconds
   status: string;
   tags: string[];
+  completionNote?: string;
 }
 
 interface EditTaskData {
@@ -39,6 +42,7 @@ interface EditTaskData {
   dueAt?: string; // date string for input field
   status?: string;
   tags?: string[];
+  completionNote?: string;
 }
 
 interface TasksModalProps {
@@ -195,7 +199,7 @@ const TasksModal: React.FC<TasksModalProps> = ({
     const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(d.getUTCDate()).padStart(2, '0');
     const dateOnly = `${yyyy}-${mm}-${dd}`;
-    setEditData({ ...task, dueAt: dateOnly }); // date string YYYY-MM-DD
+    setEditData({ ...task, dueAt: dateOnly, completionNote: task.completionNote || '' }); // date string YYYY-MM-DD
     setTagInput('');
     setErrors({});
     setHasValidationErrors(false);
@@ -273,6 +277,18 @@ const TasksModal: React.FC<TasksModalProps> = ({
         }
       }
     }
+
+    // Validate completion note when completing task
+    if (editData.status === 'completed') {
+      const completionNoteValue = (editData.completionNote || '').trim();
+      const completionValidation = validateTaskCompletionNote(completionNoteValue);
+      if (!completionValidation.isValid) {
+        newErrors.completionNote =
+          goalsTranslations?.validation?.taskCompletionNoteRequired ||
+          completionValidation.error ||
+          'Completion note is required';
+      }
+    }
     
     setErrors(newErrors);
     
@@ -283,7 +299,11 @@ const TasksModal: React.FC<TasksModalProps> = ({
       
       // Focus first error field
       setTimeout(() => {
-        const firstErrorField = document.querySelector(`[data-task-id="${editingTaskId}"] input[aria-invalid="true"], [data-task-id="${editingTaskId}"] select[aria-invalid="true"]`) as HTMLElement;
+        const firstErrorField = document.querySelector(
+          `[data-task-id="${editingTaskId}"] input[aria-invalid="true"], ` +
+          `[data-task-id="${editingTaskId}"] select[aria-invalid="true"], ` +
+          `[data-task-id="${editingTaskId}"] textarea[aria-invalid="true"]`
+        ) as HTMLElement;
         if (firstErrorField) {
           firstErrorField.focus();
         }
@@ -299,6 +319,9 @@ const TasksModal: React.FC<TasksModalProps> = ({
     setErrors(prev => {
       const copy = { ...prev };
       delete copy[field];
+      if (field === 'status' && value !== 'completed') {
+        delete copy.completionNote;
+      }
       return copy;
     });
     
@@ -390,12 +413,14 @@ const TasksModal: React.FC<TasksModalProps> = ({
         dueAt: number;
         status: string;
         tags: string[];
+        completionNote: string;
       }> = {};
 
       if (editData.title !== undefined) updatePayload.title = (editData.title as string).trim();
       if (editData.dueAt !== undefined && typeof dueAtEpoch === 'number') updatePayload.dueAt = dueAtEpoch;
       if (editData.status !== undefined) updatePayload.status = editData.status as string;
       if (editData.tags !== undefined) updatePayload.tags = editData.tags as string[];
+      if (editData.completionNote !== undefined) updatePayload.completionNote = (editData.completionNote as string).trim();
 
       // Call the API directly
       const updatedTask = await updateTask(editingTaskId, updatePayload);
@@ -792,6 +817,28 @@ const TasksModal: React.FC<TasksModalProps> = ({
                     <TableCell>
                       {isEditing ? (
                         <>
+                          {editData.status === 'completed' && (
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                {goalsTranslations?.tasks?.fields?.completionNote || 'Completion Note'}
+                              </p>
+                              <Textarea
+                                value={editData.completionNote || ''}
+                                onChange={e => onChangeField('completionNote', e.target.value)}
+                                aria-invalid={!!errors.completionNote}
+                                aria-describedby={errors.completionNote ? `error-completionNote-${task.id}` : undefined}
+                                placeholder={goalsTranslations?.placeholders?.taskCompletionNote || 'Describe what you did...'}
+                                data-task-id={task.id}
+                                disabled={loadingStates[`update-${task.id}`]}
+                                className={`${errors.completionNote ? 'border-red-500' : 'border-gray-300'} min-h-[80px]`}
+                              />
+                              {errors.completionNote && (
+                                <p id={`error-completionNote-${task.id}`} className="text-xs text-red-600 mt-1" role="alert">
+                                  {errors.completionNote}
+                                </p>
+                              )}
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-2 mb-2">
                             {(editData.tags || []).map((tag, idx) => (
                               <span
