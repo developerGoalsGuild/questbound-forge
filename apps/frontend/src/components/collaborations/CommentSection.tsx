@@ -28,6 +28,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import {
   Comment,
   createComment,
@@ -39,6 +40,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CommentSectionProps {
   resourceType: 'goal' | 'quest' | 'task';
@@ -54,6 +56,12 @@ const REACTION_EMOJIS = {
   '😠': { icon: Angry, label: 'Angry' }
 } as const;
 
+const dateLocales = {
+  en: enUS,
+  es: es,
+  fr: fr,
+};
+
 const CommentItem: React.FC<{
   comment: Comment;
   onReply: () => void;
@@ -61,17 +69,23 @@ const CommentItem: React.FC<{
   level: number;
   resourceType: string;
   resourceId: string;
-}> = ({ comment, onReply, onDelete, level, resourceType, resourceId }) => {
+  translations: any;
+  language: string;
+}> = ({ comment, onReply, onDelete, level, resourceType, resourceId, translations, language }) => {
   const { user } = useAuth();
   const [showReactions, setShowReactions] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
   const reactionRef = useRef<HTMLDivElement>(null);
+  const locale = dateLocales[language as keyof typeof dateLocales] || enUS;
 
   const commentId = comment.commentId || comment.comment_id;
   const { data: reactionData, refetch: refetchReactions } = useQuery({
     queryKey: ['comment-reactions', commentId],
     queryFn: () => getCommentReactions(commentId),
     enabled: !!commentId,
+    retry: false, // Don't retry failed reactions - they're not critical
+    staleTime: 60000, // Cache for 60 seconds
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   const reactionMutation = useMutation({
@@ -82,7 +96,7 @@ const CommentItem: React.FC<{
       setShowReactions(false);
     },
     onError: (error) => {
-      toast.error('Failed to react to comment');
+      toast.error(translations?.errors?.reactFailed || 'Failed to react to comment');
       setIsReacting(false);
     },
   });
@@ -108,7 +122,7 @@ const CommentItem: React.FC<{
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm">{comment.username}</span>
               {comment.isEdited && (
-                <Badge variant="outline" className="text-xs">Edited</Badge>
+                <Badge variant="outline" className="text-xs">{translations?.edited || 'Edited'}</Badge>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -117,18 +131,18 @@ const CommentItem: React.FC<{
                   try {
                     // Handle both createdAt and created_at field names
                     const dateValue = comment.createdAt || comment.created_at;
-                    if (!dateValue) return 'Unknown time';
+                    if (!dateValue) return translations?.unknownTime || 'Unknown time';
                     
                     const date = new Date(dateValue);
                     if (isNaN(date.getTime())) {
                       console.warn('Invalid date value:', dateValue);
-                      return 'Unknown time';
+                      return translations?.unknownTime || 'Unknown time';
                     }
                     
-                    return formatDistanceToNow(date, { addSuffix: true });
+                    return formatDistanceToNow(date, { addSuffix: true, locale });
                   } catch (error) {
                     console.error('Error formatting date:', error, comment);
-                    return 'Unknown time';
+                    return translations?.unknownTime || 'Unknown time';
                   }
                 })()}
               </span>
@@ -178,7 +192,7 @@ const CommentItem: React.FC<{
             className="h-6 px-2 text-xs"
           >
             <Reply className="h-3 w-3 mr-1" />
-            Reply
+            {translations?.reply || 'Reply'}
           </Button>
 
           <div className="relative">
@@ -194,7 +208,7 @@ const CommentItem: React.FC<{
               ) : (
                 <Heart className="h-3 w-3" />
               )}
-              React
+              {translations?.react || 'React'}
             </Button>
 
             {showReactions && (
@@ -225,7 +239,7 @@ const CommentItem: React.FC<{
         {comment.replyCount > 0 && (
           <div className="mt-2">
             <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-              {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
+              {comment.replyCount} {comment.replyCount === 1 ? (translations?.replySingular || 'reply') : (translations?.replies || 'replies')}
             </Button>
           </div>
         )}
@@ -240,7 +254,8 @@ const CommentForm: React.FC<{
   placeholder?: string;
   initialValue?: string;
   isSubmitting?: boolean;
-}> = ({ onSubmit, onCancel, placeholder = "Write a comment...", initialValue = "", isSubmitting = false }) => {
+  translations?: any;
+}> = ({ onSubmit, onCancel, placeholder, initialValue = "", isSubmitting = false, translations }) => {
   const [text, setText] = useState(initialValue);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -256,14 +271,14 @@ const CommentForm: React.FC<{
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder || translations?.placeholder || "Write a comment..."}
         className="min-h-[80px] resize-none"
         disabled={isSubmitting}
       />
       <div className="flex justify-end gap-2">
         {onCancel && (
           <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-            Cancel
+            {translations?.cancel || 'Cancel'}
           </Button>
         )}
         <Button type="submit" size="sm" disabled={!text.trim() || isSubmitting}>
@@ -272,7 +287,7 @@ const CommentForm: React.FC<{
           ) : (
             <Send className="h-4 w-4 mr-2" />
           )}
-          {initialValue ? 'Update' : 'Comment'}
+          {initialValue ? (translations?.update || 'Update') : (translations?.submit || 'Comment')}
         </Button>
       </div>
     </form>
@@ -285,9 +300,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   className
 }) => {
   const { user } = useAuth();
+  const { t, language } = useTranslation();
   const queryClient = useQueryClient();
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [showCommentForm, setShowCommentForm] = useState(false);
+
+  // Get translations - collaborations is spread directly into t
+  const collaborationTranslations = (t as any)?.comments;
 
   // Query for comments
   const {
@@ -311,12 +330,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resource-comments', resourceType, resourceId] });
-      toast.success('Comment added');
+      toast.success(collaborationTranslations?.success?.added || 'Comment added');
       setReplyingTo(null);
       setShowCommentForm(false);
     },
     onError: () => {
-      toast.error('Failed to add comment');
+      toast.error(collaborationTranslations?.errors?.createFailed || 'Failed to add comment');
     },
   });
 
@@ -325,10 +344,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     mutationFn: deleteComment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resource-comments', resourceType, resourceId] });
-      toast.success('Comment deleted');
+      toast.success(collaborationTranslations?.success?.deleted || 'Comment deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete comment');
+    onError: (error: any) => {
+      // If comment not found (404), still refresh the list since comment is already gone
+      if (error?.status === 404 || error?.message?.toLowerCase().includes('not found')) {
+        queryClient.invalidateQueries({ queryKey: ['resource-comments', resourceType, resourceId] });
+        toast.success(collaborationTranslations?.success?.deleted || 'Comment deleted');
+      } else {
+        toast.error(collaborationTranslations?.errors?.deleteFailed || 'Failed to delete comment');
+      }
     },
   });
 
@@ -343,21 +368,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
 
   const handleDelete = useCallback((commentId: string) => {
-    if (confirm('Are you sure you want to delete this comment?')) {
+    if (confirm(collaborationTranslations?.deleteConfirm || 'Are you sure you want to delete this comment?')) {
       deleteMutation.mutate(commentId);
     }
-  }, [deleteMutation]);
+  }, [deleteMutation, collaborationTranslations]);
 
   const handleCancel = useCallback(() => {
     setReplyingTo(null);
   }, []);
 
   const renderComments = useCallback((comments: Comment[], level = 0): React.ReactNode => {
-    // Debug: Log comment structure to see what fields are available
-    if (comments.length > 0) {
-      console.log('Comment structure:', comments[0]);
-    }
-    
     return comments.map((comment) => (
       <div key={comment.commentId || comment.comment_id} className="space-y-3">
         <CommentItem
@@ -367,6 +387,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           level={level}
           resourceType={resourceType}
           resourceId={resourceId}
+          translations={collaborationTranslations}
+          language={language}
         />
 
 
@@ -377,7 +399,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
               onSubmit={(text) => handleCreateComment(text, comment.commentId || comment.comment_id)}
               onCancel={handleCancel}
               isSubmitting={createMutation.isPending}
-              placeholder={`Reply to ${comment.username}...`}
+              placeholder={(collaborationTranslations?.replyTo || 'Reply to {username}...').replace('{username}', comment.username)}
+              translations={collaborationTranslations}
             />
           </div>
         )}
@@ -385,14 +408,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         {/* Note: Replies would be loaded separately with parent_id filtering */}
       </div>
     ));
-  }, [replyingTo, handleReply, handleDelete, handleCancel, createMutation, resourceType, resourceId]);
+  }, [replyingTo, handleReply, handleDelete, handleCancel, createMutation, resourceType, resourceId, collaborationTranslations, language]);
 
   return (
     <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" />
-          Comments
+          {collaborationTranslations?.title || 'Comments'}
           {commentsData && (
             <Badge variant="secondary">{commentsData.totalCount}</Badge>
           )}
@@ -408,7 +431,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           className="w-full justify-start"
         >
           <MessageCircle className="h-4 w-4 mr-2" />
-          Add a comment...
+          {collaborationTranslations?.addComment || 'Add a comment...'}
         </Button>
       )}
 
@@ -417,6 +440,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           onSubmit={(text) => handleCreateComment(text)}
           onCancel={() => setShowCommentForm(false)}
           isSubmitting={createMutation.isPending}
+          translations={collaborationTranslations}
         />
       )}
 
@@ -430,7 +454,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           renderComments(commentsData.comments)
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            No comments yet. Be the first to share your thoughts!
+            {collaborationTranslations?.empty || 'No comments yet.'} {collaborationTranslations?.beFirst || 'Be the first to share your thoughts!'}
           </div>
         )}
       </div>

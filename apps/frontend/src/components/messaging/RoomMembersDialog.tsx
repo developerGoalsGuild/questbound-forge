@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ export function RoomMembersDialog({
   onClose,
   currentUserId
 }: RoomMembersDialogProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.members;
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,9 +121,9 @@ export function RoomMembersDialog({
   const getRoleBadge = (role?: string) => {
     switch (role) {
       case 'owner':
-        return <Badge variant="default" className="text-xs">Owner</Badge>;
+        return <Badge variant="default" className="text-xs">{chatT?.owner || 'Owner'}</Badge>;
       case 'moderator':
-        return <Badge variant="secondary" className="text-xs">Moderator</Badge>;
+        return <Badge variant="secondary" className="text-xs">{chatT?.moderator || 'Moderator'}</Badge>;
       default:
         return null;
     }
@@ -132,11 +135,11 @@ export function RoomMembersDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Room Members
+            {chatT?.title || 'Room Members'}
           </DialogTitle>
           <DialogDescription>
             {roomName || roomId}
-            {members.length > 0 && ` • ${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+            {members.length > 0 && ` • ${members.length} ${members.length === 1 ? (chatT?.member || 'member') : (chatT?.memberPlural || 'members')}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -165,7 +168,7 @@ export function RoomMembersDialog({
           {!isLoading && !error && members.length === 0 && (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>No members found</p>
+              <p>{chatT?.noMembers || 'No members found'}</p>
             </div>
           )}
 
@@ -198,11 +201,11 @@ export function RoomMembersDialog({
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={`font-medium truncate ${isCurrentUser ? 'text-blue-700 dark:text-blue-300' : ''}`}>
                           {member.username}
-                          {isCurrentUser && ' (You)'}
+                          {isCurrentUser && ` ${chatT?.you || '(You)'}`}
                         </span>
                         {getRoleIcon(member.role)}
                       </div>
@@ -210,7 +213,7 @@ export function RoomMembersDialog({
                         {getRoleBadge(member.role)}
                         {member.isOnline !== undefined && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {member.isOnline ? 'Online' : 'Offline'}
+                            {member.isOnline ? (chatT?.online || 'Online') : (chatT?.offline || 'Offline')}
                           </span>
                         )}
                       </div>

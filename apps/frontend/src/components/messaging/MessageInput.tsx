@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { RateLimitInfo } from '../../types/messaging';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
@@ -45,13 +46,17 @@ export function MessageInput({
   onTypingStart,
   onTypingStop,
   disabled = false,
-  placeholder = "Type a message...",
+  placeholder,
   maxLength = 2000,
   rateLimitInfo,
   className = '',
   replyTo,
   onCancelReply
 }: MessageInputProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.input;
+  const defaultPlaceholder = chatT?.placeholder || "Type a message...";
+  
   const [message, setMessage] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -209,7 +214,7 @@ export function MessageInput({
         <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
           <AlertCircle className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800 dark:text-orange-200">
-            You're sending messages too quickly. Please slow down.
+            {chatT?.rateLimitWarning || "You're sending messages too quickly. Please slow down."}
           </AlertDescription>
         </Alert>
       )}
@@ -219,7 +224,7 @@ export function MessageInput({
         <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
           <Clock className="h-4 w-4 text-red-600" />
           <AlertDescription className="text-red-800 dark:text-red-200">
-            Rate limit exceeded. You can send messages again in {Math.ceil((rateLimitInfo.resetTime - Date.now()) / 1000)} seconds.
+            {(chatT?.rateLimitExceeded || 'Rate limit exceeded. You can send messages again in {seconds} seconds.').replace('{seconds}', String(Math.ceil((rateLimitInfo.resetTime - Date.now()) / 1000)))}
           </AlertDescription>
         </Alert>
       )}
@@ -230,7 +235,7 @@ export function MessageInput({
           <Reply className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-1">
-              Replying to {replyTo.senderNickname || 'user'}
+              {(chatT?.replyingTo || 'Replying to {user}').replace('{user}', replyTo.senderNickname || 'user')}
             </div>
             <div className="text-sm text-blue-700 dark:text-blue-300 line-clamp-2 truncate">
               {replyTo.text}
@@ -242,7 +247,7 @@ export function MessageInput({
               variant="ghost"
               onClick={onCancelReply}
               className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 flex-shrink-0"
-              aria-label="Cancel reply"
+              aria-label={chatT?.cancelReply || "Cancel reply"}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -266,7 +271,7 @@ export function MessageInput({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Attach file</p>
+              <p>{chatT?.attachFile || 'Attach file'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -279,7 +284,7 @@ export function MessageInput({
             onChange={(e) => handleMessageChange(e.target.value)}
             onKeyPress={handleKeyPress}
             onPaste={handlePaste}
-            placeholder={placeholder}
+            placeholder={placeholder || defaultPlaceholder}
             disabled={disabled}
             maxLength={maxLength}
             className="min-h-[40px] max-h-[120px] resize-none border-0 p-0 focus:ring-0 focus:outline-none bg-transparent"
@@ -319,7 +324,7 @@ export function MessageInput({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isRecording ? 'Stop recording' : 'Voice message'}</p>
+              <p>{isRecording ? (chatT?.stopRecording || 'Stop recording') : (chatT?.voiceMessage || 'Voice message')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -333,13 +338,13 @@ export function MessageInput({
                 onClick={handleSend}
                 disabled={!canSend}
                 className="h-8 w-8 p-0 rounded-full"
-                aria-label={isSending ? 'Sending message' : 'Send message'}
+                aria-label={isSending ? (chatT?.sending || 'Sending...') : (chatT?.sendMessage || 'Send message')}
               >
                 <Send className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isSending ? 'Sending...' : 'Send message'}</p>
+              <p>{isSending ? (chatT?.sending || 'Sending...') : (chatT?.sendMessage || 'Send message')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -348,11 +353,11 @@ export function MessageInput({
       {/* Helper text */}
       <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
         <span>
-          Press Enter to send, Shift+Enter for new line
+          {chatT?.helperText || 'Press Enter to send, Shift+Enter for new line'}
         </span>
         {isOverLimit && (
           <span className="text-red-500">
-            Message too long ({message.length}/{maxLength})
+            {(chatT?.messageTooLong || 'Message too long ({current}/{max})').replace('{current}', String(message.length)).replace('{max}', String(maxLength))}
           </span>
         )}
       </div>

@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Reaction } from '../../types/messaging';
 import { Button } from '../ui/button';
 import { EmojiPicker } from './EmojiPicker';
@@ -28,6 +29,8 @@ export function ReactionsBar({
   showAddButton = false,
   isOwnMessage = false
 }: ReactionsBarProps) {
+  const { t } = useTranslation();
+  const reactionsT = (t as any)?.chat?.reactions;
   const { reactions, toggleReaction, isLoading } = useReactions({
     messageId,
     initialReactions: initialReactions, // Pass as-is (undefined if not included, array if included)
@@ -77,14 +80,14 @@ export function ReactionsBar({
         <TooltipTrigger asChild>
           <div>
             <EmojiPicker onSelect={handleEmojiSelect}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={!canAddReaction}
-                className="h-8 w-8 p-0 rounded-full bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900/50 hover:from-blue-50 hover:to-white dark:hover:from-blue-950/30 dark:hover:to-gray-800 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-100 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md hover:shadow-blue-200/30 dark:hover:shadow-blue-900/20"
-                aria-label={canAddReaction ? "Add reaction" : "Maximum reactions reached"}
-              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!canAddReaction}
+                  className="h-8 w-8 p-0 rounded-full bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900/50 hover:from-blue-50 hover:to-white dark:hover:from-blue-950/30 dark:hover:to-gray-800 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-100 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md hover:shadow-blue-200/30 dark:hover:shadow-blue-900/20"
+                  aria-label={canAddReaction ? (reactionsT?.addReaction || "Add reaction") : (reactionsT?.maxReached || "Maximum reactions reached")}
+                >
                 <span className="text-lg leading-none opacity-70 hover:opacity-100 transition-all duration-300 hover:rotate-90" style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))' }}>
                   ➕
                 </span>
@@ -93,14 +96,14 @@ export function ReactionsBar({
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{canAddReaction ? 'Add reaction' : 'Maximum of 5 reactions reached'}</p>
+          <p>{canAddReaction ? (reactionsT?.addReaction || 'Add reaction') : (reactionsT?.maxReachedLong || 'Maximum of 5 reactions reached')}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   ) : null;
 
   return (
-    <div className={cn("flex items-end gap-1.5 flex-nowrap", className)} role="group" aria-label="Message reactions">
+    <div className={cn("flex items-end gap-1.5 flex-nowrap", className)} role="group" aria-label={reactionsT?.messageReactions || "Message reactions"}>
       {/* For own messages (right side): add button first, then reactions */}
       {isOwnMessage && addButtonElement}
       
@@ -124,7 +127,7 @@ export function ReactionsBar({
                     : "bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900/50 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gradient-to-br hover:from-blue-50 hover:to-white dark:hover:from-blue-950/20 dark:hover:to-gray-800 hover:shadow-md hover:shadow-blue-200/30 dark:hover:shadow-blue-900/20",
                   "font-medium backdrop-blur-sm"
                 )}
-                aria-label={`${reaction.count} ${reaction.shortcode} reaction${reaction.count !== 1 ? 's' : ''}${reaction.viewerHasReacted ? ', you reacted' : ''}`}
+                aria-label={`${reaction.count} ${reaction.shortcode} ${reaction.count !== 1 ? (reactionsT?.reactions || 'reactions') : (reactionsT?.reaction || 'reaction')}${reaction.viewerHasReacted ? `, ${reactionsT?.youReacted || 'you reacted'}` : ''}`}
                 aria-pressed={reaction.viewerHasReacted}
               >
                 <span 
@@ -163,7 +166,7 @@ export function ReactionsBar({
             <TooltipContent>
               <p>
                 {reaction.count} {reaction.shortcode}
-                {reaction.viewerHasReacted && ' (You)'}
+                {reaction.viewerHasReacted && ` (${reactionsT?.you || 'You'})`}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -180,7 +183,7 @@ export function ReactionsBar({
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{remainingCount} more reaction{remainingCount !== 1 ? 's' : ''}</p>
+              <p>{remainingCount} {reactionsT?.moreReactions || 'more reactions'}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

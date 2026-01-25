@@ -112,7 +112,18 @@ const QuestTemplateCreateFormSchema = z.object({
 const BasicInfoStep: React.FC<StepProps> = ({ formData, onDataChange, errors, onErrorChange }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest?.templates;
-  
+  const categoryNames = (t as any)?.quest?.categories ?? {};
+  const difficultyNames = (t as any)?.quest?.difficulty ?? {};
+
+  // Helper to get translated category name
+  const getCategoryLabel = (category: string) => {
+    return categoryNames[category] || category;
+  };
+
+  // Helper to get translated difficulty name
+  const getDifficultyLabel = (difficulty: string) => {
+    return difficultyNames[difficulty] || difficulty;
+  };
 
   const handleFieldChange = (field: keyof QuestTemplateCreateFormData, value: any) => {
     onDataChange({ [field]: value });
@@ -181,7 +192,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, onDataChange, errors, on
             <SelectContent>
               {QUEST_TEMPLATE_CATEGORIES.map(category => (
                 <SelectItem key={category} value={category}>
-                  {category}
+                  {getCategoryLabel(category)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -210,7 +221,7 @@ const BasicInfoStep: React.FC<StepProps> = ({ formData, onDataChange, errors, on
             <SelectContent>
               {QUEST_TEMPLATE_DIFFICULTY_OPTIONS.map(option => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {getDifficultyLabel(option.value)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -406,11 +417,16 @@ const AdvancedOptionsStep: React.FC<StepProps> = ({ formData, onDataChange, erro
 const ReviewStep: React.FC<StepProps> = ({ formData, errors }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest?.templates;
+  const categoryNames = (t as any)?.quest?.categories ?? {};
+  const difficultyNames = (t as any)?.quest?.difficulty ?? {};
+
+  const getCategoryLabel = (category: string) => {
+    return categoryNames[category] || category;
+  };
 
   const getDifficultyLabel = (difficulty: QuestDifficulty | '') => {
     if (!difficulty || (difficulty as string) === '') return 'Not selected';
-    const option = QUEST_TEMPLATE_DIFFICULTY_OPTIONS.find(opt => opt.value === difficulty);
-    return option?.label || difficulty;
+    return difficultyNames[difficulty] || difficulty;
   };
 
   const getPrivacyLabel = (privacy: QuestTemplatePrivacy) => {
@@ -444,11 +460,11 @@ const ReviewStep: React.FC<StepProps> = ({ formData, errors }) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Category</Label>
-                <p className="text-sm">{formData.category}</p>
+                <Label className="text-sm font-medium text-muted-foreground">{questTranslations?.form?.category || 'Category'}</Label>
+                <p className="text-sm">{getCategoryLabel(formData.category)}</p>
               </div>
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Difficulty</Label>
+                <Label className="text-sm font-medium text-muted-foreground">{questTranslations?.form?.difficulty || 'Difficulty'}</Label>
                 <p className="text-sm">{getDifficultyLabel(formData.difficulty)}</p>
               </div>
             </div>

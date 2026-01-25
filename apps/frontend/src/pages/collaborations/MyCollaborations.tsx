@@ -22,10 +22,21 @@ import {
 import { getMyCollaborations, UserCollaboration } from '@/lib/api/collaborations';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
+
+const dateLocales = {
+  en: enUS,
+  es: es,
+  fr: fr,
+};
 
 const MyCollaborations: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [filterType, setFilterType] = useState<'all' | 'goal' | 'quest' | 'task'>('all');
+  
+  // Get translations
+  const translations = (t as any)?.myCollaborations;
+  const locale = dateLocales[language as keyof typeof dateLocales] || enUS;
 
   // Fetch user's collaborations
   const { data: collaborationsData, isLoading, error, refetch } = useQuery({
@@ -52,16 +63,8 @@ const MyCollaborations: React.FC = () => {
 
   // Get resource type label
   const getResourceTypeLabel = (resourceType: string) => {
-    switch (resourceType.toLowerCase()) {
-      case 'goal':
-        return 'Goal';
-      case 'quest':
-        return 'Quest';
-      case 'task':
-        return 'Task';
-      default:
-        return 'Resource';
-    }
+    const key = resourceType.toLowerCase();
+    return translations?.resourceTypes?.[key] || resourceType;
   };
 
   // Get role badge variant
@@ -74,11 +77,11 @@ const MyCollaborations: React.FC = () => {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
-        return 'Unknown date';
+        return translations?.unknownDate || 'Unknown date';
       }
-      return formatDistanceToNow(date, { addSuffix: true });
+      return formatDistanceToNow(date, { addSuffix: true, locale });
     } catch (error) {
-      return 'Unknown date';
+      return translations?.unknownDate || 'Unknown date';
     }
   };
 
@@ -101,8 +104,8 @@ const MyCollaborations: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Collaborations</h1>
-            <p className="text-gray-600">Loading your collaborations...</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{translations?.title || 'My Collaborations'}</h1>
+            <p className="text-gray-600">{translations?.loading || 'Loading your collaborations...'}</p>
           </div>
           
           <div className="space-y-4">
@@ -130,8 +133,8 @@ const MyCollaborations: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Collaborations</h1>
-            <p className="text-gray-600">Error loading your collaborations</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{translations?.title || 'My Collaborations'}</h1>
+            <p className="text-gray-600">{translations?.errorTitle || 'Error loading your collaborations'}</p>
           </div>
           
           <Card>
@@ -139,12 +142,12 @@ const MyCollaborations: React.FC = () => {
               <div className="text-red-500 mb-4">
                 <Users className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Collaborations</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{translations?.errorTitle || 'Failed to Load Collaborations'}</h3>
               <p className="text-gray-600 mb-4">
-                There was an error loading your collaborations. Please try again.
+                {translations?.errorDescription || 'There was an error loading your collaborations. Please try again.'}
               </p>
               <Button onClick={() => refetch()} variant="outline">
-                Try Again
+                {translations?.tryAgain || 'Try Again'}
               </Button>
             </CardContent>
           </Card>
@@ -158,9 +161,9 @@ const MyCollaborations: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Collaborations</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{translations?.title || 'My Collaborations'}</h1>
           <p className="text-gray-600">
-            Quests and goals where you are collaborating with others
+            {translations?.subtitle || 'Quests and goals where you are collaborating with others'}
           </p>
         </div>
 
@@ -168,14 +171,14 @@ const MyCollaborations: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter by type:</span>
+            <span className="text-sm font-medium text-gray-700">{translations?.filterByType || 'Filter by type:'}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {[
-              { key: 'all', label: 'All', count: collaborationsData?.total_count || 0 },
-              { key: 'goal', label: 'Goals', count: collaborations.filter(c => c.resourceType === 'goal').length },
-              { key: 'quest', label: 'Quests', count: collaborations.filter(c => c.resourceType === 'quest').length },
-              { key: 'task', label: 'Tasks', count: collaborations.filter(c => c.resourceType === 'task').length },
+              { key: 'all', label: translations?.all || 'All', count: collaborationsData?.total_count || 0 },
+              { key: 'goal', label: translations?.goals || 'Goals', count: collaborations.filter(c => c.resourceType === 'goal').length },
+              { key: 'quest', label: translations?.quests || 'Quests', count: collaborations.filter(c => c.resourceType === 'quest').length },
+              { key: 'task', label: translations?.tasks || 'Tasks', count: collaborations.filter(c => c.resourceType === 'task').length },
             ].map(({ key, label, count }) => (
               <Button
                 key={key}
@@ -200,15 +203,15 @@ const MyCollaborations: React.FC = () => {
               <div className="text-gray-400 mb-4">
                 <Users className="h-16 w-16 mx-auto" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Collaborations Found</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{translations?.noCollaborationsTitle || 'No Collaborations Found'}</h3>
               <p className="text-gray-600 mb-4">
                 {filterType === 'all' 
-                  ? "You're not collaborating on any quests or goals yet."
-                  : `You're not collaborating on any ${filterType}s yet.`
+                  ? (translations?.noCollaborationsAll || "You're not collaborating on any quests or goals yet.")
+                  : (translations?.noCollaborationsType || "You're not collaborating on any {type}s yet.").replace('{type}', getResourceTypeLabel(filterType))
                 }
               </p>
               <p className="text-sm text-gray-500">
-                Ask someone to invite you to collaborate on their quest or goal!
+                {translations?.inviteHint || 'Ask someone to invite you to collaborate on their quest or goal!'}
               </p>
             </CardContent>
           </Card>
@@ -238,10 +241,10 @@ const MyCollaborations: React.FC = () => {
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            Joined {formatJoinedDate(collaboration.joinedAt)}
+                            {translations?.joined || 'Joined'} {formatJoinedDate(collaboration.joinedAt)}
                           </div>
                           <Badge variant={getRoleBadgeVariant(collaboration.role)} className="text-xs">
-                            {collaboration.role === 'owner' ? 'Owner' : 'Collaborator'}
+                            {collaboration.role === 'owner' ? (translations?.owner || 'Owner') : (translations?.collaborator || 'Collaborator')}
                           </Badge>
                         </div>
                       </div>
@@ -250,7 +253,7 @@ const MyCollaborations: React.FC = () => {
                     <div className="flex-shrink-0">
                       <Link to={getResourceLink(collaboration)}>
                         <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          View
+                          {translations?.view || 'View'}
                           <ExternalLink className="h-4 w-4" />
                         </Button>
                       </Link>
@@ -265,7 +268,7 @@ const MyCollaborations: React.FC = () => {
         {/* Summary */}
         {collaborations.length > 0 && (
           <div className="mt-8 text-center text-sm text-gray-500">
-            Showing {collaborations.length} of {collaborationsData?.total_count || 0} collaborations
+            {translations?.showing || 'Showing'} {collaborations.length} {translations?.of || 'of'} {collaborationsData?.total_count || 0} {translations?.collaborationsCount || 'collaborations'}
           </div>
         )}
       </div>

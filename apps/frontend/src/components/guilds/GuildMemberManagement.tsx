@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';
 import { guildAPI, GuildMember } from '@/lib/api/guild';
 import { toast } from 'sonner';
+import { enUS, es, fr } from 'date-fns/locale';
 
 interface GuildMemberManagementProps {
   guildId: string;
@@ -124,11 +125,27 @@ export const GuildMemberManagement: React.FC<GuildMemberManagementProps> = ({
   isOwner = false,
   isModerator = false,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const guildTranslations = t.guild;
   const queryClient = useQueryClient();
   const [selectedMember, setSelectedMember] = useState<GuildMember | null>(null);
   const [action, setAction] = useState<'remove' | 'promote' | 'demote' | null>(null);
+
+  // Date locale mapping
+  const dateLocaleMap: Record<string, Locale> = { en: enUS, es, fr };
+  const dateLocale = dateLocaleMap[language] || enUS;
+
+  // Role name translation
+  const getRoleName = (role: string) => {
+    switch (role) {
+      case 'owner':
+        return guildTranslations?.members?.role?.owner || 'Owner';
+      case 'moderator':
+        return guildTranslations?.members?.role?.moderator || 'Moderator';
+      default:
+        return guildTranslations?.members?.role?.member || 'Member';
+    }
+  };
 
   // Fetch guild members
   const {
@@ -243,7 +260,8 @@ export const GuildMemberManagement: React.FC<GuildMemberManagementProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const localeCode = language === 'es' ? 'es-ES' : language === 'fr' ? 'fr-FR' : 'en-US';
+    return new Date(dateString).toLocaleDateString(localeCode, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -329,7 +347,7 @@ export const GuildMemberManagement: React.FC<GuildMemberManagementProps> = ({
                         <span className="font-medium text-gray-900">{member.username}</span>
                         <Badge variant={getRoleBadgeVariant(member.role)} className="flex items-center gap-1">
                           {getRoleIcon(member.role)}
-                          {member.role}
+                          {getRoleName(member.role)}
                         </Badge>
                       </div>
                       <div className="text-sm text-gray-500">

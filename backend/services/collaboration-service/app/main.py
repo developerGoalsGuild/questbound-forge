@@ -14,8 +14,8 @@ from .models.comment import CommentCreatePayload, CommentUpdatePayload, CommentR
 from .models.reaction import ReactionPayload, ReactionSummaryResponse
 from .db.invite_db import create_invite, get_invite, list_user_invites, accept_invite, decline_invite, CollaborationInviteValidationError, CollaborationInviteNotFoundError, CollaborationInviteDBError
 from .db.collaborator_db import list_collaborators, remove_collaborator, cleanup_orphaned_invites, list_user_collaborations
-from .db.comment_db import create_comment, get_comment, list_comments, update_comment, delete_comment
-from .db.reaction_db import toggle_reaction, get_comment_reactions
+from .db.comment_db import create_comment, get_comment, list_comments, update_comment, delete_comment, CommentNotFoundError, CommentPermissionError, CommentDBError
+from .db.reaction_db import toggle_reaction, get_comment_reactions, ReactionDBError
 from .auth import authenticate
 from .settings import get_settings
 
@@ -304,6 +304,12 @@ async def update_resource_comment(
         comment = update_comment(current_user["sub"], comment_id, payload)
         logger.info(f"Comment updated: {comment_id} by {current_user['sub']}")
         return comment
+    except CommentNotFoundError as e:
+        logger.warning(f"Comment not found for update: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except CommentPermissionError as e:
+        logger.warning(f"Permission denied for comment update: {str(e)}")
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         logger.warning(f"Error updating comment: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -322,6 +328,12 @@ async def delete_resource_comment(
         delete_comment(current_user["sub"], comment_id)
         logger.info(f"Comment deleted: {comment_id} by {current_user['sub']}")
         return None
+    except CommentNotFoundError as e:
+        logger.warning(f"Comment not found for deletion: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except CommentPermissionError as e:
+        logger.warning(f"Permission denied for comment deletion: {str(e)}")
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         logger.warning(f"Error deleting comment: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

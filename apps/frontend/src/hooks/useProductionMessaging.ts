@@ -343,8 +343,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         return;
       }
 
-      console.log('Loading messages for room:', roomId);
-
       // Only renew token if user is authenticated (reduces unnecessary API calls)
       let token = getAuthToken();
       if (token) {
@@ -377,15 +375,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           after: afterValue
         }
       };
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:359',message:'loadMessages GraphQL payload',data:{roomId,limit,after,afterValue,afterType:typeof after,afterValueType:typeof afterValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
-      try {
-        console.log('GraphQL messages endpoint:', endpoint);
-        console.log('GraphQL messages headers:', { authorizationBearerLen: token ? String(token).length : 0 });
-        console.log('GraphQL messages payload:', JSON.stringify(messagesPayload));
-      } catch {}
-
       let response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -409,10 +398,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           query: GET_MESSAGES_QUERY,
           variables: { roomId, limit, after: afterValue }
         };
-        try {
-          console.log('GraphQL messages RETRY headers:', { authorizationBearerLen: token ? String(token).length : 0 });
-          console.log('GraphQL messages RETRY payload:', JSON.stringify(retryPayload));
-        } catch {}
 
         response = await fetch(endpoint, {
           method: 'POST',
@@ -422,19 +407,11 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       }
 
       const result: any = await response.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:404',message:'loadMessages GraphQL response',data:{roomId,hasErrors:!!result.errors,errors:result.errors,hasData:!!result.data,messagesCount:result.data?.messages?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
-      console.log('Messages query result:', result);
       if (result.errors && result.errors.length > 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:406',message:'loadMessages GraphQL error',data:{roomId,errors:result.errors,firstError:result.errors[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
-        // #endregion
         throw new Error(result.errors[0].message);
       }
 
       const messages = result.data?.messages || [];
-      console.log('Messages count:', Array.isArray(messages) ? messages.length : 0);
 
       const normalized = messages.map((msg: any) => normalizeMessageRecord(msg, roomId)).reverse();
 
@@ -487,14 +464,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
 
   const connect = useCallback(async () => {
     const token = getAuthToken();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:437',message:'connect entry',data:{roomId,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     if (!token) {
-      console.warn('useProductionMessaging: deferring connect until auth token is available');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:440',message:'connect no token',data:{roomId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return;
     }
 
@@ -518,14 +488,11 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         async () => {
           const latestToken = getAuthToken();
           if (!latestToken) {
-            console.warn('Realtime header resolver called without auth token');
             return {};
           }
           const bearer =
             latestToken.startsWith('Bearer ') ? latestToken : `Bearer ${latestToken}`;
-          const headers = { Authorization: bearer };
-          console.debug('Realtime subscription headers', { authorizationLen: bearer.length });
-          return headers;
+          return { Authorization: bearer };
         },
       ).subscribe({
         next: ({ data }: any) => {
@@ -540,24 +507,12 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           });
         },
         error: async (err: any) => {
-          console.error('AppSync subscription error raw:', err);
-          console.error('AppSync subscription error:', err);
-
-          try {
-            if (err?.errors && err.errors.length) {
-              const serialized = JSON.stringify(err?.errors ?? err, null, 2);
-              console.error('AppSync subscription error details:', serialized);
-            }
-          } catch {
-            console.error('AppSync subscription error details (raw):', err);
-          }
-
           // Clean up failed subscription
           if (subscriptionRef.current) {
             try {
               subscriptionRef.current.unsubscribe();
-            } catch (e) {
-              console.warn('Error unsubscribing from failed subscription:', e);
+            } catch {
+              // Silently ignore unsubscribe errors
             }
             subscriptionRef.current = null;
           }
@@ -588,7 +543,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           }
         },
         complete: () => {
-          console.log('AppSync subscription completed');
           subscriptionRef.current = null;
           setState(prev => ({ 
             ...prev, 
@@ -614,7 +568,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
     try {
       // Prevent duplicate connections
       if (subscriptionRef.current) {
-        console.log('Subscription already exists, skipping connect');
         return;
       }
       
@@ -626,14 +579,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         connectionStatus: 'connected',
         error: null
       }));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:571',message:'connect success',data:{roomId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:572',message:'connect error',data:{roomId,error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      console.error('Failed to connect to AppSync:', error);
       if (!pollRef.current) {
         pollRef.current = setInterval(() => {
           loadMessagesRef.current?.(50);
@@ -678,8 +624,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
   // Send message via AppSync
   const sendMessage = useCallback(async (content: string, messageType: string = 'text', replyToId?: string): Promise<MessageSendResult> => {
     try {
-      console.log('Sending message via AppSync:', { roomId, content, messageType });
-      
       // Ensure token is fresh (only if user is authenticated - reduces unnecessary API calls)
       let token = getAuthToken();
       if (!token) {
@@ -688,9 +632,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       
       const exp = getTokenExpiry();
       if (exp && exp * 1000 < Date.now() + 15000) {
-        try { await renewToken(); } catch (e) {
-          console.error('Token renew failed before sendMessage', e);
-        }
+        try { await renewToken(); } catch {}
       }
 
       // Get fresh token after potential renewal
@@ -700,7 +642,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       }
       const endpoint = 'https://f7qjx3q3nfezdnix3wuyxtrnre.appsync-api.us-east-2.amazonaws.com/graphql';
 
-      // Log request details for debugging when Network pane doesn't show body
       const sendPayload = {
         query: SEND_MESSAGE_MUTATION,
         variables: {
@@ -710,11 +651,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           replyToId: replyToId || null
         }
       };
-      try {
-        console.log('GraphQL sendMessage endpoint:', endpoint);
-        console.log('GraphQL sendMessage headers:', { authorizationBearerLen: token ? String(token).length : 0 });
-        console.log('GraphQL sendMessage payload:', JSON.stringify(sendPayload));
-      } catch {}
 
       let response = await fetch(endpoint, {
         method: 'POST',
@@ -735,10 +671,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           query: SEND_MESSAGE_MUTATION,
           variables: { roomId, text: content, senderNickname: deriveSenderNickname(), replyToId: replyToId || null }
         };
-        try {
-          console.log('GraphQL sendMessage RETRY headers:', { authorizationBearerLen: token ? String(token).length : 0 });
-          console.log('GraphQL sendMessage RETRY payload:', JSON.stringify(retrySendPayload));
-        } catch {}
 
         response = await fetch(endpoint, {
           method: 'POST',
@@ -748,21 +680,8 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       }
       
       const result: any = await response.json();
-      console.log('GraphQL result:', result);
       
-      // Log detailed error information
       if (result.errors && result.errors.length > 0) {
-        console.error('GraphQL errors:', result.errors);
-        result.errors.forEach((error: any, index: number) => {
-          console.error(`Error ${index + 1}:`, {
-            message: error.message,
-            errorType: error.errorType,
-            errorInfo: error.errorInfo,
-            locations: error.locations,
-            path: error.path,
-            extensions: error.extensions
-          });
-        });
         const errorMessage = result.errors.map((e: any) => e.message).join('; ');
         throw new Error(errorMessage);
       }
@@ -788,11 +707,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         throw new Error('Failed to send message');
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error?.constructor?.name);
-      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to send message',
@@ -808,9 +722,6 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
       
       // Use the current nextToken from state
       const currentNextToken = prev.nextToken;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useProductionMessaging.ts:745',message:'loadMoreMessages entry',data:{roomId,hasMore:prev.hasMore,isLoading:prev.isLoading,currentNextToken,nextTokenType:typeof currentNextToken},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
       
       // Call loadMessages with the current nextToken
       loadMessages(50, currentNextToken || undefined);
@@ -903,28 +814,11 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         
         if (cancelled) return;
         
-        // Handle messages result
-        if (messagesResult.status === 'fulfilled') {
-          // Messages are already set in loadMessages callback
-        } else {
-          console.error('Failed to load messages:', messagesResult.reason);
-        }
-        
         // Handle room info result
         if (roomInfoResult.status === 'fulfilled') {
-          const info = roomInfoResult.value;
-          console.log('useProductionMessaging - Fetched roomInfo:', info);
-          console.log('useProductionMessaging - roomInfo has roomName?', 'roomName' in info);
-          if ('roomName' in info) {
-            console.log('useProductionMessaging - roomInfo.roomName value:', info.roomName);
-          }
-          if ('allowReactions' in info) {
-            console.log('useProductionMessaging - roomInfo.allowReactions:', info.allowReactions, 'type:', typeof info.allowReactions);
-          }
-          setRoomInfo(info);
+          setRoomInfo(roomInfoResult.value);
           setRoomInfoLoading(false);
         } else {
-          console.error('Failed to fetch room info:', roomInfoResult.reason);
           // Set default room info on error
           const defaultInfo = roomId.startsWith('GUILD#') ? {
             guildId: roomId,
@@ -943,8 +837,7 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
           setRoomInfo(defaultInfo);
           setRoomInfoLoading(false);
         }
-      } catch (error) {
-        console.error('Error in combined fetch:', error);
+      } catch {
         if (!cancelled) {
           setRoomInfoLoading(false);
         }
@@ -963,8 +856,8 @@ export function useProductionMessaging(roomId: string): UseMessagingReturn {
         if (!cancelled) {
           setRoomInfo(info);
         }
-      } catch (error) {
-        console.error('Failed to refresh room info:', error);
+      } catch {
+        // Silently ignore refresh errors
       }
     };
     

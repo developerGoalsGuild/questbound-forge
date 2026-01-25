@@ -43,6 +43,7 @@ import type { BlogTranslations } from './blog';
 import type { HelpTranslations } from './help';
 import type { PrivacyTranslations } from './privacy';
 import type { TermsTranslations } from './terms';
+import type { ChatTranslations } from './chat';
 
 import { navTranslations } from './nav';
 import { communityTranslations } from './community';
@@ -73,6 +74,7 @@ import { helpTranslations } from './help';
 import { privacyTranslations } from './privacy';
 import { termsTranslations } from './terms';
 import { gamificationTranslations } from './gamification';
+import { chatTranslations } from './chat';
 
 export type Language = 'en' | 'es' | 'fr';
 
@@ -108,6 +110,7 @@ export type Translations = { [key: string]: any } & {
   privacy: PrivacyTranslations;
   terms: TermsTranslations;
   gamification: typeof gamificationTranslations.en.gamification;
+  chat: ChatTranslations;
 } & CollaborationsTranslations;
 
 /**
@@ -151,6 +154,7 @@ export const translations: Record<Language, Translations> = {
     privacy: privacyTranslations.en,
     terms: termsTranslations.en,
     gamification: gamificationTranslations.en.gamification,
+    chat: chatTranslations.en,
   },
   es: {
     ...navTranslations.es,
@@ -189,6 +193,7 @@ export const translations: Record<Language, Translations> = {
     privacy: privacyTranslations.es,
     terms: termsTranslations.es,
     gamification: gamificationTranslations.es.gamification,
+    chat: chatTranslations.es,
   },
   fr: {
     ...navTranslations.fr,
@@ -227,5 +232,6 @@ export const translations: Record<Language, Translations> = {
     privacy: privacyTranslations.fr,
     terms: termsTranslations.fr,
     gamification: gamificationTranslations.fr.gamification,
+    chat: chatTranslations.fr,
   },
 };

@@ -96,6 +96,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = '' }) => {
       '/guilds': breadcrumbTranslations?.guilds || 'Guilds',
       '/chat': breadcrumbTranslations?.chat || 'Chat',
       '/subscription': breadcrumbTranslations?.subscription || 'Subscription',
+      '/my-collaborations': breadcrumbTranslations?.myCollaborations || 'My Collaborations',
     };
 
     // Check for exact matches first

@@ -6,7 +6,7 @@
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAFORM_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd "$TERRAFORM_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$TERRAFORM_DIR/../../.." && pwd)"
 
 # Create log directory in workspace
 LOG_DIR="$REPO_ROOT/terraform-logs"

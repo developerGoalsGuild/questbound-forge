@@ -12,6 +12,11 @@ interface InsightCardsProps {
 export const InsightCards: React.FC<InsightCardsProps> = ({ insights, className }) => {
   const { t } = useTranslation('quest');
 
+  // Helper to get translated category name
+  const getCategoryLabel = (category: string) => {
+    return t(`categories.${category}`, category);
+  };
+
   if (!insights) {
     return null;
   }
@@ -88,7 +93,7 @@ export const InsightCards: React.FC<InsightCardsProps> = ({ insights, className 
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium">{insights.mostProductiveCategory.category}</span>
+                <span className="font-medium">{getCategoryLabel(insights.mostProductiveCategory.category)}</span>
                 {' '}
                 {t('analytics.insights.withSuccessRate', 'with')} 
                 {' '}

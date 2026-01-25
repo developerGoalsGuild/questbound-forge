@@ -30,6 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { guildAPI, GuildJoinRequest } from '@/lib/api/guild';
@@ -60,10 +61,14 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
   onReject,
   isProcessing,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const guildTranslations = (t as any)?.guild;
   const [reason, setReason] = useState('');
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
+
+  // Date locale mapping
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[language] || enUS;
 
   // Safety check for null request
   if (!request) {
@@ -116,7 +121,7 @@ const ApprovalDialog: React.FC<ApprovalDialogProps> = ({
                     if (isNaN(date.getTime())) {
                       return 'Invalid date';
                     }
-                    return formatDistanceToNow(date);
+                    return formatDistanceToNow(date, { locale: dateLocale });
                   } catch (error) {
                     console.error('Error formatting date:', error, request.requested_at);
                     return 'Unknown time';
@@ -193,8 +198,12 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
   className,
   onGuildDataUpdate,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const guildTranslations = (t as any)?.guild;
+
+  // Date locale mapping
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[language] || enUS;
   
   const [requests, setRequests] = useState<GuildJoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -366,7 +375,7 @@ export const GuildJoinRequests: React.FC<GuildJoinRequestsProps> = ({
                             if (isNaN(date.getTime())) {
                               return 'Invalid date';
                             }
-                            return `${formatDistanceToNow(date)} ago`;
+                            return formatDistanceToNow(date, { addSuffix: true, locale: dateLocale });
                           } catch (error) {
                             console.error('Error formatting date:', error, request.requested_at);
                             return 'Unknown time';

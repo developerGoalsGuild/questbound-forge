@@ -27,10 +27,17 @@ import {
   Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Guild, GuildMember, guildAPI } from '@/lib/api/guild';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getGuildTranslations } from '@/i18n/guild';
+
+const dateLocales: Record<string, typeof enUS> = {
+  en: enUS,
+  es: es,
+  fr: fr,
+};
 import { useAccessibility } from '@/hooks/useAccessibility';
 import { ARIALiveRegion } from '@/components/ui/aria-live-region';
 
@@ -60,9 +67,10 @@ export const GuildCard: React.FC<GuildCardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const guildTranslations = (t as any)?.guild;
   const { announce } = useAccessibility();
+  const locale = dateLocales[language] || enUS;
 
   // Use permissions from the guild response if available, otherwise fall back to manual computation
   const permissions = guild.user_permissions;
@@ -130,9 +138,9 @@ export const GuildCard: React.FC<GuildCardProps> = ({
 
   const formatDate = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale });
     } catch {
-      return 'Unknown';
+      return guildTranslations?.analytics?.never || 'Unknown';
     }
   };
 
@@ -239,10 +247,10 @@ export const GuildCard: React.FC<GuildCardProps> = ({
             onClick={() => {/* TODO: Handle join request */}}
             disabled={isLoading}
             className="h-8"
-            aria-label={`Request to join ${guild.name}`}
+            aria-label={`${guildTranslations?.details?.actions?.requestToJoin || 'Request to join'} ${guild.name}`}
           >
             <Shield className="h-4 w-4 mr-1" aria-hidden="true" />
-            Request to Join
+            {guildTranslations?.details?.actions?.requestToJoin || 'Request to Join'}
           </Button>
         )}
 
@@ -272,7 +280,7 @@ export const GuildCard: React.FC<GuildCardProps> = ({
       onClick={handleGuildClick}
       tabIndex={0}
       role="button"
-      aria-label={`${guildTranslations?.details?.actions?.viewProfile || 'View guild'} ${guild.name}. ${guild.member_count} members, ${guild.goal_count} goals, ${guild.quest_count} quests. ${guild.guild_type} guild.`}
+      aria-label={`${guildTranslations?.details?.actions?.viewGuild || 'View guild'} ${guild.name}. ${guild.member_count} ${guildTranslations?.details?.stats?.members || 'members'}, ${guild.goal_count} ${guildTranslations?.details?.stats?.goals || 'goals'}, ${guild.quest_count} ${guildTranslations?.details?.stats?.quests || 'quests'}.`}
       aria-describedby={`guild-${guild.guild_id}-description`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -309,21 +317,21 @@ export const GuildCard: React.FC<GuildCardProps> = ({
                 {guild.guild_type === 'public' && (
                   <Globe 
                     className="h-4 w-4 text-green-500 flex-shrink-0" 
-                    aria-label="Public guild"
+                    aria-label={guildTranslations?.details?.types?.public || "Public guild"}
                     role="img"
                   />
                 )}
                 {guild.guild_type === 'private' && (
                   <Lock 
                     className="h-4 w-4 text-gray-500 flex-shrink-0" 
-                    aria-label="Private guild"
+                    aria-label={guildTranslations?.details?.types?.private || "Private guild"}
                     role="img"
                   />
                 )}
                 {guild.guild_type === 'approval' && (
                   <Shield 
                     className="h-4 w-4 text-blue-500 flex-shrink-0" 
-                    aria-label="Approval required guild"
+                    aria-label={guildTranslations?.details?.types?.approval || "Approval required guild"}
                     role="img"
                   />
                 )}

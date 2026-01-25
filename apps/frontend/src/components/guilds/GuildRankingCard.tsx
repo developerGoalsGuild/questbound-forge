@@ -295,7 +295,7 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
               <div className="text-lg font-bold text-gray-900">
                 {(data.totalScore || 0).toLocaleString()}
               </div>
-              <div className="text-xs text-gray-500">Total Score</div>
+              <div className="text-xs text-gray-500">{guildTranslations?.rankings?.totalScore || 'Total Score'}</div>
               {showTrends && (data.growthRate || 0) !== 0 && (
                 <div className={cn(
                   'text-xs font-medium mt-1',
@@ -327,7 +327,7 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
             <div className="text-2xl font-bold text-gray-900">
               {data.totalScore.toLocaleString()}
             </div>
-            <div className="text-sm text-gray-600">Total Score</div>
+            <div className="text-sm text-gray-600">{guildTranslations?.rankings?.totalScore || 'Total Score'}</div>
           </div>
         </div>
       </CardHeader>
@@ -351,7 +351,7 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
                 </Badge>
               ))}
               <Badge variant={data.isPublic ? 'default' : 'outline'}>
-                {data.isPublic ? 'Public' : 'Private'}
+                {data.isPublic ? (guildTranslations?.create?.form?.guildType?.options?.public || 'Public') : (guildTranslations?.create?.form?.guildType?.options?.private || 'Private')}
               </Badge>
             </div>
             <div className="text-sm text-gray-600">
@@ -365,20 +365,20 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <MetricItem
             icon={Users}
-            label="Members"
+            label={guildTranslations?.details?.stats?.members || 'Members'}
             value={data.memberCount}
             color="blue"
             trend={showTrends ? { value: Math.abs(data.growthRate), isPositive: data.growthRate > 0 } : undefined}
           />
           <MetricItem
             icon={Trophy}
-            label="Quests"
+            label={guildTranslations?.details?.stats?.quests || 'Quests'}
             value={data.questCount}
             color="yellow"
           />
           <MetricItem
             icon={Activity}
-            label="Activity"
+            label={guildTranslations?.rankings?.sort?.activity || 'Activity'}
             value={`${data.activityScore}%`}
             color="purple"
           />
@@ -388,7 +388,7 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
         {showDetailedMetrics && (
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Performance Score</span>
+              <span className="text-sm font-medium">{guildTranslations?.rankings?.performanceScore || 'Performance Score'}</span>
               <span className="text-sm text-gray-600">{data.totalScore.toLocaleString()}</span>
             </div>
             <Progress 
@@ -396,7 +396,7 @@ export const GuildRankingCard: React.FC<GuildRankingCardProps> = ({
               className="h-2" 
             />
             <p className="text-xs text-gray-500">
-              Based on member activity and quest progress
+              {guildTranslations?.rankings?.performanceDescription || 'Based on member activity and quest progress'}
             </p>
           </div>
         )}

@@ -74,6 +74,12 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
 }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
+  const categoryNames = questTranslations?.categories ?? {};
+
+  // Helper to get translated category name
+  const getTranslatedCategoryName = (category: string) => {
+    return categoryNames[category] || getCategoryName(category);
+  };
   
   const {
     quests,
@@ -746,7 +752,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
               <div className="grid grid-cols-1 gap-4 text-sm">
                 <div className="flex justify-between">
                   <span className="font-medium">{questTranslations?.fields?.category || 'Category'}:</span>
-                  <span>{getCategoryName(quest.category)}</span>
+                  <span>{getTranslatedCategoryName(quest.category)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">{questTranslations?.fields?.rewardXp || 'Reward XP'}:</span>
@@ -824,7 +830,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Edit quest details and settings</p>
+                        <p>{questTranslations?.tooltips?.editButton || 'Edit quest details and settings'}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -846,7 +852,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Begin working on this quest</p>
+                        <p>{questTranslations?.tooltips?.startButton || 'Begin working on this quest'}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -869,7 +875,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Permanently delete this quest</p>
+                        <p>{questTranslations?.tooltips?.deleteButton || 'Permanently delete this quest'}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -897,7 +903,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Stop working on this quest</p>
+                        <p>{questTranslations?.tooltips?.cancelButton || 'Stop working on this quest'}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -920,7 +926,7 @@ const QuestDetails: React.FC<QuestDetailsProps> = ({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Mark this quest as failed</p>
+                        <p>{questTranslations?.tooltips?.failButton || 'Mark this quest as failed'}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}

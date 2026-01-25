@@ -114,12 +114,9 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
       setIsLoading(true);
       setError(null);
       
-<<<<<<< HEAD
       // Always check stored language first - it takes priority over everything
       const storedLanguage = getStoredLanguage();
       
-=======
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
       // Skip API calls on public routes
       if (isPublicRoute()) {
         const browserLang = detectBrowserLanguage();
@@ -136,12 +133,7 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
       
       // Check if user is authenticated with a valid token
       if (!isTokenValid()) {
-<<<<<<< HEAD
         // User not logged in or token expired, use stored or browser language
-=======
-        // User not logged in or token expired, use browser language
-        const storedLanguage = getStoredLanguage();
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
         const browserLang = detectBrowserLanguage();
         const resolvedLanguage = storedLanguage || browserLang;
         setLanguage(resolvedLanguage);
@@ -174,12 +166,7 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
           }
           logger.info('Using user profile language', { language: profileLanguage });
         } else {
-<<<<<<< HEAD
           // Profile has unsupported language, fall back to stored or browser
-=======
-          // Profile has unsupported language, fall back to browser
-          const storedLanguage = getStoredLanguage();
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
           const browserLang = detectBrowserLanguage();
           const resolvedLanguage = storedLanguage || browserLang;
           setLanguage(resolvedLanguage);
@@ -190,7 +177,6 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
           });
         }
       } catch (profileError) {
-<<<<<<< HEAD
         // Profile fetch failed, use stored language (already set above) or browser language
         // Don't change language if we already set it from storedLanguage
         if (!storedLanguage) {
@@ -201,17 +187,6 @@ export const useLanguageInitialization = (): UseLanguageInitializationReturn => 
           error: profileError,
           storedLanguage,
           fallbackLanguage: storedLanguage || detectBrowserLanguage()
-=======
-        // Profile fetch failed, use browser language
-        const storedLanguage = getStoredLanguage();
-        const browserLang = detectBrowserLanguage();
-        const resolvedLanguage = storedLanguage || browserLang;
-        setLanguage(resolvedLanguage);
-        logger.warn('Failed to fetch user profile, using stored or browser language', { 
-          error: profileError,
-          storedLanguage,
-          fallbackLanguage: resolvedLanguage 
->>>>>>> d8129db (Update environment configuration: Add Stripe keys and price IDs for subscription management, enhance language initialization logic to prioritize stored or browser language, and improve profile edit translations. Remove obsolete test file for ProfileEdit component.)
         });
       }
     } catch (err) {

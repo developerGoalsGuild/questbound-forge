@@ -126,8 +126,8 @@ export const GuildOwnershipTransfer: React.FC<GuildOwnershipTransferProps> = ({
             <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
               <div className="text-sm text-yellow-800">
-                <p className="font-medium">Transfer Ownership</p>
-                <p>This action cannot be undone. You will become a regular member.</p>
+                <p className="font-medium">{translations.ownership.transfer.warningTitle || 'Transfer Ownership'}</p>
+                <p>{translations.ownership.transfer.warningMessage || 'This action cannot be undone. You will become a regular member.'}</p>
               </div>
             </div>
 
@@ -137,7 +137,7 @@ export const GuildOwnershipTransfer: React.FC<GuildOwnershipTransferProps> = ({
               className="w-full"
             >
               <Crown className="h-4 w-4 mr-2" />
-              Transfer Guild Ownership
+              {translations.ownership.transfer.title || 'Transfer Guild Ownership'}
             </Button>
           </div>
         </CardContent>
@@ -160,7 +160,7 @@ export const GuildOwnershipTransfer: React.FC<GuildOwnershipTransferProps> = ({
               <Label htmlFor="new-owner">{translations.ownership.transfer.selectNewOwner}</Label>
               <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a member" />
+                  <SelectValue placeholder={translations.ownership.transfer.selectMember || 'Select a member'} />
                 </SelectTrigger>
                 <SelectContent>
                   {eligibleMembers.filter(member => member && member.userId).map((member) => (
@@ -210,23 +210,23 @@ export const GuildOwnershipTransfer: React.FC<GuildOwnershipTransferProps> = ({
                 rows={3}
                 maxLength={500}
               />
-              <div className="text-xs text-gray-500 text-right mt-1">
-                {reason.length}/500 characters
-              </div>
+            <div className="text-xs text-gray-500 text-right mt-1">
+              {reason.length}/500 {translations.ownership.transfer.characters || 'characters'}
             </div>
+          </div>
 
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <div className="text-sm text-red-800">
-                <p className="font-medium">Warning</p>
-                <p>This action cannot be undone. You will lose ownership privileges.</p>
+                <p className="font-medium">{translations.ownership.transfer.finalWarning || 'Warning'}</p>
+                <p>{translations.ownership.transfer.finalWarningMessage || 'This action cannot be undone. You will lose ownership privileges.'}</p>
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={handleCloseDialog} disabled={isProcessing}>
-              Cancel
+              {translations.ownership.transfer.cancel || 'Cancel'}
             </Button>
             <Button
               variant="destructive"

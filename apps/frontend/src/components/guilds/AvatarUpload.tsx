@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { resizeImageFile, isValidImageFile, getFileSizeKB, formatFileSize } from '@/lib/utils/imageResize';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AvatarUploadProps {
   guildId?: string;
@@ -56,6 +57,8 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     preview: null,
     error: null,
   });
+  const { t } = useTranslation();
+  const avatarTranslations = (t as any)?.guild?.details?.avatar;
 
   const validateFile = useCallback((file: File): string | null => {
     // File type validation
@@ -262,16 +265,16 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
       onUploadSuccess('');
       onAvatarRemoved?.();
-      toast.success('Avatar removed successfully!');
+      toast.success(avatarTranslations?.success?.removed || 'Avatar removed successfully!');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to remove avatar';
+      const errorMessage = error instanceof Error ? error.message : (avatarTranslations?.error?.removeFailed || 'Failed to remove avatar');
       setUploadState(prev => ({ 
         ...prev, 
         isUploading: false,
         error: errorMessage 
       }));
       onUploadError(errorMessage);
-      toast.error(`Failed to remove avatar: ${errorMessage}`);
+      toast.error(`${avatarTranslations?.error?.removeFailed || 'Failed to remove avatar'}: ${errorMessage}`);
     }
   }, [guildId, onUploadSuccess, onUploadError, onAvatarRemoved]);
 
@@ -305,7 +308,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
             ) : (
               <div className="flex flex-col items-center justify-center text-gray-400">
                 <Camera className={cn('mb-1', iconSizes[size])} />
-                <span className="text-xs">Upload</span>
+                <span className="text-xs">{avatarTranslations?.upload || 'Upload'}</span>
               </div>
             )}
           </CardContent>
@@ -316,7 +319,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
             <div className="text-white text-center">
               <Upload className="w-6 h-6 mx-auto mb-2 animate-pulse" />
-              <div className="text-xs">Uploading...</div>
+              <div className="text-xs">{avatarTranslations?.uploading || 'Uploading...'}</div>
             </div>
           </div>
         )}
@@ -348,7 +351,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
                   disabled={disabled}
                 >
                   <CheckCircle className="w-4 h-4 mr-1" />
-                  Confirm Upload
+                  {avatarTranslations?.confirm || 'Confirm Upload'}
                 </Button>
                 <Button
                   type="button"
@@ -386,7 +389,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
                   )}
                 >
                   <Upload className="w-4 h-4 mr-1" />
-                  {hasImage ? 'Change Avatar' : 'Choose Image'}
+                  {hasImage ? (avatarTranslations?.change || 'Change Avatar') : (avatarTranslations?.chooseImage || 'Choose Image')}
                 </label>
               </div>
             )}
@@ -403,12 +406,12 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
                 {uploadState.isUploading ? (
                   <>
                     <Upload className="w-4 h-4 mr-1 animate-spin" />
-                    Removing...
+                    {avatarTranslations?.removing || 'Removing...'}
                   </>
                 ) : (
                   <>
                     <X className="w-4 h-4 mr-1" />
-                    Remove Avatar
+                    {avatarTranslations?.remove || 'Remove Avatar'}
                   </>
                 )}
               </Button>
@@ -428,10 +431,10 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
       {/* Help Text */}
       <div className="text-xs text-gray-500 text-center">
-        <p>Supported formats: JPEG, PNG, WebP</p>
-        <p>Maximum size: 10MB (will be resized to 500KB)</p>
-        <p>Recommended: 512x512 pixels</p>
-        <p>Images will be automatically compressed</p>
+        <p>{avatarTranslations?.helpFormats || 'Supported formats: JPEG, PNG, WebP'}</p>
+        <p>{avatarTranslations?.helpSize || 'Maximum size: 10MB (will be resized to 500KB)'}</p>
+        <p>{avatarTranslations?.helpRecommended || 'Recommended: 512x512 pixels'}</p>
+        <p>{avatarTranslations?.helpCompression || 'Images will be automatically compressed'}</p>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/hooks/useTranslation';
 import { AppSyncChatInterface } from '@/components/messaging/AppSyncChatInterface';
 import { SimpleChatInterface } from '@/components/messaging/SimpleChatInterface';
 import { ProductionChatInterface } from '@/components/messaging/ProductionChatInterface';
@@ -25,6 +26,8 @@ import { type Room } from '@/types/messaging';
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat;
   const [selectedRoom, setSelectedRoom] = useState<string>('ROOM-general');
   const [chatMode, setChatMode] = useState<'simple' | 'production'>('production');
   const [chatRooms, setChatRooms] = useState<Room[]>([]);
@@ -90,9 +93,9 @@ export default function ChatPage() {
           // Fallback to default general room if API returns empty
           const fallback: Room = {
             id: 'ROOM-general',
-            name: 'General Chat',
+            name: chatT?.fallback?.generalChat || 'General Chat',
             type: 'general',
-            description: 'Main discussion room for all users',
+            description: chatT?.fallback?.generalChatDesc || 'Main discussion room for all users',
             memberCount: 0,
             isActive: true
           };
@@ -141,9 +144,9 @@ export default function ChatPage() {
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+            <h2 className="text-xl font-semibold mb-2">{chatT?.page?.authRequired || 'Authentication Required'}</h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Please log in to access the chat functionality.
+              {chatT?.page?.authRequiredDesc || 'Please log in to access the chat functionality.'}
             </p>
           </CardContent>
         </Card>
@@ -159,16 +162,16 @@ export default function ChatPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Chat
+                {chatT?.page?.title || 'Chat'}
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">
-                Connect with your guild members and the community
+                {chatT?.page?.subtitle || 'Connect with your guild members and the community'}
               </p>
             </div>
             <div className="flex items-center space-x-2">
               <Badge variant="outline" className="flex items-center space-x-1 hidden">
                 <Users className="h-3 w-3" />
-                <span>Live</span>
+                <span>{chatT?.page?.live || 'Live'}</span>
               </Badge>
               <Button
                 variant="outline"
@@ -179,12 +182,12 @@ export default function ChatPage() {
                 {chatMode === 'production' ? (
                   <>
                     <Database className="h-3 w-3" />
-                    <span>Production</span>
+                    <span>{chatT?.page?.production || 'Production'}</span>
                   </>
                 ) : (
                   <>
                     <Zap className="h-3 w-3" />
-                    <span>Demo</span>
+                    <span>{chatT?.page?.demo || 'Demo'}</span>
                   </>
                 )}
               </Button>
@@ -200,13 +203,13 @@ export default function ChatPage() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Users className="h-5 w-5" />
-                  <span>Chat Rooms</span>
+                  <span>{chatT?.page?.chatRooms || 'Chat Rooms'}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-1">
                   {roomsLoading && (
-                    <div className="p-4 text-sm text-gray-500">Loading rooms...</div>
+                    <div className="p-4 text-sm text-gray-500">{chatT?.page?.loadingRooms || 'Loading rooms...'}</div>
                   )}
                   {roomsError && (
                     <div className="p-4 text-sm text-red-600">{roomsError}</div>
@@ -248,7 +251,7 @@ export default function ChatPage() {
                   <MessageSquare className="h-5 w-5" />
                   <span>{selectedRoomData?.name || 'Chat'}</span>
                   <Badge variant="outline" className="text-xs">
-                    {activeConnections} members
+                    {activeConnections} {chatT?.page?.members || 'members'}
                   </Badge>
                 </CardTitle>
               </CardHeader>

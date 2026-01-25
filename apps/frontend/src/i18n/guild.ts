@@ -7,6 +7,14 @@
 
 export interface GuildTranslations {
   title: string;
+  page: {
+    title: string;
+    subtitle: string;
+    errorTitle: string;
+    errorMessage: string;
+    retry: string;
+    createSuccess: string;
+  };
   create: {
     title: string;
     subtitle: string;
@@ -89,6 +97,13 @@ export interface GuildTranslations {
   };
   list: {
     title: string;
+    filtersAndSearch: string;
+    filterByTags: string;
+    clearFilters: string;
+    guildsFound: string;
+    guild: string;
+    guilds: string;
+    createGuild: string;
     search: {
       placeholder: string;
     };
@@ -137,10 +152,18 @@ export interface GuildTranslations {
       confirm: string;
       cancel: string;
       help: string;
+      uploading: string;
+      removing: string;
+      chooseImage: string;
+      helpFormats: string;
+      helpSize: string;
+      helpRecommended: string;
+      helpCompression: string;
       error: {
         invalidType: string;
         tooLarge: string;
         uploadFailed: string;
+        removeFailed: string;
       };
       success: {
         uploaded: string;
@@ -155,12 +178,31 @@ export interface GuildTranslations {
       settings: string;
       invite: string;
       pendingRequest: string;
+      requestToJoin: string;
+      viewGuild: string;
+      edit: string;
+      delete: string;
     };
     stats: {
       members: string;
       goals: string;
       quests: string;
       created: string;
+    };
+    types: {
+      public: string;
+      private: string;
+      approval: string;
+    };
+    overview: {
+      guildInfo: string;
+      visibility: string;
+      visibilityPublic: string;
+      visibilityPrivate: string;
+      created: string;
+      owner: string;
+      createdBy: string;
+      editAvatarHint: string;
     };
   };
   members: {
@@ -181,8 +223,11 @@ export interface GuildTranslations {
       blockUser: string;
       unblockUser: string;
       toggleCommentPermission: string;
+      removeFromGuild: string;
     };
     empty: string;
+    joined: string;
+    blockedFromCommenting: string;
   };
   joinRequests: {
     title: string;
@@ -207,11 +252,20 @@ export interface GuildTranslations {
   };
   moderation: {
     title: string;
+    noMembers: string;
     actions: {
       blockUser: string;
       unblockUser: string;
       removeComment: string;
       toggleCommentPermission: string;
+      disableComments: string;
+      enableComments: string;
+    };
+    descriptions: {
+      blockUser: string;
+      unblockUser: string;
+      disableComments: string;
+      enableComments: string;
     };
     confirmations: {
       blockUser: string;
@@ -225,16 +279,33 @@ export interface GuildTranslations {
       harassment: string;
       other: string;
     };
+    labels: {
+      reasonOptional: string;
+      customReason: string;
+      selectReason: string;
+      addDetails: string;
+      cancel: string;
+      blocked: string;
+      noComments: string;
+    };
   };
   ownership: {
     transfer: {
       title: string;
       selectNewOwner: string;
+      selectMember: string;
       reason: string;
       reasonPlaceholder: string;
       confirm: string;
       confirming: string;
       success: string;
+      warning: string;
+      warningTitle: string;
+      warningMessage: string;
+      finalWarning: string;
+      finalWarningMessage: string;
+      cancel: string;
+      characters: string;
     };
   };
   validation: {
@@ -263,6 +334,7 @@ export interface GuildTranslations {
   };
   analytics: {
     title: string;
+    dashboard: string;
     memberLeaderboard: string;
     members: string;
     goals: string;
@@ -276,10 +348,62 @@ export interface GuildTranslations {
     never: string;
     showingTop: string;
     of: string;
+    active: string;
+    completed: string;
+    weeklyActivity: string;
+    memberEngagement: string;
+    topPerformers: string;
+    highestActivity: string;
+    memberActivityRate: string;
+    questCompletionRate: string;
+    performanceMetrics: string;
+    thisWeeksSummary: string;
+    newMembers: string;
+    questsCompleted: string;
+    activityScore: string;
+    loading: string;
+    error: string;
+    retry: string;
+    noData: string;
+    controls: string;
+    refreshData: string;
+    lastUpdated: string;
+    lastActivity: string;
   };
   rankings: {
     title: string;
     score: string;
+    loading: string;
+    errorTitle: string;
+    tryAgain: string;
+    searchPlaceholder: string;
+    filters: {
+      all: string;
+      public: string;
+      private: string;
+      top10: string;
+      top50: string;
+    };
+    sort: {
+      rank: string;
+      score: string;
+      members: string;
+      activity: string;
+    };
+    stats: {
+      members: string;
+      pts: string;
+    };
+    empty: {
+      title: string;
+      adjustFilters: string;
+      noGuilds: string;
+    };
+    showingTop: string;
+    ofGuilds: string;
+    totalScore: string;
+    performanceScore: string;
+    performanceDescription: string;
     scoreInfo: {
       title: string;
       description: string;
@@ -303,6 +427,7 @@ export interface GuildTranslations {
     };
   };
       comments: {
+        title: string;
         post: string;
         reply: string;
         edit: string;
@@ -312,8 +437,24 @@ export interface GuildTranslations {
         placeholder: string;
         replyPlaceholder: string;
         noComments: string;
+        noCommentsDescription: string;
         loading: string;
         error: string;
+        errorLoading: string;
+        retry: string;
+        owner: string;
+        edited: string;
+        showReplies: string;
+        hideReplies: string;
+        replyCount: string;
+        repliesCount: string;
+        characters: string;
+        blockUser: string;
+        removeFromGuild: string;
+        confirmDeleteComment: string;
+        confirmBlockUser: string;
+        confirmRemoveUser: string;
+        justNow: string;
         membersOnly: {
           title: string;
           message: string;
@@ -347,6 +488,8 @@ export interface GuildTranslations {
           draft: string;
           archived: string;
           cancelled: string;
+          completed: string;
+          failed: string;
         };
         types: {
           quantitative: string;
@@ -431,11 +574,26 @@ export interface GuildTranslations {
           deleteSuccess: string;
           archiveSuccess: string;
           completeSuccess: string;
+          activateSuccess: string;
+          finishSuccess: string;
           alreadyCompleted: string;
           onlyActiveComplete: string;
           onlyDraftEdit: string;
           onlyDraftDelete: string;
           onlyActiveArchive: string;
+          onlyDraftActivate: string;
+          onlyActiveFinish: string;
+        };
+        finishDialog: {
+          title: string;
+          warningTitle: string;
+          warningMessage: string;
+          successTitle: string;
+          successMessage: string;
+          confirmMessage: string;
+          cancel: string;
+          confirm: string;
+          finishing: string;
         };
         progress: {
           goalsCompleted: string;
@@ -459,16 +617,20 @@ export interface GuildTranslations {
         empty: string;
         emptyDescription: string;
         types: {
-          questCreated: string;
-          memberJoined: string;
-          memberLeft: string;
-          questCompleted: string;
+          quest_created: string;
+          quest_activated: string;
+          quest_completed: string;
+          quest_failed: string;
+          member_joined: string;
+          member_left: string;
         };
         messages: {
           questCreated: string;
+          questActivated: string;
+          questCompleted: string;
+          questFailed: string;
           memberJoined: string;
           memberLeft: string;
-          questCompleted: string;
         };
       };
   edit: {
@@ -479,6 +641,7 @@ export interface GuildTranslations {
     avatar: string;
     members: string;
     guildName: string;
+    guildAvatar: string;
     guildNamePlaceholder: string;
     description: string;
     descriptionPlaceholder: string;
@@ -573,6 +736,14 @@ export interface GuildTranslations {
 export const guildTranslations: Record<string, GuildTranslations> = {
   en: {
     title: 'Guilds',
+    page: {
+      title: 'Guilds',
+      subtitle: 'Discover and manage your guilds',
+      errorTitle: 'Error Loading Guilds',
+      errorMessage: 'There was an error loading your guilds. Please try again.',
+      retry: 'Retry',
+      createSuccess: 'Guild created successfully!'
+    },
     create: {
       title: 'Create Guild',
       subtitle: 'Build a community around shared goals and interests',
@@ -645,6 +816,13 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     list: {
       title: 'My Guilds',
+      filtersAndSearch: 'Filters & Search',
+      filterByTags: 'Filter by tags:',
+      clearFilters: 'Clear Filters',
+      guildsFound: 'found',
+      guild: 'guild',
+      guilds: 'guilds',
+      createGuild: 'Create Guild',
       search: {
         placeholder: 'Search guilds...',
       },
@@ -693,10 +871,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
           confirm: 'Confirm Upload',
           cancel: 'Cancel',
           help: 'Upload a custom avatar for your guild',
+          uploading: 'Uploading...',
+          removing: 'Removing...',
+          chooseImage: 'Choose Image',
+          helpFormats: 'Supported formats: JPEG, PNG, WebP',
+          helpSize: 'Maximum size: 10MB (will be resized to 500KB)',
+          helpRecommended: 'Recommended: 512x512 pixels',
+          helpCompression: 'Images will be automatically compressed',
           error: {
             invalidType: 'Please select a valid image file (JPEG, PNG, or WebP)',
             tooLarge: 'File size must be less than 5MB',
             uploadFailed: 'Avatar upload failed',
+            removeFailed: 'Failed to remove avatar',
           },
           success: {
             uploaded: 'Avatar updated successfully!',
@@ -711,12 +897,31 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         settings: 'Settings',
         invite: 'Invite Members',
         pendingRequest: 'Pending Request',
+        requestToJoin: 'Request to Join',
+        viewGuild: 'View guild',
+        edit: 'Edit',
+        delete: 'Delete',
       },
       stats: {
         members: 'Members',
         goals: 'Goals',
         quests: 'Quests',
         created: 'Created',
+      },
+      types: {
+        public: 'Public guild',
+        private: 'Private guild',
+        approval: 'Approval required guild',
+      },
+      overview: {
+        guildInfo: 'Guild Information',
+        visibility: 'Visibility',
+        visibilityPublic: 'Public',
+        visibilityPrivate: 'Private',
+        created: 'Created',
+        owner: 'Owner',
+        createdBy: 'by',
+        editAvatarHint: 'Click "Edit" to change the avatar',
       },
     },
     members: {
@@ -732,13 +937,16 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       actions: {
         remove: 'Remove Member',
         viewProfile: 'View Profile',
-        assignModerator: 'Assign as Moderator',
-        removeModerator: 'Remove as Moderator',
+        assignModerator: 'Make Moderator',
+        removeModerator: 'Remove Moderator',
         blockUser: 'Block User',
         unblockUser: 'Unblock User',
         toggleCommentPermission: 'Toggle Comment Permission',
+        removeFromGuild: 'Remove from Guild',
       },
       empty: 'No members found',
+      joined: 'Joined',
+      blockedFromCommenting: '(Blocked from commenting)',
     },
     joinRequests: {
       title: 'Join Requests',
@@ -763,11 +971,20 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     moderation: {
       title: 'Moderation',
+      noMembers: 'No members available for moderation',
       actions: {
         blockUser: 'Block User',
         unblockUser: 'Unblock User',
         removeComment: 'Remove Comment',
         toggleCommentPermission: 'Toggle Comment Permission',
+        disableComments: 'Disable Comments',
+        enableComments: 'Enable Comments',
+      },
+      descriptions: {
+        blockUser: 'Block {username} from accessing the guild',
+        unblockUser: 'Unblock {username} and restore guild access',
+        disableComments: 'Disable commenting for {username}',
+        enableComments: 'Enable commenting for {username}',
       },
       confirmations: {
         blockUser: 'Are you sure you want to block this user? They will not be able to access the guild.',
@@ -781,16 +998,33 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         harassment: 'Harassment',
         other: 'Other',
       },
+      labels: {
+        reasonOptional: 'Reason (optional)',
+        customReason: 'Custom reason (optional)',
+        selectReason: 'Select a reason',
+        addDetails: 'Add additional details...',
+        cancel: 'Cancel',
+        blocked: 'Blocked',
+        noComments: 'No Comments',
+      },
     },
     ownership: {
       transfer: {
         title: 'Transfer Guild Ownership',
         selectNewOwner: 'Select New Owner',
+        selectMember: 'Select a member',
         reason: 'Reason (optional)',
         reasonPlaceholder: 'Why are you transferring ownership?',
         confirm: 'Transfer Ownership',
         confirming: 'Transferring...',
         success: 'Guild ownership transferred successfully',
+        warning: 'Transfer Ownership',
+        warningTitle: 'Transfer Ownership',
+        warningMessage: 'This action cannot be undone. You will become a regular member.',
+        finalWarning: 'Warning',
+        finalWarningMessage: 'This action cannot be undone. You will lose ownership privileges.',
+        cancel: 'Cancel',
+        characters: 'characters',
       },
     },
     validation: {
@@ -819,6 +1053,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     analytics: {
       title: 'Guild Analytics',
+      dashboard: 'Guild Analytics Dashboard',
       memberLeaderboard: 'Member Leaderboard',
       members: 'Members',
       goals: 'Goals',
@@ -832,11 +1067,62 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       never: 'Never',
       showingTop: 'Showing top',
       of: 'of',
+      active: 'active',
+      completed: 'completed',
+      weeklyActivity: 'Weekly Activity',
+      memberEngagement: 'Member engagement this week',
+      topPerformers: 'Top Performers',
+      highestActivity: 'Members with highest activity',
+      memberActivityRate: 'Member Activity Rate',
+      questCompletionRate: 'Quest Completion Rate',
+      performanceMetrics: 'Performance Metrics',
+      thisWeeksSummary: "This Week's Summary",
+      newMembers: 'New Members',
+      questsCompleted: 'Quests Completed',
+      activityScore: 'Activity Score',
+      loading: 'Loading Analytics...',
+      error: 'Analytics Error',
+      retry: 'Retry',
+      noData: 'No analytics data available for this guild.',
+      controls: 'Analytics Controls',
+      refreshData: 'Refresh Data',
+      lastUpdated: 'Last updated',
       lastActivity: 'Last activity',
     },
     rankings: {
       title: 'Rankings',
       score: 'Score',
+      loading: 'Loading Rankings...',
+      errorTitle: 'Error Loading Rankings',
+      tryAgain: 'Try Again',
+      searchPlaceholder: 'Search guilds...',
+      filters: {
+        all: 'All Guilds',
+        public: 'Public',
+        private: 'Private',
+        top10: 'Top 10',
+        top50: 'Top 50',
+      },
+      sort: {
+        rank: 'Rank',
+        score: 'Score',
+        members: 'Members',
+        activity: 'Activity',
+      },
+      stats: {
+        members: 'members',
+        pts: 'pts',
+      },
+      empty: {
+        title: 'No guilds found',
+        adjustFilters: 'Try adjusting your search or filters.',
+        noGuilds: 'No guilds are available at the moment.',
+      },
+      showingTop: 'Showing top',
+      ofGuilds: 'of',
+      totalScore: 'Total Score',
+      performanceScore: 'Performance Score',
+      performanceDescription: 'Based on member activity and quest progress',
       scoreInfo: {
         title: 'How Guild Scores Are Calculated',
         description: 'Guild scores are calculated based on member count, growth, and goals completed by members to encourage active, growing communities.',
@@ -864,17 +1150,34 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       },
     },
     comments: {
+      title: 'Guild Comments',
       post: 'Comment',
       reply: 'Reply',
       edit: 'Edit',
       delete: 'Delete',
       like: 'Like',
       unlike: 'Unlike',
-      placeholder: 'Write a comment...',
+      placeholder: 'Share your thoughts with the guild...',
       replyPlaceholder: 'Write a reply...',
       noComments: 'No comments yet',
+      noCommentsDescription: 'Be the first to start the conversation! Share your thoughts with the guild.',
       loading: 'Loading comments...',
       error: 'Failed to load comments',
+      errorLoading: 'Error Loading Comments',
+      retry: 'Retry',
+      owner: 'Owner',
+      edited: '(edited)',
+      showReplies: 'Show',
+      hideReplies: 'Hide',
+      replyCount: 'reply',
+      repliesCount: 'replies',
+      characters: 'characters',
+      blockUser: 'Block User',
+      removeFromGuild: 'Remove from Guild',
+      confirmDeleteComment: 'Are you sure you want to delete this comment?',
+      confirmBlockUser: 'Are you sure you want to block {username} from commenting?',
+      confirmRemoveUser: 'Are you sure you want to remove {username} from the guild?',
+      justNow: 'just now',
       membersOnly: {
         title: 'Members Only',
         message: 'You need to be a member of this guild to view and post comments.',
@@ -908,6 +1211,8 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         draft: 'Draft',
         archived: 'Archived',
         cancelled: 'Cancelled',
+        completed: 'Completed',
+        failed: 'Failed',
       },
       types: {
         quantitative: 'Quantitative',
@@ -992,11 +1297,26 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         deleteSuccess: 'Quest deleted successfully',
         archiveSuccess: 'Quest archived successfully',
         completeSuccess: 'Quest completed!',
+        activateSuccess: 'Quest activated successfully',
+        finishSuccess: 'Quest finished successfully',
         alreadyCompleted: 'You have already completed this quest',
         onlyActiveComplete: 'Only active quests can be completed',
         onlyDraftEdit: 'Only draft quests can be edited',
         onlyDraftDelete: 'Only draft quests can be deleted',
         onlyActiveArchive: 'Only active quests can be archived',
+        onlyDraftActivate: 'Only draft quests can be activated',
+        onlyActiveFinish: 'Only active quests can be finished',
+      },
+      finishDialog: {
+        title: 'Finish Quest',
+        warningTitle: 'Warning: Goals Not Reached',
+        warningMessage: 'This quest will be marked as Failed. No points will be awarded and it will not count toward guild ranking.',
+        successTitle: 'Goals Reached',
+        successMessage: 'This quest will be marked as Completed. Points will be awarded and it will count toward guild ranking.',
+        confirmMessage: 'Are you sure you want to finish this quest? This action cannot be undone.',
+        cancel: 'Cancel',
+        confirm: 'Finish Quest',
+        finishing: 'Finishing...',
       },
       progress: {
         goalsCompleted: 'Goals completed',
@@ -1020,16 +1340,20 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       empty: 'No activities yet',
       emptyDescription: 'Activity feed will appear here as members interact with the guild',
       types: {
-        questCreated: 'quest created',
-        memberJoined: 'member joined',
-        memberLeft: 'member left',
-        questCompleted: 'quest completed',
+        quest_created: 'quest created',
+        quest_activated: 'quest activated',
+        quest_completed: 'quest completed',
+        quest_failed: 'quest failed',
+        member_joined: 'member joined',
+        member_left: 'member left',
       },
       messages: {
         questCreated: 'created quest',
+        questActivated: 'activated quest',
+        questCompleted: 'completed quest',
+        questFailed: 'quest failed',
         memberJoined: 'joined the guild',
         memberLeft: 'left the guild',
-        questCompleted: 'completed quest',
       },
     },
     edit: {
@@ -1040,6 +1364,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       avatar: 'Avatar',
       members: 'Members',
       guildName: 'Guild Name',
+      guildAvatar: 'Guild Avatar',
       guildNamePlaceholder: 'Enter guild name',
       description: 'Description',
       descriptionPlaceholder: 'Enter guild description',
@@ -1132,6 +1457,14 @@ export const guildTranslations: Record<string, GuildTranslations> = {
   },
   es: {
     title: 'Gremios',
+    page: {
+      title: 'Gremios',
+      subtitle: 'Descubre y gestiona tus gremios',
+      errorTitle: 'Error al Cargar Gremios',
+      errorMessage: 'Hubo un error al cargar tus gremios. Por favor intenta de nuevo.',
+      retry: 'Reintentar',
+      createSuccess: '¡Gremio creado exitosamente!'
+    },
     create: {
       title: 'Crear Gremio',
       subtitle: 'Construye una comunidad alrededor de objetivos e intereses compartidos',
@@ -1204,6 +1537,13 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     list: {
       title: 'Mis Gremios',
+      filtersAndSearch: 'Filtros y Búsqueda',
+      filterByTags: 'Filtrar por etiquetas:',
+      clearFilters: 'Limpiar Filtros',
+      guildsFound: 'encontrados',
+      guild: 'gremio',
+      guilds: 'gremios',
+      createGuild: 'Crear Gremio',
       search: {
         placeholder: 'Buscar gremios...',
       },
@@ -1252,10 +1592,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
           confirm: 'Confirmar Subida',
           cancel: 'Cancelar',
           help: 'Sube un avatar personalizado para tu gremio',
+          uploading: 'Subiendo...',
+          removing: 'Eliminando...',
+          chooseImage: 'Elegir Imagen',
+          helpFormats: 'Formatos soportados: JPEG, PNG, WebP',
+          helpSize: 'Tamaño máximo: 10MB (se redimensionará a 500KB)',
+          helpRecommended: 'Recomendado: 512x512 píxeles',
+          helpCompression: 'Las imágenes se comprimirán automáticamente',
           error: {
             invalidType: 'Por favor selecciona un archivo de imagen válido (JPEG, PNG, o WebP)',
             tooLarge: 'El tamaño del archivo debe ser menor a 5MB',
             uploadFailed: 'Error al subir el avatar',
+            removeFailed: 'Error al eliminar el avatar',
           },
           success: {
             uploaded: '¡Avatar actualizado exitosamente!',
@@ -1270,12 +1618,31 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         settings: 'Configuración',
         invite: 'Invitar Miembros',
         pendingRequest: 'Solicitud Pendiente',
+        requestToJoin: 'Solicitar Ingreso',
+        viewGuild: 'Ver gremio',
+        edit: 'Editar',
+        delete: 'Eliminar',
       },
       stats: {
         members: 'Miembros',
         goals: 'Objetivos',
         quests: 'Misiones',
         created: 'Creado',
+      },
+      types: {
+        public: 'Gremio público',
+        private: 'Gremio privado',
+        approval: 'Gremio con aprobación requerida',
+      },
+      overview: {
+        guildInfo: 'Información del Gremio',
+        visibility: 'Visibilidad',
+        visibilityPublic: 'Público',
+        visibilityPrivate: 'Privado',
+        created: 'Creado',
+        owner: 'Propietario',
+        createdBy: 'por',
+        editAvatarHint: 'Haz clic en "Editar" para cambiar el avatar',
       },
     },
     members: {
@@ -1291,13 +1658,16 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       actions: {
         remove: 'Eliminar Miembro',
         viewProfile: 'Ver Perfil',
-        assignModerator: 'Asignar como Moderador',
-        removeModerator: 'Remover como Moderador',
+        assignModerator: 'Hacer Moderador',
+        removeModerator: 'Remover Moderador',
         blockUser: 'Bloquear Usuario',
         unblockUser: 'Desbloquear Usuario',
         toggleCommentPermission: 'Alternar Permiso de Comentarios',
+        removeFromGuild: 'Eliminar del Gremio',
       },
       empty: 'No se encontraron miembros',
+      joined: 'Se unió',
+      blockedFromCommenting: '(Bloqueado de comentar)',
     },
     joinRequests: {
       title: 'Solicitudes de Ingreso',
@@ -1326,11 +1696,20 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     moderation: {
       title: 'Moderación',
+      noMembers: 'No hay miembros disponibles para moderación',
       actions: {
         blockUser: 'Bloquear Usuario',
         unblockUser: 'Desbloquear Usuario',
         removeComment: 'Eliminar Comentario',
         toggleCommentPermission: 'Alternar Permiso de Comentarios',
+        disableComments: 'Deshabilitar Comentarios',
+        enableComments: 'Habilitar Comentarios',
+      },
+      descriptions: {
+        blockUser: 'Bloquear a {username} del acceso al gremio',
+        unblockUser: 'Desbloquear a {username} y restaurar acceso al gremio',
+        disableComments: 'Deshabilitar comentarios para {username}',
+        enableComments: 'Habilitar comentarios para {username}',
       },
       confirmations: {
         blockUser: '¿Estás seguro de que quieres bloquear a este usuario? No podrá acceder al gremio.',
@@ -1344,16 +1723,33 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         harassment: 'Acoso',
         other: 'Otro',
       },
+      labels: {
+        reasonOptional: 'Razón (opcional)',
+        customReason: 'Razón personalizada (opcional)',
+        selectReason: 'Selecciona una razón',
+        addDetails: 'Agrega detalles adicionales...',
+        cancel: 'Cancelar',
+        blocked: 'Bloqueado',
+        noComments: 'Sin Comentarios',
+      },
     },
     ownership: {
       transfer: {
         title: 'Transferir Propiedad del Gremio',
         selectNewOwner: 'Seleccionar Nuevo Propietario',
+        selectMember: 'Selecciona un miembro',
         reason: 'Razón (opcional)',
         reasonPlaceholder: '¿Por qué estás transfiriendo la propiedad?',
         confirm: 'Transferir Propiedad',
         confirming: 'Transfiriendo...',
         success: 'Propiedad del gremio transferida exitosamente',
+        warning: 'Transferir Propiedad',
+        warningTitle: 'Transferir Propiedad',
+        warningMessage: 'Esta acción no se puede deshacer. Te convertirás en un miembro regular.',
+        finalWarning: 'Advertencia',
+        finalWarningMessage: 'Esta acción no se puede deshacer. Perderás los privilegios de propietario.',
+        cancel: 'Cancelar',
+        characters: 'caracteres',
       },
     },
     validation: {
@@ -1376,6 +1772,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       avatar: 'Avatar',
       members: 'Miembros',
       guildName: 'Nombre del Gremio',
+      guildAvatar: 'Avatar del Gremio',
       guildNamePlaceholder: 'Ingresa el nombre del gremio',
       description: 'Descripción',
       descriptionPlaceholder: 'Ingresa la descripción del gremio',
@@ -1418,6 +1815,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     analytics: {
       title: 'Analíticas del Gremio',
+      dashboard: 'Panel de Analíticas del Gremio',
       memberLeaderboard: 'Tabla de Líderes de Miembros',
       members: 'Miembros',
       goals: 'Objetivos',
@@ -1431,11 +1829,62 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       never: 'Nunca',
       showingTop: 'Mostrando los mejores',
       of: 'de',
+      active: 'activos',
+      completed: 'completadas',
+      weeklyActivity: 'Actividad Semanal',
+      memberEngagement: 'Participación de miembros esta semana',
+      topPerformers: 'Mejores Miembros',
+      highestActivity: 'Miembros con mayor actividad',
+      memberActivityRate: 'Tasa de Actividad de Miembros',
+      questCompletionRate: 'Tasa de Misiones Completadas',
+      performanceMetrics: 'Métricas de Rendimiento',
+      thisWeeksSummary: 'Resumen de Esta Semana',
+      newMembers: 'Nuevos Miembros',
+      questsCompleted: 'Misiones Completadas',
+      activityScore: 'Puntuación de Actividad',
+      loading: 'Cargando Analíticas...',
+      error: 'Error de Analíticas',
+      retry: 'Reintentar',
+      noData: 'No hay datos de analíticas disponibles para este gremio.',
+      controls: 'Controles de Analíticas',
+      refreshData: 'Actualizar Datos',
+      lastUpdated: 'Última actualización',
       lastActivity: 'Última actividad',
     },
     rankings: {
       title: 'Clasificaciones',
       score: 'Puntuación',
+      loading: 'Cargando Clasificaciones...',
+      errorTitle: 'Error al Cargar Clasificaciones',
+      tryAgain: 'Intentar de Nuevo',
+      searchPlaceholder: 'Buscar gremios...',
+      filters: {
+        all: 'Todos los Gremios',
+        public: 'Públicos',
+        private: 'Privados',
+        top10: 'Top 10',
+        top50: 'Top 50',
+      },
+      sort: {
+        rank: 'Posición',
+        score: 'Puntuación',
+        members: 'Miembros',
+        activity: 'Actividad',
+      },
+      stats: {
+        members: 'miembros',
+        pts: 'pts',
+      },
+      empty: {
+        title: 'No se encontraron gremios',
+        adjustFilters: 'Intenta ajustar tu búsqueda o filtros.',
+        noGuilds: 'No hay gremios disponibles en este momento.',
+      },
+      showingTop: 'Mostrando los mejores',
+      ofGuilds: 'de',
+      totalScore: 'Puntuación Total',
+      performanceScore: 'Puntuación de Rendimiento',
+      performanceDescription: 'Basado en la actividad de miembros y progreso de misiones',
       scoreInfo: {
         title: 'Cómo se Calculan las Puntuaciones de Guild',
         description: 'Las puntuaciones de guild se calculan basándose en el número de miembros, crecimiento y objetivos completados por los miembros para fomentar comunidades activas y en crecimiento.',
@@ -1463,17 +1912,34 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       },
     },
     comments: {
+      title: 'Comentarios del Gremio',
       post: 'Comentar',
       reply: 'Responder',
       edit: 'Editar',
       delete: 'Eliminar',
       like: 'Me gusta',
       unlike: 'No me gusta',
-      placeholder: 'Escribe un comentario...',
+      placeholder: 'Comparte tus pensamientos con el gremio...',
       replyPlaceholder: 'Escribe una respuesta...',
       noComments: 'Aún no hay comentarios',
+      noCommentsDescription: '¡Sé el primero en iniciar la conversación! Comparte tus pensamientos con el gremio.',
       loading: 'Cargando comentarios...',
       error: 'Error al cargar comentarios',
+      errorLoading: 'Error al Cargar Comentarios',
+      retry: 'Reintentar',
+      owner: 'Propietario',
+      edited: '(editado)',
+      showReplies: 'Mostrar',
+      hideReplies: 'Ocultar',
+      replyCount: 'respuesta',
+      repliesCount: 'respuestas',
+      characters: 'caracteres',
+      blockUser: 'Bloquear Usuario',
+      removeFromGuild: 'Eliminar del Gremio',
+      confirmDeleteComment: '¿Estás seguro de que quieres eliminar este comentario?',
+      confirmBlockUser: '¿Estás seguro de que quieres bloquear a {username} de comentar?',
+      confirmRemoveUser: '¿Estás seguro de que quieres eliminar a {username} del gremio?',
+      justNow: 'ahora mismo',
       membersOnly: {
         title: 'Solo Miembros',
         message: 'Necesitas ser miembro de este gremio para ver y publicar comentarios.',
@@ -1536,6 +2002,8 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         draft: 'Borrador',
         archived: 'Archivadas',
         cancelled: 'Canceladas',
+        completed: 'Completada',
+        failed: 'Fallida',
       },
       types: {
         quantitative: 'Cuantitativa',
@@ -1620,11 +2088,26 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         deleteSuccess: 'Misión eliminada exitosamente',
         archiveSuccess: 'Misión archivada exitosamente',
         completeSuccess: '¡Misión completada!',
+        activateSuccess: 'Misión activada exitosamente',
+        finishSuccess: 'Misión finalizada exitosamente',
         alreadyCompleted: 'Ya has completado esta misión',
         onlyActiveComplete: 'Solo las misiones activas pueden completarse',
         onlyDraftEdit: 'Solo las misiones en borrador pueden editarse',
         onlyDraftDelete: 'Solo las misiones en borrador pueden eliminarse',
         onlyActiveArchive: 'Solo las misiones activas pueden archivarse',
+        onlyDraftActivate: 'Solo las misiones en borrador pueden activarse',
+        onlyActiveFinish: 'Solo las misiones activas pueden finalizarse',
+      },
+      finishDialog: {
+        title: 'Finalizar Misión',
+        warningTitle: 'Advertencia: Objetivos No Alcanzados',
+        warningMessage: 'Esta misión será marcada como Fallida. No se otorgarán puntos y no contará para la clasificación del gremio.',
+        successTitle: 'Objetivos Alcanzados',
+        successMessage: 'Esta misión será marcada como Completada. Se otorgarán puntos y contará para la clasificación del gremio.',
+        confirmMessage: '¿Estás seguro de que quieres finalizar esta misión? Esta acción no se puede deshacer.',
+        cancel: 'Cancelar',
+        confirm: 'Finalizar Misión',
+        finishing: 'Finalizando...',
       },
       progress: {
         goalsCompleted: 'Objetivos completados',
@@ -1648,21 +2131,54 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       empty: 'Aún no hay actividades',
       emptyDescription: 'El feed de actividades aparecerá aquí cuando los miembros interactúen con el gremio',
       types: {
-        questCreated: 'misión creada',
-        memberJoined: 'miembro se unió',
-        memberLeft: 'miembro se fue',
-        questCompleted: 'misión completada',
+        quest_created: 'misión creada',
+        quest_activated: 'misión activada',
+        quest_completed: 'misión completada',
+        quest_failed: 'misión fallida',
+        member_joined: 'miembro se unió',
+        member_left: 'miembro se fue',
       },
       messages: {
         questCreated: 'creó la misión',
+        questActivated: 'activó la misión',
+        questCompleted: 'completó la misión',
+        questFailed: 'misión fallida',
         memberJoined: 'se unió al gremio',
         memberLeft: 'dejó el gremio',
-        questCompleted: 'completó la misión',
       },
+    },
+    memberManagement: {
+      title: 'Gestión de Miembros',
+      subtitle: 'Gestiona los miembros del gremio y sus roles',
+      loading: 'Cargando miembros...',
+      error: 'Error al cargar miembros',
+      noMembers: 'No se encontraron miembros',
+      joinedOn: 'Se unió el',
+      promote: 'Promover',
+      demote: 'Degradar',
+      remove: 'Eliminar',
+      cancel: 'Cancelar',
+      removeMember: 'Eliminar Miembro',
+      removeMemberDesc: '¿Estás seguro de que quieres eliminar a {username} de este gremio?',
+      promoteModerator: 'Promover a Moderador',
+      promoteModeratorDesc: '¿Estás seguro de que quieres promover a {username} a moderador?',
+      demoteModerator: 'Degradar Moderador',
+      demoteModeratorDesc: '¿Estás seguro de que quieres degradar a {username} de moderador?',
+      memberRemoved: 'Miembro eliminado exitosamente',
+      memberPromoted: 'Miembro promovido exitosamente',
+      memberDemoted: 'Miembro degradado exitosamente',
     },
   },
   fr: {
     title: 'Guildes',
+    page: {
+      title: 'Guildes',
+      subtitle: 'Découvrez et gérez vos guildes',
+      errorTitle: 'Erreur de Chargement des Guildes',
+      errorMessage: 'Une erreur s\'est produite lors du chargement de vos guildes. Veuillez réessayer.',
+      retry: 'Réessayer',
+      createSuccess: 'Guilde créée avec succès !'
+    },
     create: {
       title: 'Créer une Guilde',
       subtitle: 'Construisez une communauté autour d\'objectifs et d\'intérêts partagés',
@@ -1735,6 +2251,13 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     list: {
       title: 'Mes Guildes',
+      filtersAndSearch: 'Filtres et Recherche',
+      filterByTags: 'Filtrer par étiquettes :',
+      clearFilters: 'Effacer les Filtres',
+      guildsFound: 'trouvées',
+      guild: 'guilde',
+      guilds: 'guildes',
+      createGuild: 'Créer une Guilde',
       search: {
         placeholder: 'Rechercher des guildes...',
       },
@@ -1783,10 +2306,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
           confirm: 'Confirmer Téléchargement',
           cancel: 'Annuler',
           help: 'Téléchargez un avatar personnalisé pour votre guilde',
+          uploading: 'Téléchargement...',
+          removing: 'Suppression...',
+          chooseImage: 'Choisir Image',
+          helpFormats: 'Formats supportés : JPEG, PNG, WebP',
+          helpSize: 'Taille maximale : 10Mo (sera redimensionné à 500Ko)',
+          helpRecommended: 'Recommandé : 512x512 pixels',
+          helpCompression: 'Les images seront automatiquement compressées',
           error: {
             invalidType: 'Veuillez sélectionner un fichier image valide (JPEG, PNG, ou WebP)',
             tooLarge: 'La taille du fichier doit être inférieure à 5MB',
             uploadFailed: 'Échec du téléchargement de l\'avatar',
+            removeFailed: 'Échec de la suppression de l\'avatar',
           },
           success: {
             uploaded: 'Avatar mis à jour avec succès !',
@@ -1801,12 +2332,31 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         settings: 'Paramètres',
         invite: 'Inviter des Membres',
         pendingRequest: 'Demande en Attente',
+        requestToJoin: 'Demander à Rejoindre',
+        viewGuild: 'Voir la guilde',
+        edit: 'Modifier',
+        delete: 'Supprimer',
       },
       stats: {
         members: 'Membres',
         goals: 'Objectifs',
         quests: 'Quêtes',
         created: 'Créé',
+      },
+      types: {
+        public: 'Guilde publique',
+        private: 'Guilde privée',
+        approval: 'Guilde nécessitant approbation',
+      },
+      overview: {
+        guildInfo: 'Informations de la Guilde',
+        visibility: 'Visibilité',
+        visibilityPublic: 'Publique',
+        visibilityPrivate: 'Privée',
+        created: 'Créé',
+        owner: 'Propriétaire',
+        createdBy: 'par',
+        editAvatarHint: 'Cliquez sur "Modifier" pour changer l\'avatar',
       },
     },
     members: {
@@ -1822,13 +2372,16 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       actions: {
         remove: 'Supprimer le Membre',
         viewProfile: 'Voir le Profil',
-        assignModerator: 'Assigner comme Modérateur',
-        removeModerator: 'Retirer comme Modérateur',
+        assignModerator: 'Nommer Modérateur',
+        removeModerator: 'Retirer Modérateur',
         blockUser: 'Bloquer l\'Utilisateur',
         unblockUser: 'Débloquer l\'Utilisateur',
         toggleCommentPermission: 'Basculer Permission de Commentaire',
+        removeFromGuild: 'Retirer de la Guilde',
       },
       empty: 'Aucun membre trouvé',
+      joined: 'A rejoint',
+      blockedFromCommenting: '(Bloqué des commentaires)',
     },
     joinRequests: {
       title: 'Demandes d\'Adhésion',
@@ -1857,11 +2410,20 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     moderation: {
       title: 'Modération',
+      noMembers: 'Aucun membre disponible pour la modération',
       actions: {
         blockUser: 'Bloquer l\'Utilisateur',
         unblockUser: 'Débloquer l\'Utilisateur',
         removeComment: 'Supprimer le Commentaire',
         toggleCommentPermission: 'Basculer Permission de Commentaire',
+        disableComments: 'Désactiver les Commentaires',
+        enableComments: 'Activer les Commentaires',
+      },
+      descriptions: {
+        blockUser: 'Bloquer {username} de l\'accès à la guilde',
+        unblockUser: 'Débloquer {username} et restaurer l\'accès à la guilde',
+        disableComments: 'Désactiver les commentaires pour {username}',
+        enableComments: 'Activer les commentaires pour {username}',
       },
       confirmations: {
         blockUser: 'Êtes-vous sûr de vouloir bloquer cet utilisateur ? Il ne pourra plus accéder à la guilde.',
@@ -1875,16 +2437,33 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         harassment: 'Harcèlement',
         other: 'Autre',
       },
+      labels: {
+        reasonOptional: 'Raison (optionnel)',
+        customReason: 'Raison personnalisée (optionnel)',
+        selectReason: 'Sélectionnez une raison',
+        addDetails: 'Ajouter des détails supplémentaires...',
+        cancel: 'Annuler',
+        blocked: 'Bloqué',
+        noComments: 'Pas de Commentaires',
+      },
     },
     ownership: {
       transfer: {
         title: 'Transférer la Propriété de la Guilde',
         selectNewOwner: 'Sélectionner le Nouveau Propriétaire',
+        selectMember: 'Sélectionnez un membre',
         reason: 'Raison (optionnelle)',
         reasonPlaceholder: 'Pourquoi transférez-vous la propriété ?',
         confirm: 'Transférer la Propriété',
         confirming: 'Transfert...',
         success: 'Propriété de la guilde transférée avec succès',
+        warning: 'Transférer la Propriété',
+        warningTitle: 'Transférer la Propriété',
+        warningMessage: 'Cette action ne peut pas être annulée. Vous deviendrez un membre régulier.',
+        finalWarning: 'Avertissement',
+        finalWarningMessage: 'Cette action ne peut pas être annulée. Vous perdrez les privilèges de propriétaire.',
+        cancel: 'Annuler',
+        characters: 'caractères',
       },
     },
     validation: {
@@ -1913,6 +2492,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     },
     analytics: {
       title: 'Analytiques de la Guilde',
+      dashboard: 'Tableau de Bord des Analytiques',
       memberLeaderboard: 'Classement des Membres',
       members: 'Membres',
       goals: 'Objectifs',
@@ -1926,11 +2506,106 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       never: 'Jamais',
       showingTop: 'Affichage des meilleurs',
       of: 'de',
+      active: 'actifs',
+      completed: 'complétées',
+      weeklyActivity: 'Activité Hebdomadaire',
+      memberEngagement: 'Engagement des membres cette semaine',
+      topPerformers: 'Meilleurs Membres',
+      highestActivity: 'Membres avec la plus haute activité',
+      memberActivityRate: "Taux d'Activité des Membres",
+      questCompletionRate: 'Taux de Quêtes Complétées',
+      performanceMetrics: 'Métriques de Performance',
+      thisWeeksSummary: 'Résumé de Cette Semaine',
+      newMembers: 'Nouveaux Membres',
+      questsCompleted: 'Quêtes Complétées',
+      activityScore: "Score d'Activité",
+      loading: 'Chargement des Analytiques...',
+      error: 'Erreur des Analytiques',
+      retry: 'Réessayer',
+      noData: "Aucune donnée d'analytique disponible pour cette guilde.",
+      controls: 'Contrôles des Analytiques',
+      refreshData: 'Actualiser les Données',
+      lastUpdated: 'Dernière mise à jour',
       lastActivity: 'Dernière activité',
+    },
+    activities: {
+      title: 'Activités Récentes',
+      loading: 'Chargement des activités...',
+      error: 'Échec du chargement des activités',
+      empty: 'Aucune activité pour le moment',
+      emptyDescription: 'Le fil d\'activités apparaîtra ici lorsque les membres interagiront avec la guilde',
+      types: {
+        quest_created: 'quête créée',
+        quest_activated: 'quête activée',
+        quest_completed: 'quête complétée',
+        quest_failed: 'quête échouée',
+        member_joined: 'membre rejoint',
+        member_left: 'membre parti',
+      },
+      messages: {
+        questCreated: 'a créé la quête',
+        questActivated: 'a activé la quête',
+        questCompleted: 'a complété la quête',
+        questFailed: 'quête échouée',
+        memberJoined: 'a rejoint la guilde',
+        memberLeft: 'a quitté la guilde',
+      },
+    },
+    memberManagement: {
+      title: 'Gestion des Membres',
+      subtitle: 'Gérez les membres de la guilde et leurs rôles',
+      loading: 'Chargement des membres...',
+      error: 'Échec du chargement des membres',
+      noMembers: 'Aucun membre trouvé',
+      joinedOn: 'A rejoint le',
+      promote: 'Promouvoir',
+      demote: 'Rétrograder',
+      remove: 'Supprimer',
+      cancel: 'Annuler',
+      removeMember: 'Supprimer le Membre',
+      removeMemberDesc: 'Êtes-vous sûr de vouloir supprimer {username} de cette guilde ?',
+      promoteModerator: 'Promouvoir Modérateur',
+      promoteModeratorDesc: 'Êtes-vous sûr de vouloir promouvoir {username} en modérateur ?',
+      demoteModerator: 'Rétrograder Modérateur',
+      demoteModeratorDesc: 'Êtes-vous sûr de vouloir rétrograder {username} de modérateur ?',
+      memberRemoved: 'Membre supprimé avec succès',
+      memberPromoted: 'Membre promu avec succès',
+      memberDemoted: 'Membre rétrogradé avec succès',
     },
     rankings: {
       title: 'Classements',
       score: 'Score',
+      loading: 'Chargement des Classements...',
+      errorTitle: 'Erreur de Chargement des Classements',
+      tryAgain: 'Réessayer',
+      searchPlaceholder: 'Rechercher des guildes...',
+      filters: {
+        all: 'Toutes les Guildes',
+        public: 'Publiques',
+        private: 'Privées',
+        top10: 'Top 10',
+        top50: 'Top 50',
+      },
+      sort: {
+        rank: 'Rang',
+        score: 'Score',
+        members: 'Membres',
+        activity: 'Activité',
+      },
+      stats: {
+        members: 'membres',
+        pts: 'pts',
+      },
+      empty: {
+        title: 'Aucune guilde trouvée',
+        adjustFilters: 'Essayez d\'ajuster votre recherche ou vos filtres.',
+        noGuilds: 'Aucune guilde n\'est disponible pour le moment.',
+      },
+      showingTop: 'Affichage des meilleurs',
+      ofGuilds: 'sur',
+      totalScore: 'Score Total',
+      performanceScore: 'Score de Performance',
+      performanceDescription: 'Basé sur l\'activité des membres et la progression des quêtes',
       scoreInfo: {
         title: 'Comment les Scores de Guild sont Calculés',
         description: 'Les scores de guild sont calculés en fonction du nombre de membres, de la croissance et des objectifs complétés par les membres pour encourager des communautés actives et en croissance.',
@@ -1958,17 +2633,34 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       },
     },
     comments: {
+      title: 'Commentaires de la Guilde',
       post: 'Commenter',
       reply: 'Répondre',
       edit: 'Modifier',
       delete: 'Supprimer',
       like: 'J\'aime',
       unlike: 'Je n\'aime plus',
-      placeholder: 'Écrivez un commentaire...',
+      placeholder: 'Partagez vos pensées avec la guilde...',
       replyPlaceholder: 'Écrivez une réponse...',
       noComments: 'Aucun commentaire pour le moment',
+      noCommentsDescription: 'Soyez le premier à lancer la conversation ! Partagez vos pensées avec la guilde.',
       loading: 'Chargement des commentaires...',
       error: 'Échec du chargement des commentaires',
+      errorLoading: 'Erreur de Chargement des Commentaires',
+      retry: 'Réessayer',
+      owner: 'Propriétaire',
+      edited: '(modifié)',
+      showReplies: 'Afficher',
+      hideReplies: 'Masquer',
+      replyCount: 'réponse',
+      repliesCount: 'réponses',
+      characters: 'caractères',
+      blockUser: 'Bloquer l\'Utilisateur',
+      removeFromGuild: 'Retirer de la Guilde',
+      confirmDeleteComment: 'Êtes-vous sûr de vouloir supprimer ce commentaire ?',
+      confirmBlockUser: 'Êtes-vous sûr de vouloir bloquer {username} des commentaires ?',
+      confirmRemoveUser: 'Êtes-vous sûr de vouloir retirer {username} de la guilde ?',
+      justNow: 'à l\'instant',
       membersOnly: {
         title: 'Membres Seulement',
         message: 'Vous devez être membre de cette guilde pour voir et publier des commentaires.',
@@ -2011,6 +2703,7 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       avatar: 'Avatar',
       members: 'Membres',
       guildName: 'Nom de la Guilde',
+      guildAvatar: 'Avatar de la Guilde',
       guildNamePlaceholder: 'Entrez le nom de la guilde',
       description: 'Description',
       descriptionPlaceholder: 'Entrez la description de la guilde',
@@ -2056,6 +2749,8 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         draft: 'Brouillon',
         archived: 'Archivées',
         cancelled: 'Annulées',
+        completed: 'Complétée',
+        failed: 'Échouée',
       },
       types: {
         quantitative: 'Quantitative',
@@ -2140,11 +2835,26 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         deleteSuccess: 'Quête supprimée avec succès',
         archiveSuccess: 'Quête archivée avec succès',
         completeSuccess: 'Quête complétée !',
+        activateSuccess: 'Quête activée avec succès',
+        finishSuccess: 'Quête terminée avec succès',
         alreadyCompleted: 'Vous avez déjà complété cette quête',
         onlyActiveComplete: 'Seules les quêtes actives peuvent être complétées',
         onlyDraftEdit: 'Seules les quêtes en brouillon peuvent être modifiées',
         onlyDraftDelete: 'Seules les quêtes en brouillon peuvent être supprimées',
         onlyActiveArchive: 'Seules les quêtes actives peuvent être archivées',
+        onlyDraftActivate: 'Seules les quêtes en brouillon peuvent être activées',
+        onlyActiveFinish: 'Seules les quêtes actives peuvent être terminées',
+      },
+      finishDialog: {
+        title: 'Terminer la Quête',
+        warningTitle: 'Avertissement : Objectifs Non Atteints',
+        warningMessage: 'Cette quête sera marquée comme Échouée. Aucun point ne sera attribué et elle ne comptera pas pour le classement de la guilde.',
+        successTitle: 'Objectifs Atteints',
+        successMessage: 'Cette quête sera marquée comme Complétée. Des points seront attribués et elle comptera pour le classement de la guilde.',
+        confirmMessage: 'Êtes-vous sûr de vouloir terminer cette quête ? Cette action ne peut pas être annulée.',
+        cancel: 'Annuler',
+        confirm: 'Terminer la Quête',
+        finishing: 'Finalisation...',
       },
       progress: {
         goalsCompleted: 'Objectifs complétés',

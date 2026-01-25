@@ -112,13 +112,18 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
   };
 
   const getDifficultyLabel = (difficulty: string) => {
-    const option = QUEST_TEMPLATE_DIFFICULTY_OPTIONS.find(opt => opt.value === difficulty);
-    return option?.label || difficulty;
+    // Use translations first, fallback to static options
+    return questTranslations?.difficulty?.[difficulty] || difficulty;
   };
 
   const getKindLabel = (kind: string) => {
-    const option = QUEST_TEMPLATE_KIND_OPTIONS.find(opt => opt.value === kind);
-    return option?.label || kind;
+    // Use translations first, fallback to static options
+    return questTranslations?.kinds?.[kind] || kind;
+  };
+
+  const getCategoryLabel = (category: string) => {
+    // Use translations first, fallback to category name
+    return questTranslations?.categories?.[category] || category;
   };
 
   const formatDate = (timestamp: number) => {
@@ -150,26 +155,26 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                     <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">Open menu</span>
+                    <span className="sr-only">{questTranslations?.templates?.card?.openMenu || 'Open menu'}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {onView && (
                     <DropdownMenuItem onClick={handleView}>
                       <Eye className="h-4 w-4 mr-2" />
-                      {questTranslations?.templates?.actions?.view || 'View'}
+                      {questTranslations?.templates?.view || 'View'}
                     </DropdownMenuItem>
                   )}
                   {onUse && (
                     <DropdownMenuItem onClick={handleUse}>
                       <Copy className="h-4 w-4 mr-2" />
-                      {questTranslations?.templates?.actions?.useTemplate || 'Use Template'}
+                      {questTranslations?.templates?.useTemplate || 'Use Template'}
                     </DropdownMenuItem>
                   )}
                   {onEdit && (
                     <DropdownMenuItem onClick={handleEdit}>
                       <Edit className="h-4 w-4 mr-2" />
-                      {questTranslations?.templates?.actions?.edit || 'Edit'}
+                      {questTranslations?.templates?.edit || 'Edit'}
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
@@ -178,7 +183,7 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
                       className="text-red-600 focus:text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      {questTranslations?.templates?.actions?.delete || 'Delete'}
+                      {questTranslations?.templates?.delete || 'Delete'}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -193,7 +198,7 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
             {/* Category and Difficulty */}
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary" className="text-xs">
-                {template.category}
+                {getCategoryLabel(template.category)}
               </Badge>
               <Badge className={`text-xs ${getDifficultyColor(template.difficulty)}`}>
                 {getDifficultyLabel(template.difficulty)}
@@ -224,7 +229,7 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Target className="h-4 w-4" />
                 <span>
-                  {template.targetCount} {questTranslations?.templates?.targetCount || 'targets'}
+                  {template.targetCount} {questTranslations?.templates?.card?.targets || 'targets'}
                 </span>
               </div>
             )}
@@ -240,7 +245,7 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
                 ))}
                 {template.tags.length > 3 && (
                   <span className="text-xs text-muted-foreground">
-                    +{template.tags.length - 3} more
+                    +{template.tags.length - 3} {questTranslations?.templates?.card?.more || 'more'}
                   </span>
                 )}
               </div>
@@ -250,10 +255,10 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                <span>Created {formatDate(template.createdAt)}</span>
+                <span>{questTranslations?.templates?.card?.created || 'Created'} {formatDate(template.createdAt)}</span>
               </div>
               {template.updatedAt !== template.createdAt && (
-                <span>Updated {formatDate(template.updatedAt)}</span>
+                <span>{questTranslations?.templates?.card?.updated || 'Updated'} {formatDate(template.updatedAt)}</span>
               )}
             </div>
           </div>
@@ -267,7 +272,7 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
                   className="flex-1"
                   onClick={handleUse}
                 >
-                  {questTranslations?.templates?.actions?.useTemplate || 'Use Template'}
+                  {questTranslations?.templates?.useTemplate || 'Use Template'}
                 </Button>
               )}
               {onView && (
@@ -276,7 +281,7 @@ const QuestTemplateCard: React.FC<QuestTemplateCardProps> = ({
                   variant="outline"
                   onClick={handleView}
                 >
-                  {questTranslations?.templates?.actions?.view || 'View'}
+                  {questTranslations?.templates?.view || 'View'}
                 </Button>
               )}
             </div>

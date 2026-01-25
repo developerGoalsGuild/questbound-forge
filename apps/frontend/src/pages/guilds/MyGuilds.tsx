@@ -111,7 +111,7 @@ export const MyGuilds: React.FC = () => {
 
   const handleCreateSuccess = useCallback((guild: Guild) => {
     setShowCreateModal(false);
-    toast.success('Guild created successfully!');
+    toast.success(guildTranslations?.page?.createSuccess || 'Guild created successfully!');
     debouncedRefetch();
     navigate(`/guilds/${guild.guild_id}`);
   }, [debouncedRefetch, navigate]);
@@ -140,15 +140,17 @@ export const MyGuilds: React.FC = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Guilds</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            {guildTranslations?.page?.errorTitle || 'Error Loading Guilds'}
+          </h1>
           <p className="text-gray-600 mb-4">
-            There was an error loading your guilds. Please try again.
+            {guildTranslations?.page?.errorMessage || 'There was an error loading your guilds. Please try again.'}
           </p>
           <button
             onClick={() => refetch()}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Retry
+            {guildTranslations?.page?.retry || 'Retry'}
           </button>
         </div>
       </div>
@@ -160,9 +162,11 @@ export const MyGuilds: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Guilds</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {guildTranslations?.page?.title || 'Guilds'}
+          </h1>
           <p className="text-gray-600 mt-1">
-            Discover and manage your guilds
+            {guildTranslations?.page?.subtitle || 'Discover and manage your guilds'}
           </p>
         </div>
         <Button

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSimpleMessaging } from '../../hooks/useSimpleMessaging';
 import { Message, MessageSendResult } from '../../types/messaging';
 import { MessageList } from './MessageList';
@@ -40,6 +41,8 @@ export function SimpleChatInterface({
   onSettings,
   onMembers
 }: SimpleChatInterfaceProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -226,10 +229,10 @@ export function SimpleChatInterface({
             disabled={!isConnected || !!rateLimitInfo}
             placeholder={
               !isConnected 
-                ? "Connecting to chat..." 
+                ? (chatT?.input?.connectingPlaceholder || "Connecting to chat...")
                 : rateLimitInfo 
-                  ? "Rate limited. Please wait..." 
-                  : "Type a message..."
+                  ? (chatT?.input?.rateLimitedPlaceholder || "Rate limited. Please wait...")
+                  : (chatT?.input?.placeholder || "Type a message...")
             }
             rateLimitInfo={rateLimitInfo}
           />

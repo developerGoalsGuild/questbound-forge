@@ -59,6 +59,13 @@ const QuestCard: React.FC<QuestCardProps> = ({
   loadingStates = {},
 }) => {
   const { t } = useTranslation();
+  const questTranslations = (t as any)?.quest;
+  const categoryNames = questTranslations?.categories ?? {};
+
+  // Helper to get translated category name
+  const getCategoryLabel = (category: string) => {
+    return categoryNames[category] || category;
+  };
   
   // Use the new quest progress hook
   const {
@@ -233,7 +240,7 @@ const QuestCard: React.FC<QuestCardProps> = ({
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" className="flex-shrink-0" onClick={() => onViewDetails(quest.id)}>
                   <Eye className="mr-1 h-4 w-4" />
-                  <span className="hidden sm:inline">View</span>
+                  <span className="hidden sm:inline">{t.quest.actions.view}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -301,7 +308,7 @@ const QuestCard: React.FC<QuestCardProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="sm" onClick={() => onViewDetails(quest.id)}>
-                <Eye className="mr-2 h-4 w-4" /> View
+                <Eye className="mr-2 h-4 w-4" /> {t.quest.actions.view}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -349,7 +356,7 @@ const QuestCard: React.FC<QuestCardProps> = ({
             </div>
             <div className="flex items-center">
               <Tag className="mr-1 h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">{quest.category}</span>
+              <span className="text-muted-foreground">{getCategoryLabel(quest.category)}</span>
             </div>
           </div>
           {quest.kind === 'quantitative' && (

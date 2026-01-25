@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,13 +49,16 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
   loading = false,
   error = null,
   className = '',
-  title = 'Guild Rankings',
+  title,
   showSearch = true,
   showFilters = true,
   showStats = true,
   limit,
   onGuildClick,
 }) => {
+  const { t } = useTranslation();
+  const rankingsT = (t as any)?.guild?.rankings;
+  const displayTitle = title || rankingsT?.title || 'Guild Rankings';
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -173,7 +177,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
-            Loading Rankings...
+            {rankingsT?.loading || 'Loading Rankings...'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -191,7 +195,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-red-500" />
-            Error Loading Rankings
+            {rankingsT?.errorTitle || 'Error Loading Rankings'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -199,7 +203,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
             <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">{error}</p>
             <Button variant="outline" onClick={() => window.location.reload()}>
-              Try Again
+              {rankingsT?.tryAgain || 'Try Again'}
             </Button>
           </div>
         </CardContent>
@@ -213,18 +217,18 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" />
-            {title}
+            {displayTitle}
             <GuildScoreInfo variant="icon" size="sm" />
           </CardTitle>
           {showStats && stats && (
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
-                {stats.totalMembers.toLocaleString()} members
+                {stats.totalMembers.toLocaleString()} {rankingsT?.stats?.members || 'members'}
               </span>
               <span className="flex items-center gap-1">
                 <Zap className="h-4 w-4" />
-                {stats.totalScore.toLocaleString()} pts
+                {stats.totalScore.toLocaleString()} {rankingsT?.stats?.pts || 'pts'}
               </span>
             </div>
           )}
@@ -237,7 +241,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search guilds..."
+                  placeholder={rankingsT?.searchPlaceholder || "Search guilds..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -253,11 +257,11 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Guilds</SelectItem>
-                    <SelectItem value="public">Public</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                    <SelectItem value="top10">Top 10</SelectItem>
-                    <SelectItem value="top50">Top 50</SelectItem>
+                    <SelectItem value="all">{rankingsT?.filters?.all || 'All Guilds'}</SelectItem>
+                    <SelectItem value="public">{rankingsT?.filters?.public || 'Public'}</SelectItem>
+                    <SelectItem value="private">{rankingsT?.filters?.private || 'Private'}</SelectItem>
+                    <SelectItem value="top10">{rankingsT?.filters?.top10 || 'Top 10'}</SelectItem>
+                    <SelectItem value="top50">{rankingsT?.filters?.top50 || 'Top 50'}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -271,7 +275,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
                       sortField === 'position' && 'bg-gray-100'
                     )}
                   >
-                    Rank {getSortIcon('position')}
+                    {rankingsT?.sort?.rank || 'Rank'} {getSortIcon('position')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -282,7 +286,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
                       sortField === 'score' && 'bg-gray-100'
                     )}
                   >
-                    Score {getSortIcon('score')}
+                    {rankingsT?.sort?.score || 'Score'} {getSortIcon('score')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -293,7 +297,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
                       sortField === 'members' && 'bg-gray-100'
                     )}
                   >
-                    Members {getSortIcon('members')}
+                    {rankingsT?.sort?.members || 'Members'} {getSortIcon('members')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -301,7 +305,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
                     onClick={() => handleSort('activity')}
                     className="rounded-l-none"
                   >
-                    Activity {getSortIcon('activity')}
+                    {rankingsT?.sort?.activity || 'Activity'} {getSortIcon('activity')}
                   </Button>
                 </div>
               </div>
@@ -314,11 +318,11 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
         {filteredAndSortedGuilds.length === 0 ? (
           <div className="text-center py-8">
             <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No guilds found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{rankingsT?.empty?.title || 'No guilds found'}</h3>
             <p className="text-gray-600">
               {searchTerm || filterType !== 'all' 
-                ? 'Try adjusting your search or filters.'
-                : 'No guilds are available at the moment.'
+                ? (rankingsT?.empty?.adjustFilters || 'Try adjusting your search or filters.')
+                : (rankingsT?.empty?.noGuilds || 'No guilds are available at the moment.')
               }
             </p>
           </div>
@@ -352,7 +356,7 @@ export const GuildRankingList: React.FC<GuildRankingListProps> = ({
         {limit && filteredAndSortedGuilds.length === limit && (
           <div className="mt-4 pt-4 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-500">
-              Showing top {limit} of {guilds.length} guilds
+              {rankingsT?.showingTop || 'Showing top'} {limit} {rankingsT?.ofGuilds || 'of'} {guilds.length} {(t as any)?.guild?.title?.toLowerCase() || 'guilds'}
             </p>
           </div>
         )}

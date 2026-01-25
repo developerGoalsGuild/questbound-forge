@@ -3,7 +3,8 @@
  * Lightweight emoji picker with common emojis
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -31,6 +32,8 @@ interface EmojiPickerProps {
 }
 
 export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps) {
+  const { t } = useTranslation();
+  const emojiT = (t as any)?.chat?.emoji;
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<keyof typeof EMOJI_CATEGORIES>('smileys');
@@ -38,6 +41,11 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
     const stored = localStorage.getItem('chat_recent_emojis');
     return stored ? JSON.parse(stored) : EMOJI_CATEGORIES.recently;
   });
+
+  // Get localized category name
+  const getCategoryName = (cat: keyof typeof EMOJI_CATEGORIES): string => {
+    return emojiT?.categories?.[cat] || cat;
+  };
 
   // Filter emojis based on search
   const filteredEmojis = React.useMemo(() => {
@@ -76,7 +84,7 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
             size="sm"
             variant="ghost"
             className={cn("h-8 w-8 p-0", className)}
-            aria-label="Add emoji"
+            aria-label={emojiT?.addEmoji || "Add emoji"}
           >
             <Smile className="h-4 w-4" />
           </Button>
@@ -89,11 +97,11 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search emojis..."
+              placeholder={emojiT?.searchEmojis || "Search emojis..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8"
-              aria-label="Search emojis"
+              aria-label={emojiT?.searchEmojis || "Search emojis"}
             />
           </div>
 
@@ -107,10 +115,10 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
                   variant={selectedCategory === cat ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
-                  className="text-xs capitalize flex-shrink-0"
-                  aria-label={`Select ${cat} category`}
+                  className="text-xs flex-shrink-0"
+                  aria-label={`${emojiT?.selectCategory || "Select category"}: ${getCategoryName(cat)}`}
                 >
-                  {cat}
+                  {getCategoryName(cat)}
                 </Button>
               ))}
             </div>
@@ -120,7 +128,7 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
           <div 
             className="grid grid-cols-8 gap-1 max-h-64 overflow-y-auto"
             role="grid"
-            aria-label="Emoji picker"
+            aria-label={emojiT?.emojiPicker || "Emoji picker"}
           >
             {filteredEmojis.map((emoji, index) => (
               <button
@@ -132,7 +140,7 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
                   "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
                   "transition-colors"
                 )}
-                aria-label={`Select emoji ${emoji}`}
+                aria-label={`${emojiT?.selectEmoji || "Select emoji"} ${emoji}`}
                 tabIndex={0}
               >
                 {emoji}
@@ -143,7 +151,7 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
           {/* Recent section when not searching */}
           {!searchTerm && recentEmojis.length > 0 && (
             <div className="mt-3 pt-3 border-t">
-              <div className="text-xs text-gray-500 mb-2">Recent</div>
+              <div className="text-xs text-gray-500 mb-2">{emojiT?.recent || "Recent"}</div>
               <div className="flex gap-1">
                 {recentEmojis.map((emoji, index) => (
                   <button
@@ -151,7 +159,7 @@ export function EmojiPicker({ onSelect, children, className }: EmojiPickerProps)
                     type="button"
                     onClick={() => handleEmojiSelect(emoji)}
                     className="text-xl p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary"
-                    aria-label={`Select recent emoji ${emoji}`}
+                    aria-label={`${emojiT?.selectRecentEmoji || "Select recent emoji"} ${emoji}`}
                   >
                     {emoji}
                   </button>

@@ -42,6 +42,8 @@ const QuestCategorySelector: React.FC<QuestCategorySelectorProps> = ({
   const hints = questTranslations?.hints ?? {};
   const fieldHints = (hints.fields ?? {}) as Record<string, string | undefined>;
   const iconLabelTemplate = typeof hints.iconLabel === 'string' ? hints.iconLabel : 'More information about {field}';
+  const categoryNames = questTranslations?.categories ?? {};
+  const categoryDescriptions = questTranslations?.categoryDescriptions ?? {};
 
   // Accessibility helpers
   const createHintId = (id: string) => `${id}-hint`;
@@ -145,22 +147,26 @@ const QuestCategorySelector: React.FC<QuestCategorySelectorProps> = ({
             </div>
           </SelectTrigger>
           <SelectContent>
-            {QUEST_CATEGORIES.map((category) => (
-              <SelectItem 
-                key={category.id} 
-                value={category.id}
-                data-testid={`category-${category.id}`}
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium">{category.name}</span>
-                  {category.description && (
-                    <span className="text-xs text-muted-foreground">
-                      {category.description}
-                    </span>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
+            {QUEST_CATEGORIES.map((category) => {
+              const translatedName = categoryNames[category.id] || category.name;
+              const translatedDescription = categoryDescriptions[category.id] || category.description;
+              return (
+                <SelectItem 
+                  key={category.id} 
+                  value={category.id}
+                  data-testid={`category-${category.id}`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{translatedName}</span>
+                    {translatedDescription && (
+                      <span className="text-xs text-muted-foreground">
+                        {translatedDescription}
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
 

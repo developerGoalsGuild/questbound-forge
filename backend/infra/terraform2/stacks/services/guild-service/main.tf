@@ -10,7 +10,7 @@ data "terraform_remote_state" "s3" {
 
 # Use existing ECR image directly (temporarily)
 locals {
-  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_guild_service:v169"
+  existing_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_guild_service:v2"
 }
 
 module "guild_lambda" {

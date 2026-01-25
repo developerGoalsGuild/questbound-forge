@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { RateLimitInfo } from '../../types/messaging';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Button } from '../ui/button';
@@ -34,6 +35,9 @@ export function ConnectionStatus({
   onRetry,
   className = ''
 }: ConnectionStatusProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.connection;
+
   // Don't show anything if connected and no errors
   if (status === 'connected' && !hasError && !rateLimitInfo?.isLimited) {
     return null;
@@ -57,7 +61,7 @@ export function ConnectionStatus({
   const getStatusMessage = () => {
     if (rateLimitInfo?.isLimited) {
       const resetTime = Math.ceil((rateLimitInfo.resetTime - Date.now()) / 1000);
-      return `Rate limit exceeded. You can send messages again in ${resetTime} seconds.`;
+      return (chatT?.rateLimitExceeded || 'Rate limit exceeded. You can send messages again in {seconds} seconds.').replace('{seconds}', String(resetTime));
     }
 
     if (hasError && errorMessage) {
@@ -66,15 +70,15 @@ export function ConnectionStatus({
 
     switch (status) {
       case 'connecting':
-        return 'Connecting to chat...';
+        return chatT?.connecting || 'Connecting to chat...';
       case 'connected':
-        return 'Connected to chat';
+        return chatT?.connectedToChat || 'Connected to chat';
       case 'disconnected':
-        return 'Disconnected from chat. Attempting to reconnect...';
+        return chatT?.disconnectedReconnecting || 'Disconnected from chat. Attempting to reconnect...';
       case 'error':
-        return 'Connection error. Please check your network.';
+        return chatT?.connectionError || 'Connection error. Please check your network.';
       default:
-        return 'Unknown connection status';
+        return chatT?.unknownStatus || 'Unknown connection status';
     }
   };
 
@@ -111,7 +115,7 @@ export function ConnectionStatus({
               className="ml-2"
             >
               <RefreshCw className="h-4 w-4 mr-1" />
-              Retry
+              {chatT?.retry || 'Retry'}
             </Button>
           )}
         </div>

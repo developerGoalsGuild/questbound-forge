@@ -19,6 +19,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { guildAPI, GuildActivity } from '@/lib/api/guild';
 import { cn } from '@/lib/utils';
 import { getGuildTranslations } from '@/i18n/guild';
@@ -117,6 +118,10 @@ export const GuildRecentActivities: React.FC<GuildRecentActivitiesProps> = ({
   const validLanguage = (language === 'en' || language === 'es' || language === 'fr') ? language : 'en';
   const translations = getGuildTranslations(validLanguage);
   const t = translations.activities;
+
+  // Date locale mapping
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[validLanguage] || enUS;
 
   if (isLoading) {
     return (
@@ -218,7 +223,7 @@ export const GuildRecentActivities: React.FC<GuildRecentActivitiesProps> = ({
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: dateLocale })}
                     </span>
                     <Badge variant="outline" className="text-xs">
                       {(t.types as Record<string, string>)[activity.activityType] || activity.activityType.replace('_', ' ')}

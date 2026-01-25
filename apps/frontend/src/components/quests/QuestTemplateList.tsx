@@ -243,7 +243,7 @@ const QuestTemplateList: React.FC<QuestTemplateListProps> = ({
               <SelectItem value="all">{questTranslations?.templates?.filters?.allCategories || 'All Categories'}</SelectItem>
               {QUEST_TEMPLATE_CATEGORIES.map(category => (
                 <SelectItem key={category} value={category}>
-                  {category}
+                  {questTranslations?.categories?.[category] || category}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -261,7 +261,7 @@ const QuestTemplateList: React.FC<QuestTemplateListProps> = ({
               <SelectItem value="all">{questTranslations?.templates?.filters?.allDifficulties || 'All'}</SelectItem>
               {QUEST_TEMPLATE_DIFFICULTY_OPTIONS.map(option => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {questTranslations?.difficulty?.[option.value] || option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -279,7 +279,7 @@ const QuestTemplateList: React.FC<QuestTemplateListProps> = ({
               <SelectItem value="all">{questTranslations?.templates?.filters?.allPrivacy || 'All'}</SelectItem>
               {QUEST_TEMPLATE_PRIVACY_OPTIONS.map(option => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {questTranslations?.templates?.privacy?.[option.value] || option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -297,7 +297,7 @@ const QuestTemplateList: React.FC<QuestTemplateListProps> = ({
               <SelectItem value="all">{questTranslations?.templates?.filters?.allKinds || 'All'}</SelectItem>
               {QUEST_TEMPLATE_KIND_OPTIONS.map(option => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {questTranslations?.kinds?.[option.value] || option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -362,7 +362,7 @@ const QuestTemplateList: React.FC<QuestTemplateListProps> = ({
           <div className="flex flex-wrap gap-2">
             {searchQuery && (
               <Badge variant="secondary" className="gap-1">
-                Search: {searchQuery}
+                {questTranslations?.templates?.card?.search || 'Search'}: {searchQuery}
                 <button
                   onClick={() => setSearchQuery('')}
                   className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
@@ -393,7 +393,7 @@ const QuestTemplateList: React.FC<QuestTemplateListProps> = ({
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
           {filteredAndSortedTemplates.length} {questTranslations?.templates?.results?.templates || 'templates'}
-          {hasActiveFilters && ` (${templates.length} total)`}
+          {hasActiveFilters && ` (${templates.length} ${questTranslations?.templates?.card?.total || 'total'})`}
         </span>
         {isLoading && (
           <div className="flex items-center gap-2">

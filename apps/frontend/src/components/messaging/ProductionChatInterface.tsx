@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useProductionMessaging } from '../../hooks/useProductionMessaging';
 import { Message, MessageSendResult, MessageReplyContext } from '../../types/messaging';
 import { MessageList } from './MessageList';
@@ -44,13 +45,8 @@ export function ProductionChatInterface({
   onSettings,
   onMembers
 }: ProductionChatInterfaceProps) {
-  // Debug: Log the props we receive
-  console.log('ProductionChatInterface props:', {
-    roomId,
-    roomName,
-    roomType,
-    userId: userId?.substring(0, 10) + '...'
-  });
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -81,11 +77,6 @@ export function ProductionChatInterface({
     });
   };
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProductionChatInterface.tsx:84',message:'useProductionMessaging entry',data:{roomId,userId:userId?.substring(0,10)+'...'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }, [roomId, userId]);
-  // #endregion
   const {
     messages,
     isLoading,
@@ -106,39 +97,9 @@ export function ProductionChatInterface({
     currentRoom,
     roomInfo
   } = useProductionMessaging(roomId);
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/b4f8e839-594c-4f2f-bd8e-7a680ff1bc2e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProductionChatInterface.tsx:103',message:'useProductionMessaging state',data:{roomId,isConnected,hasError,errorMessage,hasRoomInfo:!!roomInfo,roomInfoKeys:roomInfo?Object.keys(roomInfo):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }, [roomId, isConnected, hasError, errorMessage, roomInfo]);
-  // #endregion
-
-  // Debug: Log room info to see what we're getting
-  useEffect(() => {
-    if (roomInfo) {
-      console.log('ProductionChatInterface - roomInfo:', roomInfo);
-      console.log('ProductionChatInterface - roomName prop:', roomName);
-      if ('roomName' in roomInfo) {
-        console.log('ProductionChatInterface - roomInfo.roomName:', roomInfo.roomName);
-      }
-      if ('guildName' in roomInfo) {
-        console.log('ProductionChatInterface - roomInfo.guildName:', roomInfo.guildName);
-      }
-      if ('allowReactions' in roomInfo) {
-        console.log('ProductionChatInterface - roomInfo.allowReactions:', roomInfo.allowReactions, 'type:', typeof roomInfo.allowReactions);
-      } else {
-        console.log('ProductionChatInterface - roomInfo does not have allowReactions property');
-      }
-    }
-  }, [roomInfo, roomName]);
 
   // Resolve replyTo for messages that have replyToId but no replyTo
   const messagesWithReplies = useMemo(() => {
-    // Debug: Check for messages with replyToId
-    const messagesWithReplyToId = messages.filter(m => m.replyToId);
-    if (messagesWithReplyToId.length > 0) {
-      console.log('Messages with replyToId:', messagesWithReplyToId.map(m => ({ id: m.id, replyToId: m.replyToId, hasReplyTo: !!m.replyTo })));
-    }
-
     // Create a lookup map of message IDs
     const messageMap = new Map<string, Message>();
     messages.forEach(msg => messageMap.set(msg.id, msg));
@@ -160,7 +121,6 @@ export function ProductionChatInterface({
             senderId: parentMessage.senderId,
             senderNickname: parentMessage.senderNickname
           };
-          console.log('Resolved reply for message', msg.id, '->', replyContext);
           return { ...msg, replyTo: replyContext };
         } else {
           // Create a fallback reply context if parent not found
@@ -169,7 +129,6 @@ export function ProductionChatInterface({
             text: 'Original message unavailable',
             isFallback: true
           };
-          console.log('Reply parent not found for message', msg.id, 'replyToId:', msg.replyToId);
           return { ...msg, replyTo: fallbackContext };
         }
       }
@@ -177,6 +136,69 @@ export function ProductionChatInterface({
       return msg;
     });
   }, [messages]);
+
+  // Memoize computed room name to prevent re-computations on every render
+  const computedRoomName = useMemo(() => {
+    const guildHallName = chatT?.header?.guildHall || 'Guild Hall';
+    
+    // For guild rooms, prioritize the roomName prop (already formatted from GuildDetails)
+    if (roomType === 'guild' && roomName?.trim()) {
+      if (roomName.includes(' - ')) {
+        return roomName.trim();
+      }
+      return `${roomName.trim()} - ${guildHallName}`;
+    }
+    
+    // Try roomInfo.roomName from API
+    if ('roomName' in roomInfo && roomInfo.roomName?.trim()) {
+      if (roomInfo.roomName.includes(' - ')) {
+        return roomInfo.roomName.trim();
+      }
+      if (roomType === 'guild') {
+        return `${roomInfo.roomName.trim()} - ${guildHallName}`;
+      }
+      return roomInfo.roomName.trim();
+    }
+    
+    // Try roomInfo.guildName for guild rooms
+    if ('guildName' in roomInfo && roomInfo.guildName?.trim()) {
+      const guildName = roomInfo.guildName.trim();
+      const isId = 
+        guildName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ||
+        guildName.toLowerCase().match(/^(guild_|guild#)[0-9a-f-]+$/i) ||
+        guildName.toLowerCase().startsWith('guild_') ||
+        guildName.toLowerCase().startsWith('guild#');
+      
+      if (!isId && guildName.length > 2) {
+        return `${guildName} - ${guildHallName}`;
+      }
+    }
+    
+    // Fallback to roomName prop
+    if (roomName?.trim()) {
+      if (roomName.includes(' - ')) {
+        return roomName.trim();
+      }
+      if (roomType === 'guild') {
+        return `${roomName.trim()} - ${guildHallName}`;
+      }
+      return roomName.trim();
+    }
+    
+    return undefined;
+  }, [chatT?.header?.guildHall, roomType, roomName, roomInfo]);
+
+  // Memoize allowReactions to prevent unnecessary re-renders
+  const allowReactions = useMemo(() => {
+    const hasProperty = 'allowReactions' in roomInfo;
+    let value: any = hasProperty ? roomInfo.allowReactions : undefined;
+    
+    if (value === "false") return false;
+    if (value === "true") return true;
+    if (value === false) return false;
+    if (value === true) return true;
+    return true; // Default to allow reactions
+  }, [roomInfo]);
 
   // Report message count changes up to parent for UI badges
   useEffect(() => {
@@ -307,16 +329,12 @@ export function ProductionChatInterface({
 
   // Handle reply to message
   const handleReply = (message: Message) => {
-    console.log('Reply button clicked for message:', message);
     setReplyTo(message);
     // Focus the input after a short delay to ensure DOM is ready
     setTimeout(() => {
       const textarea = document.querySelector('textarea[placeholder*="Type a message"], textarea[placeholder*="Connecting"], textarea[placeholder*="Rate limited"]') as HTMLTextAreaElement;
       if (textarea) {
         textarea.focus();
-        console.log('Focused textarea for reply');
-      } else {
-        console.warn('Could not find textarea to focus');
       }
     }, 100);
   };
@@ -337,7 +355,6 @@ export function ProductionChatInterface({
         // Clear reply context
         setReplyTo(null);
         // Message was successfully sent; scroll to bottom after DOM updates
-        console.log('Message sent successfully:', result.messageId);
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             scrollToBottom(false);
@@ -431,82 +448,12 @@ export function ProductionChatInterface({
   }
 
   return (
-    <ErrorBoundary fallback={<div>Chat interface error</div>}>
+    <ErrorBoundary fallback={<div>{chatT?.messages?.chatError || 'Chat interface error'}</div>}>
       <div className={`flex flex-col h-full ${className}`}>
         {/* Chat Header */}
         <ChatHeader
           roomId={roomId}
-          roomName={
-            (() => {
-              // For guild rooms, format as "Guild Name - Guild Hall"
-              const guildHallName = 'Guild Hall'; // TODO: Localize this
-              
-              // For guild rooms, prioritize the roomName prop (it's already formatted from GuildDetails)
-              // This ensures we use the actual guild name from the guild data, not the API which might return IDs
-              if (roomType === 'guild' && roomName?.trim()) {
-                console.log('ChatHeader - Using roomName prop (guild room, prioritized):', roomName);
-                // If it's already formatted, use as-is
-                if (roomName.includes(' - ')) {
-                  return roomName.trim();
-                }
-                // Otherwise, format it
-                return `${roomName.trim()} - ${guildHallName}`;
-              }
-              
-              // For non-guild rooms or when roomName prop is not available, try roomInfo from API
-              // Try roomInfo.roomName first (from API)
-              if ('roomName' in roomInfo && roomInfo.roomName?.trim()) {
-                console.log('ChatHeader - Using roomInfo.roomName:', roomInfo.roomName);
-                // If it's already formatted (contains " - Guild Hall"), use as-is
-                if (roomInfo.roomName.includes(' - ')) {
-                  return roomInfo.roomName.trim();
-                }
-                // Otherwise, format it for guild rooms
-                if (roomType === 'guild') {
-                  return `${roomInfo.roomName.trim()} - ${guildHallName}`;
-                }
-                return roomInfo.roomName.trim();
-              }
-              // Try roomInfo.guildName for guild rooms (only if roomName prop was not available above)
-              if ('guildName' in roomInfo && roomInfo.guildName?.trim()) {
-                console.log('ChatHeader - Checking roomInfo.guildName:', roomInfo.guildName);
-                // Only use if it doesn't look like a UUID or ID
-                const guildName = roomInfo.guildName.trim();
-                // Check if it's not just an ID - match various ID formats:
-                // - UUID format: 69a9d417-361d-4b05-9964-585f9883ee72
-                // - Guild ID format: guild_69a9d417-361d-4b05-9964-585f9883ee72
-                // - Guild# format: GUILD#guild_69a9d417-361d-4b05-9964-585f9883ee72
-                const isId = 
-                  guildName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ||
-                  guildName.toLowerCase().match(/^(guild_|guild#)[0-9a-f-]+$/i) ||
-                  guildName.toLowerCase().startsWith('guild_') ||
-                  guildName.toLowerCase().startsWith('guild#');
-                
-                if (!isId && guildName.length > 2) {
-                  // It's a real name, format as "Guild Name - Guild Hall"
-                  console.log('ChatHeader - Using roomInfo.guildName (valid name):', guildName);
-                  return `${guildName} - ${guildHallName}`;
-                }
-                // If it's an ID, skip it and fall through to roomName prop
-                console.log('ChatHeader - Skipping roomInfo.guildName (looks like ID):', guildName);
-              }
-              // Fallback to roomName prop if roomInfo doesn't have a valid name
-              if (roomName?.trim()) {
-                console.log('ChatHeader - Using roomName prop (fallback):', roomName);
-                // If it's already formatted, use as-is
-                if (roomName.includes(' - ')) {
-                  return roomName.trim();
-                }
-                // Otherwise, format it for guild rooms
-                if (roomType === 'guild') {
-                  return `${roomName.trim()} - ${guildHallName}`;
-                }
-                return roomName.trim();
-              }
-              console.log('ChatHeader - No roomName found, will use fallback');
-              return undefined;
-            })()
-          }
+          roomName={computedRoomName}
           roomDescription={('description' in roomInfo && roomInfo.description?.trim()) ? roomInfo.description : undefined}
           roomType={roomType}
           isConnected={isConnected}
@@ -560,7 +507,7 @@ export function ProductionChatInterface({
                 ) : (
                   <RefreshCw className="h-4 w-4" />
                 )}
-                Load More Messages
+                {chatT?.messages?.loadMore || 'Load More Messages'}
               </Button>
             </div>
           )}
@@ -573,36 +520,7 @@ export function ProductionChatInterface({
             hasMore={hasMore}
             disableAutoScroll={true}
             onReply={handleReply}
-            allowReactions={(() => {
-              // Check if allowReactions property exists and its value
-              // Default to true if not set, but respect explicit false
-              const hasProperty = 'allowReactions' in roomInfo;
-              let value: any = hasProperty ? roomInfo.allowReactions : undefined;
-              
-              // Normalize the value: convert string "false"/"true" to boolean, handle undefined
-              if (value === "false") {
-                value = false;
-              } else if (value === "true") {
-                value = true;
-              } else if (value === false) {
-                value = false; // Already false
-              } else if (value === true) {
-                value = true; // Already true
-              } else {
-                // undefined or null - means not set, so default to true (allow reactions)
-                value = true;
-              }
-              
-              console.log('ProductionChatInterface - allowReactions check:', { 
-                hasProperty, 
-                rawValue: hasProperty ? roomInfo.allowReactions : undefined,
-                rawType: typeof (hasProperty ? roomInfo.allowReactions : undefined),
-                normalizedValue: value,
-                normalizedType: typeof value,
-                final: value
-              });
-              return value;
-            })()}
+            allowReactions={allowReactions}
           />
           
           {/* Scroll anchor - used to scroll to bottom */}
@@ -620,7 +538,7 @@ export function ProductionChatInterface({
                   onClick={handleRetry}
                   className="ml-2"
                 >
-                  Retry
+                  {chatT?.connection?.retry || 'Retry'}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -631,7 +549,7 @@ export function ProductionChatInterface({
             <Alert className="mt-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Rate limit reached. Please wait {rateLimitInfo.resetTime} seconds.
+                {(chatT?.connection?.rateLimitExceeded || 'Rate limit reached. Please wait {seconds} seconds.').replace('{seconds}', String(rateLimitInfo.resetTime))}
               </AlertDescription>
             </Alert>
           )}
@@ -646,10 +564,10 @@ export function ProductionChatInterface({
             disabled={!isConnected || !!rateLimitInfo}
             placeholder={
               !isConnected 
-                ? "Connecting to chat..." 
+                ? (chatT?.input?.connectingPlaceholder || "Connecting to chat...")
                 : rateLimitInfo 
-                  ? "Rate limited. Please wait..." 
-                  : "Type a message..."
+                  ? (chatT?.input?.rateLimitedPlaceholder || "Rate limited. Please wait...")
+                  : (chatT?.input?.placeholder || "Type a message...")
             }
             maxLength={('maxMessageLength' in roomInfo) ? (roomInfo.maxMessageLength || 2000) : 2000}
             rateLimitInfo={rateLimitInfo}

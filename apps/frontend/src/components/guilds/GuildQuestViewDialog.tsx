@@ -30,6 +30,7 @@ import {
   User,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { guildAPI, GuildQuest } from '@/lib/api/guild';
 import { getGuildTranslations } from '@/i18n/guild';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -51,6 +52,10 @@ export const GuildQuestViewDialog: React.FC<GuildQuestViewDialogProps> = ({
   const { language } = useTranslation();
   const translations = getGuildTranslations(language);
   const t = translations.quests;
+
+  // Date locale mapping
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[language] || enUS;
 
   // Fetch quest data
   const { data: quest, isLoading, error } = useQuery({
@@ -255,7 +260,7 @@ export const GuildQuestViewDialog: React.FC<GuildQuestViewDialogProps> = ({
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="text-gray-600">{t.metadata.deadline}:</span>
                   <span className="font-semibold">
-                    {formatDistanceToNow(new Date(quest.deadline), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(quest.deadline), { addSuffix: true, locale: dateLocale })}
                   </span>
                 </div>
               )}

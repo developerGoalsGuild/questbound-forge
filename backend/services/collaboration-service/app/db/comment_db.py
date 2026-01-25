@@ -227,14 +227,15 @@ def get_comment(comment_id: str) -> CommentResponse:
 
     try:
         # Query to find the comment (we need to scan since we don't have the resource info)
+        # Note: Don't use Limit with Scan + FilterExpression - Limit restricts items evaluated,
+        # not items returned, so it may return empty even if matches exist
         response = table.scan(
             FilterExpression="commentId = :comment_id AND #type = :comment_type",
             ExpressionAttributeNames={"#type": "type"},
             ExpressionAttributeValues={
                 ":comment_id": comment_id,
                 ":comment_type": "Comment"
-            },
-            Limit=1
+            }
         )
 
         if not response.get("Items"):
@@ -353,7 +354,7 @@ def update_comment(user_id: str, comment_id: str, payload: CommentUpdatePayload)
         # First get the comment to verify ownership
         comment = get_comment(comment_id)
 
-        if comment.user_id != user_id:
+        if comment.userId != user_id:
             raise CommentPermissionError("Only the comment author can update the comment")
 
         # Extract new mentions
@@ -361,14 +362,14 @@ def update_comment(user_id: str, comment_id: str, payload: CommentUpdatePayload)
         updated_at = datetime.now(UTC)
 
         # Find the comment item to update (we need the full key)
+        # Note: Don't use Limit with Scan + FilterExpression
         response = table.scan(
             FilterExpression="commentId = :comment_id AND #type = :comment_type",
             ExpressionAttributeNames={"#type": "type"},
             ExpressionAttributeValues={
                 ":comment_id": comment_id,
                 ":comment_type": "Comment"
-            },
-            Limit=1
+            }
         )
 
         if not response.get("Items"):
@@ -433,18 +434,18 @@ def delete_comment(user_id: str, comment_id: str) -> None:
         # First get the comment to verify ownership
         comment = get_comment(comment_id)
 
-        if comment.user_id != user_id:
+        if comment.userId != user_id:
             raise CommentPermissionError("Only the comment author can delete the comment")
 
         # Find the comment item to update
+        # Note: Don't use Limit with Scan + FilterExpression
         response = table.scan(
             FilterExpression="commentId = :comment_id AND #type = :comment_type",
             ExpressionAttributeNames={"#type": "type"},
             ExpressionAttributeValues={
                 ":comment_id": comment_id,
                 ":comment_type": "Comment"
-            },
-            Limit=1
+            }
         )
 
         if not response.get("Items"):

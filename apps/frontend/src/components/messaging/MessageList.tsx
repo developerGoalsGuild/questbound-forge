@@ -220,12 +220,6 @@ interface MessageGroupProps {
 }
 
 function MessageGroup({ messages, currentUserId, isFirstGroup, isLastGroup, onReply, allowReactions }: MessageGroupProps) {
-  // Debug: log allowReactions value (only once per group render)
-  React.useEffect(() => {
-    if (messages.length > 0) {
-      console.log('MessageGroup - allowReactions prop:', allowReactions, 'type:', typeof allowReactions);
-    }
-  }, [allowReactions, messages.length]);
   const firstMessage = messages[0];
   const isOwnGroup = isOwnMessage(firstMessage, currentUserId);
   const [resolvedName] = React.useState<string>('');

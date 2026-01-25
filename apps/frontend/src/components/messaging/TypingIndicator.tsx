@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { TypingUser } from '../../types/messaging';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 
@@ -13,17 +14,24 @@ interface TypingIndicatorProps {
 }
 
 export function TypingIndicator({ users, className = '' }: TypingIndicatorProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.typing;
+
   if (users.length === 0) {
     return null;
   }
 
   const getTypingMessage = () => {
     if (users.length === 1) {
-      return `${users[0].username} is typing...`;
+      return (chatT?.isTyping || '{user} is typing...').replace('{user}', users[0].username);
     } else if (users.length === 2) {
-      return `${users[0].username} and ${users[1].username} are typing...`;
+      return (chatT?.areTyping || '{user1} and {user2} are typing...')
+        .replace('{user1}', users[0].username)
+        .replace('{user2}', users[1].username);
     } else {
-      return `${users[0].username} and ${users.length - 1} others are typing...`;
+      return (chatT?.andOthersTyping || '{user} and {count} others are typing...')
+        .replace('{user}', users[0].username)
+        .replace('{count}', String(users.length - 1));
     }
   };
 

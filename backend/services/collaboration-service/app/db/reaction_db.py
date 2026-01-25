@@ -201,6 +201,13 @@ def _get_reaction_summary(comment_id: str) -> Dict:
     user_reactions = {}
 
     for item in response.get("Items", []):
+        # Skip items that don't have required fields (corrupted data)
+        if "emoji" not in item or "userId" not in item:
+            logger.warning('reaction.skipping_invalid_item', 
+                          comment_id=comment_id, 
+                          item_keys=list(item.keys()))
+            continue
+            
         emoji = item["emoji"]
         user_id = item["userId"]
 

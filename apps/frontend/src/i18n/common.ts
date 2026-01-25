@@ -41,6 +41,7 @@ export interface CommonTranslations {
     guilds: string;
     chat: string;
     subscription: string;
+    myCollaborations: string;
     page: string;
   };
   footer: {
@@ -124,6 +125,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
       guilds: 'Guilds',
       chat: 'Chat',
       subscription: 'Subscription',
+      myCollaborations: 'My Collaborations',
       page: 'Page',
     },
     footer: {
@@ -205,6 +207,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
       guilds: 'Gremios',
       chat: 'Chat',
       subscription: 'Suscripción',
+      myCollaborations: 'Mis Colaboraciones',
       page: 'Página',
     },
     footer: {
@@ -286,6 +289,7 @@ export const commonTranslations: Record<Language, CommonTranslations> = {
       guilds: 'Guildes',
       chat: 'Chat',
       subscription: 'Abonnement',
+      myCollaborations: 'Mes Collaborations',
       page: 'Page',
     },
     footer: {

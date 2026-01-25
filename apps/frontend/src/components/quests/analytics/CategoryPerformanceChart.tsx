@@ -21,8 +21,14 @@ const COLORS = [
 export const CategoryPerformanceChart: React.FC<CategoryPerformanceChartProps> = ({ data, className }) => {
   const { t } = useTranslation('quest');
 
+  // Helper to get translated category name
+  const getCategoryLabel = (category: string) => {
+    return t(`categories.${category}`, category);
+  };
+
   const chartData = data.map((category, index) => ({
-    category: category.category,
+    category: getCategoryLabel(category.category),
+    categoryId: category.category,
     successRate: category.successRate,
     totalQuests: category.totalQuests,
     completedQuests: category.completedQuests,

@@ -38,10 +38,34 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
 }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
+  const categoryNames = questTranslations?.categories ?? {};
+  const difficultyNames = questTranslations?.difficulty ?? {};
+  const kindsTranslations = questTranslations?.kinds ?? {};
+  const countScopeTranslations = questTranslations?.countScope ?? {};
+
+  // Helper to get translated category name
+  const getCategoryLabel = (category: string) => {
+    return categoryNames[category] || category;
+  };
+
+  // Helper to get translated difficulty name
+  const getDifficultyLabel = (difficulty: string) => {
+    return difficultyNames[difficulty] || difficulty;
+  };
+
+  // Helper to get translated kind label
+  const getKindLabel = (kind: string) => {
+    return kindsTranslations[kind] || kind;
+  };
+
+  // Helper to get translated count scope label
+  const getCountScopeLabel = (scope: string) => {
+    return countScopeTranslations[scope] || scope;
+  };
 
   // Calculate reward XP based on difficulty
   // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
-  const calculatedRewardXp = 'Auto-calculated';
+  const calculatedRewardXp = questTranslations?.fields?.autoCalculated || 'Auto-calculated';
 
   const getPrivacyIcon = (privacy: string) => {
     switch (privacy) {
@@ -103,11 +127,11 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">{questTranslations?.fields?.category || 'Category'}:</span>
-                <span className="ml-2">{formData.category}</span>
+                <span className="ml-2">{getCategoryLabel(formData.category)}</span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.difficulty || 'Difficulty'}:</span>
-                <span className="ml-2 capitalize">{formData.difficulty}</span>
+                <span className="ml-2">{getDifficultyLabel(formData.difficulty)}</span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.rewardXp || 'Reward XP'}:</span>
@@ -125,7 +149,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.kind || 'Quest Type'}:</span>
-                <span className="ml-2 capitalize">{formData.kind}</span>
+                <span className="ml-2">{getKindLabel(formData.kind)}</span>
               </div>
               {formData.deadline && (
                 <div>
@@ -170,7 +194,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
                   {formData.countScope && (
                     <div>
                       <span className="font-medium">{questTranslations?.fields?.countScope || 'Count Scope'}:</span>
-                      <span className="ml-2">{formData.countScope}</span>
+                      <span className="ml-2">{getCountScopeLabel(formData.countScope)}</span>
                     </div>
                   )}
                   {formData.periodDays && (
@@ -243,7 +267,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
             <Target className="h-4 w-4 text-blue-500" />
             <div>
               <div className="font-medium">{questTranslations?.fields?.kind || 'Quest Type'}</div>
-              <div className="text-muted-foreground capitalize">{formData.kind}</div>
+              <div className="text-muted-foreground">{getKindLabel(formData.kind)}</div>
             </div>
           </div>
           <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">

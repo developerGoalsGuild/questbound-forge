@@ -61,6 +61,24 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
 }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
+  const privacyTranslations = questTranslations?.privacy ?? {};
+  const kindsTranslations = questTranslations?.kinds ?? {};
+  const countScopeTranslations = questTranslations?.countScope ?? {};
+
+  // Helper to get translated privacy label
+  const getPrivacyLabel = (value: string) => {
+    return privacyTranslations[value] || value;
+  };
+
+  // Helper to get translated kind label
+  const getKindLabel = (value: string) => {
+    return kindsTranslations[value] || value;
+  };
+
+  // Helper to get translated count scope label
+  const getCountScopeLabel = (value: string) => {
+    return countScopeTranslations[value] || value;
+  };
   
   const [newTag, setNewTag] = useState('');
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([]);
@@ -200,7 +218,7 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
               <SelectContent>
                 {QUEST_PRIVACY_OPTIONS.map((privacy) => (
                   <SelectItem key={privacy.value} value={privacy.value}>
-                    {privacy.label}
+                    {getPrivacyLabel(privacy.value)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -252,7 +270,7 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
               <SelectContent>
                 {QUEST_KIND_OPTIONS.map((kind) => (
                   <SelectItem key={kind.value} value={kind.value}>
-                    {kind.label}
+                    {getKindLabel(kind.value)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -418,7 +436,7 @@ const AdvancedOptionsStep: React.FC<AdvancedOptionsStepProps> = ({
                     <SelectContent>
                       {QUEST_COUNT_SCOPE_OPTIONS.map((scope) => (
                         <SelectItem key={scope.value} value={scope.value}>
-                          {scope.label}
+                          {getCountScopeLabel(scope.value)}
                         </SelectItem>
                       ))}
                     </SelectContent>

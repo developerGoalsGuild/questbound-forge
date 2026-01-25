@@ -91,28 +91,30 @@ const ModerationDialog: React.FC<ModerationDialogProps> = ({
     switch (action) {
       case 'block':
         return {
-          title: 'Block User',
-          description: `Block ${member.username} from accessing the guild`,
+          title: translations.moderation.actions?.blockUser || 'Block User',
+          description: (translations.moderation.descriptions?.blockUser || 'Block {username} from accessing the guild').replace('{username}', member.username),
           icon: <UserX className="h-5 w-5 text-red-500" />,
-          confirmText: 'Block User',
+          confirmText: translations.moderation.actions?.blockUser || 'Block User',
           confirmVariant: 'destructive' as const,
         };
       case 'unblock':
         return {
-          title: 'Unblock User',
-          description: `Unblock ${member.username} and restore guild access`,
+          title: translations.moderation.actions?.unblockUser || 'Unblock User',
+          description: (translations.moderation.descriptions?.unblockUser || 'Unblock {username} and restore guild access').replace('{username}', member.username),
           icon: <UserCheck className="h-5 w-5 text-green-500" />,
-          confirmText: 'Unblock User',
+          confirmText: translations.moderation.actions?.unblockUser || 'Unblock User',
           confirmVariant: 'default' as const,
         };
       case 'toggle_comment':
         return {
-          title: member.canComment ? 'Disable Comments' : 'Enable Comments',
-          description: `${member.canComment ? 'Disable' : 'Enable'} commenting for ${member.username}`,
+          title: member.canComment ? (translations.moderation.actions?.disableComments || 'Disable Comments') : (translations.moderation.actions?.enableComments || 'Enable Comments'),
+          description: member.canComment 
+            ? (translations.moderation.descriptions?.disableComments || 'Disable commenting for {username}').replace('{username}', member.username)
+            : (translations.moderation.descriptions?.enableComments || 'Enable commenting for {username}').replace('{username}', member.username),
           icon: member.canComment ? 
             <MessageSquareX className="h-5 w-5 text-orange-500" /> : 
             <MessageSquare className="h-5 w-5 text-green-500" />,
-          confirmText: member.canComment ? 'Disable Comments' : 'Enable Comments',
+          confirmText: member.canComment ? (translations.moderation.actions?.disableComments || 'Disable Comments') : (translations.moderation.actions?.enableComments || 'Enable Comments'),
           confirmVariant: member.canComment ? 'destructive' as const : 'default' as const,
         };
     }
@@ -150,10 +152,10 @@ const ModerationDialog: React.FC<ModerationDialogProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="reason">Reason (optional)</Label>
+            <Label htmlFor="reason">{translations.moderation.labels?.reasonOptional || 'Reason (optional)'}</Label>
             <Select value={selectedReason} onValueChange={setSelectedReason}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a reason" />
+                <SelectValue placeholder={translations.moderation.labels?.selectReason || 'Select a reason'} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="spam">{translations.moderation.reasons.spam}</SelectItem>
@@ -165,10 +167,10 @@ const ModerationDialog: React.FC<ModerationDialogProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="custom-reason">Custom reason (optional)</Label>
+            <Label htmlFor="custom-reason">{translations.moderation.labels?.customReason || 'Custom reason (optional)'}</Label>
             <Textarea
               id="custom-reason"
-              placeholder="Add additional details..."
+              placeholder={translations.moderation.labels?.addDetails || 'Add additional details...'}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
@@ -178,7 +180,7 @@ const ModerationDialog: React.FC<ModerationDialogProps> = ({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
-            Cancel
+            {translations.moderation.labels?.cancel || 'Cancel'}
           </Button>
           <Button
             variant={actionInfo.confirmVariant}
@@ -293,7 +295,7 @@ export const GuildModeration: React.FC<GuildModerationProps> = ({
           {moderatableMembers.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No members available for moderation</p>
+              <p>{translations.moderation.noMembers || 'No members available for moderation'}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -317,12 +319,12 @@ export const GuildModeration: React.FC<GuildModerationProps> = ({
                       </Badge>
                       {member.isBlocked && (
                         <Badge variant="destructive" className="text-xs">
-                          Blocked
+                          {translations.moderation.labels?.blocked || 'Blocked'}
                         </Badge>
                       )}
                       {member.canComment === false && (
                         <Badge variant="secondary" className="text-xs">
-                          No Comments
+                          {translations.moderation.labels?.noComments || 'No Comments'}
                         </Badge>
                       )}
                     </div>

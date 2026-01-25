@@ -125,54 +125,6 @@ const ProfileView = () => {
     return statusMap[status.toLowerCase()] || status;
   };
 
-  // Get plan features based on tier (must be after subscription is defined)
-  const getPlanFeatures = useMemo(() => {
-    const tier = subscription?.plan_tier || profile?.tier || 'FREE';
-    const tierLower = tier.toLowerCase();
-    
-    if (tier === 'FREE' || !subscription?.has_active_subscription) {
-      return freePlanTranslations.features || [];
-    }
-    
-    const planKey = tierLower as 'initiate' | 'journeyman' | 'sage' | 'guildmaster';
-    return plansTranslations[planKey]?.features || [];
-  }, [subscription, profile?.tier, plansTranslations, freePlanTranslations]);
-
-  // Get plan name and description (must be after subscription is defined)
-  const getPlanInfo = useMemo(() => {
-    const tier = subscription?.plan_tier || profile?.tier || 'FREE';
-    const tierLower = tier.toLowerCase();
-    
-    if (tier === 'FREE' || !subscription?.has_active_subscription) {
-      return {
-        name: freePlanTranslations.name || 'Free Tier',
-        description: freePlanTranslations.description || 'Get started with basic features',
-      };
-    }
-    
-    const planKey = tierLower as 'initiate' | 'journeyman' | 'sage' | 'guildmaster';
-    return {
-      name: plansTranslations[planKey]?.name || tier,
-      description: plansTranslations[planKey]?.description || '',
-    };
-  }, [subscription, profile?.tier, plansTranslations, freePlanTranslations]);
-
-  // Get subscription status translation
-  const getSubscriptionStatusLabel = (status: string | null | undefined): string => {
-    if (!status) return 'N/A';
-    
-    const statusMap: Record<string, string> = {
-      'active': subscriptionTranslations.active || 'Active',
-      'canceled': subscriptionTranslations.canceled || 'Canceled',
-      'past_due': subscriptionTranslations.pastDue || 'Past Due',
-      'trialing': subscriptionTranslations.trialing || 'Trialing',
-      'incomplete': subscriptionTranslations.incomplete || 'Incomplete',
-      'incomplete_expired': subscriptionTranslations.incompleteExpired || 'Incomplete Expired',
-    };
-    
-    return statusMap[status.toLowerCase()] || status;
-  };
-
   const formatDate = (timestamp: number) => {
     const localeMap: Record<string, string> = {
       en: 'en-US',

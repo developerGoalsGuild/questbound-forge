@@ -415,14 +415,14 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
             <BarChart3 className="h-6 w-6" />
-            Guild Analytics
+            {guildTranslations?.analytics?.title || 'Guild Analytics'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Key Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <MetricCard
-              title="Total Members"
+              title={guildTranslations?.analytics?.members || 'Total Members'}
               value={safeData.totalMembers}
               icon={Users}
               trend={showTrends ? {
@@ -430,11 +430,11 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
                 isPositive: safeData.memberGrowthRate >= 0,
                 period: 'month'
               } : undefined}
-              description={`${safeData.activeMembers} active`}
+              description={`${safeData.activeMembers} ${guildTranslations?.analytics?.active || 'active'}`}
               color="blue"
             />
             <MetricCard
-              title="Total Quests"
+              title={guildTranslations?.analytics?.quests || 'Total Quests'}
               value={safeData.totalQuests}
               icon={Trophy}
               trend={showTrends ? {
@@ -442,14 +442,14 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
                 isPositive: safeData.questGrowthRate >= 0,
                 period: 'month'
               } : undefined}
-              description={`${safeData.completedQuests} completed`}
+              description={`${safeData.completedQuests} ${guildTranslations?.analytics?.completed || 'completed'}`}
               color="yellow"
             />
             <MetricCard
-              title="Activity Score"
+              title={guildTranslations?.analytics?.activityScore || 'Activity Score'}
               value={`${safeData.weeklyActivity}%`}
               icon={Activity}
-              description="This week"
+              description={guildTranslations?.analytics?.thisWeeksSummary || 'This week'}
               color="purple"
             />
           </div>
@@ -458,14 +458,14 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
           <div className="space-y-4">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Member Activity</span>
+                <span className="text-sm font-medium">{guildTranslations?.analytics?.memberActivityRate || 'Member Activity'}</span>
                 <span className="text-sm text-gray-600">{memberActivityRate}%</span>
               </div>
               <Progress value={memberActivityRate} className="h-2" />
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Quest Completion</span>
+                <span className="text-sm font-medium">{guildTranslations?.analytics?.questCompletionRate || 'Quest Completion'}</span>
                 <span className="text-sm text-gray-600">{questCompletionRate}%</span>
               </div>
               <Progress value={questCompletionRate} className="h-2" />
@@ -474,14 +474,14 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
 
           {/* Recent Activity */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
+            <h4 className="text-sm font-medium text-gray-900">{guildTranslations?.analytics?.lastActivity || 'Recent Activity'}</h4>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">New members this week</span>
+                <span className="text-gray-600">{guildTranslations?.analytics?.newMembers || 'New members this week'}</span>
                 <Badge variant="secondary">{safeData.newMembersThisWeek}</Badge>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Quests completed this week</span>
+                <span className="text-gray-600">{guildTranslations?.analytics?.questsCompleted || 'Quests completed this week'}</span>
                 <Badge variant="secondary">{safeData.questsCompletedThisWeek}</Badge>
               </div>
             </div>
@@ -497,16 +497,16 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
           <BarChart3 className="h-6 w-6" />
-          Guild Analytics Dashboard
+          {guildTranslations?.analytics?.dashboard || 'Guild Analytics Dashboard'}
         </CardTitle>
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            <span>Created {formatDate(safeData.createdAt)}</span>
+            <span>{guildTranslations?.details?.stats?.created || 'Created'} {formatDate(safeData.createdAt)}</span>
           </div>
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            <span>Last activity {formatRelativeTime(safeData.lastActivityAt)}</span>
+            <span>{guildTranslations?.analytics?.lastActivity || 'Last activity'} {formatRelativeTime(safeData.lastActivityAt)}</span>
           </div>
         </div>
       </CardHeader>
@@ -514,7 +514,7 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
         {/* Primary Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MetricCard
-            title="Members"
+            title={guildTranslations?.analytics?.members || 'Members'}
             value={safeData.totalMembers}
             icon={Users}
             trend={showTrends ? {
@@ -522,11 +522,11 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
               isPositive: safeData.memberGrowthRate >= 0,
               period: 'month'
             } : undefined}
-            description={`${safeData.activeMembers} active (${memberActivityRate}%)`}
+            description={`${safeData.activeMembers} ${guildTranslations?.analytics?.active || 'active'} (${memberActivityRate}%)`}
             color="blue"
           />
           <MetricCard
-            title="Quests"
+            title={guildTranslations?.analytics?.quests || 'Quests'}
             value={safeData.totalQuests}
             icon={Trophy}
             trend={showTrends ? {
@@ -534,7 +534,7 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
               isPositive: safeData.questGrowthRate >= 0,
               period: 'month'
             } : undefined}
-            description={`${safeData.completedQuests} completed (${questCompletionRate}%)`}
+            description={`${safeData.completedQuests} ${guildTranslations?.analytics?.completed || 'completed'} (${questCompletionRate}%)`}
             color="yellow"
           />
         </div>
@@ -542,17 +542,17 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
         {/* Performance Indicators */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <MetricCard
-            title="Weekly Activity"
+            title={guildTranslations?.analytics?.weeklyActivity || 'Weekly Activity'}
             value={`${safeData.weeklyActivity}%`}
             icon={Activity}
-            description="Member engagement this week"
+            description={guildTranslations?.analytics?.memberEngagement || 'Member engagement this week'}
             color="purple"
           />
           <MetricCard
-            title="Top Performers"
+            title={guildTranslations?.analytics?.topPerformers || 'Top Performers'}
             value={safeData.topPerformers}
             icon={Award}
-            description="Members with highest activity"
+            description={guildTranslations?.analytics?.highestActivity || 'Members with highest activity'}
             color="red"
           />
         </div>
@@ -560,18 +560,18 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
         {/* Progress Indicators */}
         {showDetailedMetrics && (
           <div className="space-y-4">
-            <h4 className="text-sm font-medium text-gray-900">Performance Metrics</h4>
+            <h4 className="text-sm font-medium text-gray-900">{guildTranslations?.analytics?.performanceMetrics || 'Performance Metrics'}</h4>
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Member Activity Rate</span>
+                  <span className="text-sm font-medium">{guildTranslations?.analytics?.memberActivityRate || 'Member Activity Rate'}</span>
                   <span className="text-sm text-gray-600">{memberActivityRate}%</span>
                 </div>
                 <Progress value={memberActivityRate} className="h-2" />
               </div>
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Quest Completion Rate</span>
+                  <span className="text-sm font-medium">{guildTranslations?.analytics?.questCompletionRate || 'Quest Completion Rate'}</span>
                   <span className="text-sm text-gray-600">{questCompletionRate}%</span>
                 </div>
                 <Progress value={questCompletionRate} className="h-2" />
@@ -582,19 +582,19 @@ export const GuildAnalyticsCard: React.FC<GuildAnalyticsCardProps> = ({
 
         {/* Weekly Summary */}
         <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">This Week's Summary</h4>
+          <h4 className="text-sm font-medium text-gray-900 mb-3">{guildTranslations?.analytics?.thisWeeksSummary || "This Week's Summary"}</h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{safeData.newMembersThisWeek}</div>
-              <div className="text-xs text-gray-600">New Members</div>
+              <div className="text-xs text-gray-600">{guildTranslations?.analytics?.newMembers || 'New Members'}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-600">{safeData.questsCompletedThisWeek}</div>
-              <div className="text-xs text-gray-600">Quests Completed</div>
+              <div className="text-xs text-gray-600">{guildTranslations?.analytics?.questsCompleted || 'Quests Completed'}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">{safeData.weeklyActivity}%</div>
-              <div className="text-xs text-gray-600">Activity Score</div>
+              <div className="text-xs text-gray-600">{guildTranslations?.analytics?.activityScore || 'Activity Score'}</div>
             </div>
           </div>
         </div>

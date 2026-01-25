@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from pydantic import BaseModel, Field, field_validator
 
 # Allowed emoji reactions
-ALLOWED_EMOJIS = ["👍", "👎", "❤️", "😂", "😮", "😢", "🎉", "🚀"]
+ALLOWED_EMOJIS = ["👍", "👎", "❤️", "😂", "😮", "😢", "😠", "🎉", "🚀"]
 
 
 class ReactionPayload(BaseModel):

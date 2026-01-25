@@ -943,6 +943,18 @@ const ReviewStep: React.FC<StepProps> = ({
 }) => {
   const { t } = useTranslation();
   const questTranslations = (t as any)?.quest;
+  const categoryNames = questTranslations?.categories ?? {};
+  const difficultyNames = questTranslations?.difficulty ?? {};
+
+  // Helper to get translated category name
+  const getCategoryLabel = (category: string) => {
+    return categoryNames[category] || category;
+  };
+
+  // Helper to get translated difficulty name
+  const getDifficultyLabel = (difficulty: string) => {
+    return difficultyNames[difficulty] || difficulty;
+  };
 
   // Note: rewardXp is now auto-calculated by backend based on scope, period, and difficulty
   const displayRewardXp = quest?.rewardXp 
@@ -1007,11 +1019,11 @@ const ReviewStep: React.FC<StepProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">{questTranslations?.fields?.category || 'Category'}:</span>
-                <span className="ml-2">{formData.category}</span>
+                <span className="ml-2">{getCategoryLabel(formData.category)}</span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.difficulty || 'Difficulty'}:</span>
-                <span className="ml-2 capitalize">{formData.difficulty}</span>
+                <span className="ml-2">{getDifficultyLabel(formData.difficulty)}</span>
               </div>
               <div>
                 <span className="font-medium">{questTranslations?.fields?.rewardXp || 'Reward XP'}:</span>

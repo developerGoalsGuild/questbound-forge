@@ -66,7 +66,7 @@ done
 # Get script directory and paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAFORM_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd "$TERRAFORM_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$TERRAFORM_DIR/../../.." && pwd)"
 SERVICE_PATH="$REPO_ROOT/backend/services/$SERVICE_NAME"
 STACK_PATH="$TERRAFORM_DIR/stacks/services/$SERVICE_NAME"
 ENV_FILE="$TERRAFORM_DIR/environments/$ENV.tfvars"

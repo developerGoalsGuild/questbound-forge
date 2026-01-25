@@ -243,7 +243,7 @@ export const GuildsList: React.FC<GuildsListProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Filter className="h-5 w-5" />
-            Filters & Search
+            {guildTranslations?.list?.filtersAndSearch || 'Filters & Search'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -272,7 +272,7 @@ export const GuildsList: React.FC<GuildsListProps> = ({
           {availableTags.length > 0 && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700" id="tags-filter-label">
-                Filter by tags:
+                {guildTranslations?.list?.filterByTags || 'Filter by tags:'}
               </label>
               <div 
                 className="flex flex-wrap gap-2" 
@@ -309,7 +309,7 @@ export const GuildsList: React.FC<GuildsListProps> = ({
             {/* Sort */}
             <div className="flex items-center gap-2">
               <label htmlFor="sort-select" className="text-sm font-medium text-gray-700">
-                Sort by:
+                {guildTranslations?.list?.sort?.label || 'Sort by'}:
               </label>
               <Select value={localSortBy} onValueChange={handleSortChange}>
                 <SelectTrigger id="sort-select" className="w-40" aria-label="Sort guilds">
@@ -356,10 +356,10 @@ export const GuildsList: React.FC<GuildsListProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={clearFilters}
-                aria-label="Clear all filters"
-                title="Clear all filters"
+                aria-label={guildTranslations?.list?.clearFilters || "Clear all filters"}
+                title={guildTranslations?.list?.clearFilters || "Clear all filters"}
               >
-                Clear Filters
+                {guildTranslations?.list?.clearFilters || 'Clear Filters'}
               </Button>
             )}
           </div>
@@ -409,7 +409,7 @@ export const GuildsList: React.FC<GuildsListProps> = ({
             {guildTranslations?.list?.title || 'My Guilds'}
           </h1>
           <p className="text-gray-600 mt-1" id="guilds-count" aria-live="polite">
-            {filteredAndSortedGuilds.length} guild{guilds.length !== 1 ? 's' : ''} found
+            {filteredAndSortedGuilds.length} {filteredAndSortedGuilds.length !== 1 ? (guildTranslations?.list?.guilds || 'guilds') : (guildTranslations?.list?.guild || 'guild')} {guildTranslations?.list?.guildsFound || 'found'}
           </p>
         </div>
         
@@ -417,11 +417,11 @@ export const GuildsList: React.FC<GuildsListProps> = ({
           <Button 
             onClick={onCreateGuild} 
             className="inline-flex items-center gap-2"
-            aria-label="Create a new guild"
-            title="Create a new guild"
+            aria-label={guildTranslations?.list?.createGuild || "Create a new guild"}
+            title={guildTranslations?.list?.createGuild || "Create a new guild"}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Create Guild
+            {guildTranslations?.list?.createGuild || 'Create Guild'}
           </Button>
         )}
       </div>

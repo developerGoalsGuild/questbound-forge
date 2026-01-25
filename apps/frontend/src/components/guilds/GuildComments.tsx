@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { useTranslation } from '@/hooks/useTranslation';
 import { guildAPI } from '@/lib/api/guild';
 import {
@@ -115,7 +116,7 @@ const CommentForm: React.FC<CommentFormProps> = ({
       />
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-500">
-          {content.length}/500 characters
+          {content.length}/500 {guildTranslations?.comments?.characters || 'characters'}
         </div>
         <div className="flex items-center gap-2">
           {onCancel && (
@@ -179,8 +180,12 @@ const CommentItem: React.FC<{
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const guildTranslations = (t as any)?.guild;
+
+  // Date locale mapping
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[language] || enUS;
 
   const isOwner = comment.userId === currentUserId;
   const canEdit = isOwner;
@@ -202,26 +207,28 @@ const CommentItem: React.FC<{
   }, []);
 
   const handleDelete = useCallback(() => {
-    if (window.confirm('Are you sure you want to delete this comment?')) {
+    if (window.confirm(guildTranslations?.comments?.confirmDeleteComment || 'Are you sure you want to delete this comment?')) {
       onDelete(comment.commentId);
     }
-  }, [comment.commentId, onDelete]);
+  }, [comment.commentId, onDelete, guildTranslations]);
 
   const handleLike = useCallback(() => {
     onLike(comment.commentId);
   }, [comment.commentId, onLike]); // Fixed duplicate declaration
 
   const handleBlockUser = useCallback(() => {
-    if (onBlockUser && window.confirm(`Are you sure you want to block ${comment.username} from commenting?`)) {
+    const confirmMessage = (guildTranslations?.comments?.confirmBlockUser || 'Are you sure you want to block {username} from commenting?').replace('{username}', comment.username);
+    if (onBlockUser && window.confirm(confirmMessage)) {
       onBlockUser(comment.userId, comment.username);
     }
-  }, [comment.userId, comment.username, onBlockUser]);
+  }, [comment.userId, comment.username, onBlockUser, guildTranslations]);
 
   const handleRemoveUser = useCallback(() => {
-    if (onRemoveUser && window.confirm(`Are you sure you want to remove ${comment.username} from the guild?`)) {
+    const confirmMessage = (guildTranslations?.comments?.confirmRemoveUser || 'Are you sure you want to remove {username} from the guild?').replace('{username}', comment.username);
+    if (onRemoveUser && window.confirm(confirmMessage)) {
       onRemoveUser(comment.userId, comment.username);
     }
-  }, [comment.userId, comment.username, onRemoveUser]);
+  }, [comment.userId, comment.username, onRemoveUser, guildTranslations]);
 
   const handleReply = useCallback(() => {
     onReply(comment.commentId);
@@ -246,7 +253,7 @@ const CommentItem: React.FC<{
             <span className="font-medium text-sm">{comment.username}</span>
             {comment.userRole === 'owner' && (
               <Badge variant="secondary" className="text-xs">
-                Owner
+                {guildTranslations?.comments?.owner || 'Owner'}
               </Badge>
             )}
             <span className="text-xs text-gray-500">
@@ -254,17 +261,17 @@ const CommentItem: React.FC<{
                 try {
                   const date = new Date(comment.createdAt);
                   if (isNaN(date.getTime())) {
-                    return 'just now';
+                    return guildTranslations?.comments?.justNow || 'just now';
                   }
-                  return formatDistanceToNow(date, { addSuffix: true });
+                  return formatDistanceToNow(date, { addSuffix: true, locale: dateLocale });
                 } catch (error) {
                   console.warn('Invalid date format:', comment.createdAt, error);
-                  return 'just now';
+                  return guildTranslations?.comments?.justNow || 'just now';
                 }
               })()}
             </span>
             {comment.isEdited && (
-              <span className="text-xs text-gray-500">(edited)</span>
+              <span className="text-xs text-gray-500">{guildTranslations?.comments?.edited || '(edited)'}</span>
             )}
           </div>
 
@@ -344,14 +351,14 @@ const CommentItem: React.FC<{
                             className="text-orange-600"
                           >
                             <Ban className="h-4 w-4 mr-2" />
-                            Block User
+                            {guildTranslations?.comments?.blockUser || 'Block User'}
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={handleRemoveUser}
                             className="text-red-600"
                           >
                             <UserX className="h-4 w-4 mr-2" />
-                            Remove from Guild
+                            {guildTranslations?.comments?.removeFromGuild || 'Remove from Guild'}
                           </DropdownMenuItem>
                         </>
                       )}
@@ -390,7 +397,7 @@ const CommentItem: React.FC<{
             onClick={toggleReplies}
             className="h-8 px-2 text-xs text-gray-600"
           >
-            {showReplies ? 'Hide' : 'Show'} {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+            {showReplies ? (guildTranslations?.comments?.hideReplies || 'Hide') : (guildTranslations?.comments?.showReplies || 'Show')} {comment.replies.length} {comment.replies.length === 1 ? (guildTranslations?.comments?.replyCount || 'reply') : (guildTranslations?.comments?.repliesCount || 'replies')}
           </Button>
           
           {showReplies && (
@@ -888,14 +895,14 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
         <CardContent className="p-8 text-center">
           <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Error Loading Comments
+            {guildTranslations?.comments?.errorLoading || 'Error Loading Comments'}
           </h3>
           <p className="text-gray-600 mb-4">
-            There was an error loading the comments. Please try again.
+            {guildTranslations?.comments?.error || 'There was an error loading the comments. Please try again.'}
           </p>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <Loader2 className="h-4 w-4 mr-2" />
-            Retry
+            {guildTranslations?.comments?.retry || 'Retry'}
           </Button>
         </CardContent>
       </Card>
@@ -907,7 +914,7 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          Guild Comments
+          {guildTranslations?.comments?.title || 'Guild Comments'}
           <Badge variant="secondary" className="ml-2">
             {comments.length}
           </Badge>
@@ -918,7 +925,7 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
         {/* Add Comment Form */}
         <CommentForm
           onSubmit={handleAddComment}
-          placeholder="Share your thoughts with the guild..."
+          placeholder={guildTranslations?.comments?.placeholder || 'Share your thoughts with the guild...'}
           isSubmitting={addCommentMutation.isPending}
         />
 
@@ -934,10 +941,10 @@ export const GuildComments: React.FC<GuildCommentsProps> = ({
             <div className="text-center py-8">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No comments yet
+                {guildTranslations?.comments?.noComments || 'No comments yet'}
               </h3>
               <p className="text-gray-600">
-                Be the first to start the conversation! Share your thoughts with the guild.
+                {guildTranslations?.comments?.noCommentsDescription || 'Be the first to start the conversation! Share your thoughts with the guild.'}
               </p>
             </div>
           ) : (

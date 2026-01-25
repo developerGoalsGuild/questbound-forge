@@ -181,6 +181,7 @@ export interface QuestTranslations {
     back: string;
     finish: string;
     finishing: string;
+    view: string;
   };
   
   // Messages
@@ -293,6 +294,22 @@ export interface QuestTranslations {
   
   // Categories
   categories: {
+    Health: string;
+    Work: string;
+    Personal: string;
+    Learning: string;
+    Fitness: string;
+    Creative: string;
+    Financial: string;
+    Social: string;
+    Spiritual: string;
+    Hobby: string;
+    Travel: string;
+    Other: string;
+  };
+
+  // Category descriptions
+  categoryDescriptions: {
     Health: string;
     Work: string;
     Personal: string;
@@ -563,6 +580,15 @@ export interface QuestTranslations {
       templateInfo: string;
       privacy: string;
     };
+    card: {
+      openMenu: string;
+      targets: string;
+      more: string;
+      created: string;
+      updated: string;
+      search: string;
+      total: string;
+    };
     form: {
       title: string;
       description: string;
@@ -757,7 +783,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
      
       back: 'Back',
       finish: 'Finish',
-      finishing: 'Finishing...'
+      finishing: 'Finishing...',
+      view: 'View'
     },
     messages: {
       createSuccess: 'Quest created successfully',
@@ -821,6 +848,20 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       Hobby: 'Hobby',
       Travel: 'Travel',
       Other: 'Other'
+    },
+    categoryDescriptions: {
+      Health: 'Physical and mental health related quests',
+      Work: 'Professional and career development quests',
+      Personal: 'Personal growth and self-improvement quests',
+      Learning: 'Education and skill development quests',
+      Fitness: 'Physical fitness and exercise quests',
+      Creative: 'Artistic and creative expression quests',
+      Financial: 'Money management and financial goals',
+      Social: 'Social connections and relationships',
+      Spiritual: 'Spiritual growth and mindfulness quests',
+      Hobby: 'Recreational and hobby-related quests',
+      Travel: 'Travel and adventure quests',
+      Other: 'Other types of quests'
     },
     privacy: {
       public: 'Public',
@@ -1026,6 +1067,15 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       details: {
         templateInfo: 'Template Info',
         privacy: 'Privacy'
+      },
+      card: {
+        openMenu: 'Open menu',
+        targets: 'targets',
+        more: 'more',
+        created: 'Created',
+        updated: 'Updated',
+        search: 'Search',
+        total: 'total'
       },
       form: {
         title: 'Template Title',
@@ -1312,7 +1362,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       
       back: 'Atrás',
       finish: 'Finalizar',
-      finishing: 'Finalizando...'
+      finishing: 'Finalizando...',
+      view: 'Ver'
     },
     filters: {
       title: 'Filtros',
@@ -1395,6 +1446,20 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       Hobby: 'Pasatiempo',
       Travel: 'Viaje',
       Other: 'Otro'
+    },
+    categoryDescriptions: {
+      Health: 'Misiones relacionadas con salud física y mental',
+      Work: 'Misiones de desarrollo profesional y carrera',
+      Personal: 'Misiones de crecimiento personal y superación',
+      Learning: 'Misiones de educación y desarrollo de habilidades',
+      Fitness: 'Misiones de ejercicio y condición física',
+      Creative: 'Misiones de expresión artística y creativa',
+      Financial: 'Gestión del dinero y metas financieras',
+      Social: 'Conexiones sociales y relaciones',
+      Spiritual: 'Misiones de crecimiento espiritual y mindfulness',
+      Hobby: 'Misiones recreativas y de pasatiempos',
+      Travel: 'Misiones de viaje y aventura',
+      Other: 'Otros tipos de misiones'
     },
     privacy: {
       public: 'Público',
@@ -1565,6 +1630,15 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       details: {
         templateInfo: 'Información de la Plantilla',
         privacy: 'Privacidad'
+      },
+      card: {
+        openMenu: 'Abrir menú',
+        targets: 'objetivos',
+        more: 'más',
+        created: 'Creado',
+        updated: 'Actualizado',
+        search: 'Búsqueda',
+        total: 'total'
       },
       form: {
         title: 'Título de la Plantilla',
@@ -1867,7 +1941,8 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       
       back: 'Retour',
       finish: 'Terminer',
-      finishing: 'Finalisation...'
+      finishing: 'Finalisation...',
+      view: 'Voir'
     },
     messages: {
       createSuccess: 'Quête créée avec succès',
@@ -1931,6 +2006,20 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       Hobby: 'Loisir',
       Travel: 'Voyage',
       Other: 'Autre'
+    },
+    categoryDescriptions: {
+      Health: 'Quêtes liées à la santé physique et mentale',
+      Work: 'Quêtes de développement professionnel et de carrière',
+      Personal: 'Quêtes de croissance personnelle et d\'amélioration de soi',
+      Learning: 'Quêtes d\'éducation et de développement de compétences',
+      Fitness: 'Quêtes de forme physique et d\'exercice',
+      Creative: 'Quêtes d\'expression artistique et créative',
+      Financial: 'Gestion de l\'argent et objectifs financiers',
+      Social: 'Connexions sociales et relations',
+      Spiritual: 'Quêtes de croissance spirituelle et de pleine conscience',
+      Hobby: 'Quêtes récréatives et de loisirs',
+      Travel: 'Quêtes de voyage et d\'aventure',
+      Other: 'Autres types de quêtes'
     },
     privacy: {
       public: 'Public',
@@ -2101,6 +2190,15 @@ export const questTranslations: Record<'en' | 'es' | 'fr', QuestTranslations> = 
       details: {
         templateInfo: 'Informations du Modèle',
         privacy: 'Confidentialité'
+      },
+      card: {
+        openMenu: 'Ouvrir le menu',
+        targets: 'cibles',
+        more: 'plus',
+        created: 'Créé',
+        updated: 'Mis à jour',
+        search: 'Recherche',
+        total: 'total'
       },
       form: {
         title: 'Titre du Modèle',

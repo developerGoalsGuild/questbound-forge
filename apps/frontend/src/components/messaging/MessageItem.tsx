@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Message } from '../../types/messaging';
 import { formatMessageTimestamp, isOwnMessage } from '../../lib/api/messaging';
 import { Button } from '../ui/button';
@@ -58,6 +59,8 @@ export function MessageItem({
   className = '',
   allowReactions = true
 }: MessageItemProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.messages;
   const [isHovered, setIsHovered] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const isOwn = isOwnMessage(message, currentUserId);
@@ -124,10 +127,10 @@ export function MessageItem({
   const replyPreview = message.replyTo ?? null;
   const replyIsFallback = !!replyPreview?.isFallback;
   const rawReplySender = (replyPreview?.senderNickname || '').trim();
-  const replySender = rawReplySender || 'Unknown user';
+  const replySender = rawReplySender || (chatT?.unknownUser || 'Unknown user');
   const showReplySender = Boolean(rawReplySender);
   const replyText = (replyPreview?.text || '').replace(/\s+/g, ' ').trim();
-  const replyBodyText = replyText || (replyIsFallback ? 'Original message unavailable' : 'No message content');
+  const replyBodyText = replyText || (replyIsFallback ? (chatT?.originalUnavailable || 'Original message unavailable') : (chatT?.noContent || 'No message content'));
   const replyContainerClass = isOwn
     ? replyIsFallback
       ? 'border-white/20 border-l-amber-200/70 bg-white/10 text-white/80'
@@ -211,7 +214,7 @@ export function MessageItem({
                   className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide ${replyTitleClass} whitespace-nowrap min-w-0`}
                 >
                   <CornerDownLeft className={`h-3.5 w-3.5 flex-shrink-0 ${replyIconClass}`} />
-                  <span className="flex-shrink-0">Replying to</span>
+                  <span className="flex-shrink-0">{chatT?.replyingTo || 'Replying to'}</span>
                   {showReplySender && (
                     <span className={`${replySenderClass} truncate ml-1 min-w-0`}>
                       {replySender}
@@ -251,7 +254,7 @@ export function MessageItem({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{isCopied ? 'Copied!' : 'Copy message'}</p>
+                      <p>{isCopied ? (chatT?.copied || 'Copied!') : (chatT?.copyMessage || 'Copy message')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -270,7 +273,7 @@ export function MessageItem({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Reply</p>
+                        <p>{chatT?.reply || 'Reply'}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -290,11 +293,11 @@ export function MessageItem({
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem onClick={handleEdit}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit message
+                        {chatT?.editMessage || 'Edit message'}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleReply}>
                         <Reply className="h-4 w-4 mr-2" />
-                        Reply
+                        {chatT?.reply || 'Reply'}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
@@ -302,7 +305,7 @@ export function MessageItem({
                         className="text-red-600 focus:text-red-600"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete message
+                        {chatT?.deleteMessage || 'Delete message'}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

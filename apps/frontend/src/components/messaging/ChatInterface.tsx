@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useMessaging } from '../../hooks/useMessaging';
 import { Message, MessageSendResult } from '../../types/messaging';
 import { MessageList } from './MessageList';
@@ -36,6 +37,8 @@ export function ChatInterface({
   onMessageSent,
   onError
 }: ChatInterfaceProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat;
   const [isTyping, setIsTyping] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -157,7 +160,7 @@ export function ChatInterface({
         <div className="flex-1 flex flex-col min-h-0">
           {isLoading && messages.length === 0 ? (
             <div className="flex-1 p-4" aria-live="polite">
-              <span className="sr-only">Loading messages...</span>
+              <span className="sr-only">{chatT?.messages?.loading || 'Loading messages...'}</span>
               <div className="space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex space-x-3">
@@ -217,10 +220,10 @@ export function ChatInterface({
             disabled={!isConnected || hasError}
             placeholder={
               !isConnected 
-                ? "Connecting to chat..." 
+                ? (chatT?.input?.connectingPlaceholder || "Connecting to chat...")
                 : hasError 
-                ? "Connection error" 
-                : `Message ${roomName || roomId}...`
+                ? (chatT?.input?.errorPlaceholder || "Connection error")
+                : (chatT?.input?.messagePlaceholder || 'Message {room}...').replace('{room}', roomName || roomId)
             }
             rateLimitInfo={rateLimitInfo}
           />
@@ -232,18 +235,21 @@ export function ChatInterface({
 
 // Error fallback component
 function ChatErrorFallback({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.messages;
+  
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
       <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-        Chat Error
+        {chatT?.chatError || 'Chat Error'}
       </h3>
       <p className="text-gray-600 dark:text-gray-400 mb-4">
-        Something went wrong with the chat. Please try again.
+        {chatT?.chatErrorDesc || 'Something went wrong with the chat. Please try again.'}
       </p>
       <Button onClick={onRetry} variant="outline">
         <RefreshCw className="h-4 w-4 mr-2" />
-        Retry
+        {chatT?.retry || 'Retry'}
       </Button>
     </div>
   );

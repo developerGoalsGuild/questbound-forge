@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { 
@@ -50,6 +51,9 @@ export function ChatHeader({
   onMembers,
   className = ''
 }: ChatHeaderProps) {
+  const { t } = useTranslation();
+  const chatT = (t as any)?.chat?.header;
+
   const getRoomIcon = () => {
     if (roomType === 'guild') {
       return <Shield className="h-4 w-4" />;
@@ -61,10 +65,9 @@ export function ChatHeader({
     // Prioritize passed roomName, but also handle empty strings
     if (roomName && roomName.trim()) return roomName;
     if (roomType === 'guild') {
-      // For guild rooms, show "Guild Hall" instead of the raw roomId
-      return 'Guild Hall'; // TODO: Localize this
+      return chatT?.guildHall || 'Guild Hall';
     }
-    return `Room: ${roomId}`;
+    return `${chatT?.roomPrefix || 'Room:'} ${roomId}`;
   };
 
   return (
@@ -87,7 +90,7 @@ export function ChatHeader({
 
         {/* Room type badge */}
         <Badge variant={roomType === 'guild' ? 'default' : 'secondary'}>
-          {roomType === 'guild' ? 'Guild' : 'General'}
+          {roomType === 'guild' ? (chatT?.guild || 'Guild') : (chatT?.general || 'General')}
         </Badge>
 
         {/* Connection status */}
@@ -98,7 +101,7 @@ export function ChatHeader({
             <WifiOff className="h-4 w-4 text-red-500" />
           )}
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected ? (chatT?.connected || 'Connected') : (chatT?.disconnected || 'Disconnected')}
           </span>
         </div>
       </div>
@@ -120,7 +123,7 @@ export function ChatHeader({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Retry connection</p>
+                <p>{chatT?.retryConnection || 'Retry connection'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -141,7 +144,7 @@ export function ChatHeader({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>View members</p>
+                <p>{chatT?.viewMembers || 'View members'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -161,16 +164,16 @@ export function ChatHeader({
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={onSettings}>
               <Settings className="h-4 w-4 mr-2" />
-              Room settings
+              {chatT?.roomSettings || 'Room settings'}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onMembers}>
               <Users className="h-4 w-4 mr-2" />
-              View members
+              {chatT?.viewMembers || 'View members'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onRetry}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry connection
+              {chatT?.retryConnection || 'Retry connection'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

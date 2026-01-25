@@ -40,6 +40,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { guildAPI, GuildQuest, GuildQuestCreateInput } from '@/lib/api/guild';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -77,6 +78,10 @@ export const GuildQuestsTab: React.FC<GuildQuestsTabProps> = ({
   const validLanguage = (language === 'en' || language === 'es' || language === 'fr') ? language : 'en';
   const translations = getGuildTranslations(validLanguage);
   const t = translations.quests;
+
+  // Date locale mapping
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[validLanguage] || enUS;
 
   // Fetch all guild quests (no status filter) with pagination
   const { data, isLoading, error, refetch } = useQuery({
@@ -261,11 +266,11 @@ export const GuildQuestsTab: React.FC<GuildQuestsTabProps> = ({
                 quest.status === 'completed' && 'bg-green-500 hover:bg-green-600 text-white',
                 quest.status === 'failed' && 'bg-red-500 hover:bg-red-600 text-white'
               )}>
-                {quest.status === 'completed' ? 'Completed' : 
-                 quest.status === 'failed' ? 'Failed' : 
-                 quest.status === 'active' ? 'Active' :
-                 quest.status === 'draft' ? 'Draft' :
-                 quest.status === 'archived' ? 'Archived' : quest.status}
+                {quest.status === 'completed' ? (t.status?.completed || 'Completed') : 
+                 quest.status === 'failed' ? (t.status?.failed || 'Failed') : 
+                 quest.status === 'active' ? (t.status?.active || 'Active') :
+                 quest.status === 'draft' ? (t.status?.draft || 'Draft') :
+                 quest.status === 'archived' ? (t.status?.archived || 'Archived') : quest.status}
               </Badge>
               <div className="flex gap-1">
                 {!canManage && (
@@ -426,7 +431,7 @@ export const GuildQuestsTab: React.FC<GuildQuestsTabProps> = ({
             {quest.deadline && (
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {formatDistanceToNow(new Date(quest.deadline), { addSuffix: true })}
+                {formatDistanceToNow(new Date(quest.deadline), { addSuffix: true, locale: dateLocale })}
               </div>
             )}
             {quest.createdByNickname && (
@@ -453,21 +458,22 @@ export const GuildQuestsTab: React.FC<GuildQuestsTabProps> = ({
     const goalsReached = areGoalsReached(questToFinish);
     const willComplete = goalsReached;
     const willFail = !goalsReached;
+    const finishDialog = t.finishDialog;
 
     return (
       <Dialog open={!!finishConfirmOpen} onOpenChange={() => setFinishConfirmOpen(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Finish Quest</DialogTitle>
+            <DialogTitle>{finishDialog?.title || 'Finish Quest'}</DialogTitle>
             <DialogDescription>
               {willFail && (
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-yellow-800">Warning: Goals Not Reached</p>
+                      <p className="font-semibold text-yellow-800">{finishDialog?.warningTitle || 'Warning: Goals Not Reached'}</p>
                       <p className="text-sm text-yellow-700 mt-1">
-                        This quest will be marked as <strong>Failed</strong>. No points will be awarded and it will not count toward guild ranking.
+                        {finishDialog?.warningMessage || 'This quest will be marked as Failed. No points will be awarded and it will not count toward guild ranking.'}
                       </p>
                     </div>
                   </div>
@@ -478,22 +484,22 @@ export const GuildQuestsTab: React.FC<GuildQuestsTabProps> = ({
                   <div className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-green-800">Goals Reached</p>
+                      <p className="font-semibold text-green-800">{finishDialog?.successTitle || 'Goals Reached'}</p>
                       <p className="text-sm text-green-700 mt-1">
-                        This quest will be marked as <strong>Completed</strong>. Points will be awarded and it will count toward guild ranking.
+                        {finishDialog?.successMessage || 'This quest will be marked as Completed. Points will be awarded and it will count toward guild ranking.'}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
               <p className="mt-4 text-sm text-gray-600">
-                Are you sure you want to finish this quest? This action cannot be undone.
+                {finishDialog?.confirmMessage || 'Are you sure you want to finish this quest? This action cannot be undone.'}
               </p>
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={cancelFinish}>
-              Cancel
+              {finishDialog?.cancel || 'Cancel'}
             </Button>
             <Button 
               variant={willFail ? 'destructive' : 'default'}
@@ -503,10 +509,10 @@ export const GuildQuestsTab: React.FC<GuildQuestsTabProps> = ({
               {finishMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Finishing...
+                  {finishDialog?.finishing || 'Finishing...'}
                 </>
               ) : (
-                'Finish Quest'
+                finishDialog?.confirm || 'Finish Quest'
               )}
             </Button>
           </div>

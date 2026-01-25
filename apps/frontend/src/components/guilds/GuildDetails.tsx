@@ -44,6 +44,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es, fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { guildAPI, Guild, GuildMember } from '@/lib/api/guild';
 import { getGuildTranslations } from '@/i18n/guild';
@@ -330,11 +331,15 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       .slice(0, 2);
   };
 
+  // Locale map for date-fns
+  const dateLocales: Record<string, typeof enUS> = { en: enUS, es, fr };
+  const dateLocale = dateLocales[language] || enUS;
+
   const formatDate = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale: dateLocale });
     } catch {
-      return 'Unknown';
+      return translations.analytics?.never || 'Unknown';
     }
   };
 
@@ -404,8 +409,8 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
               )}
               
               <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span>Created {formatDate(guild.created_at)}</span>
-                <span>by {guild.owner_nickname || guild.owner_username || guild.created_by}</span>
+                <span>{translations.details.overview?.created || 'Created'} {formatDate(guild.created_at)}</span>
+                <span>{translations.details.overview?.createdBy || 'by'} {guild.owner_nickname || guild.owner_username || guild.created_by}</span>
               </div>
             </div>
           </div>
@@ -420,7 +425,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                   className="inline-flex items-center gap-2"
                 >
                   <Edit className="h-4 w-4" />
-                  Edit
+                  {translations.details.actions?.edit || 'Edit'}
                 </Button>
                 <Button
                   variant="outline"
@@ -429,7 +434,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                   className="inline-flex items-center gap-2 text-red-600 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
+                  {translations.details.actions?.delete || 'Delete'}
                 </Button>
               </>
             )}
@@ -455,7 +460,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                 className="inline-flex items-center gap-2"
               >
                 <Shield className="h-4 w-4" />
-                Request to Join
+                {translations.details.actions?.requestToJoin || 'Request to Join'}
               </Button>
             )}
 
@@ -517,7 +522,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       {/* Guild Avatar Display (Read-only) */}
       <Card>
         <CardHeader>
-          <CardTitle>Guild Avatar</CardTitle>
+          <CardTitle>{translations.details.avatar?.title || 'Guild Avatar'}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center">
@@ -531,7 +536,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           </div>
           {isOwner && (
             <p className="text-sm text-gray-500 text-center mt-2">
-              Click "Edit" to change the avatar
+              {translations.details.overview?.editAvatarHint || 'Click "Edit" to change the avatar'}
             </p>
           )}
         </CardContent>
@@ -543,22 +548,24 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       {/* Guild Rules/Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Guild Information</CardTitle>
+          <CardTitle>{translations.details.overview?.guildInfo || 'Guild Information'}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Visibility:</span>
+              <span className="text-gray-600">{translations.details.overview?.visibility || 'Visibility'}:</span>
               <span className="font-medium">
-                {guild.guild_type === 'public' ? 'Public' : 'Private'}
+                {guild.guild_type === 'public' 
+                  ? (translations.details.overview?.visibilityPublic || 'Public')
+                  : (translations.details.overview?.visibilityPrivate || 'Private')}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Created:</span>
+              <span className="text-gray-600">{translations.details.overview?.created || 'Created'}:</span>
               <span className="font-medium">{formatDate(guild.created_at)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Owner:</span>
+              <span className="text-gray-600">{translations.details.overview?.owner || 'Owner'}:</span>
               <span className="font-medium">{guild.owner_nickname || guild.owner_username || guild.created_by}</span>
             </div>
           </div>
@@ -605,9 +612,9 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                         {member.is_blocked && <Ban className="h-4 w-4 text-red-500" />}
                       </div>
                       <p className="text-sm text-gray-600">
-                        Joined {formatDate(member.joined_at)}
+                        {translations.members?.joined || 'Joined'} {formatDate(member.joined_at)}
                         {member.is_blocked && (
-                          <span className="text-red-500 ml-2">(Blocked from commenting)</span>
+                          <span className="text-red-500 ml-2">{translations.members?.blockedFromCommenting || '(Blocked from commenting)'}</span>
                         )}
                       </p>
                     </div>
@@ -648,7 +655,9 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                                 disabled={isLoading}
                               >
                                 <Shield className="h-4 w-4 mr-2" />
-                                {member.role === 'moderator' ? 'Remove Moderator' : 'Make Moderator'}
+                                {member.role === 'moderator' 
+                                  ? (translations.members.actions?.removeModerator || 'Remove Moderator') 
+                                  : (translations.members.actions?.assignModerator || 'Make Moderator')}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                             </>
@@ -664,12 +673,12 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                             {member.is_blocked ? (
                               <>
                                 <CheckCircle className="h-4 w-4 mr-2" />
-                                Unblock User
+                                {translations.members.actions?.unblockUser || 'Unblock User'}
                               </>
                             ) : (
                               <>
                                 <Ban className="h-4 w-4 mr-2" />
-                                Block User
+                                {translations.members.actions?.blockUser || 'Block User'}
                               </>
                             )}
                           </DropdownMenuItem>
@@ -679,7 +688,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                             className="text-red-600"
                           >
                             <UserX className="h-4 w-4 mr-2" />
-                            Remove from Guild
+                            {translations.members.actions?.removeFromGuild || 'Remove from Guild'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -722,7 +731,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              Loading Analytics...
+              {translations.analytics?.loading || 'Loading Analytics...'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -740,14 +749,14 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-500" />
-              Analytics Error
+              {translations.analytics?.error || 'Analytics Error'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Failed to load analytics data: {analyticsError}
+                {analyticsError}
               </AlertDescription>
             </Alert>
             <div className="mt-4">
@@ -758,7 +767,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                 className="flex items-center gap-2"
               >
                 <Loader2 className="h-4 w-4" />
-                Retry
+                {translations.analytics?.retry || 'Retry'}
               </Button>
             </div>
           </CardContent>
@@ -770,11 +779,11 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
       return (
         <Card>
           <CardHeader>
-            <CardTitle>Analytics</CardTitle>
+            <CardTitle>{translations.analytics?.title || 'Analytics'}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 text-center py-8">
-              No analytics data available for this guild.
+              {translations.analytics?.noData || 'No analytics data available for this guild.'}
             </p>
           </CardContent>
         </Card>
@@ -796,7 +805,7 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
         {/* Additional Analytics Controls */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Analytics Controls</CardTitle>
+            <CardTitle className="text-lg">{translations.analytics?.controls || 'Analytics Controls'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
@@ -807,12 +816,12 @@ export const GuildDetails: React.FC<GuildDetailsProps> = ({
                 className="flex items-center gap-2"
               >
                 <Loader2 className="h-4 w-4" />
-                Refresh Data
+                {translations.analytics?.refreshData || 'Refresh Data'}
               </Button>
               <div className="text-sm text-gray-600">
-                Last updated: {analyticsData.lastUpdated ? 
+                {translations.analytics?.lastUpdated || 'Last updated'}: {analyticsData.lastUpdated ? 
                   new Date(analyticsData.lastUpdated).toLocaleString() : 
-                  'Never'
+                  (translations.analytics?.never || 'Never')
                 }
               </div>
             </div>

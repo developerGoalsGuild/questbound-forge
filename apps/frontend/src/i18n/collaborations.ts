@@ -115,18 +115,35 @@ export interface CollaborationsTranslations {
   comments: {
     title: string;
     add: string;
+    addComment: string;
     reply: string;
     edit: string;
     delete: string;
+    react: string;
+    cancel: string;
+    submit: string;
+    update: string;
+    edited: string;
     placeholder: string;
     empty: string;
     beFirst: string;
     loading: string;
+    unknownTime: string;
+    deleteConfirm: string;
+    replyTo: string;
+    replies: string;
+    replySingular: string;
+    success: {
+      added: string;
+      deleted: string;
+      reacted: string;
+    };
     errors: {
       generic: string;
       createFailed: string;
       updateFailed: string;
       deleteFailed: string;
+      reactFailed: string;
     };
   };
   reactions: {
@@ -158,6 +175,37 @@ export interface CollaborationsTranslations {
       generic: string;
       acceptFailed: string;
       declineFailed: string;
+    };
+  };
+  myCollaborations: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    errorTitle: string;
+    errorDescription: string;
+    tryAgain: string;
+    filterByType: string;
+    all: string;
+    goals: string;
+    quests: string;
+    tasks: string;
+    noCollaborationsTitle: string;
+    noCollaborationsAll: string;
+    noCollaborationsType: string;
+    inviteHint: string;
+    joined: string;
+    owner: string;
+    collaborator: string;
+    view: string;
+    showing: string;
+    of: string;
+    collaborationsCount: string;
+    unknownDate: string;
+    resourceTypes: {
+      goal: string;
+      quest: string;
+      task: string;
+      resource: string;
     };
   };
 }
@@ -278,18 +326,35 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
     comments: {
       title: "Comments",
       add: "Add Comment",
+      addComment: "Add a comment...",
       reply: "Reply",
       edit: "Edit",
       delete: "Delete",
-      placeholder: "Write a comment... Use @ to mention someone",
+      react: "React",
+      cancel: "Cancel",
+      submit: "Comment",
+      update: "Update",
+      edited: "Edited",
+      placeholder: "Write a comment...",
       empty: "No comments yet",
-      beFirst: "Be the first to comment",
+      beFirst: "Be the first to share your thoughts!",
       loading: "Loading comments...",
+      unknownTime: "Unknown time",
+      deleteConfirm: "Are you sure you want to delete this comment?",
+      replyTo: "Reply to {username}...",
+      replies: "replies",
+      replySingular: "reply",
+      success: {
+        added: "Comment added",
+        deleted: "Comment deleted",
+        reacted: "Reaction added"
+      },
       errors: {
         generic: "Failed to load comments",
-        createFailed: "Failed to create comment",
+        createFailed: "Failed to add comment",
         updateFailed: "Failed to update comment",
-        deleteFailed: "Failed to delete comment"
+        deleteFailed: "Failed to delete comment",
+        reactFailed: "Failed to react to comment"
       }
     },
     reactions: {
@@ -321,6 +386,37 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
         generic: "Failed to load invitations",
         acceptFailed: "Failed to accept invitation",
         declineFailed: "Failed to decline invitation"
+      }
+    },
+    myCollaborations: {
+      title: "My Collaborations",
+      subtitle: "Quests and goals where you are collaborating with others",
+      loading: "Loading your collaborations...",
+      errorTitle: "Failed to Load Collaborations",
+      errorDescription: "There was an error loading your collaborations. Please try again.",
+      tryAgain: "Try Again",
+      filterByType: "Filter by type:",
+      all: "All",
+      goals: "Goals",
+      quests: "Quests",
+      tasks: "Tasks",
+      noCollaborationsTitle: "No Collaborations Found",
+      noCollaborationsAll: "You're not collaborating on any quests or goals yet.",
+      noCollaborationsType: "You're not collaborating on any {type}s yet.",
+      inviteHint: "Ask someone to invite you to collaborate on their quest or goal!",
+      joined: "Joined",
+      owner: "Owner",
+      collaborator: "Collaborator",
+      view: "View",
+      showing: "Showing",
+      of: "of",
+      collaborationsCount: "collaborations",
+      unknownDate: "Unknown date",
+      resourceTypes: {
+        goal: "Goal",
+        quest: "Quest",
+        task: "Task",
+        resource: "Resource"
       }
     }
   },
@@ -439,18 +535,35 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
     comments: {
       title: "Comentarios",
       add: "Agregar Comentario",
+      addComment: "Agregar un comentario...",
       reply: "Responder",
       edit: "Editar",
       delete: "Eliminar",
-      placeholder: "Escribe un comentario... Usa @ para mencionar a alguien",
+      react: "Reaccionar",
+      cancel: "Cancelar",
+      submit: "Comentar",
+      update: "Actualizar",
+      edited: "Editado",
+      placeholder: "Escribe un comentario...",
       empty: "Aún no hay comentarios",
-      beFirst: "Sé el primero en comentar",
+      beFirst: "¡Sé el primero en compartir tus pensamientos!",
       loading: "Cargando comentarios...",
+      unknownTime: "Tiempo desconocido",
+      deleteConfirm: "¿Estás seguro de que quieres eliminar este comentario?",
+      replyTo: "Responder a {username}...",
+      replies: "respuestas",
+      replySingular: "respuesta",
+      success: {
+        added: "Comentario agregado",
+        deleted: "Comentario eliminado",
+        reacted: "Reacción agregada"
+      },
       errors: {
         generic: "Error al cargar comentarios",
-        createFailed: "Error al crear comentario",
+        createFailed: "Error al agregar comentario",
         updateFailed: "Error al actualizar comentario",
-        deleteFailed: "Error al eliminar comentario"
+        deleteFailed: "Error al eliminar comentario",
+        reactFailed: "Error al reaccionar al comentario"
       }
     },
     reactions: {
@@ -482,6 +595,37 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
         generic: "Error al cargar invitaciones",
         acceptFailed: "Error al aceptar invitación",
         declineFailed: "Error al declinar invitación"
+      }
+    },
+    myCollaborations: {
+      title: "Mis Colaboraciones",
+      subtitle: "Misiones y objetivos donde estás colaborando con otros",
+      loading: "Cargando tus colaboraciones...",
+      errorTitle: "Error al Cargar Colaboraciones",
+      errorDescription: "Hubo un error al cargar tus colaboraciones. Por favor intenta de nuevo.",
+      tryAgain: "Intentar de Nuevo",
+      filterByType: "Filtrar por tipo:",
+      all: "Todos",
+      goals: "Objetivos",
+      quests: "Misiones",
+      tasks: "Tareas",
+      noCollaborationsTitle: "No Se Encontraron Colaboraciones",
+      noCollaborationsAll: "Aún no estás colaborando en ninguna misión u objetivo.",
+      noCollaborationsType: "Aún no estás colaborando en ningún/a {type}.",
+      inviteHint: "¡Pide a alguien que te invite a colaborar en su misión u objetivo!",
+      joined: "Unido",
+      owner: "Propietario",
+      collaborator: "Colaborador",
+      view: "Ver",
+      showing: "Mostrando",
+      of: "de",
+      collaborationsCount: "colaboraciones",
+      unknownDate: "Fecha desconocida",
+      resourceTypes: {
+        goal: "Objetivo",
+        quest: "Misión",
+        task: "Tarea",
+        resource: "Recurso"
       }
     }
   },
@@ -600,18 +744,35 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
     comments: {
       title: "Commentaires",
       add: "Ajouter un Commentaire",
+      addComment: "Ajouter un commentaire...",
       reply: "Répondre",
       edit: "Modifier",
       delete: "Supprimer",
-      placeholder: "Écrivez un commentaire... Utilisez @ pour mentionner quelqu'un",
+      react: "Réagir",
+      cancel: "Annuler",
+      submit: "Commenter",
+      update: "Mettre à jour",
+      edited: "Modifié",
+      placeholder: "Écrivez un commentaire...",
       empty: "Aucun commentaire pour le moment",
-      beFirst: "Soyez le premier à commenter",
+      beFirst: "Soyez le premier à partager vos pensées !",
       loading: "Chargement des commentaires...",
+      unknownTime: "Temps inconnu",
+      deleteConfirm: "Êtes-vous sûr de vouloir supprimer ce commentaire ?",
+      replyTo: "Répondre à {username}...",
+      replies: "réponses",
+      replySingular: "réponse",
+      success: {
+        added: "Commentaire ajouté",
+        deleted: "Commentaire supprimé",
+        reacted: "Réaction ajoutée"
+      },
       errors: {
         generic: "Échec du chargement des commentaires",
-        createFailed: "Échec de la création du commentaire",
+        createFailed: "Échec de l'ajout du commentaire",
         updateFailed: "Échec de la mise à jour du commentaire",
-        deleteFailed: "Échec de la suppression du commentaire"
+        deleteFailed: "Échec de la suppression du commentaire",
+        reactFailed: "Échec de la réaction au commentaire"
       }
     },
     reactions: {
@@ -643,6 +804,37 @@ export const collaborationsTranslations: Record<Language, CollaborationsTranslat
         generic: "Échec du chargement des invitations",
         acceptFailed: "Échec de l'acceptation de l'invitation",
         declineFailed: "Échec du refus de l'invitation"
+      }
+    },
+    myCollaborations: {
+      title: "Mes Collaborations",
+      subtitle: "Quêtes et objectifs où vous collaborez avec d'autres",
+      loading: "Chargement de vos collaborations...",
+      errorTitle: "Échec du Chargement des Collaborations",
+      errorDescription: "Une erreur s'est produite lors du chargement de vos collaborations. Veuillez réessayer.",
+      tryAgain: "Réessayer",
+      filterByType: "Filtrer par type :",
+      all: "Tous",
+      goals: "Objectifs",
+      quests: "Quêtes",
+      tasks: "Tâches",
+      noCollaborationsTitle: "Aucune Collaboration Trouvée",
+      noCollaborationsAll: "Vous ne collaborez sur aucune quête ou objectif pour l'instant.",
+      noCollaborationsType: "Vous ne collaborez sur aucun/e {type} pour l'instant.",
+      inviteHint: "Demandez à quelqu'un de vous inviter à collaborer sur sa quête ou son objectif !",
+      joined: "Rejoint",
+      owner: "Propriétaire",
+      collaborator: "Collaborateur",
+      view: "Voir",
+      showing: "Affichage de",
+      of: "sur",
+      collaborationsCount: "collaborations",
+      unknownDate: "Date inconnue",
+      resourceTypes: {
+        goal: "Objectif",
+        quest: "Quête",
+        task: "Tâche",
+        resource: "Ressource"
       }
     }
   }
