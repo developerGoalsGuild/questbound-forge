@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Target, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { ActiveGoalsBadgeProps } from '@/models/header';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
+import { headerTranslations } from '@/i18n/header';
 
 const ActiveGoalsBadge: React.FC<ActiveGoalsBadgeProps> = ({
   count,
@@ -12,6 +14,8 @@ const ActiveGoalsBadge: React.FC<ActiveGoalsBadgeProps> = ({
   onRetry,
   className = '',
 }) => {
+  const { language } = useTranslation();
+  const t = headerTranslations[language] || headerTranslations.en;
   const getDisplayCount = () => {
     if (isLoading) return null;
     if (hasError) return '?';
@@ -53,14 +57,16 @@ const ActiveGoalsBadge: React.FC<ActiveGoalsBadgeProps> = ({
           count === 0 && 'bg-gray-500/20 text-gray-200 border-gray-400'
         )}
         role="status"
-        aria-label={`${displayCount} active goals`}
+        aria-label={t.accessibility?.goalsCountLabel || `${displayCount} active goals`}
       >
         {getIcon()}
         <span className="font-cinzel font-semibold">
           {displayCount !== null ? displayCount : '...'}
         </span>
         <span className="hidden sm:inline text-xs opacity-75">
-          {isLoading ? 'Loading' : hasError ? 'Error' : 'Active'}
+          {isLoading ? t.goalsCount?.loading?.replace('...', '') || 'Loading' 
+            : hasError ? t.goalsCount?.error?.split(' ')[0] || 'Error' 
+            : t.goalsCount?.active?.split(' ')[0] || 'Active'}
         </span>
       </Badge>
 
@@ -71,7 +77,7 @@ const ActiveGoalsBadge: React.FC<ActiveGoalsBadgeProps> = ({
           size="sm"
           onClick={onRetry}
           className="h-6 w-6 p-0 text-white hover:text-white hover:bg-white/20"
-          aria-label="Retry loading goals count"
+          aria-label={t.goalsCount?.retry || 'Retry loading goals count'}
         >
           <RefreshCw className="h-3 w-3" />
         </Button>

@@ -28,6 +28,12 @@ interface DualProgressBarProps {
     achieved?: string;
     upcoming?: string;
     noGoalData?: string;
+    milestoneNames?: {
+      firstQuarter?: string;
+      halfwayPoint?: string;
+      threeQuarters?: string;
+      complete?: string;
+    };
   };
 }
 
@@ -136,16 +142,33 @@ const DualProgressBar: React.FC<DualProgressBarProps> = ({
         <div className="space-y-2">
           <div className="text-sm font-medium">{translations?.milestones || 'Milestones'}</div>
           <div className="space-y-1">
-            {goal.milestones.map((milestone, index) => (
-              <div key={index} className="flex items-center justify-between text-xs">
-                <span className={milestone.achieved ? 'text-green-600' : 'text-muted-foreground'}>
-                  {formatMilestoneText(milestone)}
-                </span>
-                <span className="text-muted-foreground">
-                  {milestone.achieved ? (translations?.achieved || 'Achieved') : (translations?.upcoming || 'Upcoming')}
-                </span>
-              </div>
-            ))}
+            {goal.milestones.map((milestone, index) => {
+              // Translate milestone name if translation is available
+              const getMilestoneName = (name: string) => {
+                const nameMap: Record<string, string | undefined> = {
+                  'First Quarter': translations?.milestoneNames?.firstQuarter,
+                  'Halfway Point': translations?.milestoneNames?.halfwayPoint,
+                  'Three Quarters': translations?.milestoneNames?.threeQuarters,
+                  'Complete': translations?.milestoneNames?.complete,
+                };
+                return nameMap[name] || name;
+              };
+              const translatedName = getMilestoneName(milestone.name);
+              const displayText = milestone.achieved 
+                ? `✓ ${translatedName} (${milestone.percentage}%)`
+                : `${translatedName} (${milestone.percentage}%)`;
+              
+              return (
+                <div key={index} className="flex items-center justify-between text-xs">
+                  <span className={milestone.achieved ? 'text-green-600' : 'text-muted-foreground'}>
+                    {displayText}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {milestone.achieved ? (translations?.achieved || 'Achieved') : (translations?.upcoming || 'Upcoming')}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -55,10 +55,16 @@ export interface GoalDashboardTranslations {
     timeProgress: string;
     completedTasks: string;
     totalTasks: string;
+    tasks: string;
+    daysLeft: string;
     milestones: {
       title: string;
       achieved: string;
       upcoming: string;
+      firstQuarter: string;
+      halfwayPoint: string;
+      threeQuarters: string;
+      complete: string;
     };
   };
 }
@@ -119,10 +125,16 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
       timeProgress: 'Time Progress',
       completedTasks: 'Completed Tasks',
       totalTasks: 'Total Tasks',
+      tasks: 'tasks',
+      daysLeft: 'days left',
       milestones: {
         title: 'Milestones',
         achieved: 'Achieved',
         upcoming: 'Upcoming',
+        firstQuarter: 'First Quarter',
+        halfwayPoint: 'Halfway Point',
+        threeQuarters: 'Three Quarters',
+        complete: 'Complete',
       },
     },
   },
@@ -181,10 +193,16 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
       timeProgress: 'Progreso de Tiempo',
       completedTasks: 'Tareas Completadas',
       totalTasks: 'Total de Tareas',
+      tasks: 'tareas',
+      daysLeft: 'días restantes',
       milestones: {
         title: 'Hitos',
-        achieved: 'Logrados',
-        upcoming: 'Próximos',
+        achieved: 'Logrado',
+        upcoming: 'Próximo',
+        firstQuarter: 'Primer Cuarto',
+        halfwayPoint: 'Punto Medio',
+        threeQuarters: 'Tres Cuartos',
+        complete: 'Completo',
       },
     },
   },
@@ -243,10 +261,16 @@ export const goalDashboardTranslations: Record<Language, GoalDashboardTranslatio
       timeProgress: 'Progrès Temporel',
       completedTasks: 'Tâches Terminées',
       totalTasks: 'Total des Tâches',
+      tasks: 'tâches',
+      daysLeft: 'jours restants',
       milestones: {
         title: 'Jalons',
-        achieved: 'Atteints',
+        achieved: 'Atteint',
         upcoming: 'À Venir',
+        firstQuarter: 'Premier Quart',
+        halfwayPoint: 'Mi-Parcours',
+        threeQuarters: 'Trois Quarts',
+        complete: 'Complet',
       },
     },
   },

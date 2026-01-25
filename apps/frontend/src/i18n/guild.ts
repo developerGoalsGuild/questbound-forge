@@ -372,11 +372,17 @@ export interface GuildTranslations {
   };
   rankings: {
     title: string;
+    subtitle: string;
     score: string;
     loading: string;
     errorTitle: string;
     tryAgain: string;
     searchPlaceholder: string;
+    backToGuilds: string;
+    refresh: string;
+    updated: string;
+    topPerformers: string;
+    allRankings: string;
     filters: {
       all: string;
       public: string;
@@ -393,6 +399,10 @@ export interface GuildTranslations {
     stats: {
       members: string;
       pts: string;
+      totalGuilds: string;
+      totalMembers: string;
+      totalScore: string;
+      avgActivity: string;
     };
     empty: {
       title: string;
@@ -1090,12 +1100,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       lastActivity: 'Last activity',
     },
     rankings: {
-      title: 'Rankings',
+      title: 'Guild Rankings',
+      subtitle: 'Discover the top-performing guilds in the community',
       score: 'Score',
       loading: 'Loading Rankings...',
       errorTitle: 'Error Loading Rankings',
       tryAgain: 'Try Again',
       searchPlaceholder: 'Search guilds...',
+      backToGuilds: 'Back to Guilds',
+      refresh: 'Refresh',
+      updated: 'Updated',
+      topPerformers: 'Top Performers',
+      allRankings: 'All Guild Rankings',
       filters: {
         all: 'All Guilds',
         public: 'Public',
@@ -1112,6 +1128,10 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       stats: {
         members: 'members',
         pts: 'pts',
+        totalGuilds: 'Total Guilds',
+        totalMembers: 'Total Members',
+        totalScore: 'Total Score',
+        avgActivity: 'Avg Activity',
       },
       empty: {
         title: 'No guilds found',
@@ -1852,12 +1872,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       lastActivity: 'Última actividad',
     },
     rankings: {
-      title: 'Clasificaciones',
+      title: 'Clasificaciones de Gremios',
+      subtitle: 'Descubre los gremios con mejor desempeño en la comunidad',
       score: 'Puntuación',
       loading: 'Cargando Clasificaciones...',
       errorTitle: 'Error al Cargar Clasificaciones',
       tryAgain: 'Intentar de Nuevo',
       searchPlaceholder: 'Buscar gremios...',
+      backToGuilds: 'Volver a Gremios',
+      refresh: 'Actualizar',
+      updated: 'Actualizado',
+      topPerformers: 'Mejores Rendimientos',
+      allRankings: 'Todas las Clasificaciones',
       filters: {
         all: 'Todos los Gremios',
         public: 'Públicos',
@@ -1874,6 +1900,10 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       stats: {
         members: 'miembros',
         pts: 'pts',
+        totalGuilds: 'Total de Gremios',
+        totalMembers: 'Total de Miembros',
+        totalScore: 'Puntuación Total',
+        avgActivity: 'Actividad Prom.',
       },
       empty: {
         title: 'No se encontraron gremios',
@@ -2573,12 +2603,18 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       memberDemoted: 'Membre rétrogradé avec succès',
     },
     rankings: {
-      title: 'Classements',
+      title: 'Classements des Guildes',
+      subtitle: 'Découvrez les guildes les plus performantes de la communauté',
       score: 'Score',
       loading: 'Chargement des Classements...',
       errorTitle: 'Erreur de Chargement des Classements',
       tryAgain: 'Réessayer',
       searchPlaceholder: 'Rechercher des guildes...',
+      backToGuilds: 'Retour aux Guildes',
+      refresh: 'Actualiser',
+      updated: 'Mis à jour',
+      topPerformers: 'Meilleures Performances',
+      allRankings: 'Tous les Classements',
       filters: {
         all: 'Toutes les Guildes',
         public: 'Publiques',
@@ -2595,6 +2631,10 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       stats: {
         members: 'membres',
         pts: 'pts',
+        totalGuilds: 'Total Guildes',
+        totalMembers: 'Total Membres',
+        totalScore: 'Score Total',
+        avgActivity: 'Activité Moy.',
       },
       empty: {
         title: 'Aucune guilde trouvée',

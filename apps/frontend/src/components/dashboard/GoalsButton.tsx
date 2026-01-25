@@ -292,6 +292,21 @@ const GoalsButton: React.FC = () => {
                             showMilestones={true}
                             showLabels={true}
                             className="mb-3"
+                            translations={{
+                              overallProgress: goalDashboardTranslations?.progressMetrics?.overall,
+                              taskProgress: goalDashboardTranslations?.progressMetrics?.taskProgress,
+                              timeProgress: goalDashboardTranslations?.progressMetrics?.timeProgress,
+                              tasks: goalDashboardTranslations?.progressMetrics?.tasks,
+                              milestones: goalDashboardTranslations?.progressMetrics?.milestones?.title,
+                              achieved: goalDashboardTranslations?.progressMetrics?.milestones?.achieved,
+                              upcoming: goalDashboardTranslations?.progressMetrics?.milestones?.upcoming,
+                              milestoneNames: {
+                                firstQuarter: goalDashboardTranslations?.progressMetrics?.milestones?.firstQuarter,
+                                halfwayPoint: goalDashboardTranslations?.progressMetrics?.milestones?.halfwayPoint,
+                                threeQuarters: goalDashboardTranslations?.progressMetrics?.milestones?.threeQuarters,
+                                complete: goalDashboardTranslations?.progressMetrics?.milestones?.complete,
+                              },
+                            }}
                           />
 
                           {/* Deadline Information */}
@@ -308,10 +323,10 @@ const GoalsButton: React.FC = () => {
                             </span>
                             <span>
                               {progress.daysRemaining > 0 
-                                ? `${progress.daysRemaining} days left`
+                                ? `${progress.daysRemaining} ${goalDashboardTranslations?.progressMetrics?.daysLeft || 'days left'}`
                                 : progress.isOverdue 
-                                  ? `${Math.abs(progress.daysRemaining)} days overdue`
-                                  : 'No deadline'
+                                  ? `${Math.abs(progress.daysRemaining)} ${goalDashboardTranslations?.goalsList?.progress?.overdue?.toLowerCase() || 'days overdue'}`
+                                  : goalDashboardTranslations?.goalsList?.noDeadline || 'No deadline'
                               }
                             </span>
                           </div>

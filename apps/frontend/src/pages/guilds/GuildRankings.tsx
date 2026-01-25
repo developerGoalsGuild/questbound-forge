@@ -14,6 +14,7 @@ import { GuildRankingData } from '@/components/guilds/GuildRankingCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from '@/hooks/useTranslation';
 import { 
   Trophy, 
   Users, 
@@ -27,6 +28,8 @@ import {
 
 export const GuildRankings: React.FC = () => {
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
+  const rankingsT = (t as any)?.guild?.rankings;
   const { rankings, loading, error, refresh, lastUpdated } = useGuildRankings({
     autoRefresh: true,
     refreshInterval: 300000, // 5 minutes
@@ -73,16 +76,16 @@ export const GuildRankings: React.FC = () => {
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Guilds
+            {rankingsT?.backToGuilds || 'Back to Guilds'}
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Trophy className="h-8 w-8 text-yellow-500" />
-              Guild Rankings
+              {rankingsT?.title || 'Guild Rankings'}
               <GuildScoreInfo variant="icon" size="lg" />
             </h1>
             <p className="text-gray-600 mt-1">
-              Discover the top-performing guilds in the community
+              {rankingsT?.subtitle || 'Discover the top-performing guilds in the community'}
             </p>
           </div>
         </div>
@@ -96,11 +99,11 @@ export const GuildRankings: React.FC = () => {
             className="flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {rankingsT?.refresh || 'Refresh'}
           </Button>
           {lastUpdated && (
             <span className="text-sm text-gray-500">
-              Updated {lastUpdated.toLocaleTimeString()}
+              {rankingsT?.updated || 'Updated'} {lastUpdated.toLocaleTimeString()}
             </span>
           )}
         </div>
@@ -115,7 +118,7 @@ export const GuildRankings: React.FC = () => {
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Guilds</p>
+                <p className="text-sm font-medium text-gray-600">{rankingsT?.stats?.totalGuilds || 'Total Guilds'}</p>
                 <p className="text-2xl font-bold text-gray-900">{totalGuilds}</p>
               </div>
             </div>
@@ -129,7 +132,7 @@ export const GuildRankings: React.FC = () => {
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Members</p>
+                <p className="text-sm font-medium text-gray-600">{rankingsT?.stats?.totalMembers || 'Total Members'}</p>
                 <p className="text-2xl font-bold text-gray-900">{totalMembers.toLocaleString()}</p>
               </div>
             </div>
@@ -143,7 +146,7 @@ export const GuildRankings: React.FC = () => {
                 <Zap className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Score</p>
+                <p className="text-sm font-medium text-gray-600">{rankingsT?.stats?.totalScore || 'Total Score'}</p>
                 <p className="text-2xl font-bold text-gray-900">{totalScore.toLocaleString()}</p>
               </div>
             </div>
@@ -157,7 +160,7 @@ export const GuildRankings: React.FC = () => {
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Avg Activity</p>
+                <p className="text-sm font-medium text-gray-600">{rankingsT?.stats?.avgActivity || 'Avg Activity'}</p>
                 <p className="text-2xl font-bold text-gray-900">{avgActivity}%</p>
               </div>
             </div>
@@ -171,7 +174,7 @@ export const GuildRankings: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="h-5 w-5 text-yellow-500" />
-              Top Performers
+              {rankingsT?.topPerformers || 'Top Performers'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -188,17 +191,17 @@ export const GuildRankings: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">{guild.name}</h3>
-                      <p className="text-sm text-gray-600">{guild.memberCount} members</p>
+                      <p className="text-sm text-gray-600">{guild.memberCount} {rankingsT?.stats?.members || 'members'}</p>
                     </div>
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Score:</span>
+                      <span className="text-gray-600">{rankingsT?.score || 'Score'}:</span>
                       <span className="font-medium">{guild.totalScore.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Activity:</span>
+                      <span className="text-gray-600">{rankingsT?.sort?.activity || 'Activity'}:</span>
                       <span className="font-medium">{guild.activityScore}%</span>
                     </div>
                     <div className="flex gap-1">
@@ -221,7 +224,7 @@ export const GuildRankings: React.FC = () => {
         guilds={rankings}
         loading={loading}
         error={error}
-        title="All Guild Rankings"
+        title={rankingsT?.allRankings || 'All Guild Rankings'}
         showSearch={true}
         showFilters={true}
         showStats={false}
