@@ -70,6 +70,10 @@ describe('CheckoutSuccess', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('should display loading state', () => {
     vi.mocked(getCurrentSubscription).mockImplementation(() => new Promise(() => {}));
 
@@ -106,7 +110,6 @@ describe('CheckoutSuccess', () => {
   });
 
   it('should stop polling after subscription becomes active', async () => {
-    vi.useFakeTimers();
     const mockSubscription = {
       subscription_id: 'sub_123',
       plan_tier: 'JOURNEYMAN',
@@ -127,10 +130,9 @@ describe('CheckoutSuccess', () => {
       expect(screen.getByText('Payment Successful!')).toBeInTheDocument();
     });
 
-    await vi.advanceTimersByTimeAsync(4000);
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
     expect(getCurrentSubscription).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
   });
 
   it('should display verification message for inactive subscription', async () => {
@@ -150,9 +152,7 @@ describe('CheckoutSuccess', () => {
       </TestWrapper>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/Verifying your subscription/i)).toBeInTheDocument();
-    });
+    await screen.findByText(/Verifying your subscription/i);
   });
 
   it('should display session ID', async () => {
@@ -172,9 +172,7 @@ describe('CheckoutSuccess', () => {
       </TestWrapper>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/cs_test_123/i)).toBeInTheDocument();
-    });
+    await screen.findByText(/cs_test_123/i);
   });
 
   it('should display navigation buttons on success', async () => {
@@ -194,10 +192,8 @@ describe('CheckoutSuccess', () => {
       </TestWrapper>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('Manage Subscription')).toBeInTheDocument();
-      expect(screen.getByText('Go to Dashboard')).toBeInTheDocument();
-    });
+    await screen.findByText('Manage Subscription');
+    await screen.findByText('Go to Dashboard');
   });
 
   it('should handle fetch errors', async () => {

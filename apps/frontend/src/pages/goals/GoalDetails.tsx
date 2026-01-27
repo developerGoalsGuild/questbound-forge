@@ -291,7 +291,9 @@ const GoalDetails: React.FC = () => {
         title: task.title,
         dueAt: task.dueAt,
         tags: task.tags,
-        status: task.status
+        status: task.status,
+        completionNote: task.completionNote,
+        verificationEvidenceIds: task.verificationEvidenceIds
       });
 
       toast({
@@ -816,6 +818,7 @@ const GoalDetails: React.FC = () => {
             onUpdateTask={handleTaskUpdate}
             onDeleteTask={handleTaskDelete}
             onCreateTask={handleTaskCreate}
+            onTasksChange={loadGoalTasks}
             canEdit={goal.canEdit || false}
             canDelete={goal.canDelete || false}
             canCreate={goal.canAddTasks || false}

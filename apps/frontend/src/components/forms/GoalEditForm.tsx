@@ -309,7 +309,9 @@ const GoalEditForm: React.FC<GoalEditFormProps> = ({
         dueAt: task.dueAt,
         tags: task.tags,
         status: task.status,
-        goalId: task.goalId
+        goalId: task.goalId,
+        completionNote: task.completionNote,
+        verificationEvidenceIds: task.verificationEvidenceIds
       });
       await loadGoalTasks();
       toast({

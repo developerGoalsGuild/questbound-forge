@@ -63,6 +63,10 @@ export interface GoalsTranslations {
     saveTask: string;
     savingTask: string;
     cancelTask: string;
+    submitVerification: string;
+    approveVerification: string;
+    rejectVerification: string;
+    flagVerification: string;
   };
   inspiration: { title: string };
   suggestions: { title: string };
@@ -149,6 +153,12 @@ export interface GoalsTranslations {
     taskCreateFailed: string;
     taskUpdateFailed: string;
     taskDeleteFailed: string;
+    verificationSubmitted: string;
+    verificationSubmitFailed: string;
+    verificationReviewed: string;
+    verificationReviewFailed: string;
+    verificationFlagged: string;
+    verificationFlagFailed: string;
   };
   validation: {
     titleRequired: string;
@@ -281,6 +291,10 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       saveTask: 'Save',
       savingTask: 'Saving...',
       cancelTask: 'Cancel',
+      submitVerification: 'Submit for review',
+      approveVerification: 'Approve',
+      rejectVerification: 'Reject',
+      flagVerification: 'Flag',
     },
     inspiration: { title: 'Inspirational Image' },
     suggestions: { title: 'AI Suggestions' },
@@ -334,6 +348,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskCreateFailed: 'Create Failed',
       taskUpdateFailed: 'Update Failed',
       taskDeleteFailed: 'Delete Failed',
+      verificationSubmitted: 'Verification submitted',
+      verificationSubmitFailed: 'Verification submission failed',
+      verificationReviewed: 'Verification updated',
+      verificationReviewFailed: 'Verification review failed',
+      verificationFlagged: 'Verification flagged',
+      verificationFlagFailed: 'Verification flag failed',
     },
     validation: {
       titleRequired: 'Title is required',
@@ -497,6 +517,10 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       saveTask: 'Guardar',
       savingTask: 'Guardando...',
       cancelTask: 'Cancelar',
+      submitVerification: 'Enviar a revisión',
+      approveVerification: 'Aprobar',
+      rejectVerification: 'Rechazar',
+      flagVerification: 'Marcar',
     },
     inspiration: { title: 'Imagen inspiradora' },
     suggestions: { title: 'Sugerencias de IA' },
@@ -550,6 +574,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskCreateFailed: 'Error al Crear',
       taskUpdateFailed: 'Error al Actualizar',
       taskDeleteFailed: 'Error al Eliminar',
+      verificationSubmitted: 'Verificación enviada',
+      verificationSubmitFailed: 'Error al enviar la verificación',
+      verificationReviewed: 'Verificación actualizada',
+      verificationReviewFailed: 'Error al revisar la verificación',
+      verificationFlagged: 'Verificación marcada',
+      verificationFlagFailed: 'Error al marcar la verificación',
     },
     validation: {
       titleRequired: 'El título es obligatorio',
@@ -713,6 +743,10 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       saveTask: 'Enregistrer',
       savingTask: 'Enregistrement...',
       cancelTask: 'Annuler',
+      submitVerification: 'Soumettre pour validation',
+      approveVerification: 'Approuver',
+      rejectVerification: 'Rejeter',
+      flagVerification: 'Signaler',
     },
     inspiration: { title: 'Image inspirante' },
     suggestions: { title: 'Suggestions IA' },
@@ -766,6 +800,12 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
       taskCreateFailed: 'Échec de Création',
       taskUpdateFailed: 'Échec de Mise à jour',
       taskDeleteFailed: 'Échec de Suppression',
+      verificationSubmitted: 'Validation envoyée',
+      verificationSubmitFailed: 'Échec de l’envoi de validation',
+      verificationReviewed: 'Validation mise à jour',
+      verificationReviewFailed: 'Échec de la validation',
+      verificationFlagged: 'Validation signalée',
+      verificationFlagFailed: 'Échec du signalement',
     },
     validation: {
       titleRequired: 'Le titre est requis',

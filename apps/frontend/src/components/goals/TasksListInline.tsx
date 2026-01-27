@@ -27,7 +27,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { type TaskResponse } from '@/lib/apiTask';
+import { type TaskResponse, submitTaskVerification, reviewTaskVerification, flagTaskVerification } from '@/lib/apiTask';
 import { logger } from '@/lib/logger';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateTaskTitle, validateTaskDueDate, validateTaskStatus, validateTaskTag, validateTaskCompletionNote } from '@/lib/validation/taskValidation';
@@ -44,6 +44,7 @@ interface TasksListInlineProps {
     tags: string[];
     status: string;
   }) => Promise<void>;
+  onTasksChange?: () => void;
   canEdit?: boolean;
   canDelete?: boolean;
   canCreate?: boolean;
@@ -59,6 +60,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
   onUpdateTask,
   onDeleteTask,
   onCreateTask,
+  onTasksChange,
   canEdit = true,
   canDelete = true,
   canCreate = true
@@ -87,6 +89,12 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const refreshTasks = async () => {
+    if (onTasksChange) {
+      await onTasksChange();
+    }
+  };
 
   const formatDate = (timestamp: number | null | undefined): string => {
     if (!timestamp) return goalsTranslations?.tasks?.noDate || 'No date';
@@ -210,6 +218,86 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
       });
     } finally {
       setLoadingStates(prev => ({ ...prev, [`update-${taskId}`]: false }));
+    }
+  };
+
+  const handleSubmitVerification = async (task: TaskResponse) => {
+    const completionNote = task.completionNote?.trim();
+    if (!completionNote || completionNote.length < 10) {
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: goalsTranslations?.validation?.taskCompletionNoteRequired || 'Completion note is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setLoadingStates(prev => ({ ...prev, [`verify-${task.id}`]: true }));
+    try {
+      await submitTaskVerification(task.id, {
+        completionNote,
+        evidenceType: 'text',
+        evidencePayload: { note: completionNote }
+      });
+      await refreshTasks();
+      toast({
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.verificationSubmitted || 'Verification submitted',
+        variant: 'default'
+      });
+    } catch (error: any) {
+      logger.error('Error submitting verification', { taskId: task.id, error });
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: error?.message || goalsTranslations?.messages?.verificationSubmitFailed || 'Failed to submit verification',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`verify-${task.id}`]: false }));
+    }
+  };
+
+  const handleReviewVerification = async (task: TaskResponse, decision: 'approved' | 'rejected') => {
+    setLoadingStates(prev => ({ ...prev, [`review-${task.id}`]: true }));
+    try {
+      await reviewTaskVerification(task.id, { decision });
+      await refreshTasks();
+      toast({
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.verificationReviewed || 'Verification updated',
+        variant: 'default'
+      });
+    } catch (error: any) {
+      logger.error('Error reviewing verification', { taskId: task.id, error });
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: error?.message || goalsTranslations?.messages?.verificationReviewFailed || 'Failed to review verification',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`review-${task.id}`]: false }));
+    }
+  };
+
+  const handleFlagVerification = async (task: TaskResponse) => {
+    setLoadingStates(prev => ({ ...prev, [`flag-${task.id}`]: true }));
+    try {
+      await flagTaskVerification(task.id, { reason: 'Flagged by user' });
+      await refreshTasks();
+      toast({
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.verificationFlagged || 'Verification flagged',
+        variant: 'default'
+      });
+    } catch (error: any) {
+      logger.error('Error flagging verification', { taskId: task.id, error });
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: error?.message || goalsTranslations?.messages?.verificationFlagFailed || 'Failed to flag verification',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`flag-${task.id}`]: false }));
     }
   };
 
@@ -495,6 +583,7 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
         {tasks.map((task) => {
           const isEditing = editingTaskId === task.id;
           const isLoading = loadingStates[`update-${task.id}`] || loadingStates[`delete-${task.id}`];
+          const isVerifying = loadingStates[`verify-${task.id}`] || loadingStates[`review-${task.id}`] || loadingStates[`flag-${task.id}`];
 
           return (
             <Card
@@ -701,12 +790,65 @@ const TasksListInline: React.FC<TasksListInlineProps> = ({
                         <Badge variant={task.status === 'completed' ? 'default' : 'secondary'}>
                           {goalsTranslations?.statusLabels?.[task.status] || task.status}
                         </Badge>
+                        {task.verificationStatus && (
+                          <Badge variant="outline">
+                            {goalsTranslations?.statusLabels?.[task.verificationStatus] || task.verificationStatus}
+                          </Badge>
+                        )}
                       </div>
 
                       {task.status === 'completed' && task.completionNote && (
                         <p className="text-xs text-muted-foreground">
                           {task.completionNote}
                         </p>
+                      )}
+
+                      {task.status === 'completed' && (
+                        <div className="flex flex-wrap gap-2">
+                          {task.verificationStatus !== 'approved' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSubmitVerification(task)}
+                              disabled={isVerifying}
+                            >
+                              {goalsTranslations?.actions?.submitVerification || 'Submit for review'}
+                            </Button>
+                          )}
+                          {task.verificationStatus === 'pending_review' && (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleReviewVerification(task, 'approved')}
+                                disabled={isVerifying}
+                              >
+                                {goalsTranslations?.actions?.approveVerification || 'Approve'}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReviewVerification(task, 'rejected')}
+                                disabled={isVerifying}
+                              >
+                                {goalsTranslations?.actions?.rejectVerification || 'Reject'}
+                              </Button>
+                            </>
+                          )}
+                          {task.verificationStatus !== 'flagged' && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleFlagVerification(task)}
+                              disabled={isVerifying}
+                            >
+                              {goalsTranslations?.actions?.flagVerification || 'Flag'}
+                            </Button>
+                          )}
+                        </div>
                       )}
 
                       {task.tags && task.tags.length > 0 && (

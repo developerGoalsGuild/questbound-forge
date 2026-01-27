@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { X, Pencil, Trash, Check, XCircle, Loader2, Plus, AlertCircle, CheckCircle } from 'lucide-react';
-import { updateTask } from '@/lib/apiTask';
+import { updateTask, submitTaskVerification, reviewTaskVerification, flagTaskVerification } from '@/lib/apiTask';
 import { 
   validateTaskTitle, 
   validateTaskDueDate, 
@@ -34,6 +34,7 @@ interface Task {
   status: string;
   tags: string[];
   completionNote?: string;
+  verificationStatus?: string;
 }
 
 interface EditTaskData {
@@ -424,14 +425,7 @@ const TasksModal: React.FC<TasksModalProps> = ({
 
       // Call the API directly
       const updatedTask = await updateTask(editingTaskId, updatePayload);
-      // Merge the updated fields with the original task for the callback
-      const originalTask = tasks.find(t => t.id === editingTaskId);
-      const mergedTask = {
-        ...originalTask,
-        ...updatePayload,
-        id: editingTaskId,
-      };
-      await onUpdateTask(mergedTask);
+      await onUpdateTask(updatedTask);
       
       // Clear any network errors
       clearError();
@@ -503,6 +497,95 @@ const TasksModal: React.FC<TasksModalProps> = ({
     } finally {
       setLoadingStates(prev => ({ ...prev, [`update-${editingTaskId}`]: false }));
       setIsLoading(false);
+    }
+  };
+
+  const handleSubmitVerification = async (task: Task) => {
+    const completionNote = (task.completionNote || '').trim();
+    if (!completionNote || completionNote.length < 10) {
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: goalsTranslations?.validation?.taskCompletionNoteRequired || 'Completion note is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoadingStates(prev => ({ ...prev, [`verify-${task.id}`]: true }));
+    try {
+      const updatedTask = await submitTaskVerification(task.id, {
+        completionNote,
+        evidenceType: 'text',
+        evidencePayload: { note: completionNote }
+      });
+      await onUpdateTask(updatedTask as Task);
+      if (onTasksChange) {
+        onTasksChange();
+      }
+      toast({
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.verificationSubmitted || 'Verification submitted',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      logger.error('Error submitting verification', { taskId: task.id, error });
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: error?.message || goalsTranslations?.messages?.verificationSubmitFailed || 'Failed to submit verification',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`verify-${task.id}`]: false }));
+    }
+  };
+
+  const handleReviewVerification = async (task: Task, decision: 'approved' | 'rejected') => {
+    setLoadingStates(prev => ({ ...prev, [`review-${task.id}`]: true }));
+    try {
+      const updatedTask = await reviewTaskVerification(task.id, { decision });
+      await onUpdateTask(updatedTask as Task);
+      if (onTasksChange) {
+        onTasksChange();
+      }
+      toast({
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.verificationReviewed || 'Verification updated',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      logger.error('Error reviewing verification', { taskId: task.id, error });
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: error?.message || goalsTranslations?.messages?.verificationReviewFailed || 'Failed to review verification',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`review-${task.id}`]: false }));
+    }
+  };
+
+  const handleFlagVerification = async (task: Task) => {
+    setLoadingStates(prev => ({ ...prev, [`flag-${task.id}`]: true }));
+    try {
+      const updatedTask = await flagTaskVerification(task.id, { reason: 'Flagged by user' });
+      await onUpdateTask(updatedTask as Task);
+      if (onTasksChange) {
+        onTasksChange();
+      }
+      toast({
+        title: commonTranslations?.success || 'Success',
+        description: goalsTranslations?.messages?.verificationFlagged || 'Verification flagged',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      logger.error('Error flagging verification', { taskId: task.id, error });
+      toast({
+        title: commonTranslations?.error || 'Error',
+        description: error?.message || goalsTranslations?.messages?.verificationFlagFailed || 'Failed to flag verification',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`flag-${task.id}`]: false }));
     }
   };
 
@@ -810,7 +893,57 @@ const TasksModal: React.FC<TasksModalProps> = ({
                           )}
                         </>
                       ) : (
-                        goalsTranslations?.statusLabels?.[task.status] || task.status
+                        <div className="space-y-1">
+                          <div>{goalsTranslations?.statusLabels?.[task.status] || task.status}</div>
+                          {task.verificationStatus && (
+                            <span className="text-xs text-muted-foreground">
+                              {task.verificationStatus}
+                            </span>
+                          )}
+                          {task.status === 'completed' && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {task.verificationStatus !== 'approved' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSubmitVerification(task)}
+                                  disabled={loadingStates[`verify-${task.id}`]}
+                                >
+                                  {goalsTranslations?.actions?.submitVerification || 'Submit for review'}
+                                </Button>
+                              )}
+                              {task.verificationStatus === 'pending_review' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleReviewVerification(task, 'approved')}
+                                    disabled={loadingStates[`review-${task.id}`]}
+                                  >
+                                    {goalsTranslations?.actions?.approveVerification || 'Approve'}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleReviewVerification(task, 'rejected')}
+                                    disabled={loadingStates[`review-${task.id}`]}
+                                  >
+                                    {goalsTranslations?.actions?.rejectVerification || 'Reject'}
+                                  </Button>
+                                </>
+                              )}
+                              {task.verificationStatus !== 'flagged' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleFlagVerification(task)}
+                                  disabled={loadingStates[`flag-${task.id}`]}
+                                >
+                                  {goalsTranslations?.actions?.flagVerification || 'Flag'}
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </TableCell>
 

@@ -10,6 +10,9 @@ import TasksModal from '../TasksModal';
 vi.mock('@/lib/apiTask', () => ({
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
+  submitTaskVerification: vi.fn(),
+  reviewTaskVerification: vi.fn(),
+  flagTaskVerification: vi.fn(),
 }));
 
 // Mock the toast hook

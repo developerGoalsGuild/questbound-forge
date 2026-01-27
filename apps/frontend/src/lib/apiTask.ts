@@ -18,6 +18,7 @@ export interface UpdateTaskInput {
   status?: string;
   tags?: string[];
   completionNote?: string;
+  verificationEvidenceIds?: string[];
   goalId?: string;
 }
 
