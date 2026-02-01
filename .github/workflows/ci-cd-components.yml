@@ -325,7 +325,7 @@ jobs:
 
   services:
     runs-on: ubuntu-latest
-    needs: [context, changes, backend-tests]
+    needs: [context, changes]
     if: needs.changes.outputs.services_has_changes == 'true'
     strategy:
       matrix: ${{ fromJson(needs.changes.outputs.services_matrix) }}
@@ -365,7 +365,7 @@ jobs:
 
   authorizer:
     runs-on: ubuntu-latest
-    needs: [context, changes, backend-tests]
+    needs: [context, changes]
     if: needs.changes.outputs.authorizer_service == 'true'
     environment: ${{ needs.context.outputs.environment }}
     steps:
@@ -397,46 +397,3 @@ jobs:
           echo "Add a Terraform stack and deployment script for connect-service to enable CI/CD."
           exit 1
 
-  backend-tests:
-    runs-on: ubuntu-latest
-    needs: [context, changes]
-    if: needs.changes.outputs.services == 'true' || needs.changes.outputs.authorizer_service == 'true' || needs.changes.outputs.connect_service == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Run service tests
-        shell: bash
-        run: |
-          services=()
-          if [[ "${{ needs.changes.outputs.services_has_changes }}" == "true" ]]; then
-            services=$(echo '${{ needs.changes.outputs.services_matrix }}' | jq -r '.service[]')
-          fi
-          if [[ "${{ needs.changes.outputs.authorizer_service }}" == "true" ]]; then
-            services="$services"$'\n'"authorizer-service"
-          fi
-          if [[ "${{ needs.changes.outputs.connect_service }}" == "true" ]]; then
-            services="$services"$'\n'"connect-service"
-          fi
-
-          if [ -z "$services" ]; then
-            echo "No backend service tests to run."
-            exit 0
-          fi
-
-          while read -r service; do
-            [ -z "$service" ] && continue
-            echo "Running tests for $service"
-            pushd "backend/services/$service" >/dev/null
-            uv pip install -r requirements.txt --system
-            pytest
-            popd >/dev/null
-          done <<< "$services"

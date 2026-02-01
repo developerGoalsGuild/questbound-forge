@@ -232,10 +232,15 @@ export interface GuildTranslations {
   joinRequests: {
     title: string;
     empty: string;
+    reviewTitle?: string;
+    reviewDescription?: string;
+    requested?: string;
+    reasonLabel?: string;
+    reasonPlaceholder?: string;
     actions: {
       approve: string;
       reject: string;
-      viewProfile: string;
+      viewProfile?: string;
     };
     status: {
       pending: string;
@@ -244,10 +249,14 @@ export interface GuildTranslations {
     };
     requestToJoin: {
       title: string;
+      description?: string;
       message: string;
       placeholder: string;
       submit: string;
       submitting: string;
+      cancel?: string;
+      success?: string;
+      error?: string;
     };
   };
   moderation: {
@@ -712,35 +721,6 @@ export interface GuildTranslations {
     memberPromoted: string;
     memberDemoted: string;
   };
-      joinRequests: {
-        title: string;
-        empty: string;
-        reviewTitle: string;
-        reviewDescription: string;
-        requested: string;
-        reasonLabel: string;
-        reasonPlaceholder: string;
-        actions: {
-          approve: string;
-          reject: string;
-        };
-        status: {
-          pending: string;
-          approved: string;
-          rejected: string;
-        };
-        requestToJoin: {
-          title: string;
-          description: string;
-          message: string;
-          placeholder: string;
-          submit: string;
-          submitting: string;
-          cancel: string;
-          success: string;
-          error: string;
-        };
-      };
 }
 
 export const guildTranslations: Record<string, GuildTranslations> = {
@@ -961,6 +941,11 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     joinRequests: {
       title: 'Join Requests',
       empty: 'No pending join requests',
+      reviewTitle: 'Review Join Request',
+      reviewDescription: 'Review the join request from',
+      requested: 'Requested',
+      reasonLabel: 'Reason (optional)',
+      reasonPlaceholder: 'Add a reason for your decision...',
       actions: {
         approve: 'Approve',
         reject: 'Reject',
@@ -972,11 +957,15 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         rejected: 'Rejected',
       },
       requestToJoin: {
-        title: 'Request to Join Guild',
+        title: 'Request to Join',
+        description: 'requires approval to join. Send a request with a message explaining why you\'d like to join.',
         message: 'Message (optional)',
-        placeholder: 'Tell the guild why you want to join...',
+        placeholder: 'Tell us why you\'d like to join this guild...',
         submit: 'Send Request',
         submitting: 'Sending...',
+        cancel: 'Cancel',
+        success: 'Join request sent successfully!',
+        error: 'Failed to send join request',
       },
     },
     moderation: {
@@ -1445,35 +1434,6 @@ export const guildTranslations: Record<string, GuildTranslations> = {
       memberPromoted: 'Member promoted successfully',
       memberDemoted: 'Member demoted successfully',
     },
-        joinRequests: {
-          title: 'Join Requests',
-          empty: 'No pending join requests',
-          reviewTitle: 'Review Join Request',
-          reviewDescription: 'Review the join request from',
-          requested: 'Requested',
-          reasonLabel: 'Reason (optional)',
-          reasonPlaceholder: 'Add a reason for your decision...',
-          actions: {
-            approve: 'Approve',
-            reject: 'Reject',
-          },
-          status: {
-            pending: 'Pending',
-            approved: 'Approved',
-            rejected: 'Rejected',
-          },
-      requestToJoin: {
-        title: 'Request to Join',
-        description: 'requires approval to join. Send a request with a message explaining why you\'d like to join.',
-        message: 'Message (optional)',
-        placeholder: 'Tell us why you\'d like to join this guild...',
-        submit: 'Send Request',
-        submitting: 'Sending...',
-        cancel: 'Cancel',
-        success: 'Join request sent successfully!',
-        error: 'Failed to send join request',
-      },
-    },
   },
   es: {
     title: 'Gremios',
@@ -1692,6 +1652,11 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     joinRequests: {
       title: 'Solicitudes de Ingreso',
       empty: 'No hay solicitudes de ingreso pendientes',
+      reviewTitle: 'Revisar Solicitud de Ingreso',
+      reviewDescription: 'Revisar la solicitud de ingreso de',
+      requested: 'Solicitado',
+      reasonLabel: 'Razón (opcional)',
+      reasonPlaceholder: 'Agrega una razón para tu decisión...',
       actions: {
         approve: 'Aprobar',
         reject: 'Rechazar',
@@ -1984,35 +1949,6 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         title: 'Comentarios Deshabilitados',
         message: 'No tienes permitido publicar comentarios en este gremio.',
         contactModerator: 'Contacta a un moderador del gremio si crees que esto es un error.',
-      },
-    },
-    joinRequests: {
-      title: 'Solicitudes de Ingreso',
-      empty: 'No hay solicitudes de ingreso pendientes',
-      reviewTitle: 'Revisar Solicitud de Ingreso',
-      reviewDescription: 'Revisar la solicitud de ingreso de',
-      requested: 'Solicitado',
-      reasonLabel: 'Razón (opcional)',
-      reasonPlaceholder: 'Agrega una razón para tu decisión...',
-      actions: {
-        approve: 'Aprobar',
-        reject: 'Rechazar',
-      },
-      status: {
-        pending: 'Pendiente',
-        approved: 'Aprobado',
-        rejected: 'Rechazado',
-      },
-      requestToJoin: {
-        title: 'Solicitar Ingreso al Gremio',
-        description: 'requiere aprobación para unirse. Envía una solicitud con un mensaje explicando por qué te gustaría unirte.',
-        message: 'Mensaje (opcional)',
-        placeholder: 'Dile al gremio por qué quieres unirte...',
-        submit: 'Enviar Solicitud',
-        submitting: 'Enviando...',
-        cancel: 'Cancelar',
-        success: '¡Solicitud de unión enviada exitosamente!',
-        error: 'Error al enviar solicitud de unión',
       },
     },
     quests: {
@@ -2416,6 +2352,11 @@ export const guildTranslations: Record<string, GuildTranslations> = {
     joinRequests: {
       title: 'Demandes d\'Adhésion',
       empty: 'Aucune demande d\'adhésion en attente',
+      reviewTitle: 'Examiner la Demande d\'Adhésion',
+      reviewDescription: 'Examiner la demande d\'adhésion de',
+      requested: 'Demandé',
+      reasonLabel: 'Raison (optionnelle)',
+      reasonPlaceholder: 'Ajoutez une raison pour votre décision...',
       actions: {
         approve: 'Approuver',
         reject: 'Rejeter',
@@ -2715,24 +2656,6 @@ export const guildTranslations: Record<string, GuildTranslations> = {
         title: 'Commentaires Désactivés',
         message: 'Vous n\'êtes pas autorisé à publier des commentaires dans cette guilde.',
         contactModerator: 'Contactez un modérateur de la guilde si vous pensez que c\'est une erreur.',
-      },
-    },
-    joinRequests: {
-      title: 'Demandes d\'Adhésion',
-      empty: 'Aucune demande d\'adhésion en attente',
-      reviewTitle: 'Examiner la Demande d\'Adhésion',
-      reviewDescription: 'Examiner la demande d\'adhésion de',
-      requested: 'Demandé',
-      reasonLabel: 'Raison (optionnelle)',
-      reasonPlaceholder: 'Ajoutez une raison pour votre décision...',
-      actions: {
-        approve: 'Approuver',
-        reject: 'Rejeter',
-      },
-      status: {
-        pending: 'En Attente',
-        approved: 'Approuvé',
-        rejected: 'Rejeté',
       },
     },
     edit: {

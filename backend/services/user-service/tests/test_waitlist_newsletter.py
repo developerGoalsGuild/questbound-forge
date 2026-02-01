@@ -81,11 +81,12 @@ def app_client(monkeypatch):
             BillingMode='PAY_PER_REQUEST'
         )
 
-        # Avoid sending emails during tests
+        # Avoid sending emails and rate limiting during tests
         import importlib
         main = importlib.import_module('app.main')
         from fastapi.testclient import TestClient
         monkeypatch.setattr(main, 'send_email', lambda *a, **k: None)
+        monkeypatch.setattr(main, '_enforce_waitlist_rate_limit', lambda *a, **k: None)
         client = TestClient(main.app)
         yield client
 

@@ -44,12 +44,12 @@ def generate_secure_password(length: int = 16) -> str:
         Guarantees presence of each required character class. Enforces min length 12.
         Returns: password string (do not log or persist in plaintext outside email body).
         """
+        lowers = string.ascii_lowercase
+        uppers = string.ascii_uppercase
+        digits = string.digits
+        specials = "!@#$%^&*()-_=+[]{};:,.?/"
         if length < 12:
             length = 12
-            lowers = string.ascii_lowercase
-            uppers = string.ascii_uppercase
-            digits = string.digits
-        specials = "!@#$%^&*()-_=+[]{};:,.?/"
         pwd = [
             secrets.choice(lowers),
             secrets.choice(uppers),
