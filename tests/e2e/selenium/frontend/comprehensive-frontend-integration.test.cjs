@@ -43,7 +43,15 @@ try {
   seleniumWebdriver = require('selenium-webdriver');
 }
 const { Builder, By, until, Key } = seleniumWebdriver;
-const chrome = require('selenium-webdriver/chrome');
+let chrome;
+try {
+  const chromeResolved = require.resolve('selenium-webdriver/chrome', {
+    paths: [path.join(__dirname, '../../../../apps/frontend/node_modules')]
+  });
+  chrome = require(chromeResolved);
+} catch (error) {
+  chrome = require('selenium-webdriver/chrome');
+}
 const assert = require('assert');
 const testCredentials = require('./load-test-credentials.cjs');
 
