@@ -32,7 +32,17 @@
  * - Accessibility
  */
 
-const { Builder, By, until, Key } = require('selenium-webdriver');
+const path = require('path');
+let seleniumWebdriver;
+try {
+  const resolved = require.resolve('selenium-webdriver', {
+    paths: [path.join(__dirname, '../../../../apps/frontend/node_modules')]
+  });
+  seleniumWebdriver = require(resolved);
+} catch (error) {
+  seleniumWebdriver = require('selenium-webdriver');
+}
+const { Builder, By, until, Key } = seleniumWebdriver;
 const chrome = require('selenium-webdriver/chrome');
 const assert = require('assert');
 const testCredentials = require('./load-test-credentials.cjs');
