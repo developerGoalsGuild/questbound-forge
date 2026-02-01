@@ -1,0 +1,440 @@
+name: Deploy All Environments
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-all
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Run frontend unit tests
+        working-directory: apps/frontend
+        run: npm run test:ci
+
+      - name: Start frontend dev server
+        working-directory: apps/frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/vite.log 2>&1 &
+          echo $! > /tmp/vite.pid
+
+      - name: Wait for frontend server
+        working-directory: apps/frontend
+        run: npx wait-on http://127.0.0.1:5173
+
+      - name: Run frontend Selenium tests
+        working-directory: apps/frontend
+        run: npm run test:selenium:comprehensive:verbose
+
+      - name: Stop frontend dev server
+        if: always()
+        run: |
+          if [ -f /tmp/vite.pid ]; then
+            kill "$(cat /tmp/vite.pid)" || true
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run backend service tests
+        shell: bash
+        run: |
+          services=(
+            "user-service"
+            "quest-service"
+            "subscription-service"
+            "collaboration-service"
+            "guild-service"
+            "messaging-service"
+            "gamification-service"
+            "authorizer-service"
+            "connect-service"
+          )
+
+          for service in "${services[@]}"; do
+            echo "Running tests for $service"
+            pushd "backend/services/$service" >/dev/null
+            uv pip install -r requirements.txt --system
+            pytest
+            popd >/dev/null
+          done
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: tests
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Deploy backend infrastructure
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-all-with-build.sh
+          backend/infra/terraform2/scripts/deploy-all-with-build.sh --env dev --infrastructure-only
+
+      - name: Deploy backend services
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-all-with-build.sh
+          backend/infra/terraform2/scripts/deploy-all-with-build.sh --env dev --services-only
+
+      - name: Deploy authorizer stack
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-authorizer.sh
+          backend/infra/terraform2/scripts/deploy-authorizer.sh --env dev
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: apps/frontend
+        run: |
+          npm ci
+          npm run build -- --mode development
+
+      - id: frontend-vars
+        name: Resolve frontend variables
+        shell: bash
+        run: |
+          echo "extra_vars=-var=custom_domain= -var='additional_domains=[]' -var=ssl_certificate_arn= -var=use_route53=false -var=route53_zone_name=" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform apply (frontend)
+        working-directory: apps/frontend/terraform
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          terraform init -upgrade
+          terraform apply -var-file="environments/dev.tfvars" ${{ steps.frontend-vars.outputs.extra_vars }} -auto-approve
+
+      - name: Deploy frontend assets
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          bucket=$(terraform -chdir=apps/frontend/terraform output -raw s3_bucket_name)
+          distribution=$(terraform -chdir=apps/frontend/terraform output -raw cloudfront_distribution_id)
+          if [ -z "$bucket" ] || [ -z "$distribution" ]; then
+            echo "Missing frontend S3 bucket or CloudFront distribution for dev."
+            exit 1
+          fi
+          aws s3 sync "apps/frontend/dist" "s3://$bucket/" --delete
+          aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*"
+
+      - name: Deploy landing page
+        working-directory: apps/landing-page/terraform
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          terraform init -upgrade
+          terraform apply -var-file="environments/dev.tfvars" \
+            -var=custom_domain= \
+            -var='additional_domains=[]' \
+            -var=ssl_certificate_arn= \
+            -var=use_route53=false \
+            -var=route53_zone_name= \
+            -auto-approve
+
+      - name: Upload landing page assets
+        working-directory: apps/landing-page
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          bucket=$(terraform -chdir=terraform output -raw s3_bucket_name)
+          distribution=$(terraform -chdir=terraform output -raw cloudfront_distribution_id)
+
+          aws s3 sync "src" "s3://$bucket/" \
+            --delete \
+            --exclude "*.git*" \
+            --exclude "*.DS_Store" \
+            --exclude "Thumbs.db" \
+            --cache-control "max-age=31536000" \
+            --metadata-directive REPLACE
+
+          aws s3 cp "src" "s3://$bucket/" \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "max-age=3600" \
+            --metadata-directive REPLACE
+
+          aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*"
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Deploy backend infrastructure
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-all-with-build.sh
+          backend/infra/terraform2/scripts/deploy-all-with-build.sh --env staging --infrastructure-only
+
+      - name: Deploy backend services
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-all-with-build.sh
+          backend/infra/terraform2/scripts/deploy-all-with-build.sh --env staging --services-only
+
+      - name: Deploy authorizer stack
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-authorizer.sh
+          backend/infra/terraform2/scripts/deploy-authorizer.sh --env staging
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: apps/frontend
+        run: |
+          npm ci
+          npm run build -- --mode staging
+
+      - id: frontend-vars
+        name: Resolve frontend variables
+        shell: bash
+        run: |
+          echo "extra_vars=-var=custom_domain= -var='additional_domains=[]' -var=ssl_certificate_arn= -var=use_route53=false -var=route53_zone_name=" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform apply (frontend)
+        working-directory: apps/frontend/terraform
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          terraform init -upgrade
+          terraform apply -var-file="environments/staging.tfvars" ${{ steps.frontend-vars.outputs.extra_vars }} -auto-approve
+
+      - name: Deploy frontend assets
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          bucket=$(terraform -chdir=apps/frontend/terraform output -raw s3_bucket_name)
+          distribution=$(terraform -chdir=apps/frontend/terraform output -raw cloudfront_distribution_id)
+          if [ -z "$bucket" ] || [ -z "$distribution" ]; then
+            echo "Missing frontend S3 bucket or CloudFront distribution for staging."
+            exit 1
+          fi
+          aws s3 sync "apps/frontend/dist" "s3://$bucket/" --delete
+          aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*"
+
+      - name: Deploy landing page
+        working-directory: apps/landing-page/terraform
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          terraform init -upgrade
+          terraform apply -var-file="environments/staging.tfvars" \
+            -var=custom_domain= \
+            -var='additional_domains=[]' \
+            -var=ssl_certificate_arn= \
+            -var=use_route53=false \
+            -var=route53_zone_name= \
+            -auto-approve
+
+      - name: Upload landing page assets
+        working-directory: apps/landing-page
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          bucket=$(terraform -chdir=terraform output -raw s3_bucket_name)
+          distribution=$(terraform -chdir=terraform output -raw cloudfront_distribution_id)
+
+          aws s3 sync "src" "s3://$bucket/" \
+            --delete \
+            --exclude "*.git*" \
+            --exclude "*.DS_Store" \
+            --exclude "Thumbs.db" \
+            --cache-control "max-age=31536000" \
+            --metadata-directive REPLACE
+
+          aws s3 cp "src" "s3://$bucket/" \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "max-age=3600" \
+            --metadata-directive REPLACE
+
+          aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*"
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Deploy backend infrastructure
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-all-with-build.sh
+          backend/infra/terraform2/scripts/deploy-all-with-build.sh --env prod --infrastructure-only
+
+      - name: Deploy backend services
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-all-with-build.sh
+          backend/infra/terraform2/scripts/deploy-all-with-build.sh --env prod --services-only
+
+      - name: Deploy authorizer stack
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-authorizer.sh
+          backend/infra/terraform2/scripts/deploy-authorizer.sh --env prod
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: apps/frontend
+        run: |
+          npm ci
+          npm run build -- --mode production
+
+      - id: frontend-vars
+        name: Resolve frontend variables
+        shell: bash
+        run: |
+          echo "extra_vars=-var=custom_domain=goals.guild.com -var='additional_domains=[\"www.goals.guild.com\"]' -var=ssl_certificate_arn=${{ secrets.FRONTEND_ACM_CERT_ARN_PROD }} -var=use_route53=false -var=route53_zone_name=" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform apply (frontend)
+        working-directory: apps/frontend/terraform
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          terraform init -upgrade
+          terraform apply -var-file="environments/prod.tfvars" ${{ steps.frontend-vars.outputs.extra_vars }} -auto-approve
+
+      - name: Deploy frontend assets
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          bucket=$(terraform -chdir=apps/frontend/terraform output -raw s3_bucket_name)
+          distribution=$(terraform -chdir=apps/frontend/terraform output -raw cloudfront_distribution_id)
+          if [ -z "$bucket" ] || [ -z "$distribution" ]; then
+            echo "Missing frontend S3 bucket or CloudFront distribution for prod."
+            exit 1
+          fi
+          aws s3 sync "apps/frontend/dist" "s3://$bucket/" --delete
+          aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*"
+
+      - name: Deploy landing page
+        working-directory: apps/landing-page/terraform
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          terraform init -upgrade
+          terraform apply -var-file="environments/prod.tfvars" \
+            -var=custom_domain=goals.guild.com \
+            -var='additional_domains=["www.goals.guild.com"]' \
+            -var=ssl_certificate_arn=${{ secrets.LANDING_PAGE_ACM_CERT_ARN_PROD }} \
+            -var=use_route53=false \
+            -var=route53_zone_name= \
+            -auto-approve
+
+      - name: Upload landing page assets
+        working-directory: apps/landing-page
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          bucket=$(terraform -chdir=terraform output -raw s3_bucket_name)
+          distribution=$(terraform -chdir=terraform output -raw cloudfront_distribution_id)
+
+          aws s3 sync "src" "s3://$bucket/" \
+            --delete \
+            --exclude "*.git*" \
+            --exclude "*.DS_Store" \
+            --exclude "Thumbs.db" \
+            --cache-control "max-age=31536000" \
+            --metadata-directive REPLACE
+
+          aws s3 cp "src" "s3://$bucket/" \
+            --recursive \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "max-age=3600" \
+            --metadata-directive REPLACE
+
+          aws cloudfront create-invalidation --distribution-id "$distribution" --paths "/*"
