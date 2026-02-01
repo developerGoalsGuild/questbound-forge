@@ -122,3 +122,4 @@ apps/frontend/.env.development
 backend/infra/terraform2/scripts/deploy-quest-service-with-build.sh
 apps/frontend/.env.development
 apps/frontend/test-results.json
+apps/frontend/test-results.json
