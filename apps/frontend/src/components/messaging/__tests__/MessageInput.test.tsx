@@ -90,7 +90,6 @@ describe('MessageInput', () => {
   });
 
   it('shows rate limit warning on rate limit error and hides after timeout', async () => {
-    vi.useFakeTimers();
     const onSendMessage = vi.fn().mockRejectedValue(new Error('rate limit exceeded'));
 
     render(<MessageInput onSendMessage={onSendMessage} />);
@@ -101,13 +100,9 @@ describe('MessageInput', () => {
     const sendButton = screen.getByRole('button', { name: /send message/i, hidden: true });
     fireEvent.click(sendButton);
 
-    // Flush promise rejection handling
-    await flushPromises();
-    await flushPromises();
-    expect(screen.getByText(/sending messages too quickly/i)).toBeInTheDocument();
+    expect(await screen.findByText(/sending messages too quickly/i)).toBeInTheDocument();
 
-    vi.advanceTimersByTime(5000);
-    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 5200));
     expect(screen.queryByText(/sending messages too quickly/i)).not.toBeInTheDocument();
-  });
+  }, 10000);
 });

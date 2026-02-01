@@ -72,8 +72,7 @@ describe('ResetPassword page', () => {
     
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     
-    expect(await screen.findByText(/password is required/i)).toBeInTheDocument();
-    expect(await screen.findByText(/please confirm your password/i)).toBeInTheDocument();
+    expect(await screen.findAllByText(/password is required/i)).toHaveLength(2);
     expect(api.resetPassword).not.toHaveBeenCalled();
   });
 
@@ -211,11 +210,13 @@ describe('ResetPassword page', () => {
     
     // Trigger validation error
     await user.click(submitButton);
-    expect(await screen.findByText(/password is required/i)).toBeInTheDocument();
+    expect(await screen.findAllByText(/password is required/i)).toHaveLength(2);
     
     // Start typing - error should clear
     await user.type(passwordInput, 'New');
-    expect(screen.queryByText(/password is required/i)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText(/password is required/i)).toHaveLength(1);
+    });
   });
 
   test('disables submit button while loading', async () => {

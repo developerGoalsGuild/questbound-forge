@@ -10,6 +10,7 @@ const mockT = {
     actions: {
       edit: 'Edit',
       start: 'Start',
+      view: 'View',
       delete: 'Delete',
       cancel: 'Cancel',
       fail: 'Fail',

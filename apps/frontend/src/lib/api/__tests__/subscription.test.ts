@@ -33,21 +33,18 @@ vi.mock('@/lib/logger', () => ({
   },
 }));
 
-// Mock environment variables
-vi.mock('import.meta.env', () => ({
-  VITE_API_GATEWAY_KEY: 'mock-api-key',
-}));
-
 // Mock fetch globally
 global.fetch = vi.fn();
 
 describe('Subscription API Client', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv('VITE_API_GATEWAY_KEY', 'mock-api-key');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   describe('getCurrentSubscription', () => {
