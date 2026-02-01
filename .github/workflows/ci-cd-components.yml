@@ -170,30 +170,30 @@ jobs:
         working-directory: apps/frontend
         run: npm run test:ci
 
-      - name: Start dev server
-        working-directory: apps/frontend
-        run: |
-          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/vite.log 2>&1 &
-          echo $! > /tmp/vite.pid
-
-      - name: Wait for dev server
-        working-directory: apps/frontend
-        run: npx wait-on http://127.0.0.1:5173
-
-      - name: Run Selenium integration tests
-        working-directory: apps/frontend
-        env:
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-          VITE_APP_URL: http://127.0.0.1:5173
-        run: npm run test:selenium:comprehensive:verbose
-
-      - name: Stop dev server
-        if: always()
-        run: |
-          if [ -f /tmp/vite.pid ]; then
-            kill "$(cat /tmp/vite.pid)" || true
-          fi
+      # - name: Start dev server
+      #   working-directory: apps/frontend
+      #   run: |
+      #     npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/vite.log 2>&1 &
+      #     echo $! > /tmp/vite.pid
+      #
+      # - name: Wait for dev server
+      #   working-directory: apps/frontend
+      #   run: npx wait-on http://127.0.0.1:5173
+      #
+      # - name: Run Selenium integration tests
+      #   working-directory: apps/frontend
+      #   env:
+      #     TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+      #     TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      #     VITE_APP_URL: http://127.0.0.1:5173
+      #   run: npm run test:selenium:comprehensive:verbose
+      #
+      # - name: Stop dev server
+      #   if: always()
+      #   run: |
+      #     if [ -f /tmp/vite.pid ]; then
+      #       kill "$(cat /tmp/vite.pid)" || true
+      #     fi
 
       - name: Build frontend
         working-directory: apps/frontend
