@@ -43,9 +43,10 @@ const Empathy = () => {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            // Animate stats
+            // Animate stats (guard for test/SSR where window may be undefined when timer fires)
             stats.forEach((stat, index) => {
               setTimeout(() => {
+                if (typeof window === 'undefined') return;
                 setAnimatedStats((prev) => {
                   const newStats = [...prev];
                   newStats[index] = stat;
