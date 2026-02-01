@@ -268,8 +268,8 @@ describe('DualProgressBar', () => {
 
       // Check for milestone section in the DOM
       expect(screen.getByText('Milestones')).toBeInTheDocument();
-      // There should be multiple milestone entries with the same text
-      const milestoneElements = screen.getAllByText('25% - First Quarter');
+      // There should be milestone entries with translated name and percentage
+      const milestoneElements = screen.getAllByText(/First Quarter.*25%/i);
       expect(milestoneElements.length).toBeGreaterThan(0);
     });
 

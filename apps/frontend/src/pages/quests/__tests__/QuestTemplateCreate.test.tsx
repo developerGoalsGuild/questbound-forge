@@ -76,6 +76,25 @@ describe('QuestTemplateCreate', () => {
       changeLanguage: vi.fn(),
       t: {
         quest: {
+          categories: {
+            Health: 'Health',
+            Work: 'Work',
+            Personal: 'Personal',
+            Learning: 'Learning',
+            Fitness: 'Fitness',
+            Creative: 'Creative',
+            Financial: 'Financial',
+            Social: 'Social',
+            Spiritual: 'Spiritual',
+            Hobby: 'Hobby',
+            Travel: 'Travel',
+            Other: 'Other',
+          },
+          difficulty: {
+            easy: 'Easy',
+            medium: 'Medium',
+            hard: 'Hard',
+          },
           templates: {
             form: {
               title: 'Create Quest Template',
@@ -148,7 +167,7 @@ describe('QuestTemplateCreate', () => {
       renderWithProviders(<QuestTemplateCreate />);
       
       expect(screen.getByLabelText(/Create Quest Template/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Create a reusable template for quests/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Describe what this template is for/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Category/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Difficulty/i)).toBeInTheDocument();
     });
@@ -188,7 +207,7 @@ describe('QuestTemplateCreate', () => {
     it('validates description length', async () => {
       renderWithProviders(<QuestTemplateCreate />);
       
-      const descriptionInput = screen.getByLabelText(/Create a reusable template for quests/i);
+      const descriptionInput = screen.getByPlaceholderText(/Describe what this template is for/i);
       fireEvent.change(descriptionInput, { target: { value: 'a'.repeat(501) } });
       
       const nextButton = screen.getByText('Next');
@@ -205,7 +224,7 @@ describe('QuestTemplateCreate', () => {
       
       // Fill basic info first
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       await user.click(screen.getByRole('combobox', { name: /Category/i }));
       await user.click(screen.getByText('Fitness'));
       await user.click(screen.getByRole('combobox', { name: /Difficulty/i }));
@@ -230,7 +249,7 @@ describe('QuestTemplateCreate', () => {
       
       // Fill basic info first
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       await user.click(screen.getByRole('combobox', { name: /Category/i }));
       await user.click(screen.getByText('Fitness'));
       await user.click(screen.getByRole('combobox', { name: /Difficulty/i }));
@@ -271,7 +290,7 @@ describe('QuestTemplateCreate', () => {
       
       // Fill basic info
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -293,7 +312,7 @@ describe('QuestTemplateCreate', () => {
       
       // Go to step 2 first
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -329,7 +348,7 @@ describe('QuestTemplateCreate', () => {
       
       // Go to step 2
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -366,7 +385,7 @@ describe('QuestTemplateCreate', () => {
       
       // Go to step 2
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -397,7 +416,7 @@ describe('QuestTemplateCreate', () => {
       
       // Go to step 2 and add a tag
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -430,7 +449,7 @@ describe('QuestTemplateCreate', () => {
       
       // Go to step 2
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -468,7 +487,7 @@ describe('QuestTemplateCreate', () => {
       
       // Fill all required fields
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -527,7 +546,7 @@ describe('QuestTemplateCreate', () => {
       
       // Navigate to the last step to see the loading state
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));
@@ -573,7 +592,7 @@ describe('QuestTemplateCreate', () => {
       const titleInput = screen.getByLabelText(/Create Quest Template/i);
       expect(titleInput).toHaveAttribute('aria-invalid', 'false');
       
-      const descriptionInput = screen.getByLabelText(/Create a reusable template for quests/i);
+      const descriptionInput = screen.getByPlaceholderText(/Describe what this template is for/i);
       expect(descriptionInput).toHaveAttribute('aria-invalid', 'false');
     });
 
@@ -611,7 +630,7 @@ describe('QuestTemplateCreate', () => {
       
       // Fill basic info and go to step 2
       fireEvent.change(screen.getByLabelText(/Create Quest Template/i), { target: { value: 'Test Template' } });
-      fireEvent.change(screen.getByLabelText(/Create a reusable template for quests/i), { target: { value: 'Test Description' } });
+      fireEvent.change(screen.getByPlaceholderText(/Describe what this template is for/i), { target: { value: 'Test Description' } });
       fireEvent.click(screen.getByLabelText(/Category/i));
       fireEvent.click(screen.getByText('Fitness'));
       fireEvent.click(screen.getByLabelText(/Difficulty/i));

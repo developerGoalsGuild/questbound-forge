@@ -108,11 +108,11 @@ describe('WaitlistForm', () => {
     expect(button).toBeInTheDocument();
   });
 
-  test('button is enabled when email is empty', () => {
+  test('button is disabled when email is empty', () => {
     render(<WaitlistForm />);
 
     const button = screen.getByRole('button', { name: /Join the Community/i });
-    expect(button).not.toBeDisabled();
+    expect(button).toBeDisabled();
   });
 
   test('button is enabled when email is entered', async () => {
@@ -142,11 +142,10 @@ describe('WaitlistForm', () => {
   });
 
   test('shows error when email is empty and form is submitted', async () => {
-    const user = userEvent.setup();
     render(<WaitlistForm />);
 
-    const button = screen.getByRole('button', { name: /Join the Community/i });
-    await user.click(button);
+    const form = screen.getByRole('form');
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText('Email is required')).toBeInTheDocument();
@@ -229,10 +228,10 @@ describe('WaitlistForm', () => {
     render(<WaitlistForm />);
 
     const input = screen.getByPlaceholderText('Enter your email');
-    const button = screen.getByRole('button', { name: /Join the Community/i });
+    const form = screen.getByRole('form');
 
     // Submit with empty email to trigger error
-    await user.click(button);
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText('Email is required')).toBeInTheDocument();
@@ -263,11 +262,10 @@ describe('WaitlistForm', () => {
   });
 
   test('shows error with proper ARIA attributes', async () => {
-    const user = userEvent.setup();
     render(<WaitlistForm />);
 
-    const button = screen.getByRole('button', { name: /Join the Community/i });
-    await user.click(button);
+    const form = screen.getByRole('form');
+    fireEvent.submit(form);
 
     await waitFor(() => {
       const errorElement = screen.getByText('Email is required');
