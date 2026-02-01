@@ -133,7 +133,7 @@ jobs:
             exit 0
           fi
 
-          json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s '{service: .}')
+          json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -sc '{service: .}')
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
           echo "matrix=$json" >> "$GITHUB_OUTPUT"
 
