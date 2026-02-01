@@ -125,11 +125,6 @@ export interface GoalsTranslations {
   modal: {
     createTaskTitle: string;
   };
-  modals: {
-    viewTask: {
-      title: string;
-    };
-  };
   placeholders: {
     taskTags: string;
     taskTitle: string;
@@ -409,11 +404,6 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     modal: {
       createTaskTitle: 'Create New Task',
     },
-    modals: {
-      viewTask: {
-        title: 'My Tasks',
-      },
-    },
     placeholders: {
       taskTags: 'Add tag and press Enter',
       taskTitle: 'Task title...',
@@ -635,11 +625,6 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     modal: {
       createTaskTitle: 'Crear nueva tarea',
     },
-    modals: {
-      viewTask: {
-        title: 'Mis tareas',
-      },
-    },
     placeholders: {
       taskTags: 'Agregar etiqueta y presionar Enter',
       taskTitle: 'Título de la tarea...',
@@ -860,11 +845,6 @@ export const goalsTranslations: Record<Language, GoalsTranslations> = {
     },
     modal: {
       createTaskTitle: 'Créer une nouvelle tâche',
-    },
-    modals: {
-      viewTask: {
-        title: 'Mes tâches',
-      },
     },
     placeholders: {
       taskTags: 'Ajouter une étiquette et appuyer sur Entrée',
