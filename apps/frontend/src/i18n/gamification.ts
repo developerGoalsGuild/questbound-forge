@@ -37,8 +37,8 @@ export const gamificationTranslations = {
       leaderboard: {
         title: 'Leaderboard',
         global: 'Global Leaderboard',
-        level: 'Level Leaderboard',
-        badges: 'Badge Leaderboard',
+        levelBoard: 'Level Leaderboard',
+        badgesBoard: 'Badge Leaderboard',
         rank: 'Rank',
         user: 'User',
         xp: 'XP',
@@ -81,8 +81,8 @@ export const gamificationTranslations = {
       leaderboard: {
         title: 'Clasificación',
         global: 'Clasificación Global',
-        level: 'Clasificación por Nivel',
-        badges: 'Clasificación por Insignias',
+        levelBoard: 'Clasificación por Nivel',
+        badgesBoard: 'Clasificación por Insignias',
         rank: 'Posición',
         user: 'Usuario',
         xp: 'XP',
@@ -125,8 +125,8 @@ export const gamificationTranslations = {
       leaderboard: {
         title: 'Classement',
         global: 'Classement Global',
-        level: 'Classement par Niveau',
-        badges: 'Classement par Badges',
+        levelBoard: 'Classement par Niveau',
+        badgesBoard: 'Classement par Badges',
         rank: 'Rang',
         user: 'Utilisateur',
         xp: 'XP',

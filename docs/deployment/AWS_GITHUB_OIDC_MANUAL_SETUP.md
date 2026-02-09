@@ -70,13 +70,13 @@ For each environment (`dev`, `staging`, `prod`):
       "Sid": "TerraformStateListBucket",
       "Effect": "Allow",
       "Action": ["s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::tfstate-goalsguild-*"]
+      "Resource": ["arn:aws:s3:::terraform-state-*"]
     },
     {
       "Sid": "TerraformStateObjects",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": ["arn:aws:s3:::tfstate-goalsguild-*/*"]
+      "Resource": ["arn:aws:s3:::terraform-state-*/*"]
     },
     {
       "Sid": "TerraformLock",
@@ -87,7 +87,7 @@ For each environment (`dev`, `staging`, `prod`):
         "dynamodb:DeleteItem"
       ],
       "Resource": [
-        "arn:aws:dynamodb:*:*:table/tfstate-goalsguild-*-lock"
+        "arn:aws:dynamodb:*:*:table/terraform-state-lock"
       ]
     },
     {
@@ -100,179 +100,6 @@ For each environment (`dev`, `staging`, `prod`):
       "Sid": "ECRGetAuthorizationToken",
       "Effect": "Allow",
       "Action": ["ecr:GetAuthorizationToken"],
-      "Resource": "*"
-    },
-    {
-      "Sid": "DynamoDBTableManagement",
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:DescribeTable",
-        "dynamodb:DescribeTimeToLive",
-        "dynamodb:ListTables",
-        "dynamodb:DescribeContinuousBackups",
-        "dynamodb:DescribeBackup",
-        "dynamodb:ListBackups",
-        "dynamodb:DescribeStream",
-        "dynamodb:ListStreams",
-        "dynamodb:ListTagsOfResource"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "CognitoReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "cognito-idp:DescribeUserPool",
-        "cognito-idp:DescribeUserPoolClient",
-        "cognito-idp:ListUserPools",
-        "cognito-idp:ListUserPoolClients",
-        "cognito-idp:ListTagsForResource"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "SSMReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "ssm:GetParameter",
-        "ssm:GetParameters",
-        "ssm:GetParametersByPath",
-        "ssm:DescribeParameters",
-        "ssm:ListTagsForResource"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "ECRReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "ecr:DescribeRepositories",
-        "ecr:DescribeImages",
-        "ecr:ListImages",
-        "ecr:ListTagsForResource",
-        "ecr:GetRepositoryPolicy",
-        "ecr:GetLifecyclePolicy",
-        "ecr:GetLifecyclePolicyPreview"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "LambdaReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "lambda:GetFunction",
-        "lambda:GetFunctionConfiguration",
-        "lambda:ListFunctions",
-        "lambda:ListVersionsByFunction",
-        "lambda:ListTags",
-        "lambda:GetPolicy",
-        "lambda:GetLayerVersion",
-        "lambda:ListLayerVersions"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "IAMReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "iam:GetRole",
-        "iam:GetRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:ListAttachedRolePolicies",
-        "iam:GetPolicy",
-        "iam:GetPolicyVersion",
-        "iam:ListPolicyVersions",
-        "iam:ListRoles",
-        "iam:ListPolicies",
-        "iam:GetUser",
-        "iam:ListUsers",
-        "iam:GetInstanceProfile",
-        "iam:ListInstanceProfiles",
-        "iam:ListInstanceProfilesForRole",
-        "iam:GetOpenIDConnectProvider",
-        "iam:ListOpenIDConnectProviders",
-        "iam:ListRoleTags",
-        "iam:ListPolicyTags",
-        "iam:ListUserTags"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "S3ReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetBucketLocation",
-        "s3:GetBucketVersioning",
-        "s3:GetBucketPublicAccessBlock",
-        "s3:GetBucketAcl",
-        "s3:GetBucketPolicy",
-        "s3:GetBucketCors",
-        "s3:GetBucketEncryption",
-        "s3:GetEncryptionConfiguration",
-        "s3:GetBucketLogging",
-        "s3:GetBucketNotification",
-        "s3:GetBucketTagging",
-        "s3:GetBucketWebsite",
-        "s3:ListBucket",
-        "s3:ListBucketMultipartUploads",
-        "s3:ListBucketVersions",
-        "s3:GetObject",
-        "s3:GetObjectVersion",
-        "s3:GetObjectAcl",
-        "s3:GetObjectTagging",
-        "s3:GetObjectVersionTagging",
-        "s3:HeadObject",
-        "s3:HeadBucket"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "CloudWatchReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "cloudwatch:DescribeAlarms",
-        "cloudwatch:GetMetricStatistics",
-        "cloudwatch:ListMetrics",
-        "cloudwatch:GetDashboard",
-        "cloudwatch:ListDashboards",
-        "cloudwatch:GetMetricData",
-        "cloudwatch:GetInsightRuleReport",
-        "logs:DescribeLogGroups",
-        "logs:DescribeLogStreams",
-        "logs:GetLogEvents",
-        "logs:FilterLogEvents",
-        "logs:ListTagsLogGroup"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "APIGatewayReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "apigateway:GET",
-        "apigateway:HEAD",
-        "apigateway:OPTIONS"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "AppSyncReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "appsync:GetGraphqlApi",
-        "appsync:ListGraphqlApis",
-        "appsync:GetSchemaCreationStatus",
-        "appsync:GetDataSource",
-        "appsync:ListDataSources",
-        "appsync:GetResolver",
-        "appsync:ListResolvers",
-        "appsync:GetFunction",
-        "appsync:ListFunctions",
-        "appsync:ListTagsForResource",
-        "appsync:GetApiCache",
-        "appsync:GetDomainName",
-        "appsync:ListDomainNames"
-      ],
       "Resource": "*"
     },
     {
@@ -359,11 +186,10 @@ For each environment (`dev`, `staging`, `prod`):
 ```
 
 - **Project-scoped**: Only AWS services used by this project are allowed (Lambda, API Gateway, DynamoDB, S3, CloudFront, ACM, WAF, Logs, EventBridge, SSM, KMS, SES, Cognito, AppSync, ECR, CloudWatch). EC2, ECS, Route53, and application-autoscaling are not included.
-- **Read Operations**: Separate statements allow read operations (Describe*, Get*, List*) without `aws:RequestTag` conditions, since read operations don't include request tags. These are needed for Terraform state refresh.
 - **RequestTag** (DeploymentWithRequestTag, IAMNoPassRole): create/update requests must include tag `environment=ENV`.
 - **PassRole**: `iam:PassRole` only when passing to Lambda, API Gateway, EventBridge, or CloudWatch Logs. `iam:CreateServiceLinkedRole` is not allowed.
-- **S3**: ListBucket and object actions use separate resource ARNs (`tfstate-goalsguild-*` for bucket, `tfstate-goalsguild-*/*` for objects). Read operations are allowed on all S3 buckets for Terraform state refresh.
-- **ECR**: `GetAuthorizationToken` is allowed with `Resource = "*"` (no tag) so CI can log in for docker push. Read operations (DescribeRepositories, ListImages, etc.) are allowed on all repositories. Write operations are restricted to repositories `goalsguild_*` and (where applicable) tag `environment=ENV`.
+- **S3**: ListBucket and object actions use separate resource ARNs (`terraform-state-*` for bucket, `terraform-state-*/*` for objects).
+- **ECR**: `GetAuthorizationToken` is allowed with `Resource = "*"` (no tag) so CI can log in for docker push. Other ECR actions are restricted to repositories `goalsguild_*` and (where applicable) tag `environment=ENV`.
 - **ResourceTag** (IAM, ECR): update/delete on existing resources only when they have tag `environment=ENV`.
 
 Your Terraform (and any other automation) must tag all created resources with `environment = "dev"` / `"staging"` / `"prod"` so these policies apply correctly.

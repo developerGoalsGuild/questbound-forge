@@ -5,6 +5,7 @@ resource "aws_s3_bucket" "guild_avatars" {
   tags = {
     Name        = "${var.project_name}-guild-avatars-${var.environment}"
     Environment = var.environment
+    environment = var.environment
     Project     = var.project_name
     Service     = "guild-service"
     Purpose     = "guild-avatars"

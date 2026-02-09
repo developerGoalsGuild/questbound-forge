@@ -1,5 +1,10 @@
 environment = "staging"
 aws_region  = "us-east-2"
+
+# GitHub repo (for github-actions-oidc stack)
+github_repo_owner = "developerGoalsGuild"
+github_repo_name  = "questbound-forge"
+
 frontend_base_url = "https://staging.app.goalsguild.com"
 frontend_allowed_origins = [
   "https://staging.app.goalsguild.com",

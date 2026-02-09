@@ -28,7 +28,7 @@ variable "src_dir" {
 }
 variable "use_powershell" {
   type    = bool
-  default = true
+  default = false
 }
 variable "requirements_file" {
   type    = string

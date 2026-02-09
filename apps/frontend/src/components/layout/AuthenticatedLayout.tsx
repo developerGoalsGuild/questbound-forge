@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { AuthenticatedLayoutProps } from '@/models/header';
 import UserHeader from './UserHeader';
-import Breadcrumb from '@/components/ui/Breadcrumb';
+import Breadcrumb from '@/components/ui/breadcrumb';
 import ErrorBoundary, { HeaderErrorFallback } from '@/components/ui/ErrorBoundary';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';

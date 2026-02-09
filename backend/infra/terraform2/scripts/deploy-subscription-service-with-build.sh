@@ -256,24 +256,30 @@ if [ -n "$IMAGE_URI" ]; then
     TF_IMAGE_VAR="-var=existing_image_uri=$IMAGE_URI"
 fi
 
+# Prefer exported env credentials over profile (avoids ExpiredToken when profile is stale)
+if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+    unset AWS_PROFILE
+fi
+
 (
     cd "$STACK_PATH"
     
     if [ -z "$SKIP_INIT" ]; then
         print_info "Running terraform init for $SERVICE_NAME"
-        AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform init -upgrade
+        terraform init -upgrade
     fi
     
     if [ -n "$PLAN_ONLY" ]; then
         print_info "Running terraform plan for $SERVICE_NAME"
-        AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform plan -var-file="$ENV_FILE" $TF_IMAGE_VAR
+        terraform plan -var-file="$ENV_FILE" $TF_IMAGE_VAR
     else
         if [ "$AUTO_APPROVE" = "true" ]; then
             print_info "Running terraform apply with auto-approve for $SERVICE_NAME"
-            AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform apply -var-file="$ENV_FILE" $TF_IMAGE_VAR -auto-approve
+            terraform apply -var-file="$ENV_FILE" $TF_IMAGE_VAR -auto-approve
         else
             print_info "Running terraform apply for $SERVICE_NAME"
-            AWS_SDK_LOAD_CONFIG=1 AWS_PROFILE="$AWS_PROFILE" terraform apply -var-file="$ENV_FILE" $TF_IMAGE_VAR
+            terraform apply -var-file="$ENV_FILE" $TF_IMAGE_VAR
         fi
     fi
     

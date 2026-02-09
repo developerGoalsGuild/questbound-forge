@@ -12,6 +12,7 @@ resource "aws_cognito_user_pool" "user_pool" {
 
   tags = merge(var.tags, {
     Environment = var.environment
+    environment = var.environment
     Component   = "cognito"
   })
 }

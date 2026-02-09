@@ -9,5 +9,6 @@ module "ses" {
   tags = merge(var.tags, {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
   })
 }

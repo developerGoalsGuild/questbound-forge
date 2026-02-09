@@ -143,4 +143,11 @@ resource "aws_cloudfront_distribution" "landing_page" {
   tags = merge(local.common_tags, {
     Name = "GoalsGuild Landing Page - ${var.environment}"
   })
+
+  # Ignore changes that conflict with the distribution's pricing plan:
+  # - web_acl_id: cannot remove if distribution has WAF pricing plan
+  # - price_class: Free tier distributions cannot have Price class set
+  lifecycle {
+    ignore_changes = [web_acl_id, price_class]
+  }
 }
