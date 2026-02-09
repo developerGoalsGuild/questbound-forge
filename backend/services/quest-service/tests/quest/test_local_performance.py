@@ -17,7 +17,7 @@ from pathlib import Path
 quest_service_dir = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(quest_service_dir))
 
-from fake_quest_service import FakeQuestService
+from .fake_quest_service import FakeQuestService
 from app.models.quest import QuestCreatePayload
 
 class QuestPerformanceTester:

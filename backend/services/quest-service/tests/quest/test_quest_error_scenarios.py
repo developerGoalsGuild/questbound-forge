@@ -12,7 +12,7 @@ This module tests error handling and edge cases including:
 
 import pytest
 import time
-from unittest.mock import patch, Mock, MagicMock, side_effect
+from unittest.mock import patch, Mock, MagicMock
 from botocore.exceptions import ClientError, BotoCoreError, NoCredentialsError
 from fastapi.testclient import TestClient
 
