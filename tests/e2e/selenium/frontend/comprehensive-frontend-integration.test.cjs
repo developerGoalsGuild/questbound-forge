@@ -32,8 +32,26 @@
  * - Accessibility
  */
 
-const { Builder, By, until, Key } = require('selenium-webdriver');
-const chrome = require('selenium-webdriver/chrome');
+const path = require('path');
+let seleniumWebdriver;
+try {
+  const resolved = require.resolve('selenium-webdriver', {
+    paths: [path.join(__dirname, '../../../../apps/frontend/node_modules')]
+  });
+  seleniumWebdriver = require(resolved);
+} catch (error) {
+  seleniumWebdriver = require('selenium-webdriver');
+}
+const { Builder, By, until, Key } = seleniumWebdriver;
+let chrome;
+try {
+  const chromeResolved = require.resolve('selenium-webdriver/chrome', {
+    paths: [path.join(__dirname, '../../../../apps/frontend/node_modules')]
+  });
+  chrome = require(chromeResolved);
+} catch (error) {
+  chrome = require('selenium-webdriver/chrome');
+}
 const assert = require('assert');
 const testCredentials = require('./load-test-credentials.cjs');
 
@@ -47,13 +65,49 @@ try {
 
 // Test configuration
 const CONFIG = {
-  baseUrl: process.env.VITE_APP_URL || 'http://localhost:8080',
+  baseUrl: process.env.VITE_APP_URL || '',
   apiGatewayUrl: process.env.VITE_API_GATEWAY_URL || 'https://3xlvsffmxc.execute-api.us-east-2.amazonaws.com',
   apiGatewayKey: process.env.VITE_API_GATEWAY_KEY,
   timeout: 30000,
   implicitWait: 10000,
   pageLoadTimeout: 30000
 };
+
+async function isBaseUrlReachable(url, timeoutMs = 2000) {
+  if (!url) return false;
+  const { protocol } = new URL(url);
+  const httpModule = protocol === 'https:' ? require('https') : require('http');
+
+  return new Promise((resolve) => {
+    const request = httpModule.request(url, { method: 'GET', timeout: timeoutMs }, (response) => {
+      response.resume();
+      resolve(true);
+    });
+    request.on('timeout', () => {
+      request.destroy();
+      resolve(false);
+    });
+    request.on('error', () => resolve(false));
+    request.end();
+  });
+}
+
+async function resolveBaseUrl() {
+  const candidates = [
+    process.env.VITE_APP_URL,
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
+    'http://localhost:8080'
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (await isBaseUrlReachable(candidate)) {
+      return candidate;
+    }
+  }
+
+  return process.env.VITE_APP_URL || '';
+}
 
 // User credentials
 let userCredentials = {
@@ -1548,6 +1602,18 @@ describe('Comprehensive Frontend Integration Tests', function() {
   
   before(async function() {
     console.log('\n🚀 Starting Comprehensive Frontend Integration Tests\n');
+    const resolvedBaseUrl = await resolveBaseUrl();
+    if (!resolvedBaseUrl) {
+      throw new Error('Frontend server URL is not set. Provide VITE_APP_URL or start the dev server.');
+    }
+    CONFIG.baseUrl = resolvedBaseUrl;
+    const isReachable = await isBaseUrlReachable(CONFIG.baseUrl);
+    if (!isReachable) {
+      throw new Error(
+        `Frontend server is not reachable at ${CONFIG.baseUrl}. ` +
+          'Ensure the dev server is running (e.g. npm run dev -- --host 127.0.0.1 --port 5173).'
+      );
+    }
     await getCredentials();
     driver = await createDriver(process.env.HEADLESS !== 'false');
   });

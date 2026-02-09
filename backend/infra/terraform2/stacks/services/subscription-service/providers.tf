@@ -7,6 +7,7 @@ provider "aws" {
     tags = {
       Project     = "goalsguild"
       Environment = var.environment
+      environment = var.environment
       Component   = "subscription-service"
     }
   }

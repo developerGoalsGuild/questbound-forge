@@ -8,6 +8,7 @@ resource "aws_ssm_parameter" "cognito_user_pool_id" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "cognito"
   }
@@ -23,6 +24,7 @@ resource "aws_ssm_parameter" "cognito_client_id" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "cognito"
   }
@@ -38,6 +40,7 @@ resource "aws_ssm_parameter" "cognito_client_secret" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "cognito"
   }
@@ -53,6 +56,7 @@ resource "aws_ssm_parameter" "jwt_secret" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "user-service"
   }
@@ -68,6 +72,7 @@ resource "aws_ssm_parameter" "email_token_secret" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "user-service"
   }
@@ -83,6 +88,7 @@ resource "aws_ssm_parameter" "google_client_id" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "user-service"
   }
@@ -98,6 +104,7 @@ resource "aws_ssm_parameter" "google_client_secret" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "user-service"
   }
@@ -114,6 +121,7 @@ resource "aws_ssm_parameter" "api_gateway_key" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "api-gateway"
   }
@@ -150,6 +158,7 @@ resource "aws_ssm_parameter" "user_service_env_vars" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "user-service"
   }
@@ -176,6 +185,7 @@ resource "aws_ssm_parameter" "quest_service_env_vars" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "quest-service"
   }
@@ -220,6 +230,7 @@ resource "aws_ssm_parameter" "collaboration_service_env_vars" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "collaboration-service"
   }
@@ -260,6 +271,7 @@ resource "aws_ssm_parameter" "guild_service_config" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "guild-service"
   }
@@ -276,6 +288,7 @@ resource "aws_ssm_parameter" "stripe_secret_key" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "subscription-service"
   }
@@ -292,6 +305,7 @@ resource "aws_ssm_parameter" "stripe_webhook_secret" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "subscription-service"
   }
@@ -308,6 +322,7 @@ resource "aws_ssm_parameter" "stripe_publishable_key" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "subscription-service"
   }

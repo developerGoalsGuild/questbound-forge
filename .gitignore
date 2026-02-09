@@ -33,6 +33,8 @@ save-terraform-files.js
 .terraform.lock.hcl
 terraform.tfstate
 .terraform
+# Generated Terraform backend config with temporary credentials (do not commit)
+backend-config/*-with-creds.hcl
 backend/infra/terraform/plan.out
 .build
 *.backup
@@ -73,7 +75,6 @@ backend/services/quest-service/tests/__pycache__/test_ai.cpython-313-pytest-8.4.
 backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
 backend/infra/terraform/terraform.tfstate.backup
 testlog.txt
-package-lock.json
 testconsole*.txt
 backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
 backend/infra/terraform/terraform.tfstate.backup
@@ -94,7 +95,6 @@ backend/services/authorizer-service/tests/__pycache__/test_authorizer.cpython-31
 backend/services/quest-service/tests/__pycache__/conftest.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/tests/__pycache__/test_ai.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
-frontend/package-lock.json
 backend/services/quest-service/tests/__pycache__/conftest.cpython-313-pytest-8.4.1.pyc
 backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
 backend/infra/terraform/modules/lambda_zip/.dist/lambda.zip
@@ -114,7 +114,6 @@ backend/services/quest-service/app/__pycache__/models.cpython-313.pyc
 backend/services/quest-service/tests/__pycache__/test_goals.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/tests/__pycache__/test_performance.cpython-313-pytest-8.4.1.pyc
 backend/services/quest-service/tests/__pycache__/test_profile.cpython-313-pytest-8.4.1.pyc
-frontend/package-lock.json
 frontend/.env.development
 frontend/.env.development
 backend/services/authorizer-service/build/*
@@ -124,3 +123,5 @@ backend/services/gamification-service/.version
 apps/frontend/.env.development
 backend/infra/terraform2/scripts/deploy-quest-service-with-build.sh
 apps/frontend/.env.development
+apps/frontend/test-results.json
+apps/frontend/test-results.json

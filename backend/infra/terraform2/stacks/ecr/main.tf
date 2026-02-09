@@ -1,5 +1,5 @@
 # ECR Repositories Stack
-# Creates all ECR repositories needed for GoalsGuild services
+# Creates ECR repositories that don't exist yet; references existing ones via data source
 
 terraform {
   required_version = ">= 1.0"
@@ -14,7 +14,10 @@ terraform {
 # Get current AWS account ID
 data "aws_caller_identity" "current" {}
 
-# List of all service ECR repositories
+# List existing ECR repository names in the account
+data "aws_ecr_repositories" "all" {}
+
+# List of all service ECR repositories we need
 locals {
   ecr_repositories = [
     "goalsguild_user_service",
@@ -25,23 +28,18 @@ locals {
     "goalsguild_messaging_service",
     "goalsguild_gamification_service"
   ]
+  existing_names = coalesce(data.aws_ecr_repositories.all.names, [])
+  to_create      = [for n in local.ecr_repositories : n if !contains(local.existing_names, n)]
 }
 
-# Try to import existing repositories or create new ones
-# This handles the case where repositories already exist
+# Create only repositories that do not already exist.
+# If a repo already exists in AWS, we reference it via data source only (never delete).
 resource "aws_ecr_repository" "services" {
-  for_each = toset(local.ecr_repositories)
-  
-  lifecycle {
-    ignore_changes = [
-      # Ignore changes to existing repositories to avoid conflicts
-      image_scanning_configuration,
-      encryption_configuration
-    ]
-  }
-  
+  for_each = toset(local.to_create)
+
   name                 = each.value
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -53,18 +51,30 @@ resource "aws_ecr_repository" "services" {
 
   tags = {
     Project     = "goalsguild"
-    Environment = var.environment
+    environment = var.environment
     Component   = "ecr"
     Service     = each.value
   }
+
+  lifecycle {
+    # Never destroy ECR repos from this stack when they already exist in AWS
+    # (avoids RepositoryNotEmptyException; use data source for existing repos).
+    prevent_destroy = true
+  }
 }
 
-# Lifecycle policies for ECR repositories
+# Reference existing repositories (created outside this stack or by service stacks)
+data "aws_ecr_repository" "existing" {
+  for_each = toset([for n in local.ecr_repositories : n if contains(local.existing_names, n)])
+  name     = each.value
+}
+
+# Lifecycle policies for all repositories (created or existing)
 # Keep last 10 images to manage storage costs
 resource "aws_ecr_lifecycle_policy" "services" {
   for_each = toset(local.ecr_repositories)
-  
-  repository = aws_ecr_repository.services[each.value].name
+
+  repository = contains(local.to_create, each.value) ? aws_ecr_repository.services[each.value].name : data.aws_ecr_repository.existing[each.value].name
 
   policy = jsonencode({
     rules = [

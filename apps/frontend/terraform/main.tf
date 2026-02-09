@@ -20,6 +20,7 @@ locals {
   common_tags = merge({
     Project     = "GoalsGuild-Frontend"
     Environment = var.environment
+    environment = var.environment
     ManagedBy   = "Terraform"
     CreatedBy   = data.aws_caller_identity.current.arn
   }, var.tags)

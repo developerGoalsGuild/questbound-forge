@@ -1,5 +1,10 @@
 environment = "dev"
 aws_region  = "us-east-2"
+
+# GitHub repo (for github-actions-oidc stack)
+github_repo_owner = "developerGoalsGuild"
+github_repo_name  = "questbound-forge"
+
 frontend_base_url = "http://localhost:8080"
 frontend_allowed_origins = [
   "http://localhost:8080",
@@ -58,8 +63,14 @@ tags = {
 # Collaboration service override (use actual ARN for API Gateway integration)
 collaboration_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_collaboration_service_dev"
 
-# Subscription service override (use actual ARN for API Gateway integration)
+# Subscription and messaging: ECR image URIs so Terraform creates the Lambdas (use tag that exists after deploy-*-with-build.sh)
+# If not built yet, run: backend/infra/terraform2/scripts/deploy-subscription-service-with-build.sh -e dev (and same for messaging)
+subscription_image_uri = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_subscription_service:v1"
+messaging_image_uri    = "838284111015.dkr.ecr.us-east-2.amazonaws.com/goalsguild_messaging_service:v1"
+
+# API Gateway integration (Lambdas created when subscription_image_uri / messaging_image_uri are set above)
 subscription_service_lambda_arn_override = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_subscription_service_dev"
+messaging_service_lambda_arn_override   = "arn:aws:lambda:us-east-2:838284111015:function:goalsguild_messaging_service_dev"
 
 # S3 Guild Avatar Bucket Configuration
 guild_avatar_bucket_name = ""  # Leave empty to auto-generate

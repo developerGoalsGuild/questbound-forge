@@ -14,8 +14,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.clearAllTimers();
-  
-  // Force garbage collection if available
   if ((global as any).gc) {
     (global as any).gc();
   }

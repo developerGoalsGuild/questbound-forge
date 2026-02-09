@@ -208,6 +208,12 @@ if [ -n "$IMAGE_URI" ] && [ -f "$STACK_PATH/main.tf" ]; then
     fi
 fi
 
+# Prefer exported env credentials over profile (avoids ExpiredToken when profile is stale)
+if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+    unset AWS_PROFILE
+fi
+
 (
     cd "$STACK_PATH"
     
