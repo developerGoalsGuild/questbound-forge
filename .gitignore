@@ -33,6 +33,8 @@ save-terraform-files.js
 .terraform.lock.hcl
 terraform.tfstate
 .terraform
+# Generated Terraform backend config with temporary credentials (do not commit)
+backend-config/*-with-creds.hcl
 backend/infra/terraform/plan.out
 .build
 *.backup

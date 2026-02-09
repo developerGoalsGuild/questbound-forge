@@ -313,6 +313,7 @@ resource "aws_cloudwatch_dashboard" "goal_progress_dashboard" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "GoalsGuild"
     Component   = "Progress"
     Purpose     = "Monitoring"
@@ -339,6 +340,7 @@ resource "aws_cloudwatch_metric_alarm" "progress_calculation_high_latency" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "GoalsGuild"
     Component   = "Progress"
   }
@@ -363,6 +365,7 @@ resource "aws_cloudwatch_metric_alarm" "progress_calculation_error_rate" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "GoalsGuild"
     Component   = "Progress"
   }
@@ -386,6 +389,7 @@ resource "aws_cloudwatch_metric_alarm" "api_gateway_progress_4xx_errors" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "GoalsGuild"
     Component   = "Progress"
   }
@@ -409,6 +413,7 @@ resource "aws_cloudwatch_metric_alarm" "dynamodb_progress_throttling" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "GoalsGuild"
     Component   = "Progress"
   }
@@ -421,6 +426,7 @@ resource "aws_cloudwatch_log_group" "progress_metrics" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "GoalsGuild"
     Component   = "Progress"
   }

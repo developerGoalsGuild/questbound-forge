@@ -291,19 +291,28 @@ resource "aws_iam_role_policy" "quest_http_policy" {
   })
 }
 
+locals {
+  backend_s3 = {
+    bucket         = "tfstate-goalsguild-${var.environment}"
+    region         = var.aws_region
+    dynamodb_table = "tfstate-goalsguild-${var.environment}-lock"
+    encrypt        = true
+  }
+}
+
 data "terraform_remote_state" "database" {
-  backend = "local"
-  config  = { path = "../database/terraform.tfstate" }
+  backend = "s3"
+  config  = merge(local.backend_s3, { key = "backend/database/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "authorizer" {
-  backend = "local"
-  config  = { path = "../authorizer/terraform.tfstate" }
+  backend = "s3"
+  config  = merge(local.backend_s3, { key = "backend/authorizer/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "quest_service" {
-  backend = "local"
-  config  = { path = "../services/quest-service/terraform.tfstate" }
+  backend = "s3"
+  config  = merge(local.backend_s3, { key = "backend/services/quest-service/terraform.tfstate" })
 }
 
 data "aws_caller_identity" "current" {}
@@ -933,6 +942,7 @@ module "appsync" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
   }
 }
 
@@ -956,6 +966,7 @@ resource "aws_ssm_parameter" "subscription_key" {
   overwrite   = true
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "appsync"
   }
@@ -969,6 +980,7 @@ resource "aws_ssm_parameter" "subscription_key_expires_at" {
   overwrite   = true
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "appsync"
   }
@@ -982,6 +994,7 @@ resource "aws_ssm_parameter" "availability_key" {
   overwrite   = true
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "appsync"
   }
@@ -995,6 +1008,7 @@ resource "aws_ssm_parameter" "availability_key_expires_at" {
   overwrite   = true
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "goalsguild"
     Component   = "appsync"
   }
@@ -1014,6 +1028,13 @@ resource "aws_cloudwatch_metric_alarm" "appsync_unauthorized" {
   dimensions = {
     GraphQLAPIId = module.appsync.api_id
   }
+
+  tags = {
+    Environment = var.environment
+    environment = var.environment
+    Service     = "goalsguild"
+    Component   = "appsync"
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "appsync_cost_guard" {
@@ -1031,6 +1052,13 @@ resource "aws_cloudwatch_metric_alarm" "appsync_cost_guard" {
   dimensions = {
     Currency    = var.billing_currency
     ServiceName = "Amazon AppSync"
+  }
+
+  tags = {
+    Environment = var.environment
+    environment = var.environment
+    Service     = "goalsguild"
+    Component   = "appsync"
   }
 }
 

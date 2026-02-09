@@ -9,7 +9,13 @@ variable "aws_region" {
 }
 
 variable "existing_image_uri" {
-  description = "Existing Docker image URI for the subscription service"
+  description = "Existing Docker image URI for the subscription service (legacy; use subscription_image_uri in tfvars)"
+  type        = string
+  default     = ""
+}
+
+variable "subscription_image_uri" {
+  description = "ECR image URI for subscription service (set in env tfvars so Lambda is created by apply)"
   type        = string
   default     = ""
 }

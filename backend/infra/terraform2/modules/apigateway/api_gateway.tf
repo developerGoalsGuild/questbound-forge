@@ -1,7 +1,9 @@
 locals {
   cors_allow_headers = "accept,content-type,authorization,x-api-key,origin,referer,x-amz-date,x-amz-security-token,x-requested-with"
   cors_allow_origin  = length(var.frontend_allowed_origins) > 0 ? var.frontend_allowed_origins[0] : "*"
-  
+  # Only create messaging integrations when Lambda ARN is set and valid (avoids "Invalid lambda function" when service not deployed)
+  messaging_lambda_valid = var.messaging_service_lambda_arn != "" && length(regexall("^arn:aws:lambda:", var.messaging_service_lambda_arn)) > 0
+
   # Security headers
   security_headers = {
     "X-Content-Type-Options"     = "nosniff"
@@ -4571,6 +4573,7 @@ resource "aws_cloudwatch_log_group" "api_gateway_logs" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
     Stage       = var.api_stage_name
   }
@@ -4584,6 +4587,7 @@ resource "aws_api_gateway_api_key" "api_key" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
   }
 }
@@ -4612,6 +4616,7 @@ resource "aws_api_gateway_usage_plan" "default_usage_plan" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
     Plan        = "default"
   }
@@ -4640,6 +4645,7 @@ resource "aws_api_gateway_usage_plan" "premium_usage_plan" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
     Plan        = "premium"
   }
@@ -4668,6 +4674,7 @@ resource "aws_api_gateway_usage_plan" "admin_usage_plan" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
     Plan        = "admin"
   }
@@ -5802,10 +5809,10 @@ resource "aws_api_gateway_integration" "guilds_id_comment_permission_post_integr
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.guild_service_lambda_arn}/invocations"
 }
 
-# Messaging service methods and integrations
-
+# Messaging service methods and integrations (only when messaging Lambda ARN is set)
 # GET /messaging/rooms
 resource "aws_api_gateway_method" "messaging_rooms_get" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms.id
   http_method   = "GET"
@@ -5814,6 +5821,7 @@ resource "aws_api_gateway_method" "messaging_rooms_get" {
 }
 
 resource "aws_api_gateway_method" "messaging_rooms_options" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms.id
   http_method   = "OPTIONS"
@@ -5821,18 +5829,20 @@ resource "aws_api_gateway_method" "messaging_rooms_options" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_get_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms.id
-  http_method             = aws_api_gateway_method.messaging_rooms_get.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_get[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_options_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms.id
-  http_method             = aws_api_gateway_method.messaging_rooms_options.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_options[0].http_method
   type                    = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -5843,6 +5853,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_options_integration" {
 
 # POST /messaging/rooms
 resource "aws_api_gateway_method" "messaging_rooms_post" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms.id
   http_method   = "POST"
@@ -5851,9 +5862,10 @@ resource "aws_api_gateway_method" "messaging_rooms_post" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_post_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms.id
-  http_method             = aws_api_gateway_method.messaging_rooms_post.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_post[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
@@ -5861,6 +5873,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_post_integration" {
 
 # GET /messaging/rooms/{room_id}
 resource "aws_api_gateway_method" "messaging_rooms_id_get" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
   http_method   = "GET"
@@ -5869,6 +5882,7 @@ resource "aws_api_gateway_method" "messaging_rooms_id_get" {
 }
 
 resource "aws_api_gateway_method" "messaging_rooms_id_options" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
   http_method   = "OPTIONS"
@@ -5876,18 +5890,20 @@ resource "aws_api_gateway_method" "messaging_rooms_id_options" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_get_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_get.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_get[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_options_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_options.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_options[0].http_method
   type                    = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -5898,6 +5914,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_options_integration" 
 
 # PUT /messaging/rooms/{room_id}
 resource "aws_api_gateway_method" "messaging_rooms_id_put" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
   http_method   = "PUT"
@@ -5906,9 +5923,10 @@ resource "aws_api_gateway_method" "messaging_rooms_id_put" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_put_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_put.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_put[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
@@ -5916,6 +5934,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_put_integration" {
 
 # DELETE /messaging/rooms/{room_id}
 resource "aws_api_gateway_method" "messaging_rooms_id_delete" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
   http_method   = "DELETE"
@@ -5924,9 +5943,10 @@ resource "aws_api_gateway_method" "messaging_rooms_id_delete" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_delete_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_delete.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_delete[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
@@ -5934,6 +5954,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_delete_integration" {
 
 # GET /messaging/rooms/{room_id}/messages
 resource "aws_api_gateway_method" "messaging_rooms_id_messages_get" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_messages.id
   http_method   = "GET"
@@ -5942,6 +5963,7 @@ resource "aws_api_gateway_method" "messaging_rooms_id_messages_get" {
 }
 
 resource "aws_api_gateway_method" "messaging_rooms_id_messages_options" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_messages.id
   http_method   = "OPTIONS"
@@ -5949,18 +5971,20 @@ resource "aws_api_gateway_method" "messaging_rooms_id_messages_options" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_messages_get_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_messages.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_get.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_get[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_messages_options_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_messages.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_options.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_options[0].http_method
   type                    = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -5971,6 +5995,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_messages_options_inte
 
 # POST /messaging/rooms/{room_id}/messages
 resource "aws_api_gateway_method" "messaging_rooms_id_messages_post" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_messages.id
   http_method   = "POST"
@@ -5979,9 +6004,10 @@ resource "aws_api_gateway_method" "messaging_rooms_id_messages_post" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_messages_post_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_messages.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_post.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_messages_post[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
@@ -5989,6 +6015,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_messages_post_integra
 
 # POST /messaging/rooms/{room_id}/join
 resource "aws_api_gateway_method" "messaging_rooms_id_join_post" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_join.id
   http_method   = "POST"
@@ -5997,6 +6024,7 @@ resource "aws_api_gateway_method" "messaging_rooms_id_join_post" {
 }
 
 resource "aws_api_gateway_method" "messaging_rooms_id_join_options" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_join.id
   http_method   = "OPTIONS"
@@ -6004,18 +6032,20 @@ resource "aws_api_gateway_method" "messaging_rooms_id_join_options" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_join_post_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_join.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_join_post.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_join_post[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_join_options_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_join.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_join_options.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_join_options[0].http_method
   type                    = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -6026,6 +6056,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_join_options_integrat
 
 # POST /messaging/rooms/{room_id}/leave
 resource "aws_api_gateway_method" "messaging_rooms_id_leave_post" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_leave.id
   http_method   = "POST"
@@ -6034,6 +6065,7 @@ resource "aws_api_gateway_method" "messaging_rooms_id_leave_post" {
 }
 
 resource "aws_api_gateway_method" "messaging_rooms_id_leave_options" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_leave.id
   http_method   = "OPTIONS"
@@ -6041,18 +6073,20 @@ resource "aws_api_gateway_method" "messaging_rooms_id_leave_options" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_leave_post_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_leave.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_leave_post.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_leave_post[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_leave_options_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_leave.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_leave_options.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_leave_options[0].http_method
   type                    = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -6063,6 +6097,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_leave_options_integra
 
 # PATCH /messaging/rooms/{room_id}
 resource "aws_api_gateway_method" "messaging_rooms_id_patch" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id.id
   http_method   = "PATCH"
@@ -6071,9 +6106,10 @@ resource "aws_api_gateway_method" "messaging_rooms_id_patch" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_patch_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_patch.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_patch[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
@@ -6081,6 +6117,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_patch_integration" {
 
 # GET /messaging/rooms/{room_id}/members
 resource "aws_api_gateway_method" "messaging_rooms_id_members_get" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_members.id
   http_method   = "GET"
@@ -6089,6 +6126,7 @@ resource "aws_api_gateway_method" "messaging_rooms_id_members_get" {
 }
 
 resource "aws_api_gateway_method" "messaging_rooms_id_members_options" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_rooms_id_members.id
   http_method   = "OPTIONS"
@@ -6096,18 +6134,20 @@ resource "aws_api_gateway_method" "messaging_rooms_id_members_options" {
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_members_get_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_members.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_members_get.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_members_get[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_rooms_id_members_options_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_rooms_id_members.id
-  http_method             = aws_api_gateway_method.messaging_rooms_id_members_options.http_method
+  http_method             = aws_api_gateway_method.messaging_rooms_id_members_options[0].http_method
   type                    = "MOCK"
   request_templates = {
     "application/json" = jsonencode({
@@ -6118,6 +6158,7 @@ resource "aws_api_gateway_integration" "messaging_rooms_id_members_options_integ
 
 # WebSocket methods for real-time messaging
 resource "aws_api_gateway_method" "messaging_websocket_connect" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_websocket.id
   http_method   = "GET"
@@ -6126,6 +6167,7 @@ resource "aws_api_gateway_method" "messaging_websocket_connect" {
 }
 
 resource "aws_api_gateway_method" "messaging_websocket_disconnect" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_websocket.id
   http_method   = "DELETE"
@@ -6134,6 +6176,7 @@ resource "aws_api_gateway_method" "messaging_websocket_disconnect" {
 }
 
 resource "aws_api_gateway_method" "messaging_websocket_default" {
+  count         = local.messaging_lambda_valid ? 1 : 0
   rest_api_id   = aws_api_gateway_rest_api.rest_api.id
   resource_id   = aws_api_gateway_resource.messaging_websocket.id
   http_method   = "POST"
@@ -6142,27 +6185,30 @@ resource "aws_api_gateway_method" "messaging_websocket_default" {
 }
 
 resource "aws_api_gateway_integration" "messaging_websocket_connect_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_websocket.id
-  http_method             = aws_api_gateway_method.messaging_websocket_connect.http_method
+  http_method             = aws_api_gateway_method.messaging_websocket_connect[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_websocket_disconnect_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_websocket.id
-  http_method             = aws_api_gateway_method.messaging_websocket_disconnect.http_method
+  http_method             = aws_api_gateway_method.messaging_websocket_disconnect[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
 }
 
 resource "aws_api_gateway_integration" "messaging_websocket_default_integration" {
+  count                    = local.messaging_lambda_valid ? 1 : 0
   rest_api_id             = aws_api_gateway_rest_api.rest_api.id
   resource_id             = aws_api_gateway_resource.messaging_websocket.id
-  http_method             = aws_api_gateway_method.messaging_websocket_default.http_method
+  http_method             = aws_api_gateway_method.messaging_websocket_default[0].http_method
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
   uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${var.messaging_service_lambda_arn}/invocations"
@@ -6418,6 +6464,7 @@ resource "aws_wafv2_web_acl" "api_gateway_waf" {
 
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
     Security    = "waf"
   }
@@ -6449,6 +6496,7 @@ resource "aws_iam_role" "api_gateway_logs_role" {
   
   tags = {
     Environment = var.environment
+    environment = var.environment
     Service     = "api-gateway"
   }
 }

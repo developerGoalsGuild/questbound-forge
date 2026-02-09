@@ -22,7 +22,9 @@ variable "guild_service_lambda_arn" {
   type = string
 }
 variable "messaging_service_lambda_arn" {
-  type = string
+  type    = string
+  default = ""
+  description = "ARN of the messaging service Lambda. Leave empty if not deployed yet to avoid Invalid lambda function errors."
 }
 
 variable "gamification_service_lambda_arn" {

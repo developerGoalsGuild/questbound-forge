@@ -1,6 +1,15 @@
-﻿data "terraform_remote_state" "security" {
-  backend = "local"
-  config = { path = "../../security/terraform.tfstate" }
+locals {
+  backend_s3 = {
+    bucket         = "tfstate-goalsguild-${var.environment}"
+    region         = var.aws_region
+    dynamodb_table = "tfstate-goalsguild-${var.environment}-lock"
+    encrypt        = true
+  }
+}
+
+data "terraform_remote_state" "security" {
+  backend = "s3"
+  config = merge(local.backend_s3, { key = "backend/security/terraform.tfstate" })
 }
 
 # Use existing ECR image directly (temporarily)

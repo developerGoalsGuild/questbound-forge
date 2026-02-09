@@ -8,6 +8,7 @@ resource "aws_sesv2_email_identity" "domain" {
 
   tags = merge(var.tags, {
     Environment = var.environment
+    environment = var.environment
     Component   = "ses"
     Type        = "domain"
   })
@@ -20,6 +21,7 @@ resource "aws_sesv2_email_identity" "email" {
 
   tags = merge(var.tags, {
     Environment = var.environment
+    environment = var.environment
     Component   = "ses"
     Type        = "email"
   })
@@ -35,6 +37,7 @@ resource "aws_sesv2_configuration_set" "main" {
 
   tags = merge(var.tags, {
     Environment = var.environment
+    environment = var.environment
     Component   = "ses"
   })
 }

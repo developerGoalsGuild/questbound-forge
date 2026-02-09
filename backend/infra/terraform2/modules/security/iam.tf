@@ -22,6 +22,7 @@ resource "aws_iam_role" "lambda_exec_role" {
   })
   tags = merge(var.tags, {
     Environment = var.environment
+    environment = var.environment
     Component   = "lambda"
   })
 }
@@ -133,6 +134,7 @@ resource "aws_iam_role" "collaboration_service_role" {
   })
   tags = merge(var.tags, {
     Environment = var.environment
+    environment = var.environment
     Component   = "collaboration-service"
   })
 }

@@ -2,6 +2,10 @@ output "lambda_exec_role_arn" {
   value = var.existing_lambda_exec_role_name != "" ? data.aws_iam_role.existing_lambda_exec[0].arn : aws_iam_role.lambda_exec_role[0].arn
 }
 
+output "lambda_exec_role_name" {
+  value = local.lambda_role_name
+}
+
 output "collaboration_service_role_arn" {
   value = aws_iam_role.collaboration_service_role.arn
 }

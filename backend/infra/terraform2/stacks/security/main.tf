@@ -16,5 +16,6 @@ module "security" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
   }
 }

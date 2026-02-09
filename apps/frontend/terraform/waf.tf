@@ -7,6 +7,10 @@ resource "aws_wafv2_ip_set" "frontend_allowlist" {
   scope              = "CLOUDFRONT"
   ip_address_version = "IPV4"
   addresses          = var.allowed_ip_cidrs
+
+  tags = merge(local.common_tags, {
+    Name = "${var.bucket_name_prefix}-${var.environment}-allowlist"
+  })
 }
 
 resource "aws_wafv2_web_acl" "frontend_private" {
@@ -45,4 +49,8 @@ resource "aws_wafv2_web_acl" "frontend_private" {
     metric_name                = "frontend-private-${var.environment}"
     sampled_requests_enabled   = true
   }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.bucket_name_prefix}-${var.environment}-web-acl"
+  })
 }
