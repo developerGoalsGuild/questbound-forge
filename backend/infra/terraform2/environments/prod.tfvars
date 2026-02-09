@@ -1,8 +1,13 @@
 environment = "prod"
 aws_region  = "us-east-2"
-frontend_base_url = "https://app.goalsguild.com"
+
+# GitHub repo (for github-actions-oidc stack)
+github_repo_owner = "developerGoalsGuild"
+github_repo_name  = "questbound-forge"
+
+frontend_base_url = "https://www.goalsguild.com"
 frontend_allowed_origins = [
-  "https://app.goalsguild.com",
+  "https://www.goalsguild.com",
 ]
 appsync_auth_type = "AWS_LAMBDA"
 enable_appsync_api_key = true

@@ -7,6 +7,7 @@ module "gg_core" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
     Component   = "database"
   }
 }

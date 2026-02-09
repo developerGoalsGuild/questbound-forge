@@ -1,50 +1,61 @@
-# Optional remote state data sources - only used if override ARNs are not provided
+# Optional remote state data sources - only used if override ARNs are not provided.
+# Use S3 backend so we read the same state as the rest of the backend (services use S3, not local).
+locals {
+  backend_s3_config = {
+    bucket         = "tfstate-goalsguild-${var.environment}"
+    key            = "" # set per data source
+    region         = var.aws_region
+    dynamodb_table = "tfstate-goalsguild-${var.environment}-lock"
+    encrypt        = true
+  }
+}
+
 data "terraform_remote_state" "authorizer" {
   count   = var.lambda_authorizer_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../authorizer/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/authorizer/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "user_service" {
   count   = var.user_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/user-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/user-service/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "quest_service" {
   count   = var.quest_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/quest-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/quest-service/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "collaboration_service" {
   count   = var.collaboration_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/collaboration-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/collaboration-service/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "guild_service" {
   count   = var.guild_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/guild-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/guild-service/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "messaging_service" {
   count   = var.messaging_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/messaging-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/messaging-service/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "gamification_service" {
   count   = var.gamification_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/gamification-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/gamification-service/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "subscription_service" {
   count   = var.subscription_service_lambda_arn_override == "" ? 1 : 0
-  backend = "local"
-  config = { path = "../services/subscription-service/terraform.tfstate" }
+  backend = "s3"
+  config = merge(local.backend_s3_config, { key = "backend/services/subscription-service/terraform.tfstate" })
 }
 
 locals {

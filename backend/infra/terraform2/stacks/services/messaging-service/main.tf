@@ -1,4 +1,4 @@
-﻿# Messaging Service Infrastructure
+# Messaging Service Infrastructure
 # FastAPI WebSocket service for real-time messaging
 
 terraform {
@@ -11,31 +11,37 @@ terraform {
   }
 }
 
-# Data sources (optional - will use fallback values if not available)
+# Remote state from S3 (same backend as other stacks)
+locals {
+  backend_s3 = {
+    bucket         = "tfstate-goalsguild-${var.environment}"
+    region         = var.aws_region
+    dynamodb_table = "tfstate-goalsguild-${var.environment}-lock"
+    encrypt        = true
+  }
+}
+
 data "terraform_remote_state" "database" {
-  count   = fileexists("${path.module}/../database/terraform.tfstate") ? 1 : 0
-  backend = "local"
-  config = { path = "../database/terraform.tfstate" }
+  backend = "s3"
+  config  = merge(local.backend_s3, { key = "backend/database/terraform.tfstate" })
 }
 
 data "terraform_remote_state" "security" {
-  count   = fileexists("${path.module}/../security/terraform.tfstate") ? 1 : 0
-  backend = "local"
-  config = { path = "../security/terraform.tfstate" }
+  backend = "s3"
+  config  = merge(local.backend_s3, { key = "backend/security/terraform.tfstate" })
 }
 
-# Use existing ECR image directly
+# Use existing ECR image (from env tfvars or -var so Lambda is created when applying with deploy-all/apply-one-stack)
 locals {
-  existing_image_uri = var.existing_image_uri
-  has_valid_image = var.existing_image_uri != ""
-  
-  # Fallback values for remote state
-  lambda_exec_role_arn = length(data.terraform_remote_state.security) > 0 ? data.terraform_remote_state.security[0].outputs.lambda_exec_role_arn : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/goalsguild_lambda_exec_role_${var.environment}"
-  lambda_exec_role_name = length(data.terraform_remote_state.security) > 0 ? data.terraform_remote_state.security[0].outputs.lambda_exec_role_name : "goalsguild_lambda_exec_role_${var.environment}"
-  gg_core_table_name = length(data.terraform_remote_state.database) > 0 ? data.terraform_remote_state.database[0].outputs.gg_core_table_name : "gg_core"
-  guild_table_name = length(data.terraform_remote_state.database) > 0 ? data.terraform_remote_state.database[0].outputs.guild_table_name : "gg_guild"
-  gg_core_table_arn = length(data.terraform_remote_state.database) > 0 ? data.terraform_remote_state.database[0].outputs.gg_core_table_arn : "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/gg_core"
-  guild_table_arn = length(data.terraform_remote_state.database) > 0 ? data.terraform_remote_state.database[0].outputs.guild_table_arn : "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/gg_guild"
+  existing_image_uri = var.messaging_image_uri != "" ? var.messaging_image_uri : var.existing_image_uri
+  has_valid_image    = local.existing_image_uri != ""
+
+  lambda_exec_role_arn  = data.terraform_remote_state.security.outputs.lambda_exec_role_arn
+  lambda_exec_role_name = try(data.terraform_remote_state.security.outputs.lambda_exec_role_name, element(split("/", data.terraform_remote_state.security.outputs.lambda_exec_role_arn), 1))
+  gg_core_table_name   = data.terraform_remote_state.database.outputs.gg_core_table_name
+  guild_table_name     = data.terraform_remote_state.database.outputs.guild_table_name
+  gg_core_table_arn    = data.terraform_remote_state.database.outputs.gg_core_table_arn
+  guild_table_arn      = data.terraform_remote_state.database.outputs.guild_table_arn
 }
 
 # Get current AWS account ID
@@ -64,6 +70,7 @@ resource "aws_ecr_repository" "messaging_service" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
     Component   = "messaging-service"
   }
 }
@@ -102,6 +109,7 @@ resource "aws_cloudwatch_log_group" "messaging_service" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
     Component   = "messaging-service"
   }
 }
@@ -144,6 +152,7 @@ resource "aws_iam_policy" "messaging_service_dynamodb_policy" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
     Component   = "messaging-service"
   }
 }
@@ -177,6 +186,7 @@ resource "aws_iam_policy" "messaging_service_ssm_policy" {
   tags = {
     Project     = "goalsguild"
     Environment = var.environment
+    environment = var.environment
     Component   = "messaging-service"
   }
 }

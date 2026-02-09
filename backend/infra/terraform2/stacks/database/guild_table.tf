@@ -124,6 +124,7 @@ resource "aws_dynamodb_table" "guild_table" {
   tags = {
     Name        = var.guild_table_name
     Environment = var.environment
+    environment = var.environment
     Project     = var.project_name
     Service     = "guild-service"
     Purpose     = "guild-data"
@@ -163,6 +164,7 @@ resource "aws_iam_policy" "guild_table_policy" {
   tags = {
     Name        = "${var.project_name}-guild-table-policy-${var.environment}"
     Environment = var.environment
+    environment = var.environment
     Project     = var.project_name
     Service     = "guild-service"
   }

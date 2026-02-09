@@ -10,7 +10,13 @@ variable "aws_region" {
 
 
 variable "existing_image_uri" {
-  description = "Existing Docker image URI for the messaging service"
+  description = "Existing Docker image URI for the messaging service (legacy; use messaging_image_uri in tfvars)"
+  type        = string
+  default     = ""
+}
+
+variable "messaging_image_uri" {
+  description = "ECR image URI for messaging service (set in env tfvars so Lambda is created by apply)"
   type        = string
   default     = ""
 }
