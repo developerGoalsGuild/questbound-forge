@@ -22,7 +22,7 @@ quest_service_dir = Path(__file__).resolve().parents[2]
 if str(quest_service_dir) not in sys.path:
     sys.path.insert(0, str(quest_service_dir))
 
-from test_data_manager import test_data_manager
+from .test_data_manager import test_data_manager
 
 
 class TestDataHelpers:

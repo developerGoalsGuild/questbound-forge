@@ -12,7 +12,7 @@ sys.path.insert(0, str(quest_service_dir))
 def test_quest_creation_performance():
     """Test quest creation performance."""
     try:
-        from test_helpers import DatabaseHelpers
+        from .test_helpers import DatabaseHelpers
         from app.models.quest import QuestCreatePayload
         
         # Test data

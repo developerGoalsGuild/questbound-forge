@@ -19,7 +19,14 @@ quest_service_dir = Path(__file__).resolve().parents[2]
 if str(quest_service_dir) not in sys.path:
     sys.path.insert(0, str(quest_service_dir))
 
-from test_data_manager import test_data_manager
+# When run as script, add quest test dir so absolute import works; else use relative
+if __name__ == "__main__":
+    _quest_tests_dir = Path(__file__).resolve().parent
+    if str(_quest_tests_dir) not in sys.path:
+        sys.path.insert(0, str(_quest_tests_dir))
+    from test_data_manager import test_data_manager
+else:
+    from .test_data_manager import test_data_manager
 
 
 class QuestTestRunner:

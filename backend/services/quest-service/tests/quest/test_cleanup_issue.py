@@ -11,7 +11,7 @@ sys.path.insert(0, str(quest_service_dir))
 def test_cleanup_process():
     """Test the cleanup process to see if it causes credential issues."""
     try:
-        from test_data_manager import test_data_manager
+        from .test_data_manager import test_data_manager
         print("Successfully imported test_data_manager")
         
         # Track some test data

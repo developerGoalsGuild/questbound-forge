@@ -8,8 +8,8 @@ for integration testing with real API calls.
 import pytest
 import os
 import requests
-from test_helpers import AuthHelpers, TestDataHelpers, ValidationHelpers
-from test_data_manager import test_data_manager
+from .test_helpers import AuthHelpers, TestDataHelpers, ValidationHelpers
+from .test_data_manager import test_data_manager
 
 
 class TestQuestIntegrationWithAuth:

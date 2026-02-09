@@ -12,7 +12,7 @@ sys.path.insert(0, str(quest_service_dir))
 def test_database_helpers():
     """Test database helpers directly."""
     try:
-        from test_helpers import DatabaseHelpers
+        from .test_helpers import DatabaseHelpers
         print("Successfully imported DatabaseHelpers")
         
         # Try to create a test quest
