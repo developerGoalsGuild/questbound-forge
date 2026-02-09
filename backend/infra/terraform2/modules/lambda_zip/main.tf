@@ -27,6 +27,11 @@ resource "null_resource" "build_ps" {
       if (Test-Path '${local.src_abs}\${var.requirements_file}') {
         docker run --rm -v "${local.build_abs}:/out" -v "${local.src_abs}:/src" --entrypoint /bin/sh ${var.python_builder_image} -lc "pip install -r /src/${var.requirements_file} --target /out"
       }
+      # Verify directory exists and has content
+      if (-not (Test-Path '${local.build_abs}') -or ((Get-ChildItem '${local.build_abs}' -ErrorAction SilentlyContinue | Measure-Object).Count -eq 0)) {
+        Write-Error "Error: Build directory ${local.build_abs} is empty or does not exist"
+        exit 1
+      }
     POWERSHELL
   }
 }
@@ -37,10 +42,17 @@ resource "null_resource" "build_bash" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash","-lc"]
     command = <<-BASH
-      rm -rf "${local.build_abs}" "${local.dist_abs}" && mkdir -p "${local.build_abs}" "${local.dist_abs}"
+      set -e
+      rm -rf "${local.build_abs}" "${local.dist_abs}"
+      mkdir -p "${local.build_abs}" "${local.dist_abs}"
       cp -R "${local.src_abs}/." "${local.build_abs}/"
       if [ -f "${local.src_abs}/${var.requirements_file}" ]; then
         docker run --rm -v "${local.build_abs}:/out" -v "${local.src_abs}:/src" --entrypoint /bin/sh ${var.python_builder_image} -lc 'pip install -r /src/${var.requirements_file} --target /out'
+      fi
+      # Verify directory exists and has content
+      if [ ! -d "${local.build_abs}" ] || [ -z "$(ls -A ${local.build_abs})" ]; then
+        echo "Error: Build directory ${local.build_abs} is empty or does not exist"
+        exit 1
       fi
     BASH
   }
