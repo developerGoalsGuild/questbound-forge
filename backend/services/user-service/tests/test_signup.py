@@ -375,11 +375,15 @@ def test_login_success_after_confirmation(app_client):
 
 
 def test_confirm_email_invalid_token(app_client):
-    # Token must be at least 20 chars (Query min_length=20); short token may yield validation error
+    # Token must be at least 20 chars (Query min_length=20); short token may yield validation or bad request
     r = app_client.get('/users/confirm-email?token=invalid')
-    assert r.status_code == 400
-    detail = r.json().get('detail', '')
-    assert 'invalid' in detail.lower() or 'expired' in detail.lower() or 'token' in detail.lower()
+    assert r.status_code in (400, 422)
+    raw_detail = r.json().get('detail', '')
+    if isinstance(raw_detail, list):
+        detail_str = ' '.join(e.get('msg', str(e)) for e in raw_detail)
+    else:
+        detail_str = str(raw_detail)
+    assert 'invalid' in detail_str.lower() or 'expired' in detail_str.lower() or 'token' in detail_str.lower()
 
 
 def test_confirm_email_success(app_client):
