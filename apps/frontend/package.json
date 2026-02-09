@@ -35,6 +35,7 @@
         "test:accessibility:report": "node src/scripts/accessibility-test.js --report-only"
     },
     "devDependencies": {
+        "@types/node": "^25.2.2",
         "autoprefixer": "^10.4.20",
         "chromedriver": "^143.0.4",
         "mocha": "^11.7.5",
