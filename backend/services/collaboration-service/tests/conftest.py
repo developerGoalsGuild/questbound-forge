@@ -102,6 +102,24 @@ def mock_cognito():
         }
 
 
+# Map of identifier (email or nickname) -> user dict for _lookup_invitee (create_invite uses this)
+LOOKUP_INVITEE_USERS = {
+    'jane@example.com': {'userId': 'user-456', 'username': 'jane_smith', 'email': 'jane@example.com'},
+    'bob@example.com': {'userId': 'user-789', 'username': 'bob_wilson', 'email': 'bob@example.com'},
+    'bob_wilson': {'userId': 'user-789', 'username': 'bob_wilson', 'email': 'bob@example.com'},
+    'jane_smith': {'userId': 'user-456', 'username': 'jane_smith', 'email': 'jane@example.com'},
+}
+
+
+@pytest.fixture
+def mock_lookup_invitee():
+    """Mock _lookup_invitee so create_invite finds test users by email/nickname."""
+    def _lookup(identifier):
+        return LOOKUP_INVITEE_USERS.get(identifier)
+    with patch('app.db.invite_db._lookup_invitee', side_effect=_lookup):
+        yield
+
+
 @pytest.fixture
 def sample_invite_data():
     """Sample invite data for testing."""

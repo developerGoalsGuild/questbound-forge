@@ -119,7 +119,7 @@ def sample_data(dynamodb):
 class TestSimpleIntegration:
     """Simple integration tests for collaboration flows."""
     
-    def test_invite_creation_basic(self, dynamodb, sample_data):
+    def test_invite_creation_basic(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test basic invite creation."""
         table = dynamodb
         
@@ -165,7 +165,7 @@ class TestSimpleIntegration:
         assert invite_item['inviterId'] == 'user-123'
         assert invite_item['status'] == 'pending'
     
-    def test_invite_acceptance_basic(self, dynamodb, sample_data):
+    def test_invite_acceptance_basic(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test basic invite acceptance."""
         table = dynamodb
         
@@ -216,7 +216,7 @@ class TestSimpleIntegration:
         assert collaborator_item['role'] == 'collaborator'
         assert 'joinedAt' in collaborator_item
     
-    def test_invite_decline_basic(self, dynamodb, sample_data):
+    def test_invite_decline_basic(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test basic invite decline."""
         table = dynamodb
         
@@ -263,7 +263,7 @@ class TestSimpleIntegration:
         
         assert 'Item' not in response
     
-    def test_duplicate_invite_prevention(self, dynamodb, sample_data):
+    def test_duplicate_invite_prevention(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test that duplicate invites are prevented."""
         table = dynamodb
         
@@ -291,7 +291,7 @@ class TestSimpleIntegration:
         with pytest.raises(Exception, match="Invite already exists"):
             create_invite('user-123', invite_payload)
     
-    def test_collaborator_removal_basic(self, dynamodb, sample_data):
+    def test_collaborator_removal_basic(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test basic collaborator removal."""
         table = dynamodb
         
@@ -339,7 +339,7 @@ class TestSimpleIntegration:
         
         assert 'Item' not in response
     
-    def test_invite_expiry_ttl(self, dynamodb, sample_data):
+    def test_invite_expiry_ttl(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test that invites have TTL set for expiry."""
         table = dynamodb
         
@@ -404,7 +404,7 @@ class TestSimpleIntegration:
         with pytest.raises(Exception, match="User does not own this resource"):
             create_invite('user-456', invite_payload)  # user-456 is not the owner
     
-    def test_concurrent_invite_acceptance(self, dynamodb, sample_data):
+    def test_concurrent_invite_acceptance(self, dynamodb, sample_data, mock_lookup_invitee):
         """Test handling of concurrent invite acceptance attempts."""
         table = dynamodb
         

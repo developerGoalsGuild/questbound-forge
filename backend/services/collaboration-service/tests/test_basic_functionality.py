@@ -63,7 +63,8 @@ class TestBasicFunctionality:
             inviter_id='user-123',
             invitee_id='user-456',
             invitee_email='jane@example.com',
-            payload=payload
+            payload=payload,
+            owner_id='user-123'
         )
         
         # Verify required fields
@@ -201,7 +202,8 @@ class TestBasicFunctionality:
             inviter_id='user-123',
             invitee_id='user-456',
             invitee_email='jane@example.com',
-            payload=payload
+            payload=payload,
+            owner_id='user-123'
         )
         
         # Verify TTL is set
@@ -227,7 +229,8 @@ class TestBasicFunctionality:
             inviter_id='user-789',
             invitee_id='user-101',
             invitee_email='bob@example.com',
-            payload=payload
+            payload=payload,
+            owner_id='user-789'
         )
         
         # Verify primary key
@@ -254,7 +257,8 @@ class TestBasicFunctionality:
                 inviter_id='user-123',
                 invitee_id='user-456',
                 invitee_email='test@example.com',
-                payload=payload
+                payload=payload,
+                owner_id='user-123'
             )
             
             # Verify resource type is preserved
@@ -278,7 +282,8 @@ class TestBasicFunctionality:
             inviter_id='user-123',
             invitee_id='user-456',
             invitee_email='jane@example.com',
-            payload=payload_with_message
+            payload=payload_with_message,
+            owner_id='user-123'
         )
         
         assert invite_item['message'] == 'This is a test message'
@@ -294,7 +299,8 @@ class TestBasicFunctionality:
             inviter_id='user-123',
             invitee_id='user-456',
             invitee_email='jane@example.com',
-            payload=payload_without_message
+            payload=payload_without_message,
+            owner_id='user-123'
         )
         
         assert invite_item['message'] is None

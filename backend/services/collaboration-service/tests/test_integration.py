@@ -132,7 +132,7 @@ def sample_resources(dynamodb):
         'updatedAt': '2024-01-01T00:00:00Z'
     }
     
-    # Create a task owned by user-123
+    # Create a task owned by user-123 (status must be 'draft' or 'active' for collaboration invites)
     task = {
         'PK': 'USER#user-123',
         'SK': 'TASK#task-123',
@@ -141,7 +141,7 @@ def sample_resources(dynamodb):
         'taskId': 'task-123',
         'title': 'Complete Python Tutorial',
         'description': 'Finish the online Python tutorial',
-        'status': 'pending',
+        'status': 'active',
         'createdAt': '2024-01-01T00:00:00Z',
         'updatedAt': '2024-01-01T00:00:00Z'
     }
@@ -156,11 +156,11 @@ def sample_resources(dynamodb):
 class TestCollaborationIntegration:
     """Integration tests for collaboration flows."""
     
-    def test_full_invite_accept_flow(self, dynamodb, sample_users, sample_resources):
+    def test_full_invite_accept_flow(self, dynamodb, sample_users, sample_resources, mock_lookup_invitee):
         """Test complete flow: create invite → accept invite → verify collaborator."""
         table = dynamodb
         
-        # Step 1: Create invite
+        # Step 1: Create invite (mock_lookup_invitee provides jane@example.com -> user-456)
         invite_payload = InviteCreatePayload(
             resource_type='goal',
             resource_id='goal-123',
@@ -168,14 +168,7 @@ class TestCollaborationIntegration:
             message='Join me in learning Python!'
         )
         
-        with patch('app.db.invite_db._get_user_by_email') as mock_get_user:
-            mock_get_user.return_value = {
-                'userId': 'user-456',
-                'username': 'jane_smith',
-                'email': 'jane@example.com'
-            }
-            
-            invite = create_invite('user-123', invite_payload)
+        invite = create_invite('user-123', invite_payload)
         
         # Verify invite was created
         assert invite.invite_id is not None
@@ -254,7 +247,7 @@ class TestCollaborationIntegration:
         assert collaborator.user_id == 'user-456'
         assert collaborator.username == 'jane_smith'
     
-    def test_invite_decline_flow(self, dynamodb, sample_users, sample_resources):
+    def test_invite_decline_flow(self, dynamodb, sample_users, sample_resources, mock_lookup_invitee):
         """Test invite decline flow."""
         table = dynamodb
         
@@ -266,14 +259,7 @@ class TestCollaborationIntegration:
             message='Join my quest!'
         )
         
-        with patch('app.db.invite_db._get_user_by_username') as mock_get_user:
-            mock_get_user.return_value = {
-                'userId': 'user-789',
-                'username': 'bob_wilson',
-                'email': 'bob@example.com'
-            }
-            
-            invite = create_invite('user-123', invite_payload)
+        invite = create_invite('user-123', invite_payload)
         
         # Decline invite
         with patch('app.db.invite_db._get_user_by_id') as mock_get_user_by_id:
@@ -305,7 +291,7 @@ class TestCollaborationIntegration:
         
         assert 'Item' not in response
     
-    def test_duplicate_invite_prevention(self, dynamodb, sample_users, sample_resources):
+    def test_duplicate_invite_prevention(self, dynamodb, sample_users, sample_resources, mock_lookup_invitee):
         """Test that duplicate invites are prevented."""
         invite_payload = InviteCreatePayload(
             resource_type='task',
@@ -328,7 +314,7 @@ class TestCollaborationIntegration:
             with pytest.raises(Exception, match="Invite already exists for this user"):
                 create_invite('user-123', invite_payload)
     
-    def test_collaborator_removal(self, dynamodb, sample_users, sample_resources):
+    def test_collaborator_removal(self, dynamodb, sample_users, sample_resources, mock_lookup_invitee):
         """Test removing a collaborator."""
         table = dynamodb
         
@@ -387,7 +373,7 @@ class TestCollaborationIntegration:
         
         assert 'Item' not in response
     
-    def test_list_user_invites(self, dynamodb, sample_users, sample_resources):
+    def test_list_user_invites(self, dynamodb, sample_users, sample_resources, mock_lookup_invitee):
         """Test listing invites for a user."""
         # Create multiple invites for user-456
         invites = []
@@ -431,7 +417,7 @@ class TestCollaborationIntegration:
             assert invite.resource_type is not None
             assert invite.resource_id is not None
     
-    def test_invite_expiry(self, dynamodb, sample_users, sample_resources):
+    def test_invite_expiry(self, dynamodb, sample_users, sample_resources, mock_lookup_invitee):
         """Test that invites expire after 30 days."""
         invite_payload = InviteCreatePayload(
             resource_type='goal',
