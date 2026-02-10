@@ -462,8 +462,9 @@ class TestQuestDatabaseBasicCoverage:
         result = list_user_quests(user_id)
         
         assert len(result) == 2
-        assert result[0].title == 'Quest 1'
-        assert result[1].title == 'Quest 2'
+        # Results are sorted by createdAt descending (newest first), so Quest 2 (ts+1) comes first
+        assert result[0].title == 'Quest 2'
+        assert result[1].title == 'Quest 1'
     
     def test_list_user_quests_empty(self, mock_dynamodb):
         """Test quest listing when no quests found."""
