@@ -366,22 +366,22 @@ class TestQuestValidationCoverage:
         )
         assert payload.kind == "linked"
         
-        # Test quantitative kind (requires targetCount and startAt)
-        future_time = int((datetime.now().timestamp() + 86400) * 1000)
+        # Test quantitative kind (requires targetCount, countScope, periodDays)
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
             kind="quantitative",
             targetCount=5,
-            startAt=future_time
+            countScope="any",
+            periodDays=7
         )
         assert payload.kind == "quantitative"
     
     def test_quest_create_payload_count_scope_validation(self):
         """Test count scope validation in QuestCreatePayload."""
-        # Test valid count scopes
-        for scope in ["any", "linked"]:
+        # Valid count scopes: completed_tasks, completed_goals, any (no 'linked')
+        for scope in ["any", "completed_tasks", "completed_goals"]:
             payload = QuestCreatePayload(
                 title="Test Quest",
                 category="Health",
@@ -429,44 +429,26 @@ class TestQuestValidationCoverage:
         )
         assert payload.deadline is None
     
-    def test_quest_create_payload_start_at_validation(self):
-        """Test start at validation in QuestCreatePayload."""
-        # Test valid start at
-        start_at = int(datetime.now().timestamp() * 1000)  # Current time in milliseconds
+    def test_quest_create_payload_period_days_validation(self):
+        """Test period days validation in QuestCreatePayload (quantitative)."""
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            startAt=start_at
+            kind="quantitative",
+            targetCount=5,
+            countScope="any",
+            periodDays=7
         )
-        assert payload.startAt == start_at
+        assert payload.periodDays == 7
         
-        # Test no start at
-        payload = QuestCreatePayload(
-            title="Test Quest",
-            category="Health",
-            difficulty="easy"
-        )
-        assert payload.startAt is None
-    
-    def test_quest_create_payload_period_seconds_validation(self):
-        """Test period seconds validation in QuestCreatePayload."""
-        # Test valid period seconds
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            periodSeconds=3600  # 1 hour
+            kind="linked"
         )
-        assert payload.periodSeconds == 3600
-        
-        # Test no period seconds
-        payload = QuestCreatePayload(
-            title="Test Quest",
-            category="Health",
-            difficulty="easy"
-        )
-        assert payload.periodSeconds is None
+        assert payload.periodDays is None
 
 
 class TestQuestModelEdgeCases:
@@ -484,21 +466,19 @@ class TestQuestModelEdgeCases:
         assert payload.category == "Health"
         assert payload.difficulty == "easy"
         assert payload.description is None
-        assert payload.rewardXp == 50  # Default
+        assert payload.rewardXp is None  # Optional, no default
         assert payload.tags == []  # Default
         assert payload.privacy == "private"  # Default
         assert payload.kind == "linked"  # Default
         assert payload.targetCount is None
         assert payload.countScope is None
         assert payload.deadline is None
-        assert payload.startAt is None
-        assert payload.periodSeconds is None
+        assert payload.periodDays is None
     
     def test_quest_create_payload_maximal_fields(self):
-        """Test quest creation payload with all fields."""
+        """Test quest creation payload with all fields (periodDays, countScope: any/completed_*)."""
         future_time = int((datetime.now().timestamp() + 86400) * 1000)  # 24 hours from now
         deadline = future_time
-        start_at = future_time
         
         payload = QuestCreatePayload(
             title="Maximal Quest",
@@ -510,10 +490,9 @@ class TestQuestModelEdgeCases:
             privacy="public",
             kind="quantitative",
             targetCount=25,
-            countScope="linked",
+            countScope="any",
             deadline=deadline,
-            startAt=start_at,
-            periodSeconds=86400  # 24 hours
+            periodDays=7
         )
         
         assert payload.title == "Maximal Quest"
@@ -525,10 +504,9 @@ class TestQuestModelEdgeCases:
         assert payload.privacy == "public"
         assert payload.kind == "quantitative"
         assert payload.targetCount == 25
-        assert payload.countScope == "linked"
+        assert payload.countScope == "any"
         assert payload.deadline == deadline
-        assert payload.startAt == start_at
-        assert payload.periodSeconds == 86400
+        assert payload.periodDays == 7
     
     def test_quest_update_payload_partial_update(self):
         """Test quest update payload with partial fields."""
@@ -541,12 +519,10 @@ class TestQuestModelEdgeCases:
         assert payload.rewardXp is None
         assert payload.tags is None
         assert payload.privacy is None
-        # Note: QuestUpdatePayload doesn't have a 'kind' field
         assert payload.targetCount is None
         assert payload.countScope is None
         assert payload.deadline is None
-        assert payload.startAt is None
-        assert payload.periodSeconds is None
+        assert payload.periodDays is None
     
     def test_quest_response_with_optional_fields(self):
         """Test quest response with optional fields."""

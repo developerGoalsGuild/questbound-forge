@@ -388,35 +388,33 @@ class TestQuestDatabaseBasicCoverage:
         assert "Failed to change quest status" in str(exc_info.value)
     
     def test_delete_quest_success(self, mock_dynamodb):
-        """Test successful quest deletion."""
+        """Test successful quest deletion (delete_quest calls get_quest first)."""
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
-        
-        # Mock successful delete_item
-        deleted_item = {
-            'PK': f"USER#{user_id}",
-            'SK': f"QUEST#{quest_id}",
-            'QuestId': quest_id,
-            'UserId': user_id
+        ts = 1234567890000
+        # get_quest must return a valid quest (draft so non-admin can delete)
+        mock_dynamodb.get_item.return_value = {
+            'Item': {
+                'id': quest_id, 'userId': user_id, 'title': 'Quest', 'difficulty': 'medium',
+                'rewardXp': 50, 'status': 'draft', 'category': 'Health', 'tags': [],
+                'privacy': 'private', 'createdAt': ts, 'updatedAt': ts, 'version': 1,
+                'kind': 'linked', 'auditTrail': []
+            }
         }
-        mock_dynamodb.delete_item.return_value = {'Attributes': deleted_item}
+        mock_dynamodb.delete_item.return_value = {}
         
         result = delete_quest(user_id, quest_id)
         
-        assert result['quest_id'] == quest_id
-        assert result['deleted'] is True
+        assert result is True
     
     def test_delete_quest_not_found(self, mock_dynamodb):
         """Test quest deletion when quest not found."""
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
         
-        # Mock conditional check failed (quest not found)
-        error = ClientError(
-            {'Error': {'Code': 'ConditionalCheckFailedException'}},
-            'DeleteItem'
-        )
-        mock_dynamodb.delete_item.side_effect = error
+        # get_quest is called first; no item then empty scan -> QuestNotFoundError
+        mock_dynamodb.get_item.return_value = {}
+        mock_dynamodb.scan.return_value = {"Items": []}
         
         with pytest.raises(QuestNotFoundError) as exc_info:
             delete_quest(user_id, quest_id)

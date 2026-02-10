@@ -93,9 +93,13 @@ class QuestValidationError(QuestDBError):
 def _get_dynamodb_table():
     """Get DynamoDB table resource."""
     import boto3
-    settings = _get_settings()
-    dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
-    return dynamodb.Table(settings.core_table_name)
+    try:
+        settings = _get_settings()
+        dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
+        return dynamodb.Table(settings.core_table_name)
+    except Exception as e:
+        logger.error('dynamodb.table_failed', exc_info=e)
+        raise QuestDBError(f"Failed to get DynamoDB table: {e}") from e
 
 
 def _build_quest_item(user_id: str, payload: QuestCreatePayload) -> Dict[str, Any]:
