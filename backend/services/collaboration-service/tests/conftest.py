@@ -5,10 +5,13 @@ Pytest configuration for collaboration service tests.
 import pytest
 import os
 import sys
+from pathlib import Path
 from unittest.mock import patch
 
-# Add the app directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
+# Add the collaboration-service directory to Python path
+collaboration_service_dir = Path(__file__).resolve().parents[1]
+if str(collaboration_service_dir) not in sys.path:
+    sys.path.insert(0, str(collaboration_service_dir))
 
 # Mock environment variables
 @pytest.fixture(autouse=True)
