@@ -772,7 +772,8 @@ def update_quest(user_id: str, quest_id: str, payload: QuestUpdatePayload,
                         user_id=user_id, 
                         quest_id=quest_id,
                         exc_info=e)
-            raise QuestDBError(f"Failed to update quest: {e.response['Error']['Message']}")
+            msg = e.response.get('Error', {}).get('Message', str(e))
+            raise QuestDBError(f"Failed to update quest: {msg}")
     except Exception as e:
         logger.error('quest.update_failed', 
                     user_id=user_id, 

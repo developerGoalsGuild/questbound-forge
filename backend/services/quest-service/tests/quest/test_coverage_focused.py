@@ -91,7 +91,8 @@ class TestQuestCreatePayloadCoverage:
         assert payload_dict['title'] == "Serialization Test"
         assert payload_dict['category'] == "Learning"
         assert payload_dict['difficulty'] == "medium"
-        assert payload_dict['rewardXp'] == 75
+        assert payload.rewardXp == 75
+        assert payload_dict.get('rewardXp') == 75
         
         # Test JSON serialization
         json_str = payload.model_dump_json()
@@ -373,15 +374,25 @@ class TestQuestValidationCoverage:
     
     def test_quest_create_payload_kind_validation(self):
         """Test kind validation in QuestCreatePayload."""
-        # Test valid kinds
-        for kind in ["linked", "quantitative"]:
-            payload = QuestCreatePayload(
-                title="Test Quest",
-                category="Health",
-                difficulty="easy",
-                kind=kind
-            )
-            assert payload.kind == kind
+        # Linked kind (no extra fields)
+        payload = QuestCreatePayload(
+            title="Test Quest",
+            category="Health",
+            difficulty="easy",
+            kind="linked"
+        )
+        assert payload.kind == "linked"
+        # Quantitative kind (requires targetCount, countScope, periodDays)
+        payload = QuestCreatePayload(
+            title="Test Quest",
+            category="Health",
+            difficulty="easy",
+            kind="quantitative",
+            targetCount=5,
+            countScope="any",
+            periodDays=7
+        )
+        assert payload.kind == "quantitative"
     
     def test_quest_create_payload_count_scope_validation(self):
         """Test count scope validation in QuestCreatePayload."""

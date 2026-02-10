@@ -87,12 +87,13 @@ class TestQuestDatabaseBasicCoverage:
     def test_create_quest_success(self, mock_dynamodb, sample_quest_payload):
         """Test successful quest creation."""
         user_id = "test_user_123"
-        quest_id = str(uuid.uuid4())
+        quest_id = "e1cd4170-32d4-4e5f-a1b2-c3d4e5f67890"
         
         # Mock successful put_item
         mock_dynamodb.put_item.return_value = {}
         
-        with patch('uuid.uuid4', return_value=quest_id):
+        # Patch where uuid4 is used (app.db.quest_db) so result.id matches
+        with patch('app.db.quest_db.uuid4', return_value=__import__('uuid').UUID(quest_id)):
             with patch('datetime.datetime') as mock_datetime:
                 mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
                 mock_datetime.now.return_value = mock_now
@@ -354,34 +355,36 @@ class TestQuestDatabaseBasicCoverage:
         quest_id = str(uuid.uuid4())
         new_status = "active"
         
-        # Mock conditional check failed (quest not found)
-        error = ClientError(
-            {'Error': {'Code': 'ConditionalCheckFailedException'}},
-            'UpdateItem'
-        )
-        mock_dynamodb.update_item.side_effect = error
+        # get_quest is called first; return no item then empty scan so QuestNotFoundError
+        mock_dynamodb.get_item.return_value = {}
+        mock_dynamodb.scan.return_value = {"Items": []}
         
         with pytest.raises(QuestNotFoundError) as exc_info:
             change_quest_status(user_id, quest_id, new_status)
         
         assert f"Quest {quest_id} not found" in str(exc_info.value)
     
-    def test_change_quest_status_client_error(self, mock_dynamodb):
-        """Test quest status change with client error."""
+    @patch('app.db.quest_db.get_quest')
+    def test_change_quest_status_client_error(self, mock_get_quest, mock_dynamodb):
+        """Test quest status change with client error (update_item fails)."""
+        from app.models.quest import QuestResponse
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
         new_status = "active"
-        
-        # Mock client error
-        error = ClientError(
-            {'Error': {'Code': 'ValidationException'}},
+        ts = 1234567890000
+        current = QuestResponse(
+            id=quest_id, userId=user_id, title="Quest", difficulty="medium",
+            rewardXp=50, status="draft", category="Health", tags=[],
+            privacy="private", createdAt=ts, updatedAt=ts, version=1, kind="linked",
+            linkedGoalIds=["goal-1"], linkedTaskIds=["task-1"], auditTrail=[]
+        )
+        mock_get_quest.return_value = current
+        mock_dynamodb.update_item.side_effect = ClientError(
+            {'Error': {'Code': 'ValidationException', 'Message': 'Validation failed'}},
             'UpdateItem'
         )
-        mock_dynamodb.update_item.side_effect = error
-        
         with pytest.raises(QuestDBError) as exc_info:
             change_quest_status(user_id, quest_id, new_status)
-        
         assert "Failed to change quest status" in str(exc_info.value)
     
     def test_delete_quest_success(self, mock_dynamodb):
