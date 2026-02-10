@@ -42,8 +42,11 @@ class TestAuthentication:
     
     def test_authenticate_valid_token(self, mock_settings, test_token):
         """Test authentication succeeds with valid token."""
-        from app.main import app
+        from app.main import app, core_table
         app.dependency_overrides.clear()
+        
+        # Mock core_table.get_item to return empty (no founder pass)
+        core_table.get_item.return_value = {}
         
         client = TestClient(app)
         

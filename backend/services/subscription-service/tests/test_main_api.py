@@ -39,6 +39,10 @@ class TestCurrentSubscription:
     
     def test_get_current_subscription_success(self, app_client):
         """Test getting current subscription."""
+        # Mock core_table.get_item to return empty (no founder pass)
+        from app.main import core_table
+        core_table.get_item.return_value = {}
+        
         response = app_client.get(
             "/subscriptions/current",
             headers={"Authorization": "Bearer test-token"}
@@ -54,41 +58,58 @@ class TestCurrentSubscription:
 class TestCreateCheckout:
     """Tests for checkout session creation."""
     
-    def test_create_checkout_not_implemented(self, app_client):
-        """Test checkout creation returns not implemented."""
+    def test_create_checkout_requires_auth(self, app_client):
+        """Test checkout creation requires authentication."""
+        from app.main import app
+        app.dependency_overrides.clear()
+        
         response = app_client.post(
             "/subscriptions/create-checkout",
-            headers={"Authorization": "Bearer test-token"},
             json={"plan_tier": "INITIATE"}
         )
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-        assert "Not implemented yet" in response.json()["detail"]
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        
+        # Restore auth
+        from app.auth import authenticate, AuthContext
+        def fake_auth():
+            return AuthContext(user_id="test-user-123", claims={}, provider="local")
+        app.dependency_overrides[authenticate] = fake_auth
 
 
 class TestCancelSubscription:
     """Tests for subscription cancellation."""
     
-    def test_cancel_subscription_not_implemented(self, app_client):
-        """Test subscription cancellation returns not implemented."""
-        response = app_client.post(
-            "/subscriptions/cancel",
-            headers={"Authorization": "Bearer test-token"}
-        )
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-        assert "Not implemented yet" in response.json()["detail"]
+    def test_cancel_subscription_requires_auth(self, app_client):
+        """Test subscription cancellation requires authentication."""
+        from app.main import app
+        app.dependency_overrides.clear()
+        
+        response = app_client.post("/subscriptions/cancel")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        
+        # Restore auth
+        from app.auth import authenticate, AuthContext
+        def fake_auth():
+            return AuthContext(user_id="test-user-123", claims={}, provider="local")
+        app.dependency_overrides[authenticate] = fake_auth
 
 
 class TestBillingPortal:
     """Tests for billing portal endpoint."""
     
-    def test_get_billing_portal_not_implemented(self, app_client):
-        """Test billing portal returns not implemented."""
-        response = app_client.get(
-            "/subscriptions/portal",
-            headers={"Authorization": "Bearer test-token"}
-        )
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-        assert "Not implemented yet" in response.json()["detail"]
+    def test_get_billing_portal_requires_auth(self, app_client):
+        """Test billing portal requires authentication."""
+        from app.main import app
+        app.dependency_overrides.clear()
+        
+        response = app_client.get("/subscriptions/portal?return_url=https://example.com")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        
+        # Restore auth
+        from app.auth import authenticate, AuthContext
+        def fake_auth():
+            return AuthContext(user_id="test-user-123", claims={}, provider="local")
+        app.dependency_overrides[authenticate] = fake_auth
 
 
 class TestCreditBalance:
@@ -139,15 +160,6 @@ class TestTopUpCredits:
 class TestStripeWebhook:
     """Tests for Stripe webhook endpoint."""
     
-    def test_webhook_not_implemented(self, app_client):
-        """Test webhook endpoint returns not implemented."""
-        response = app_client.post(
-            "/webhooks/stripe",
-            json={"type": "checkout.session.completed", "data": {}}
-        )
-        assert response.status_code == status.HTTP_501_NOT_IMPLEMENTED
-        assert "Not implemented yet" in response.json()["detail"]
-    
     def test_webhook_no_auth_required(self, app_client):
         """Test webhook doesn't require authentication."""
         # Webhook endpoint should be public (no auth required)
@@ -156,6 +168,8 @@ class TestStripeWebhook:
             "/webhooks/stripe",
             json={"type": "checkout.session.completed", "data": {}}
         )
-        # Should not return 401, even if not implemented
+        # Should not return 401, webhook endpoint is public
         assert response.status_code != status.HTTP_401_UNAUTHORIZED
+        # In mock mode, webhook should process successfully
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST]
 

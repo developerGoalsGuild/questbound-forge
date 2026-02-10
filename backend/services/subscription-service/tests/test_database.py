@@ -10,15 +10,12 @@ from botocore.exceptions import ClientError
 class TestSubscriptionDB:
     """Tests for subscription database operations."""
     
-    @patch('app.db.subscription_db.boto3')
-    @patch('app.db.subscription_db.dynamodb')
-    def test_create_subscription(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.subscription_db.table')
+    def test_create_subscription(self, mock_table):
         """Test subscription creation in database."""
         from app.db.subscription_db import create_subscription
         
-        mock_table = Mock()
         mock_table.put_item.return_value = {}
-        mock_dynamodb.Table.return_value = mock_table
         
         result = create_subscription(
             user_id="test-user-123",
@@ -31,101 +28,83 @@ class TestSubscriptionDB:
         )
         
         assert result is not None
+        assert result["subscriptionId"] == "sub_test123"
         mock_table.put_item.assert_called_once()
     
-    @patch('app.db.subscription_db.boto3')
-    @patch('app.db.subscription_db.dynamodb')
-    def test_get_subscription(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.subscription_db.table')
+    def test_get_subscription(self, mock_table):
         """Test subscription retrieval from database."""
         from app.db.subscription_db import get_subscription
         
-        mock_table = Mock()
-        mock_table.get_item.return_value = {
-            "Item": {
+        # get_subscription without subscription_id uses query()
+        mock_table.query.return_value = {
+            "Items": [{
                 "PK": "USER#test-user-123",
-                "SK": "SUBSCRIPTION#active",
-                "subscription_id": "sub_test123",
-                "plan_tier": "INITIATE",
+                "SK": "SUBSCRIPTION#sub_test123",
+                "subscriptionId": "sub_test123",
+                "planTier": "INITIATE",
                 "status": "active"
-            }
+            }]
         }
-        mock_dynamodb.Table.return_value = mock_table
         
         result = get_subscription("test-user-123")
         
         assert result is not None
-        assert result["subscription_id"] == "sub_test123"
-        assert result["plan_tier"] == "INITIATE"
-        mock_table.get_item.assert_called_once()
+        assert result["subscriptionId"] == "sub_test123"
+        assert result["planTier"] == "INITIATE"
+        mock_table.query.assert_called_once()
     
-    @patch('app.db.subscription_db.boto3')
-    @patch('app.db.subscription_db.dynamodb')
-    def test_get_subscription_not_found(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.subscription_db.table')
+    def test_get_subscription_not_found(self, mock_table):
         """Test subscription retrieval when not found."""
         from app.db.subscription_db import get_subscription
         
-        mock_table = Mock()
-        mock_table.get_item.return_value = {}
-        mock_dynamodb.Table.return_value = mock_table
+        mock_table.query.return_value = {"Items": []}
         
         result = get_subscription("test-user-123")
         
         assert result is None
     
-    @patch('app.db.subscription_db.boto3')
-    @patch('app.db.subscription_db.dynamodb')
-    def test_update_subscription(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.subscription_db.table')
+    def test_update_subscription(self, mock_table):
         """Test subscription update."""
         from app.db.subscription_db import update_subscription
         
-        mock_table = Mock()
-        mock_table.update_item.return_value = {}
-        mock_dynamodb.Table.return_value = mock_table
+        mock_table.update_item.return_value = {
+            "Attributes": {
+                "subscriptionId": "sub_test123",
+                "status": "canceled",
+                "cancelAtPeriodEnd": True
+            }
+        }
         
         result = update_subscription(
             user_id="test-user-123",
-            status="canceled",
-            cancel_at_period_end=True
+            subscription_id="sub_test123",
+            updates={"status": "canceled", "cancelAtPeriodEnd": True}
         )
         
         assert result is not None
-        mock_table.update_item.assert_called_once()
-    
-    @patch('app.db.subscription_db.boto3')
-    @patch('app.db.subscription_db.dynamodb')
-    def test_cancel_subscription(self, mock_dynamodb, mock_boto3):
-        """Test subscription cancellation."""
-        from app.db.subscription_db import cancel_subscription
-        
-        mock_table = Mock()
-        mock_table.update_item.return_value = {}
-        mock_dynamodb.Table.return_value = mock_table
-        
-        result = cancel_subscription("test-user-123")
-        
-        assert result is not None
+        assert result["status"] == "canceled"
         mock_table.update_item.assert_called_once()
 
 
 class TestCreditDB:
     """Tests for credit database operations."""
     
-    @patch('app.db.credit_db.boto3')
-    @patch('app.db.credit_db.dynamodb')
-    def test_get_or_create_credits(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.credit_db.table')
+    def test_get_or_create_credits(self, mock_table):
         """Test getting or creating credit record."""
         from app.db.credit_db import get_or_create_credits
         
-        mock_table = Mock()
         mock_table.get_item.return_value = {
             "Item": {
                 "PK": "USER#test-user-123",
-                "SK": "CREDITS",
+                "SK": "CREDITS#BALANCE",
                 "balance": 100,
-                "last_reset": "2025-01-01T00:00:00Z"
+                "lastReset": "2025-01-01T00:00:00Z"
             }
         }
-        mock_dynamodb.Table.return_value = mock_table
         
         result = get_or_create_credits("test-user-123")
         
@@ -133,16 +112,13 @@ class TestCreditDB:
         assert result["balance"] == 100
         mock_table.get_item.assert_called_once()
     
-    @patch('app.db.credit_db.boto3')
-    @patch('app.db.credit_db.dynamodb')
-    def test_get_or_create_credits_new_user(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.credit_db.table')
+    def test_get_or_create_credits_new_user(self, mock_table):
         """Test creating credit record for new user."""
         from app.db.credit_db import get_or_create_credits
         
-        mock_table = Mock()
         mock_table.get_item.return_value = {}
         mock_table.put_item.return_value = {}
-        mock_dynamodb.Table.return_value = mock_table
         
         result = get_or_create_credits("test-user-123")
         
@@ -150,34 +126,38 @@ class TestCreditDB:
         assert result["balance"] == 0  # Default balance
         mock_table.put_item.assert_called_once()
     
-    @patch('app.db.credit_db.boto3')
-    @patch('app.db.credit_db.dynamodb')
-    def test_update_credits(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.credit_db.table')
+    def test_update_credits(self, mock_table):
         """Test credit balance update."""
         from app.db.credit_db import update_credits
         
-        mock_table = Mock()
-        mock_table.update_item.return_value = {}
-        mock_dynamodb.Table.return_value = mock_table
+        mock_table.update_item.return_value = {
+            "Attributes": {
+                "balance": 50
+            }
+        }
         
-        result = update_credits("test-user-123", 50)
+        result = update_credits("test-user-123", 50, operation="add")
         
         assert result is not None
+        assert result["balance"] == 50
         mock_table.update_item.assert_called_once()
     
-    @patch('app.db.credit_db.boto3')
-    @patch('app.db.credit_db.dynamodb')
-    def test_consume_credits_success(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.credit_db.table')
+    def test_consume_credits_success(self, mock_table):
         """Test successful credit consumption."""
         from app.db.credit_db import consume_credits
         
-        mock_table = Mock()
+        # First get_or_create_credits call
+        mock_table.get_item.return_value = {
+            "Item": {"balance": 60}
+        }
+        # Then update_item call
         mock_table.update_item.return_value = {
             "Attributes": {
-                "balance": 50  # After consuming
+                "balance": 50  # After consuming 10
             }
         }
-        mock_dynamodb.Table.return_value = mock_table
         
         result = consume_credits("test-user-123", "video_generation", 10)
         
@@ -186,20 +166,21 @@ class TestCreditDB:
         assert result["remaining_balance"] == 50
         mock_table.update_item.assert_called_once()
     
-    @patch('app.db.credit_db.boto3')
-    @patch('app.db.credit_db.dynamodb')
-    def test_consume_credits_insufficient(self, mock_dynamodb, mock_boto3):
+    @patch('app.db.credit_db.table')
+    def test_consume_credits_insufficient(self, mock_table):
         """Test credit consumption with insufficient balance."""
         from app.db.credit_db import consume_credits
         
-        mock_table = Mock()
+        # First get_or_create_credits call
+        mock_table.get_item.return_value = {
+            "Item": {"balance": 5}
+        }
         # Simulate ConditionalCheckFailedException
         error = ClientError(
             {'Error': {'Code': 'ConditionalCheckFailedException'}},
             'UpdateItem'
         )
         mock_table.update_item.side_effect = error
-        mock_dynamodb.Table.return_value = mock_table
         
         result = consume_credits("test-user-123", "video_generation", 1000)
         

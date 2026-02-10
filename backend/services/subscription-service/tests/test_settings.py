@@ -53,6 +53,7 @@ class TestSettings:
     @patch.dict(os.environ, {
         'ENVIRONMENT': 'prod',
         'AWS_DEFAULT_REGION': 'us-east-1',
+        'AWS_REGION': 'us-east-1',
         'STRIPE_SECRET_KEY': 'sk_test_123'
     }, clear=True)
     def test_mock_stripe_disabled_prod(self, mock_boto3):
@@ -65,7 +66,9 @@ class TestSettings:
         mock_boto3.client.return_value = mock_ssm
         
         settings = Settings()
-        # In prod with Stripe key, should not use mock
+        # According to Settings logic:
+        # use_mock_stripe = (environment.lower() == "dev" and not stripe_secret_key)
+        # In prod with STRIPE_SECRET_KEY set, use_mock_stripe should be False
         assert settings.use_mock_stripe is False
     
     @patch('app.settings.boto3')

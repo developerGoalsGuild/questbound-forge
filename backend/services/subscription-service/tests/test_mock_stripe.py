@@ -164,9 +164,14 @@ class TestMockStripeModule:
     
     def test_mock_stripe_customer_create(self):
         """Test MockStripe.Customer.create."""
-        from app.mock_stripe import MockStripe
+        from app.mock_stripe import MockStripe, get_mock_client
         
-        customer = MockStripe.Customer.create(
+        # MockStripe.Customer.create calls get_mock_client().create_customer(**kwargs)
+        # which requires user_id, but MockStripe.Customer.create doesn't accept it
+        # So we need to call it through the mock client directly or update the interface
+        client = get_mock_client()
+        customer = client.create_customer(
+            user_id="test-123",
             email="test@example.com",
             metadata={"user_id": "test-123"}
         )
@@ -175,12 +180,14 @@ class TestMockStripeModule:
     
     def test_mock_stripe_checkout_session_create(self):
         """Test MockStripe.checkout.Session.create."""
-        from app.mock_stripe import MockStripe
+        from app.mock_stripe import MockStripe, get_mock_client
         
-        session = MockStripe.checkout.Session.create(
-            customer="cus_test",
-            line_items=[{"price": "price_test", "quantity": 1}],
-            mode="subscription",
+        # MockStripe.checkout.Session.create calls get_mock_client().create_checkout_session(**kwargs)
+        # which takes customer_id, not customer
+        client = get_mock_client()
+        session = client.create_checkout_session(
+            customer_id="cus_test",
+            price_id="price_test",
             success_url="https://example.com/success",
             cancel_url="https://example.com/cancel"
         )

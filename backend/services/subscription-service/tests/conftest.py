@@ -69,11 +69,17 @@ def mock_boto3_resource(service_name, **kwargs):
         return mock_dynamodb
     return Mock()
 
+# Create mock core_table for main.py
+mock_core_table = Mock()
+mock_core_table.get_item.return_value = {}  # Default: no founder pass
+mock_core_table.query.return_value = {"Items": []}
+
 # Store patches globally so they persist
 _global_patches = {
     'boto3_client': patch('boto3.client', side_effect=mock_boto3_client),
     'boto3_resource': patch('boto3.resource', side_effect=mock_boto3_resource),
     'settings': patch('app.settings.Settings', return_value=_mock_settings_instance),
+    'main_core_table': patch('app.main.core_table', mock_core_table),
 }
 
 # Start patches immediately
