@@ -148,9 +148,15 @@ class TestCreditDB:
         """Test successful credit consumption."""
         from app.db.credit_db import consume_credits
         
-        # First get_or_create_credits call
+        # get_or_create_credits calls get_item, then put_item if not found
+        # For consume_credits, we need get_item to return an existing item
         mock_table.get_item.return_value = {
-            "Item": {"balance": 60}
+            "Item": {
+                "PK": "USER#test-user-123",
+                "SK": "CREDITS#BALANCE",
+                "balance": 60,  # Ensure balance is an int, not string
+                "type": "Credits"
+            }
         }
         # Then update_item call
         mock_table.update_item.return_value = {
@@ -159,7 +165,7 @@ class TestCreditDB:
             }
         }
         
-        result = consume_credits("test-user-123", "video_generation", 10)
+        result = consume_credits("test-user-123", 10, "video_generation")
         
         assert result is not None
         assert result["success"] is True
@@ -171,20 +177,19 @@ class TestCreditDB:
         """Test credit consumption with insufficient balance."""
         from app.db.credit_db import consume_credits
         
-        # First get_or_create_credits call
+        # get_or_create_credits calls get_item
         mock_table.get_item.return_value = {
-            "Item": {"balance": 5}
+            "Item": {
+                "PK": "USER#test-user-123",
+                "SK": "CREDITS#BALANCE",
+                "balance": 5,  # Ensure balance is an int, not string
+                "type": "Credits"
+            }
         }
-        # Simulate ConditionalCheckFailedException
-        error = ClientError(
-            {'Error': {'Code': 'ConditionalCheckFailedException'}},
-            'UpdateItem'
-        )
-        mock_table.update_item.side_effect = error
+        # consume_credits checks balance before calling update_item
+        # Since 5 < 1000, it should raise ValueError before update_item is called
+        with pytest.raises(ValueError) as exc_info:
+            consume_credits("test-user-123", 1000, "video_generation")
         
-        result = consume_credits("test-user-123", "video_generation", 1000)
-        
-        assert result is not None
-        assert result["success"] is False
-        assert "insufficient" in result["message"].lower() or "balance" in result["message"].lower()
+        assert "insufficient" in str(exc_info.value).lower() or "balance" in str(exc_info.value).lower()
 

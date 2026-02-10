@@ -58,18 +58,30 @@ class TestSettings:
     }, clear=True)
     def test_mock_stripe_disabled_prod(self, mock_boto3):
         """Test mock Stripe disabled in prod with Stripe key."""
-        from app.settings import Settings
+        # Temporarily stop the global Settings patch to test actual Settings logic
+        from tests.conftest import _global_patches
+        settings_patch = _global_patches.get('settings')
         
-        # Mock SSM client to prevent AWS calls
-        mock_ssm = Mock()
-        mock_ssm.get_parameter.side_effect = Exception("Parameter not found")
-        mock_boto3.client.return_value = mock_ssm
+        if settings_patch:
+            settings_patch.stop()
         
-        settings = Settings()
-        # According to Settings logic:
-        # use_mock_stripe = (environment.lower() == "dev" and not stripe_secret_key)
-        # In prod with STRIPE_SECRET_KEY set, use_mock_stripe should be False
-        assert settings.use_mock_stripe is False
+        try:
+            from app.settings import Settings
+            
+            # Mock SSM client to prevent AWS calls
+            mock_ssm = Mock()
+            mock_ssm.get_parameter.side_effect = Exception("Parameter not found")
+            mock_boto3.client.return_value = mock_ssm
+            
+            settings = Settings()
+            # According to Settings logic:
+            # use_mock_stripe = (environment.lower() == "dev" and not stripe_secret_key)
+            # In prod with STRIPE_SECRET_KEY set, use_mock_stripe should be False
+            assert settings.use_mock_stripe is False
+        finally:
+            # Restore the patch
+            if settings_patch:
+                settings_patch.start()
     
     @patch('app.settings.boto3')
     def test_settings_ssm_parameters(self, mock_boto3):
