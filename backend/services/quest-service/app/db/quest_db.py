@@ -114,16 +114,19 @@ def _build_quest_item(user_id: str, payload: QuestCreatePayload) -> Dict[str, An
     now_ms = int(time.time() * 1000)
     quest_id = str(uuid4())
     
-    # Calculate reward XP automatically
-    calculated_reward = calculate_quest_reward(
-        kind=payload.kind,
-        linked_goal_ids=payload.linkedGoalIds,
-        linked_task_ids=payload.linkedTaskIds,
-        target_count=payload.targetCount,
-        count_scope=payload.countScope,
-        period_days=payload.periodDays,
-        is_guild_quest=False
-    )
+    # Use provided rewardXp or calculate automatically
+    if getattr(payload, "rewardXp", None) is not None:
+        calculated_reward = payload.rewardXp
+    else:
+        calculated_reward = calculate_quest_reward(
+            kind=payload.kind,
+            linked_goal_ids=payload.linkedGoalIds,
+            linked_task_ids=payload.linkedTaskIds,
+            target_count=payload.targetCount,
+            count_scope=payload.countScope,
+            period_days=payload.periodDays,
+            is_guild_quest=False
+        )
     
     # Build base item
     item = {

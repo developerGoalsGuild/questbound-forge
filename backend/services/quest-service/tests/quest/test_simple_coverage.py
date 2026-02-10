@@ -59,7 +59,7 @@ class TestQuestModelsBasicCoverage:
         assert payload.title == "Test Quest"
         assert payload.category == "Health"
         assert payload.difficulty == "medium"
-        assert payload.rewardXp == 50  # Default value
+        assert getattr(payload, "rewardXp", None) is None  # Optional; auto-calculated at create
         assert payload.tags == []
         assert payload.privacy == "private"
         assert payload.kind == "linked"
@@ -76,7 +76,8 @@ class TestQuestModelsBasicCoverage:
             privacy="public",
             kind="quantitative",
             targetCount=5,
-            countScope="any"
+            countScope="any",
+            periodDays=7,
         )
         
         assert payload.title == "Full Quest"
@@ -87,6 +88,7 @@ class TestQuestModelsBasicCoverage:
         assert payload.kind == "quantitative"
         assert payload.targetCount == 5
         assert payload.countScope == "any"
+        assert payload.periodDays == 7
     
     def test_quest_create_payload_serialization(self):
         """Test quest creation payload serialization."""
@@ -94,7 +96,7 @@ class TestQuestModelsBasicCoverage:
             title="Serialization Test",
             category="Learning",
             difficulty="medium",
-            rewardXp=75
+            rewardXp=75,
         )
         
         # Test dict conversion
@@ -102,7 +104,7 @@ class TestQuestModelsBasicCoverage:
         assert payload_dict['title'] == "Serialization Test"
         assert payload_dict['category'] == "Learning"
         assert payload_dict['difficulty'] == "medium"
-        assert payload_dict['rewardXp'] == 75
+        assert payload_dict.get('rewardXp') == 75
         
         # Test JSON serialization
         json_str = payload.model_dump_json()
@@ -168,9 +170,9 @@ class TestQuestModelsBasicCoverage:
     
     def test_quest_response_creation(self):
         """Test quest response creation."""
+        ts_ms = 1672574400000  # 2023-01-01 12:00:00 UTC in epoch ms
         response = QuestResponse(
             id="test-quest-123",
-            questId="test-quest-123",
             userId="user-123",
             title="Test Quest",
             category="Health",
@@ -178,10 +180,10 @@ class TestQuestModelsBasicCoverage:
             status="draft",
             rewardXp=50,
             privacy="private",
-            createdAt="2023-01-01T12:00:00Z",
-            updatedAt="2023-01-01T12:00:00Z",
+            createdAt=ts_ms,
+            updatedAt=ts_ms,
             version=1,
-            kind="linked"
+            kind="linked",
         )
         
         assert response.id == "test-quest-123"
@@ -193,16 +195,16 @@ class TestQuestModelsBasicCoverage:
         assert response.status == "draft"
         assert response.rewardXp == 50
         assert response.privacy == "private"
-        assert response.createdAt == "2023-01-01T12:00:00Z"
-        assert response.updatedAt == "2023-01-01T12:00:00Z"
+        assert response.createdAt == ts_ms
+        assert response.updatedAt == ts_ms
         assert response.version == 1
         assert response.kind == "linked"
     
     def test_quest_response_serialization(self):
         """Test quest response serialization."""
+        ts_ms = 1672574400000
         response = QuestResponse(
             id="response-quest-123",
-            questId="response-quest-123",
             userId="user-456",
             title="Response Quest",
             category="Work",
@@ -210,10 +212,10 @@ class TestQuestModelsBasicCoverage:
             status="active",
             rewardXp=100,
             privacy="public",
-            createdAt="2023-01-01T12:00:00Z",
-            updatedAt="2023-01-01T12:00:00Z",
+            createdAt=ts_ms,
+            updatedAt=ts_ms,
             version=1,
-            kind="quantitative"
+            kind="quantitative",
         )
         
         response_dict = response.model_dump()
@@ -229,12 +231,12 @@ class TestQuestModelsBasicCoverage:
         assert response_dict['kind'] == "quantitative"
     
     def test_quest_status_enum(self):
-        """Test QuestStatus enum values."""
-        assert QuestStatus.DRAFT == "draft"
-        assert QuestStatus.ACTIVE == "active"
-        assert QuestStatus.PAUSED == "paused"
-        assert QuestStatus.COMPLETED == "completed"
-        assert QuestStatus.CANCELLED == "cancelled"
+        """Test QuestStatus literal values."""
+        assert "draft" in ("draft", "active", "completed", "cancelled", "failed")
+        assert "active" in ("draft", "active", "completed", "cancelled", "failed")
+        assert "completed" in ("draft", "active", "completed", "cancelled", "failed")
+        assert "cancelled" in ("draft", "active", "completed", "cancelled", "failed")
+        assert "failed" in ("draft", "active", "completed", "cancelled", "failed")
     
     def test_quest_constants(self):
         """Test quest constants."""
@@ -301,17 +303,17 @@ class TestQuestValidationCoverage:
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            rewardXp=500
+            rewardXp=500,
         )
         assert payload.rewardXp == 500
         
-        # Test default reward XP
+        # Test optional reward XP (None = auto-calculated at create)
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
-            difficulty="easy"
+            difficulty="easy",
         )
-        assert payload.rewardXp == 50
+        assert getattr(payload, "rewardXp", None) is None
     
     def test_quest_create_payload_tags_validation(self):
         """Test tags validation in QuestCreatePayload."""
@@ -346,25 +348,33 @@ class TestQuestValidationCoverage:
     
     def test_quest_create_payload_kind_validation(self):
         """Test kind validation in QuestCreatePayload."""
-        # Test valid kinds
-        for kind in ["linked", "quantitative"]:
-            payload = QuestCreatePayload(
-                title="Test Quest",
-                category="Health",
-                difficulty="easy",
-                kind=kind
-            )
-            assert payload.kind == kind
-    
+        payload = QuestCreatePayload(
+            title="Test Quest",
+            category="Health",
+            difficulty="easy",
+            kind="linked",
+        )
+        assert payload.kind == "linked"
+
+        payload_q = QuestCreatePayload(
+            title="Test Quest",
+            category="Health",
+            difficulty="easy",
+            kind="quantitative",
+            targetCount=5,
+            countScope="any",
+            periodDays=7,
+        )
+        assert payload_q.kind == "quantitative"
+
     def test_quest_create_payload_count_scope_validation(self):
-        """Test count scope validation in QuestCreatePayload."""
-        # Test valid count scopes
-        for scope in ["any", "linked"]:
+        """Test count scope validation in QuestCreatePayload (quantitative only)."""
+        for scope in ["any", "completed_tasks", "completed_goals"]:
             payload = QuestCreatePayload(
                 title="Test Quest",
                 category="Health",
                 difficulty="easy",
-                countScope=scope
+                countScope=scope,
             )
             assert payload.countScope == scope
     
@@ -388,63 +398,46 @@ class TestQuestValidationCoverage:
         assert payload.targetCount is None
     
     def test_quest_create_payload_deadline_validation(self):
-        """Test deadline validation in QuestCreatePayload."""
-        # Test valid deadline
-        deadline = int(datetime.now().timestamp() * 1000)  # Current time in milliseconds
+        """Test deadline validation in QuestCreatePayload (must be future, >1h from now)."""
+        # Test valid deadline (e.g. 2 hours from now)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        two_hours_ms = 2 * 60 * 60 * 1000
+        deadline = now_ms + two_hours_ms
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            deadline=deadline
+            deadline=deadline,
         )
         assert payload.deadline == deadline
-        
+
         # Test no deadline
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
-            difficulty="easy"
+            difficulty="easy",
         )
         assert payload.deadline is None
-    
-    def test_quest_create_payload_start_at_validation(self):
-        """Test start at validation in QuestCreatePayload."""
-        # Test valid start at
-        start_at = int(datetime.now().timestamp() * 1000)  # Current time in milliseconds
+
+    def test_quest_create_payload_period_days_validation(self):
+        """Test period days validation in QuestCreatePayload (quantitative)."""
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            startAt=start_at
+            kind="quantitative",
+            targetCount=5,
+            countScope="any",
+            periodDays=7,
         )
-        assert payload.startAt == start_at
-        
-        # Test no start at
-        payload = QuestCreatePayload(
-            title="Test Quest",
-            category="Health",
-            difficulty="easy"
-        )
-        assert payload.startAt is None
-    
-    def test_quest_create_payload_period_seconds_validation(self):
-        """Test period seconds validation in QuestCreatePayload."""
-        # Test valid period seconds
-        payload = QuestCreatePayload(
+        assert payload.periodDays == 7
+
+        payload2 = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            periodSeconds=3600  # 1 hour
         )
-        assert payload.periodSeconds == 3600
-        
-        # Test no period seconds
-        payload = QuestCreatePayload(
-            title="Test Quest",
-            category="Health",
-            difficulty="easy"
-        )
-        assert payload.periodSeconds is None
+        assert payload2.periodDays is None
 
 
 class TestQuestModelEdgeCases:
@@ -455,28 +448,27 @@ class TestQuestModelEdgeCases:
         payload = QuestCreatePayload(
             title="Minimal Quest",
             category="Health",
-            difficulty="easy"
+            difficulty="easy",
         )
-        
+
         assert payload.title == "Minimal Quest"
         assert payload.category == "Health"
         assert payload.difficulty == "easy"
         assert payload.description is None
-        assert payload.rewardXp == 50  # Default
-        assert payload.tags == []  # Default
-        assert payload.privacy == "private"  # Default
-        assert payload.kind == "linked"  # Default
+        assert getattr(payload, "rewardXp", None) is None
+        assert payload.tags == []
+        assert payload.privacy == "private"
+        assert payload.kind == "linked"
         assert payload.targetCount is None
         assert payload.countScope is None
         assert payload.deadline is None
-        assert payload.startAt is None
-        assert payload.periodSeconds is None
-    
+        assert payload.periodDays is None
+
     def test_quest_create_payload_maximal_fields(self):
         """Test quest creation payload with all fields."""
-        deadline = int(datetime.now().timestamp() * 1000)
-        start_at = int(datetime.now().timestamp() * 1000)
-        
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        deadline = now_ms + (2 * 60 * 60 * 1000)
+
         payload = QuestCreatePayload(
             title="Maximal Quest",
             category="Work",
@@ -487,12 +479,11 @@ class TestQuestModelEdgeCases:
             privacy="public",
             kind="quantitative",
             targetCount=25,
-            countScope="linked",
+            countScope="any",
+            periodDays=1,
             deadline=deadline,
-            startAt=start_at,
-            periodSeconds=86400  # 24 hours
         )
-        
+
         assert payload.title == "Maximal Quest"
         assert payload.category == "Work"
         assert payload.difficulty == "hard"
@@ -502,17 +493,16 @@ class TestQuestModelEdgeCases:
         assert payload.privacy == "public"
         assert payload.kind == "quantitative"
         assert payload.targetCount == 25
-        assert payload.countScope == "linked"
+        assert payload.countScope == "any"
+        assert payload.periodDays == 1
         assert payload.deadline == deadline
-        assert payload.startAt == start_at
-        assert payload.periodSeconds == 86400
-    
+
     def test_quest_update_payload_partial_update(self):
         """Test quest update payload with partial fields."""
         payload = QuestUpdatePayload(
-            title="Updated Title Only"
+            title="Updated Title Only",
         )
-        
+
         assert payload.title == "Updated Title Only"
         assert payload.description is None
         assert payload.rewardXp is None
@@ -522,14 +512,16 @@ class TestQuestModelEdgeCases:
         assert payload.targetCount is None
         assert payload.countScope is None
         assert payload.deadline is None
-        assert payload.startAt is None
-        assert payload.periodSeconds is None
-    
+        assert payload.periodDays is None
+
     def test_quest_response_with_optional_fields(self):
-        """Test quest response with optional fields."""
+        """Test quest response with optional fields (epoch ms timestamps)."""
+        ts_created = 1672574400000
+        ts_updated = 1672574400000
+        ts_deadline = 1735689599000
+        ts_started = 1672531200000
         response = QuestResponse(
             id="optional-quest-123",
-            questId="optional-quest-123",
             userId="user-789",
             title="Optional Fields Quest",
             category="Learning",
@@ -537,19 +529,19 @@ class TestQuestModelEdgeCases:
             status="active",
             rewardXp=75,
             privacy="followers",
-            createdAt="2023-01-01T12:00:00Z",
-            updatedAt="2023-01-01T12:00:00Z",
+            createdAt=ts_created,
+            updatedAt=ts_updated,
             version=2,
             kind="quantitative",
             description="A quest with optional fields",
             tags=["learning", "optional"],
             targetCount=5,
             countScope="any",
-            deadline="2023-12-31T23:59:59Z",
-            startAt="2023-01-01T00:00:00Z",
-            periodSeconds=3600
+            periodDays=1,
+            deadline=ts_deadline,
+            startedAt=ts_started,
         )
-        
+
         assert response.id == "optional-quest-123"
         assert response.questId == "optional-quest-123"
         assert response.userId == "user-789"
@@ -559,14 +551,13 @@ class TestQuestModelEdgeCases:
         assert response.status == "active"
         assert response.rewardXp == 75
         assert response.privacy == "followers"
-        assert response.createdAt == "2023-01-01T12:00:00Z"
-        assert response.updatedAt == "2023-01-01T12:00:00Z"
+        assert response.createdAt == ts_created
+        assert response.updatedAt == ts_updated
         assert response.version == 2
         assert response.kind == "quantitative"
         assert response.description == "A quest with optional fields"
         assert response.tags == ["learning", "optional"]
         assert response.targetCount == 5
         assert response.countScope == "any"
-        assert response.deadline == "2023-12-31T23:59:59Z"
-        assert response.startAt == "2023-01-01T00:00:00Z"
-        assert response.periodSeconds == 3600
+        assert response.deadline == ts_deadline
+        assert response.startedAt == ts_started

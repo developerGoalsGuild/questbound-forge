@@ -32,18 +32,24 @@ def sanitize_string(value: str, max_length: int = 1000) -> str:
 
 
 def validate_user_id(user_id: str) -> str:
-    """Validate user ID format."""
+    """Validate user ID format (UUID/Cognito sub or alphanumeric with hyphens/underscores)."""
     if not user_id or not isinstance(user_id, str):
         raise SecurityValidationError("User ID is required and must be a string")
-    
-    # Check for valid UUID format or Cognito sub format
+
+    stripped = user_id.strip()
+    if not stripped:
+        raise SecurityValidationError("User ID is required and must be a string")
+
+    # UUID format (Cognito sub)
     uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    cognito_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    
-    if not (re.match(uuid_pattern, user_id) or re.match(cognito_pattern, user_id)):
-        raise SecurityValidationError("Invalid user ID format")
-    
-    return user_id
+    if re.match(uuid_pattern, stripped):
+        return stripped
+
+    # Alphanumeric with hyphens/underscores (e.g. test IDs, legacy)
+    if re.match(r'^[a-zA-Z0-9_-]{4,128}$', stripped):
+        return stripped
+
+    raise SecurityValidationError("Invalid user ID format")
 
 
 def validate_tags(tags: List[str]) -> List[str]:

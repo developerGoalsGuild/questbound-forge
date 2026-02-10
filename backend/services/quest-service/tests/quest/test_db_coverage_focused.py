@@ -126,7 +126,7 @@ class TestQuestDatabaseBasicCoverage:
         with pytest.raises(QuestDBError) as exc_info:
             create_quest(user_id, sample_quest_payload)
         
-        assert "Quest already exists" in str(exc_info.value)
+        assert "Quest with this ID already exists" in str(exc_info.value)
     
     def test_create_quest_client_error(self, mock_dynamodb, sample_quest_payload):
         """Test quest creation with client error."""

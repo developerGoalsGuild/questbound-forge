@@ -7,7 +7,7 @@ validation, XSS protection, and follow the existing quest-service patterns.
 """
 
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 from datetime import datetime
 import re
 
@@ -110,7 +110,12 @@ class QuestCreatePayload(BaseModel):
         max_length=MAX_DESCRIPTION_LENGTH,
         description="Quest description (max 500 characters)"
     )
-    # Note: rewardXp is now auto-calculated and not part of input
+    rewardXp: Optional[int] = Field(
+        None,
+        ge=MIN_REWARD_XP,
+        le=MAX_REWARD_XP,
+        description="Optional reward XP (defaults to auto-calculated if not set)"
+    )
     tags: List[str] = Field(
         default_factory=list,
         max_length=MAX_TAGS_COUNT,
@@ -344,7 +349,12 @@ class QuestUpdatePayload(BaseModel):
         None,
         description="Quest difficulty level"
     )
-    # Note: rewardXp is now auto-calculated and not part of input
+    rewardXp: Optional[int] = Field(
+        None,
+        ge=MIN_REWARD_XP,
+        le=MAX_REWARD_XP,
+        description="Optional reward XP"
+    )
     tags: Optional[List[str]] = Field(
         None,
         max_length=MAX_TAGS_COUNT,
@@ -494,7 +504,7 @@ class QuestCancelPayload(BaseModel):
 
 class QuestResponse(BaseModel):
     """Response model for Quest (mirrors GraphQL Quest type)"""
-    
+
     # Core fields
     id: str = Field(..., description="Quest ID")
     userId: str = Field(..., description="User ID who owns the quest")
@@ -512,19 +522,25 @@ class QuestResponse(BaseModel):
     startedAt: Optional[int] = Field(None, description="Quest start timestamp (epoch ms)")
     completedAt: Optional[int] = Field(None, description="Quest completion timestamp (epoch ms)")
     version: int = Field(..., description="Optimistic locking version")
-    
+
     # Quest type and configuration
     kind: QuestKind = Field(..., description="Quest type")
-    
+
     # Linked Quest fields
     linkedGoalIds: Optional[List[str]] = Field(None, description="Linked goal IDs")
     linkedTaskIds: Optional[List[str]] = Field(None, description="Linked task IDs")
     dependsOnQuestIds: Optional[List[str]] = Field(None, description="Dependent quest IDs")
-    
+
     # Quantitative Quest fields
     targetCount: Optional[int] = Field(None, description="Target count for quantitative quests")
     countScope: Optional[QuestCountScope] = Field(None, description="Count scope for quantitative quests")
     periodDays: Optional[int] = Field(None, description="Period duration for quantitative quests")
-    
+
     # Audit trail
     auditTrail: List[dict] = Field(default_factory=list, description="Audit trail events")
+
+    @computed_field
+    @property
+    def questId(self) -> str:
+        """Alias for id (GraphQL/API compatibility)."""
+        return self.id
