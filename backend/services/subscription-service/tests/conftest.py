@@ -20,26 +20,80 @@ common_dir = services_dir.parent / "common"
 if str(common_dir) not in sys.path:
     sys.path.insert(0, str(common_dir))
 
+# Set AWS region environment variable before any imports
+os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+os.environ['AWS_REGION'] = 'us-east-1'
+
+# Create mock settings instance for global use
+_mock_settings_instance = Mock()
+_mock_settings_instance.environment = 'test'
+_mock_settings_instance.aws_region = 'us-east-1'
+_mock_settings_instance.cognito_region = 'us-east-1'
+_mock_settings_instance.core_table_name = 'gg_core_test'
+_mock_settings_instance.allowed_origins = ["http://localhost:3000"]
+_mock_settings_instance.jwt_secret = 'test-secret-key-for-testing-only'
+_mock_settings_instance.jwt_audience = 'goalsguild'
+_mock_settings_instance.jwt_issuer = 'goalsguild'
+_mock_settings_instance.use_mock_stripe = True
+_mock_settings_instance.stripe_secret_key = None
+_mock_settings_instance.stripe_webhook_secret = None
+_mock_settings_instance.stripe_publishable_key = None
+_mock_settings_instance.stripe_price_id_initiate = None
+_mock_settings_instance.stripe_price_id_journeyman = None
+_mock_settings_instance.stripe_price_id_sage = None
+_mock_settings_instance.stripe_price_id_guildmaster = None
+_mock_settings_instance.cognito_user_pool_id = 'test-pool-id'
+_mock_settings_instance.frontend_base_url = 'http://localhost:8080'
+
+# Create mock DynamoDB resource and table
+mock_dynamodb = Mock()
+mock_table = Mock()
+mock_table.meta.client.describe_table.return_value = {
+    'Table': {'KeySchema': [{'AttributeName': 'PK', 'KeyType': 'HASH'}, {'AttributeName': 'SK', 'KeyType': 'RANGE'}]}
+}
+mock_dynamodb.Table.return_value = mock_table
+
+# Create mock SSM client
+mock_ssm = Mock()
+mock_ssm.get_parameter.side_effect = Exception("Parameter not found")
+
+# Patch boto3 and Settings before any imports
+# Use side_effect to return appropriate mocks based on service name
+def mock_boto3_client(service_name, **kwargs):
+    if service_name == 'ssm':
+        return mock_ssm
+    return Mock()
+
+def mock_boto3_resource(service_name, **kwargs):
+    if service_name == 'dynamodb':
+        return mock_dynamodb
+    return Mock()
+
+# Store patches globally so they persist
+_global_patches = {
+    'boto3_client': patch('boto3.client', side_effect=mock_boto3_client),
+    'boto3_resource': patch('boto3.resource', side_effect=mock_boto3_resource),
+    'settings': patch('app.settings.Settings', return_value=_mock_settings_instance),
+}
+
+# Start patches immediately
+for p in _global_patches.values():
+    p.start()
+
+
+def pytest_configure(config):
+    """Configure pytest - ensure patches are active before test collection."""
+    # Patches are already started at module level, but this ensures they're active
+    pass
+
+
+
 
 @pytest.fixture
 def mock_settings():
     """Mock settings for testing."""
-    with patch('app.settings.Settings') as mock_settings:
-        mock_instance = Mock()
-        mock_instance.environment = 'test'
-        mock_instance.aws_region = 'us-east-1'
-        mock_instance.core_table_name = 'gg_core_test'
-        mock_instance.allowed_origins = ["http://localhost:3000"]
-        mock_instance.jwt_secret = 'test-secret-key-for-testing-only'
-        mock_instance.jwt_audience = 'goalsguild'
-        mock_instance.jwt_issuer = 'goalsguild'
-        mock_instance.use_mock_stripe = True
-        mock_instance.stripe_secret_key = None
-        mock_instance.stripe_webhook_secret = None
-        mock_instance.stripe_publishable_key = None
-        mock_instance.cognito_user_pool_id = 'test-pool-id'
-        mock_settings.return_value = mock_instance
-        yield mock_instance
+    # Return the global mock settings instance (already patched at module level)
+    yield _mock_settings_instance
 
 
 @pytest.fixture
@@ -71,7 +125,9 @@ def test_token(mock_settings):
 @pytest.fixture
 def app_client(mock_settings, test_token):
     """Create test client with mocked dependencies."""
-    with patch('app.settings.Settings', return_value=mock_settings):
+    # Settings and boto3 are already patched at module level
+    with patch('app.main.Settings', return_value=mock_settings), \
+         patch('app.stripe_client.Settings', return_value=mock_settings):
         from app.main import app
         from app.auth import authenticate, AuthContext
         

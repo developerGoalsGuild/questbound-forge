@@ -10,8 +10,9 @@ from botocore.exceptions import ClientError
 class TestSubscriptionDB:
     """Tests for subscription database operations."""
     
+    @patch('app.db.subscription_db.boto3')
     @patch('app.db.subscription_db.dynamodb')
-    def test_create_subscription(self, mock_dynamodb):
+    def test_create_subscription(self, mock_dynamodb, mock_boto3):
         """Test subscription creation in database."""
         from app.db.subscription_db import create_subscription
         
@@ -32,8 +33,9 @@ class TestSubscriptionDB:
         assert result is not None
         mock_table.put_item.assert_called_once()
     
+    @patch('app.db.subscription_db.boto3')
     @patch('app.db.subscription_db.dynamodb')
-    def test_get_subscription(self, mock_dynamodb):
+    def test_get_subscription(self, mock_dynamodb, mock_boto3):
         """Test subscription retrieval from database."""
         from app.db.subscription_db import get_subscription
         
@@ -56,8 +58,9 @@ class TestSubscriptionDB:
         assert result["plan_tier"] == "INITIATE"
         mock_table.get_item.assert_called_once()
     
+    @patch('app.db.subscription_db.boto3')
     @patch('app.db.subscription_db.dynamodb')
-    def test_get_subscription_not_found(self, mock_dynamodb):
+    def test_get_subscription_not_found(self, mock_dynamodb, mock_boto3):
         """Test subscription retrieval when not found."""
         from app.db.subscription_db import get_subscription
         
@@ -69,8 +72,9 @@ class TestSubscriptionDB:
         
         assert result is None
     
+    @patch('app.db.subscription_db.boto3')
     @patch('app.db.subscription_db.dynamodb')
-    def test_update_subscription(self, mock_dynamodb):
+    def test_update_subscription(self, mock_dynamodb, mock_boto3):
         """Test subscription update."""
         from app.db.subscription_db import update_subscription
         
@@ -87,8 +91,9 @@ class TestSubscriptionDB:
         assert result is not None
         mock_table.update_item.assert_called_once()
     
+    @patch('app.db.subscription_db.boto3')
     @patch('app.db.subscription_db.dynamodb')
-    def test_cancel_subscription(self, mock_dynamodb):
+    def test_cancel_subscription(self, mock_dynamodb, mock_boto3):
         """Test subscription cancellation."""
         from app.db.subscription_db import cancel_subscription
         
@@ -105,8 +110,9 @@ class TestSubscriptionDB:
 class TestCreditDB:
     """Tests for credit database operations."""
     
+    @patch('app.db.credit_db.boto3')
     @patch('app.db.credit_db.dynamodb')
-    def test_get_or_create_credits(self, mock_dynamodb):
+    def test_get_or_create_credits(self, mock_dynamodb, mock_boto3):
         """Test getting or creating credit record."""
         from app.db.credit_db import get_or_create_credits
         
@@ -127,8 +133,9 @@ class TestCreditDB:
         assert result["balance"] == 100
         mock_table.get_item.assert_called_once()
     
+    @patch('app.db.credit_db.boto3')
     @patch('app.db.credit_db.dynamodb')
-    def test_get_or_create_credits_new_user(self, mock_dynamodb):
+    def test_get_or_create_credits_new_user(self, mock_dynamodb, mock_boto3):
         """Test creating credit record for new user."""
         from app.db.credit_db import get_or_create_credits
         
@@ -143,8 +150,9 @@ class TestCreditDB:
         assert result["balance"] == 0  # Default balance
         mock_table.put_item.assert_called_once()
     
+    @patch('app.db.credit_db.boto3')
     @patch('app.db.credit_db.dynamodb')
-    def test_update_credits(self, mock_dynamodb):
+    def test_update_credits(self, mock_dynamodb, mock_boto3):
         """Test credit balance update."""
         from app.db.credit_db import update_credits
         
@@ -157,8 +165,9 @@ class TestCreditDB:
         assert result is not None
         mock_table.update_item.assert_called_once()
     
+    @patch('app.db.credit_db.boto3')
     @patch('app.db.credit_db.dynamodb')
-    def test_consume_credits_success(self, mock_dynamodb):
+    def test_consume_credits_success(self, mock_dynamodb, mock_boto3):
         """Test successful credit consumption."""
         from app.db.credit_db import consume_credits
         
@@ -177,8 +186,9 @@ class TestCreditDB:
         assert result["remaining_balance"] == 50
         mock_table.update_item.assert_called_once()
     
+    @patch('app.db.credit_db.boto3')
     @patch('app.db.credit_db.dynamodb')
-    def test_consume_credits_insufficient(self, mock_dynamodb):
+    def test_consume_credits_insufficient(self, mock_dynamodb, mock_boto3):
         """Test credit consumption with insufficient balance."""
         from app.db.credit_db import consume_credits
         

@@ -24,6 +24,7 @@ class TestMockStripe:
         
         client = MockStripeClient()
         customer = client.create_customer(
+            user_id="test-123",
             email="test@example.com",
             metadata={"user_id": "test-123"}
         )
@@ -56,22 +57,39 @@ class TestMockStripe:
         from app.mock_stripe import MockStripeClient
         
         client = MockStripeClient()
-        portal = client.get_customer_portal_url(
+        portal_url = client.get_customer_portal_url(
             customer_id="cus_test123",
             return_url="https://example.com"
         )
         
-        assert portal is not None
-        assert hasattr(portal, 'url')
-        assert "portal" in portal.url or portal.url.startswith("http")
+        assert portal_url is not None
+        assert isinstance(portal_url, str)
+        assert "portal" in portal_url or portal_url.startswith("http")
     
     def test_mock_cancel_subscription(self):
         """Test mock subscription cancellation."""
-        from app.mock_stripe import MockStripeClient
+        from app.mock_stripe import MockStripeClient, MockSubscription
+        from datetime import datetime, timezone
         
         client = MockStripeClient()
+        # First create a subscription
+        subscription_id = "sub_test123"
+        customer = client.create_customer(user_id="test-123", email="test@example.com")
+        # Create subscription manually
+        now = int(datetime.now(timezone.utc).timestamp())
+        client.subscriptions[subscription_id] = MockSubscription(
+            id=subscription_id,
+            customer=customer.id,
+            status="active",
+            current_period_start=now,
+            current_period_end=now + 2592000,  # 30 days
+            cancel_at_period_end=False,
+            items={"data": [{"price": {"id": "price_test123"}}]},
+            metadata={}
+        )
+        
         subscription = client.cancel_subscription(
-            subscription_id="sub_test123",
+            subscription_id=subscription_id,
             cancel_at_period_end=True
         )
         
@@ -82,14 +100,30 @@ class TestMockStripe:
     
     def test_mock_get_subscription(self):
         """Test mock subscription retrieval."""
-        from app.mock_stripe import MockStripeClient
+        from app.mock_stripe import MockStripeClient, MockSubscription
+        from datetime import datetime, timezone
         
         client = MockStripeClient()
-        subscription = client.get_subscription("sub_test123")
+        subscription_id = "sub_test123"
+        customer = client.create_customer(user_id="test-123", email="test@example.com")
+        # Create subscription manually
+        now = int(datetime.now(timezone.utc).timestamp())
+        client.subscriptions[subscription_id] = MockSubscription(
+            id=subscription_id,
+            customer=customer.id,
+            status="active",
+            current_period_start=now,
+            current_period_end=now + 2592000,
+            cancel_at_period_end=False,
+            items={"data": [{"price": {"id": "price_test123"}}]},
+            metadata={}
+        )
+        
+        subscription = client.get_subscription(subscription_id)
         
         assert subscription is not None
         assert hasattr(subscription, 'id')
-        assert subscription.id == "sub_test123"
+        assert subscription.id == subscription_id
     
     def test_mock_construct_webhook_event(self):
         """Test mock webhook event construction."""
@@ -107,9 +141,10 @@ class TestMockStripe:
         event = client.construct_webhook_event(payload, "test_signature")
         
         assert event is not None
-        assert hasattr(event, 'type')
-        assert event.type == "checkout.session.completed"
-        assert hasattr(event, 'data')
+        assert isinstance(event, dict)
+        assert "type" in event
+        assert event["type"] == "checkout.session.completed"
+        assert "data" in event
 
 
 class TestMockStripeModule:
@@ -131,7 +166,10 @@ class TestMockStripeModule:
         """Test MockStripe.Customer.create."""
         from app.mock_stripe import MockStripe
         
-        customer = MockStripe.Customer.create(email="test@example.com")
+        customer = MockStripe.Customer.create(
+            email="test@example.com",
+            metadata={"user_id": "test-123"}
+        )
         assert customer is not None
         assert hasattr(customer, 'id')
     

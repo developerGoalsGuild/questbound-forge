@@ -15,9 +15,13 @@ class TestStripeClient:
         
         mock_settings_instance = Mock()
         mock_settings_instance.use_mock_stripe = True
+        mock_settings_instance.stripe_price_id_initiate = None
+        mock_settings_instance.stripe_price_id_journeyman = None
+        mock_settings_instance.stripe_price_id_sage = None
+        mock_settings_instance.stripe_price_id_guildmaster = None
         mock_settings.return_value = mock_settings_instance
         
-        client = StripeClient()
+        client = StripeClient(mock_settings_instance)
         assert client.is_mock is True
         assert client.mock_client is not None
     
@@ -30,9 +34,13 @@ class TestStripeClient:
         mock_settings_instance = Mock()
         mock_settings_instance.use_mock_stripe = False
         mock_settings_instance.stripe_secret_key = 'sk_test_123'
+        mock_settings_instance.stripe_price_id_initiate = None
+        mock_settings_instance.stripe_price_id_journeyman = None
+        mock_settings_instance.stripe_price_id_sage = None
+        mock_settings_instance.stripe_price_id_guildmaster = None
         mock_settings.return_value = mock_settings_instance
         
-        client = StripeClient()
+        client = StripeClient(mock_settings_instance)
         assert client.is_mock is False
     
     @patch('app.stripe_client.Settings')
@@ -42,10 +50,17 @@ class TestStripeClient:
         
         mock_settings_instance = Mock()
         mock_settings_instance.use_mock_stripe = True
+        mock_settings_instance.stripe_price_id_initiate = None
+        mock_settings_instance.stripe_price_id_journeyman = None
+        mock_settings_instance.stripe_price_id_sage = None
+        mock_settings_instance.stripe_price_id_guildmaster = None
         mock_settings.return_value = mock_settings_instance
         
-        client = StripeClient()
-        customer = client.create_customer(email="test@example.com")
+        client = StripeClient(mock_settings_instance)
+        customer = client.create_customer(
+            user_id="test-user-123",
+            email="test@example.com"
+        )
         
         assert customer is not None
         assert hasattr(customer, 'id')
@@ -57,9 +72,13 @@ class TestStripeClient:
         
         mock_settings_instance = Mock()
         mock_settings_instance.use_mock_stripe = True
+        mock_settings_instance.stripe_price_id_initiate = None
+        mock_settings_instance.stripe_price_id_journeyman = None
+        mock_settings_instance.stripe_price_id_sage = None
+        mock_settings_instance.stripe_price_id_guildmaster = None
         mock_settings.return_value = mock_settings_instance
         
-        client = StripeClient()
+        client = StripeClient(mock_settings_instance)
         session = client.create_checkout_session(
             customer_id="cus_test123",
             price_id="price_test123",
@@ -78,16 +97,21 @@ class TestStripeClient:
         
         mock_settings_instance = Mock()
         mock_settings_instance.use_mock_stripe = True
+        mock_settings_instance.stripe_price_id_initiate = None
+        mock_settings_instance.stripe_price_id_journeyman = None
+        mock_settings_instance.stripe_price_id_sage = None
+        mock_settings_instance.stripe_price_id_guildmaster = None
         mock_settings.return_value = mock_settings_instance
         
-        client = StripeClient()
-        portal = client.get_customer_portal_url(
+        client = StripeClient(mock_settings_instance)
+        portal_url = client.get_customer_portal_url(
             customer_id="cus_test123",
             return_url="https://example.com"
         )
         
-        assert portal is not None
-        assert hasattr(portal, 'url')
+        assert portal_url is not None
+        assert isinstance(portal_url, str)
+        assert "portal" in portal_url or portal_url.startswith("http")
     
     @patch('app.stripe_client.Settings')
     def test_cancel_subscription_mock(self, mock_settings):
@@ -96,11 +120,33 @@ class TestStripeClient:
         
         mock_settings_instance = Mock()
         mock_settings_instance.use_mock_stripe = True
+        mock_settings_instance.stripe_price_id_initiate = None
+        mock_settings_instance.stripe_price_id_journeyman = None
+        mock_settings_instance.stripe_price_id_sage = None
+        mock_settings_instance.stripe_price_id_guildmaster = None
         mock_settings.return_value = mock_settings_instance
         
-        client = StripeClient()
+        client = StripeClient(mock_settings_instance)
+        # First create a subscription
+        customer = client.create_customer(user_id="test-user-123", email="test@example.com")
+        session = client.create_checkout_session(
+            customer_id=customer.id,
+            price_id="price_test123",
+            success_url="https://example.com/success",
+            cancel_url="https://example.com/cancel"
+        )
+        # Get subscription ID from session metadata or create one
+        subscription_id = "sub_test123"
+        # Create subscription in mock client
+        client.mock_client.subscriptions[subscription_id] = Mock(
+            id=subscription_id,
+            customer=customer.id,
+            status="active",
+            cancel_at_period_end=False
+        )
+        
         subscription = client.cancel_subscription(
-            subscription_id="sub_test123",
+            subscription_id=subscription_id,
             cancel_at_period_end=True
         )
         
