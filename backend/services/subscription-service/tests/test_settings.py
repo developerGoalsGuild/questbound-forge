@@ -4,6 +4,7 @@ Tests for settings configuration.
 import pytest
 import os
 from unittest.mock import patch, Mock
+from botocore.exceptions import ClientError
 
 
 class TestSettings:
@@ -21,9 +22,12 @@ class TestSettings:
         """Test settings initialization with environment variables."""
         from app.settings import Settings
         
-        # Mock SSM client to prevent AWS calls
+        # Mock SSM client to prevent AWS calls - use ClientError so Settings can catch it
         mock_ssm = Mock()
-        mock_ssm.get_parameter.side_effect = Exception("Parameter not found")
+        mock_ssm.get_parameter.side_effect = ClientError(
+            {'Error': {'Code': 'ParameterNotFound', 'Message': 'Parameter not found'}},
+            'GetParameter'
+        )
         mock_boto3.client.return_value = mock_ssm
         
         settings = Settings()
@@ -40,9 +44,12 @@ class TestSettings:
         """Test mock Stripe enabled in dev environment."""
         from app.settings import Settings
         
-        # Mock SSM client to prevent AWS calls
+        # Mock SSM client to prevent AWS calls - use ClientError so Settings can catch it
         mock_ssm = Mock()
-        mock_ssm.get_parameter.side_effect = Exception("Parameter not found")
+        mock_ssm.get_parameter.side_effect = ClientError(
+            {'Error': {'Code': 'ParameterNotFound', 'Message': 'Parameter not found'}},
+            'GetParameter'
+        )
         mock_boto3.client.return_value = mock_ssm
         
         settings = Settings()
@@ -68,9 +75,12 @@ class TestSettings:
         try:
             from app.settings import Settings
             
-            # Mock SSM client to prevent AWS calls
+            # Mock SSM client to prevent AWS calls - use ClientError so Settings can catch it
             mock_ssm = Mock()
-            mock_ssm.get_parameter.side_effect = Exception("Parameter not found")
+            mock_ssm.get_parameter.side_effect = ClientError(
+                {'Error': {'Code': 'ParameterNotFound', 'Message': 'Parameter not found'}},
+                'GetParameter'
+            )
             mock_boto3.client.return_value = mock_ssm
             
             settings = Settings()
