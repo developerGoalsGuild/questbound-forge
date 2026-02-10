@@ -170,10 +170,9 @@ class TestQuestCreatePayloadComprehensive:
                 difficulty="easy",
                 kind="quantitative",
                 targetCount=5,
-                startAt=future_time,
                 countScope="completed_tasks"
             )
-        assert "periodSeconds is required for quantitative quests" in str(exc_info.value)
+        assert "periodDays is required for quantitative quests" in str(exc_info.value)
         
         # Test valid quantitative quest
         payload = QuestCreatePayload(
@@ -182,13 +181,11 @@ class TestQuestCreatePayloadComprehensive:
             difficulty="easy",
             kind="quantitative",
             targetCount=5,
-            startAt=future_time,
             countScope="completed_tasks",
-                periodDays=1
+            periodDays=1
         )
         assert payload.kind == "quantitative"
         assert payload.targetCount == 5
-        assert payload.startAt == future_time
         assert payload.countScope == "completed_tasks"
         assert payload.periodDays == 1
     
@@ -231,7 +228,6 @@ class TestQuestCreatePayloadComprehensive:
             kind="quantitative",
             targetCount=10,
             countScope="completed_goals",
-            startAt=future_time,
             periodDays=1
         )
         
@@ -247,7 +243,6 @@ class TestQuestCreatePayloadComprehensive:
         assert data["kind"] == "quantitative"
         assert data["targetCount"] == 10
         assert data["countScope"] == "completed_goals"
-        assert data["startAt"] == future_time
         assert data["periodDays"] == 1
         
         # Test model_dump_json()
@@ -329,8 +324,7 @@ class TestQuestUpdatePayloadComprehensive:
             targetCount=20,
             countScope="completed_tasks",
             deadline=future_time,
-            startAt=future_time,
-                periodDays=1
+            periodDays=1
         )
         
         # Test model_dump()
@@ -343,7 +337,6 @@ class TestQuestUpdatePayloadComprehensive:
         assert data["targetCount"] == 20
         assert data["countScope"] == "completed_tasks"
         assert data["deadline"] == future_time
-        assert data["startAt"] == future_time
         assert data["periodDays"] == 1
         
         # Test model_dump_json()
@@ -421,8 +414,8 @@ class TestQuestResponseComprehensive:
             targetCount=50,
             countScope="completed_goals",
             deadline=future_deadline,
-            startAt=future_time,
-            periodSeconds=86400,
+            startedAt=future_time,
+            periodDays=7,
             linkedGoalIds=["goal-1", "goal-2"],
             linkedTaskIds=["task-1", "task-2"],
             dependsOnQuestIds=["quest-1", "quest-2"],
@@ -447,10 +440,10 @@ class TestQuestResponseComprehensive:
         assert response.kind == "quantitative"
         assert response.tags == ["learning", "comprehensive", "test"]
         assert response.targetCount == 50
-        assert response.countScope == "linked"
+        assert response.countScope == "completed_goals"
         assert response.deadline == future_deadline
-        assert response.startAt == future_time
-        assert response.periodSeconds == 86400
+        assert response.startedAt == future_time
+        assert response.periodDays == 7
         assert response.linkedGoalIds == ["goal-1", "goal-2"]
         assert response.linkedTaskIds == ["task-1", "task-2"]
         assert response.dependsOnQuestIds == ["quest-1", "quest-2"]
@@ -572,8 +565,7 @@ class TestQuestModelEdgeCasesComprehensive:
             kind="quantitative",
             targetCount=10000,  # Maximum target count
             countScope="completed_tasks",
-            startAt=future_time,
-            periodSeconds=86400
+            periodDays=7
         )
         assert payload_max.title == "a" * 100
         assert payload_max.description == "a" * 500
@@ -620,8 +612,8 @@ class TestQuestModelEdgeCasesComprehensive:
         assert response.targetCount is None
         assert response.countScope is None
         assert response.deadline is None
-        assert response.startAt is None
-        assert response.periodSeconds is None
+        assert response.startedAt is None
+        assert response.periodDays is None
         assert response.linkedGoalIds is None
         assert response.linkedTaskIds is None
         assert response.dependsOnQuestIds is None

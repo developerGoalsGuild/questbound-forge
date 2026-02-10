@@ -60,7 +60,7 @@ class TestQuestModelsCoverage:
         assert payload.title == "Test Quest"
         assert payload.category == "Health"
         assert payload.difficulty == "medium"
-        assert payload.rewardXp == 50  # Default value
+        assert payload.rewardXp is None  # Optional, no default
         assert payload.tags == []
         assert payload.privacy == "private"
         assert payload.kind == "linked"
@@ -81,7 +81,7 @@ class TestQuestModelsCoverage:
             kind="quantitative",
             targetCount=5,
             countScope="any",
-            startAt=future_time  # Required for quantitative quests
+            periodDays=7  # Required for quantitative quests
         )
         
         assert payload.title == "Full Quest"
@@ -239,13 +239,12 @@ class TestQuestModelsCoverage:
         assert response_dict['kind'] == "quantitative"
     
     def test_quest_status_enum(self):
-        """Test QuestStatus enum values."""
-        # QuestStatus is a Literal type, not an enum
+        """Test QuestStatus literal values (draft, active, completed, cancelled, failed)."""
         assert "draft" in QuestStatus.__args__
         assert "active" in QuestStatus.__args__
-        assert "paused" in QuestStatus.__args__
         assert "completed" in QuestStatus.__args__
         assert "cancelled" in QuestStatus.__args__
+        assert "failed" in QuestStatus.__args__
     
     def test_quest_constants(self):
         """Test quest constants."""
@@ -316,13 +315,13 @@ class TestQuestValidationCoverage:
         )
         assert payload.rewardXp == 500
         
-        # Test default reward XP
+        # Test optional reward XP (no default)
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy"
         )
-        assert payload.rewardXp == 50
+        assert payload.rewardXp is None
     
     def test_quest_create_payload_tags_validation(self):
         """Test tags validation in QuestCreatePayload."""
@@ -533,7 +532,6 @@ class TestQuestModelEdgeCases:
         
         response = QuestResponse(
             id="optional-quest-123",
-            questId="optional-quest-123",
             userId="user-789",
             title="Optional Fields Quest",
             category="Learning",
@@ -550,8 +548,8 @@ class TestQuestModelEdgeCases:
             targetCount=5,
             countScope="any",
             deadline=future_deadline,
-            startAt=future_time,
-            periodSeconds=3600
+            startedAt=future_time,
+            periodDays=7
         )
         
         assert response.id == "optional-quest-123"
@@ -572,5 +570,5 @@ class TestQuestModelEdgeCases:
         assert response.targetCount == 5
         assert response.countScope == "any"
         assert response.deadline == future_deadline
-        assert response.startAt == future_time
-        assert response.periodSeconds == 3600
+        assert response.startedAt == future_time
+        assert response.periodDays == 7

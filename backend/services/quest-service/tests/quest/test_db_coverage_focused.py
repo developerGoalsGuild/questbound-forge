@@ -439,60 +439,44 @@ class TestQuestDatabaseBasicCoverage:
         assert "Failed to delete quest" in str(exc_info.value)
     
     def test_list_user_quests_success(self, mock_dynamodb):
-        """Test successful quest listing."""
+        """Test successful quest listing (returns List[QuestResponse])."""
         user_id = "test_user_123"
-        
-        # Mock successful query
+        ts = 1234567890000
+        q1_id, q2_id = str(uuid.uuid4()), str(uuid.uuid4())
         mock_items = [
             {
-                'PK': f"USER#{user_id}",
-                'SK': f"QUEST#{str(uuid.uuid4())}",
-                'QuestId': str(uuid.uuid4()),
-                'UserId': user_id,
-                'Title': 'Quest 1',
-                'Status': 'draft'
+                'id': q1_id, 'userId': user_id, 'title': 'Quest 1', 'difficulty': 'medium',
+                'rewardXp': 50, 'status': 'draft', 'category': 'Health', 'tags': [],
+                'privacy': 'private', 'createdAt': ts, 'updatedAt': ts, 'version': 1,
+                'kind': 'linked', 'auditTrail': []
             },
             {
-                'PK': f"USER#{user_id}",
-                'SK': f"QUEST#{str(uuid.uuid4())}",
-                'QuestId': str(uuid.uuid4()),
-                'UserId': user_id,
-                'Title': 'Quest 2',
-                'Status': 'active'
+                'id': q2_id, 'userId': user_id, 'title': 'Quest 2', 'difficulty': 'easy',
+                'rewardXp': 25, 'status': 'active', 'category': 'Work', 'tags': [],
+                'privacy': 'private', 'createdAt': ts + 1, 'updatedAt': ts + 1, 'version': 1,
+                'kind': 'linked', 'auditTrail': []
             }
         ]
-        mock_dynamodb.query.return_value = {
-            'Items': mock_items,
-            'Count': 2
-        }
+        mock_dynamodb.query.return_value = {'Items': mock_items, 'Count': 2}
         
         result = list_user_quests(user_id)
         
-        assert len(result['quests']) == 2
-        assert result['count'] == 2
-        assert result['quests'][0]['title'] == 'Quest 1'
-        assert result['quests'][1]['title'] == 'Quest 2'
+        assert len(result) == 2
+        assert result[0].title == 'Quest 1'
+        assert result[1].title == 'Quest 2'
     
     def test_list_user_quests_empty(self, mock_dynamodb):
         """Test quest listing when no quests found."""
         user_id = "test_user_123"
-        
-        # Mock empty query result
-        mock_dynamodb.query.return_value = {
-            'Items': [],
-            'Count': 0
-        }
+        mock_dynamodb.query.return_value = {'Items': [], 'Count': 0}
         
         result = list_user_quests(user_id)
         
-        assert len(result['quests']) == 0
-        assert result['count'] == 0
+        assert len(result) == 0
     
     def test_list_user_quests_client_error(self, mock_dynamodb):
         """Test quest listing with client error."""
         user_id = "test_user_123"
-        
-        # Mock client error
         error = ClientError(
             {'Error': {'Code': 'ValidationException'}},
             'Query'
@@ -502,19 +486,17 @@ class TestQuestDatabaseBasicCoverage:
         with pytest.raises(QuestDBError) as exc_info:
             list_user_quests(user_id)
         
-        assert "Failed to list user quests" in str(exc_info.value)
+        assert "Failed to list quests" in str(exc_info.value)
     
     def test_list_user_quests_general_error(self, mock_dynamodb):
         """Test quest listing with general error."""
         user_id = "test_user_123"
-        
-        # Mock general error
         mock_dynamodb.query.side_effect = Exception("Unexpected error")
         
         with pytest.raises(QuestDBError) as exc_info:
             list_user_quests(user_id)
         
-        assert "Failed to list user quests" in str(exc_info.value)
+        assert "Failed to list quests" in str(exc_info.value)
 
 
 class TestQuestDatabaseExceptionsCoverage:
