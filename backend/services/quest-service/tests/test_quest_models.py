@@ -46,7 +46,6 @@ class TestQuestCreatePayload:
     
     def test_valid_quantitative_quest(self):
         """Test valid quantitative quest creation."""
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
         payload = QuestCreatePayload(
             title="Complete 5 tasks this week",
             category="Work",
@@ -54,15 +53,13 @@ class TestQuestCreatePayload:
             kind="quantitative",
             targetCount=5,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=7 * 24 * 60 * 60  # 7 days
+            periodDays=7
         )
         
         assert payload.kind == "quantitative"
         assert payload.targetCount == 5
         assert payload.countScope == "any"
-        assert payload.startAt == future_time
-        assert payload.periodSeconds == 7 * 24 * 60 * 60
+        assert payload.periodDays == 7
     
     def test_minimal_valid_quest(self):
         """Test minimal valid quest creation with only required fields."""
@@ -74,7 +71,7 @@ class TestQuestCreatePayload:
         assert payload.title == "Simple quest"
         assert payload.category == "Personal"
         assert payload.difficulty == "medium"  # default
-        assert payload.rewardXp == 50  # default
+        assert payload.rewardXp is None  # optional; auto-calculated at create
         assert payload.tags == []  # default
         assert payload.privacy == "private"  # default
         assert payload.kind == "linked"  # default
@@ -273,7 +270,7 @@ class TestQuestCreatePayload:
             )
         assert "countScope is required for quantitative quests" in str(exc_info.value)
         
-        # Missing startAt
+        # Missing periodDays
         with pytest.raises(ValidationError) as exc_info:
             QuestCreatePayload(
                 title="Test", 
@@ -282,19 +279,7 @@ class TestQuestCreatePayload:
                 targetCount=5,
                 countScope="any"
             )
-        assert "startAt is required for quantitative quests" in str(exc_info.value)
-        
-        # Missing periodSeconds
-        with pytest.raises(ValidationError) as exc_info:
-            QuestCreatePayload(
-                title="Test", 
-                category="Health", 
-                kind="quantitative",
-                targetCount=5,
-                countScope="any",
-                startAt=future_time
-            )
-        assert "periodSeconds is required for quantitative quests" in str(exc_info.value)
+        assert "periodDays is required for quantitative quests" in str(exc_info.value)
         
         # Valid quantitative quest
         payload = QuestCreatePayload(
@@ -303,14 +288,12 @@ class TestQuestCreatePayload:
             kind="quantitative",
             targetCount=5,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=86400
+            periodDays=1
         )
         assert payload.kind == "quantitative"
         assert payload.targetCount == 5
         assert payload.countScope == "any"
-        assert payload.startAt == future_time
-        assert payload.periodSeconds == 86400
+        assert payload.periodDays == 1
     
     def test_linked_quest_validation(self):
         """Test linked quest validation requirements."""
@@ -355,8 +338,6 @@ class TestQuestCreatePayload:
     
     def test_target_count_validation(self):
         """Test target count validation for quantitative quests."""
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
-        
         # Zero or negative
         with pytest.raises(ValidationError) as exc_info:
             QuestCreatePayload(
@@ -365,8 +346,7 @@ class TestQuestCreatePayload:
                 kind="quantitative",
                 targetCount=0,
                 countScope="any",
-                startAt=future_time,
-                periodSeconds=86400
+                periodDays=1
             )
         assert "Input should be greater than 0" in str(exc_info.value)
         
@@ -378,8 +358,7 @@ class TestQuestCreatePayload:
                 kind="quantitative",
                 targetCount=10001,
                 countScope="any",
-                startAt=future_time,
-                periodSeconds=86400
+                periodDays=1
             )
         assert "Target count must be no more than 10,000" in str(exc_info.value)
         
@@ -390,15 +369,12 @@ class TestQuestCreatePayload:
             kind="quantitative",
             targetCount=100,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=86400
+            periodDays=1
         )
         assert payload.targetCount == 100
     
-    def test_period_seconds_validation(self):
-        """Test period seconds validation for quantitative quests."""
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
-        
+    def test_period_days_validation(self):
+        """Test period days validation for quantitative quests."""
         # Zero or negative
         with pytest.raises(ValidationError) as exc_info:
             QuestCreatePayload(
@@ -407,23 +383,9 @@ class TestQuestCreatePayload:
                 kind="quantitative",
                 targetCount=5,
                 countScope="any",
-                startAt=future_time,
-                periodSeconds=0
+                periodDays=0
             )
         assert "Input should be greater than 0" in str(exc_info.value)
-        
-        # Too long (more than 1 year)
-        with pytest.raises(ValidationError) as exc_info:
-            QuestCreatePayload(
-                title="Test", 
-                category="Health", 
-                kind="quantitative",
-                targetCount=5,
-                countScope="any",
-                startAt=future_time,
-                periodSeconds=366 * 24 * 60 * 60  # More than 1 year
-            )
-        assert "Period cannot exceed 1 year" in str(exc_info.value)
         
         # Valid
         payload = QuestCreatePayload(
@@ -432,10 +394,9 @@ class TestQuestCreatePayload:
             kind="quantitative",
             targetCount=5,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=86400  # 1 day
+            periodDays=7
         )
-        assert payload.periodSeconds == 86400
+        assert payload.periodDays == 7
 
 
 class TestQuestUpdatePayload:
@@ -472,9 +433,8 @@ class TestQuestUpdatePayload:
             linkedTaskIds=["task-789"],
             dependsOnQuestIds=["quest-123"],
             targetCount=10,
-            countScope="linked",
-            startAt=future_time,
-            periodSeconds=172800  # 2 days
+            countScope="any",
+            periodDays=2
         )
         
         assert payload.title == "Updated quest"
@@ -489,9 +449,8 @@ class TestQuestUpdatePayload:
         assert payload.linkedTaskIds == ["task-789"]
         assert payload.dependsOnQuestIds == ["quest-123"]
         assert payload.targetCount == 10
-        assert payload.countScope == "linked"
-        assert payload.startAt == future_time
-        assert payload.periodSeconds == 172800
+        assert payload.countScope == "any"
+        assert payload.periodDays == 2
     
     def test_validation_reuse(self):
         """Test that validation logic is properly reused from QuestCreatePayload."""
@@ -593,8 +552,7 @@ class TestQuestResponse:
             kind="quantitative",
             targetCount=5,
             countScope="any",
-            startAt=int((datetime.now() + timedelta(days=1)).timestamp() * 1000),
-            periodSeconds=86400
+            periodDays=1
         )
         
         assert response.id == "quest-123"
@@ -642,31 +600,27 @@ class TestQuestEnums:
         assert payload.kind == "linked"
         
         # Test quantitative kind (requires additional fields)
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
         payload = QuestCreatePayload(
             title="Test", 
             category="Health", 
             kind="quantitative",
             targetCount=5,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=86400
+            periodDays=1
         )
         assert payload.kind == "quantitative"
     
     def test_quest_count_scope_values(self):
         """Test QuestCountScope enum values."""
-        valid_scopes = ["any", "linked"]
+        valid_scopes = ["any", "completed_tasks", "completed_goals"]
         for scope in valid_scopes:
-            future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
             payload = QuestCreatePayload(
                 title="Test", 
                 category="Health", 
                 kind="quantitative",
                 targetCount=5,
                 countScope=scope,
-                startAt=future_time,
-                periodSeconds=86400
+                periodDays=1
             )
             assert payload.countScope == scope
     
@@ -757,8 +711,7 @@ class TestEdgeCases:
             dependsOnQuestIds=None,
             targetCount=None,
             countScope=None,
-            startAt=None,
-            periodSeconds=None
+            periodDays=None
         )
         
         assert payload.description is None
@@ -768,5 +721,4 @@ class TestEdgeCases:
         assert payload.dependsOnQuestIds is None
         assert payload.targetCount is None
         assert payload.countScope is None
-        assert payload.startAt is None
-        assert payload.periodSeconds is None
+        assert payload.periodDays is None

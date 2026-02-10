@@ -100,17 +100,17 @@ class TestQuestDatabaseBasicCoverage:
                 
                 result = create_quest(user_id, sample_quest_payload)
                 
-                assert result['quest_id'] == quest_id
-                assert result['user_id'] == user_id
-                assert result['title'] == sample_quest_payload.title
-                assert result['status'] == 'draft'
+                assert result.id == quest_id
+                assert result.userId == user_id
+                assert result.title == sample_quest_payload.title
+                assert result.status == 'draft'
                 
                 # Verify put_item was called with correct parameters
                 mock_dynamodb.put_item.assert_called_once()
                 call_args = mock_dynamodb.put_item.call_args
                 assert call_args[1]['Item']['PK'] == f"USER#{user_id}"
                 assert call_args[1]['Item']['SK'] == f"QUEST#{quest_id}"
-                assert call_args[1]['Item']['Title'] == sample_quest_payload.title
+                assert call_args[1]['Item']['title'] == sample_quest_payload.title
     
     def test_create_quest_conditional_check_failed(self, mock_dynamodb, sample_quest_payload):
         """Test quest creation with conditional check failed."""
@@ -160,23 +160,33 @@ class TestQuestDatabaseBasicCoverage:
         """Test successful quest retrieval."""
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
-        
-        # Mock successful get_item
+        ts = 1234567890000
+        # Mock successful get_item - use keys expected by _quest_item_to_response (camelCase)
         mock_item = {
             'PK': f"USER#{user_id}",
             'SK': f"QUEST#{quest_id}",
-            'QuestId': quest_id,
-            'UserId': user_id,
-            'Title': 'Test Quest',
-            'Status': 'draft'
+            'id': quest_id,
+            'userId': user_id,
+            'title': 'Test Quest',
+            'description': None,
+            'difficulty': 'medium',
+            'rewardXp': 50,
+            'status': 'draft',
+            'category': 'Health',
+            'tags': [],
+            'privacy': 'private',
+            'createdAt': ts,
+            'updatedAt': ts,
+            'version': 1,
+            'kind': 'linked',
         }
         mock_dynamodb.get_item.return_value = {'Item': mock_item}
         
         result = get_quest(user_id, quest_id)
         
-        assert result['quest_id'] == quest_id
-        assert result['user_id'] == user_id
-        assert result['title'] == 'Test Quest'
+        assert result.id == quest_id
+        assert result.userId == user_id
+        assert result.title == 'Test Quest'
         
         # Verify get_item was called with correct parameters
         mock_dynamodb.get_item.assert_called_once_with(
@@ -191,8 +201,9 @@ class TestQuestDatabaseBasicCoverage:
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
         
-        # Mock quest not found
+        # Mock quest not found: no Item, then scan returns no owner
         mock_dynamodb.get_item.return_value = {}
+        mock_dynamodb.scan.return_value = {"Items": []}
         
         with pytest.raises(QuestNotFoundError) as exc_info:
             get_quest(user_id, quest_id)
@@ -216,10 +227,20 @@ class TestQuestDatabaseBasicCoverage:
         
         assert "Failed to get quest" in str(exc_info.value)
     
-    def test_update_quest_success(self, mock_dynamodb):
+    @patch('app.db.quest_db.get_quest')
+    def test_update_quest_success(self, mock_get_quest, mock_dynamodb):
         """Test successful quest update."""
+        from app.models.quest import QuestResponse
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
+        ts = 1234567890000
+        current = QuestResponse(
+            id=quest_id, userId=user_id, title="Original", difficulty="medium",
+            rewardXp=50, status="draft", category="Health", tags=[],
+            privacy="private", createdAt=ts, updatedAt=ts, version=1, kind="linked",
+            auditTrail=[]
+        )
+        mock_get_quest.return_value = current
         
         update_payload = QuestUpdatePayload(
             title="Updated Quest",
@@ -227,15 +248,13 @@ class TestQuestDatabaseBasicCoverage:
             rewardXp=150
         )
         
-        # Mock successful update_item
+        # Mock successful update_item - Attributes must match _quest_item_to_response keys
         updated_item = {
-            'PK': f"USER#{user_id}",
-            'SK': f"QUEST#{quest_id}",
-            'QuestId': quest_id,
-            'UserId': user_id,
-            'Title': 'Updated Quest',
-            'Description': 'Updated description',
-            'RewardXp': 150
+            'id': quest_id, 'userId': user_id, 'title': 'Updated Quest',
+            'description': 'Updated description', 'difficulty': 'medium',
+            'rewardXp': 150, 'status': 'draft', 'category': 'Health', 'tags': [],
+            'privacy': 'private', 'createdAt': ts, 'updatedAt': ts, 'version': 2,
+            'kind': 'linked', 'auditTrail': []
         }
         mock_dynamodb.update_item.return_value = {'Attributes': updated_item}
         
@@ -244,76 +263,90 @@ class TestQuestDatabaseBasicCoverage:
             mock_datetime.now.return_value = mock_now
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
             
-            result = update_quest(user_id, quest_id, update_payload)
+            result = update_quest(user_id, quest_id, update_payload, current_version=1)
             
-            assert result['quest_id'] == quest_id
-            assert result['title'] == 'Updated Quest'
-            assert result['description'] == 'Updated description'
-            assert result['rewardXp'] == 150
+            assert result.id == quest_id
+            assert result.title == 'Updated Quest'
+            assert result.description == 'Updated description'
+            assert result.rewardXp == 150
     
-    def test_update_quest_not_found(self, mock_dynamodb):
+    @patch('app.db.quest_db.get_quest')
+    def test_update_quest_not_found(self, mock_get_quest, mock_dynamodb):
         """Test quest update when quest not found."""
+        from app.models.quest import QuestResponse
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
-        
+        ts = 1234567890000
+        current = QuestResponse(
+            id=quest_id, userId=user_id, title="Original", difficulty="medium",
+            rewardXp=50, status="draft", category="Health", tags=[],
+            privacy="private", createdAt=ts, updatedAt=ts, version=1, kind="linked",
+            auditTrail=[]
+        )
+        mock_get_quest.return_value = current
         update_payload = QuestUpdatePayload(title="Updated Quest")
-        
-        # Mock conditional check failed (quest not found)
         error = ClientError(
             {'Error': {'Code': 'ConditionalCheckFailedException'}},
             'UpdateItem'
         )
         mock_dynamodb.update_item.side_effect = error
-        
-        with pytest.raises(QuestNotFoundError) as exc_info:
-            update_quest(user_id, quest_id, update_payload)
-        
-        assert f"Quest {quest_id} not found" in str(exc_info.value)
+        with pytest.raises(QuestVersionConflictError):
+            update_quest(user_id, quest_id, update_payload, current_version=1)
     
-    def test_update_quest_client_error(self, mock_dynamodb):
+    @patch('app.db.quest_db.get_quest')
+    def test_update_quest_client_error(self, mock_get_quest, mock_dynamodb):
         """Test quest update with client error."""
+        from app.models.quest import QuestResponse
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
-        
+        ts = 1234567890000
+        current = QuestResponse(
+            id=quest_id, userId=user_id, title="Original", difficulty="medium",
+            rewardXp=50, status="draft", category="Health", tags=[],
+            privacy="private", createdAt=ts, updatedAt=ts, version=1, kind="linked",
+            auditTrail=[]
+        )
+        mock_get_quest.return_value = current
         update_payload = QuestUpdatePayload(title="Updated Quest")
-        
-        # Mock client error
         error = ClientError(
             {'Error': {'Code': 'ValidationException'}},
             'UpdateItem'
         )
         mock_dynamodb.update_item.side_effect = error
-        
         with pytest.raises(QuestDBError) as exc_info:
-            update_quest(user_id, quest_id, update_payload)
-        
+            update_quest(user_id, quest_id, update_payload, current_version=1)
         assert "Failed to update quest" in str(exc_info.value)
     
-    def test_change_quest_status_success(self, mock_dynamodb):
-        """Test successful quest status change."""
+    @patch('app.db.quest_db.get_quest')
+    def test_change_quest_status_success(self, mock_get_quest, mock_dynamodb):
+        """Test successful quest status change (draft -> active requires linked goals/tasks)."""
+        from app.models.quest import QuestResponse
         user_id = "test_user_123"
         quest_id = str(uuid.uuid4())
         new_status = "active"
-        
-        # Mock successful update_item
+        ts = 1234567890000
+        # Draft quest with linked goals/tasks so _validate_quest_can_start passes
+        current = QuestResponse(
+            id=quest_id, userId=user_id, title="Quest", difficulty="medium",
+            rewardXp=50, status="draft", category="Health", tags=[],
+            privacy="private", createdAt=ts, updatedAt=ts, version=1, kind="linked",
+            linkedGoalIds=["goal-1"], linkedTaskIds=["task-1"], auditTrail=[]
+        )
+        mock_get_quest.return_value = current
         updated_item = {
-            'PK': f"USER#{user_id}",
-            'SK': f"QUEST#{quest_id}",
-            'QuestId': quest_id,
-            'UserId': user_id,
-            'Status': new_status
+            'id': quest_id, 'userId': user_id, 'title': 'Quest', 'difficulty': 'medium',
+            'rewardXp': 50, 'status': new_status, 'category': 'Health', 'tags': [],
+            'privacy': 'private', 'createdAt': ts, 'updatedAt': ts, 'version': 2,
+            'kind': 'linked', 'auditTrail': []
         }
         mock_dynamodb.update_item.return_value = {'Attributes': updated_item}
-        
         with patch('datetime.datetime') as mock_datetime:
             mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
             mock_datetime.now.return_value = mock_now
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
             result = change_quest_status(user_id, quest_id, new_status)
-            
-            assert result['quest_id'] == quest_id
-            assert result['status'] == new_status
+            assert result.id == quest_id
+            assert result.status == new_status
     
     def test_change_quest_status_not_found(self, mock_dynamodb):
         """Test quest status change when quest not found."""

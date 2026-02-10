@@ -33,7 +33,7 @@ class TestQuestCreatePayloadCoverage:
         assert payload.title == "Test Quest"
         assert payload.category == "Health"
         assert payload.difficulty == "medium"
-        assert payload.rewardXp == 50  # Default value
+        assert payload.rewardXp is None  # Optional; auto-calculated at create
         assert payload.tags == []
         assert payload.privacy == "private"
         assert payload.kind == "linked"
@@ -50,7 +50,8 @@ class TestQuestCreatePayloadCoverage:
             privacy="public",
             kind="quantitative",
             targetCount=5,
-            countScope="any"
+            countScope="any",
+            periodDays=7
         )
         
         assert payload.title == "Full Quest"
@@ -70,19 +71,11 @@ class TestQuestCreatePayloadCoverage:
             difficulty="easy"
         )
         
-        # Test that validation methods exist (they are class methods)
+        # Test that field validators exist (Pydantic v2 uses field_validator)
         assert hasattr(QuestCreatePayload, 'validate_title')
         assert hasattr(QuestCreatePayload, 'validate_category')
-        assert hasattr(QuestCreatePayload, 'validate_difficulty')
-        assert hasattr(QuestCreatePayload, 'validate_reward_xp')
         assert hasattr(QuestCreatePayload, 'validate_tags')
-        assert hasattr(QuestCreatePayload, 'validate_privacy')
-        assert hasattr(QuestCreatePayload, 'validate_kind')
-        assert hasattr(QuestCreatePayload, 'validate_count_scope')
-        assert hasattr(QuestCreatePayload, 'validate_target_count')
         assert hasattr(QuestCreatePayload, 'validate_deadline')
-        assert hasattr(QuestCreatePayload, 'validate_start_at')
-        assert hasattr(QuestCreatePayload, 'validate_period_seconds')
     
     def test_quest_create_payload_serialization(self):
         """Test quest creation payload serialization."""
@@ -139,19 +132,11 @@ class TestQuestUpdatePayloadCoverage:
         """Test that validation methods exist."""
         payload = QuestUpdatePayload()
         
-        # Test that validation methods exist
+        # Test that field validators exist (Pydantic v2 uses field_validator)
         assert hasattr(QuestUpdatePayload, 'validate_title')
         assert hasattr(QuestUpdatePayload, 'validate_category')
-        assert hasattr(QuestUpdatePayload, 'validate_difficulty')
-        assert hasattr(QuestUpdatePayload, 'validate_reward_xp')
         assert hasattr(QuestUpdatePayload, 'validate_tags')
-        assert hasattr(QuestUpdatePayload, 'validate_privacy')
-        assert hasattr(QuestUpdatePayload, 'validate_kind')
-        assert hasattr(QuestUpdatePayload, 'validate_count_scope')
-        assert hasattr(QuestUpdatePayload, 'validate_target_count')
         assert hasattr(QuestUpdatePayload, 'validate_deadline')
-        assert hasattr(QuestUpdatePayload, 'validate_start_at')
-        assert hasattr(QuestUpdatePayload, 'validate_period_seconds')
     
     def test_quest_update_payload_serialization(self):
         """Test quest update payload serialization."""
@@ -194,9 +179,9 @@ class TestQuestResponseCoverage:
     
     def test_quest_response_creation(self):
         """Test quest response creation."""
+        ts_ms = 1672560000000  # 2023-01-01 12:00:00 UTC in epoch ms
         response = QuestResponse(
             id="test-quest-123",
-            questId="test-quest-123",
             userId="user-123",
             title="Test Quest",
             category="Health",
@@ -204,14 +189,14 @@ class TestQuestResponseCoverage:
             status="draft",
             rewardXp=50,
             privacy="private",
-            createdAt="2023-01-01T12:00:00Z",
-            updatedAt="2023-01-01T12:00:00Z",
+            createdAt=ts_ms,
+            updatedAt=ts_ms,
             version=1,
             kind="linked"
         )
         
         assert response.id == "test-quest-123"
-        assert response.questId == "test-quest-123"
+        assert response.questId == "test-quest-123"  # computed alias
         assert response.userId == "user-123"
         assert response.title == "Test Quest"
         assert response.category == "Health"
@@ -219,16 +204,16 @@ class TestQuestResponseCoverage:
         assert response.status == "draft"
         assert response.rewardXp == 50
         assert response.privacy == "private"
-        assert response.createdAt == "2023-01-01T12:00:00Z"
-        assert response.updatedAt == "2023-01-01T12:00:00Z"
+        assert response.createdAt == ts_ms
+        assert response.updatedAt == ts_ms
         assert response.version == 1
         assert response.kind == "linked"
     
     def test_quest_response_serialization(self):
         """Test quest response serialization."""
+        ts_ms = 1672560000000
         response = QuestResponse(
             id="response-quest-123",
-            questId="response-quest-123",
             userId="user-456",
             title="Response Quest",
             category="Work",
@@ -236,15 +221,15 @@ class TestQuestResponseCoverage:
             status="active",
             rewardXp=100,
             privacy="public",
-            createdAt="2023-01-01T12:00:00Z",
-            updatedAt="2023-01-01T12:00:00Z",
+            createdAt=ts_ms,
+            updatedAt=ts_ms,
             version=1,
             kind="quantitative"
         )
         
         response_dict = response.model_dump()
         assert response_dict['id'] == "response-quest-123"
-        assert response_dict['questId'] == "response-quest-123"
+        assert response_dict['questId'] == "response-quest-123"  # computed
         assert response_dict['userId'] == "user-456"
         assert response_dict['title'] == "Response Quest"
         assert response_dict['category'] == "Work"
@@ -347,13 +332,13 @@ class TestQuestValidationCoverage:
         )
         assert payload.rewardXp == 500
         
-        # Test default reward XP
+        # Test optional reward XP (None when not provided)
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy"
         )
-        assert payload.rewardXp == 50
+        assert payload.rewardXp is None
     
     def test_quest_create_payload_tags_validation(self):
         """Test tags validation in QuestCreatePayload."""
@@ -400,8 +385,8 @@ class TestQuestValidationCoverage:
     
     def test_quest_create_payload_count_scope_validation(self):
         """Test count scope validation in QuestCreatePayload."""
-        # Test valid count scopes
-        for scope in ["any", "linked"]:
+        # Test valid count scopes (completed_tasks, completed_goals, any)
+        for scope in ["any", "completed_tasks", "completed_goals"]:
             payload = QuestCreatePayload(
                 title="Test Quest",
                 category="Health",
@@ -431,15 +416,15 @@ class TestQuestValidationCoverage:
     
     def test_quest_create_payload_deadline_validation(self):
         """Test deadline validation in QuestCreatePayload."""
-        # Test valid deadline
-        deadline = int(datetime.now().timestamp() * 1000)  # Current time in milliseconds
+        # Test valid deadline (must be at least 1 hour in the future)
+        future_ms = int((datetime.now().timestamp() + 2 * 3600) * 1000)  # 2 hours from now
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            deadline=deadline
+            deadline=future_ms
         )
-        assert payload.deadline == deadline
+        assert payload.deadline == future_ms
         
         # Test no deadline
         payload = QuestCreatePayload(
@@ -449,41 +434,25 @@ class TestQuestValidationCoverage:
         )
         assert payload.deadline is None
     
-    def test_quest_create_payload_start_at_validation(self):
-        """Test start at validation in QuestCreatePayload."""
-        # Test valid start at
-        start_at = int(datetime.now().timestamp() * 1000)  # Current time in milliseconds
+    def test_quest_create_payload_period_days_validation(self):
+        """Test period days validation in QuestCreatePayload (quantitative)."""
+        # Test valid period days for quantitative quest
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            startAt=start_at
+            kind="quantitative",
+            targetCount=5,
+            countScope="any",
+            periodDays=7
         )
-        assert payload.startAt == start_at
+        assert payload.periodDays == 7
         
-        # Test no start at
-        payload = QuestCreatePayload(
-            title="Test Quest",
-            category="Health",
-            difficulty="easy"
-        )
-        assert payload.startAt is None
-    
-    def test_quest_create_payload_period_seconds_validation(self):
-        """Test period seconds validation in QuestCreatePayload."""
-        # Test valid period seconds
+        # Test no period days for linked quest
         payload = QuestCreatePayload(
             title="Test Quest",
             category="Health",
             difficulty="easy",
-            periodSeconds=3600  # 1 hour
+            kind="linked"
         )
-        assert payload.periodSeconds == 3600
-        
-        # Test no period seconds
-        payload = QuestCreatePayload(
-            title="Test Quest",
-            category="Health",
-            difficulty="easy"
-        )
-        assert payload.periodSeconds is None
+        assert payload.periodDays is None

@@ -81,7 +81,6 @@ class TestQuestDBHelpers:
     def test_build_quest_item_quantitative(self):
         """Test building DynamoDB item for quantitative quest."""
         user_id = "user-123"
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
         payload = QuestCreatePayload(
             title="Quantitative Quest",
             category="Work",
@@ -89,7 +88,6 @@ class TestQuestDBHelpers:
             kind="quantitative",
             targetCount=10,
             countScope="completed_tasks",
-            startAt=future_time,
             periodDays=1
         )
         
@@ -98,7 +96,6 @@ class TestQuestDBHelpers:
         assert item["kind"] == "quantitative"
         assert item["targetCount"] == 10
         assert item["countScope"] == "completed_tasks"
-        assert item["startAt"] == future_time
         assert item["periodDays"] == 1
     
     def test_quest_item_to_response(self):
@@ -124,8 +121,7 @@ class TestQuestDBHelpers:
             "dependsOnQuestIds": ["quest-2"],
             "targetCount": 5,
             "countScope": "completed_goals",
-            "startAt": 1234567890000,
-            "periodSeconds": 3600,
+            "periodDays": 1,
             "auditTrail": []
         }
         
@@ -152,7 +148,6 @@ class TestQuestDBHelpers:
         assert response.dependsOnQuestIds == ["quest-2"]
         assert response.targetCount == 5
         assert response.countScope == "completed_goals"
-        assert response.startAt == 1234567890000
         assert response.periodDays == 1
         assert response.auditTrail == []
 
@@ -320,8 +315,9 @@ class TestGetQuest:
         mock_table = Mock()
         mock_get_table.return_value = mock_table
         
-        # Mock DynamoDB response with no item
+        # No Item from get_item, then scan for owner returns empty
         mock_table.get_item.return_value = {}
+        mock_table.scan.return_value = {"Items": []}
         
         with pytest.raises(QuestNotFoundError, match="Quest quest-123 not found"):
             get_quest("user-456", "quest-123")
@@ -528,7 +524,7 @@ class TestChangeQuestStatus:
         mock_table = Mock()
         mock_get_table.return_value = mock_table
         
-        # Mock current quest
+        # Mock current quest (linked quest needs linkedGoalIds and linkedTaskIds to start)
         current_quest = QuestResponse(
             id="quest-123",
             userId="user-456",
@@ -543,6 +539,8 @@ class TestChangeQuestStatus:
             updatedAt=1234567890000,
             version=1,
             kind="linked",
+            linkedGoalIds=["goal-1"],
+            linkedTaskIds=["task-1"],
             auditTrail=[]
         )
         mock_get_quest.return_value = current_quest
@@ -615,10 +613,12 @@ class TestChangeQuestStatus:
         """Test change_quest_status generic exception path."""
         mock_table = Mock()
         mock_get_table.return_value = mock_table
+        # Linked quest needs linkedGoalIds and linkedTaskIds to pass start validation
         current_quest = QuestResponse(
             id="quest-123", userId="user-456", title="t", difficulty="medium", rewardXp=50,
             status="draft", category="Health", tags=[], privacy="private",
-            createdAt=1, updatedAt=1, version=1, kind="linked", auditTrail=[]
+            createdAt=1, updatedAt=1, version=1, kind="linked",
+            linkedGoalIds=["goal-1"], linkedTaskIds=["task-1"], auditTrail=[]
         )
         mock_get_quest.return_value = current_quest
         mock_table.update_item.side_effect = Exception("boom")

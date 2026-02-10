@@ -71,7 +71,6 @@ class TestQuestDBHelpers:
     def test_build_quest_item_quantitative(self):
         """Test building DynamoDB item for quantitative quest."""
         user_id = "user-123"
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
         payload = QuestCreatePayload(
             title="Quantitative Quest",
             category="Work",
@@ -79,8 +78,7 @@ class TestQuestDBHelpers:
             kind="quantitative",
             targetCount=10,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=86400
+            periodDays=1
         )
         
         item = _build_quest_item(user_id, payload)
@@ -88,8 +86,7 @@ class TestQuestDBHelpers:
         assert item["kind"] == "quantitative"
         assert item["targetCount"] == 10
         assert item["countScope"] == "any"
-        assert item["startAt"] == future_time
-        assert item["periodSeconds"] == 86400
+        assert item["periodDays"] == 1
     
     def test_quest_item_to_response(self):
         """Test converting DynamoDB item to QuestResponse."""
@@ -113,9 +110,9 @@ class TestQuestDBHelpers:
             "linkedTaskIds": ["task-1"],
             "dependsOnQuestIds": ["quest-2"],
             "targetCount": 5,
-            "countScope": "linked",
-            "startAt": 1234567890000,
-            "periodSeconds": 3600,
+            "countScope": "any",
+            "startedAt": 1234567890000,
+            "periodDays": 1,
             "auditTrail": []
         }
         
@@ -141,9 +138,9 @@ class TestQuestDBHelpers:
         assert response.linkedTaskIds == ["task-1"]
         assert response.dependsOnQuestIds == ["quest-2"]
         assert response.targetCount == 5
-        assert response.countScope == "linked"
-        assert response.startAt == 1234567890000
-        assert response.periodSeconds == 3600
+        assert response.countScope == "any"
+        assert response.startedAt == 1234567890000
+        assert response.periodDays == 1
         assert response.auditTrail == []
 
 
@@ -206,7 +203,6 @@ class TestQuestCreatePayload:
     
     def test_valid_quantitative_quest(self):
         """Test valid quantitative quest creation."""
-        future_time = int((datetime.now() + timedelta(days=1)).timestamp() * 1000)
         payload = QuestCreatePayload(
             title="Quantitative Quest",
             category="Work",
@@ -214,8 +210,7 @@ class TestQuestCreatePayload:
             kind="quantitative",
             targetCount=10,
             countScope="any",
-            startAt=future_time,
-            periodSeconds=86400
+            periodDays=1
         )
         
         assert payload.title == "Quantitative Quest"
@@ -224,8 +219,7 @@ class TestQuestCreatePayload:
         assert payload.kind == "quantitative"
         assert payload.targetCount == 10
         assert payload.countScope == "any"
-        assert payload.startAt == future_time
-        assert payload.periodSeconds == 86400
+        assert payload.periodDays == 1
     
     def test_minimal_quest(self):
         """Test minimal quest creation with defaults."""
@@ -237,7 +231,7 @@ class TestQuestCreatePayload:
         assert payload.title == "Minimal Quest"
         assert payload.category == "Personal"
         assert payload.difficulty == "medium"  # default
-        assert payload.rewardXp == 50  # default
+        assert payload.rewardXp is None  # optional; auto-calculated at create
         assert payload.tags == []  # default
         assert payload.privacy == "private"  # default
         assert payload.kind == "linked"  # default
@@ -248,5 +242,4 @@ class TestQuestCreatePayload:
         assert payload.dependsOnQuestIds is None
         assert payload.targetCount is None
         assert payload.countScope is None
-        assert payload.startAt is None
-        assert payload.periodSeconds is None
+        assert payload.periodDays is None
