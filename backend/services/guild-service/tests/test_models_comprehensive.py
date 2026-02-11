@@ -692,6 +692,7 @@ class TestModelsComprehensive:
             goal_completion_rate=0.6,
             quest_completion_rate=0.67,
             activity_score=90.0,
+            member_activity_rate=75.0,
             last_updated=now,
             member_leaderboard=[]
         )

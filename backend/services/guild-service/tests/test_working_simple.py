@@ -162,6 +162,7 @@ class TestWorkingSimple:
             goal_completion_rate=0.75,
             quest_completion_rate=0.60,
             activity_score=85.5,
+            member_activity_rate=70.0,
             last_updated="2024-01-01T00:00:00Z"
         )
         

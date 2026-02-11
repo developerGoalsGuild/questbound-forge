@@ -301,8 +301,7 @@ class TestGuildRewardCalculationEdgeCases:
             kind="quantitative",
             target_count=1000,
             count_scope="tasks",
-            period_days=365,
-            is_guild_quest=True
+            period_days=365
         )
         assert reward <= MAX_REWARD_XP
         assert reward == MAX_REWARD_XP
