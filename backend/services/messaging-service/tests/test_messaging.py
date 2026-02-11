@@ -199,7 +199,7 @@ class TestAPIEndpoints:
         mock_manager.broadcast_to_room = AsyncMock()
         response = self.client.post(
             "/rooms/ROOM-123/broadcast",
-            json={"text": "Hello world", "message_type": "text"}
+            json={"room_id": "ROOM-123", "text": "Hello world", "message_type": "text"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -211,7 +211,7 @@ class TestAPIEndpoints:
         mock_rate_limiter.is_allowed.return_value = False
         response = self.client.post(
             "/rooms/ROOM-123/broadcast",
-            json={"text": "Hello world", "message_type": "text"}
+            json={"room_id": "ROOM-123", "text": "Hello world", "message_type": "text"}
         )
         assert response.status_code == 429
 
