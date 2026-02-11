@@ -29,3 +29,18 @@ output "aws_account_id" {
   description = "AWS account ID"
   value       = data.aws_caller_identity.current.account_id
 }
+
+output "github_actions_iam_role_arn_dev" {
+  description = "ARN of the IAM pipeline role for GitHub Actions in dev"
+  value       = aws_iam_role.github_actions_iam_dev.arn
+}
+
+output "github_actions_iam_role_arn_staging" {
+  description = "ARN of the IAM pipeline role for GitHub Actions in staging"
+  value       = aws_iam_role.github_actions_iam_staging.arn
+}
+
+output "github_actions_iam_role_arn_prod" {
+  description = "ARN of the IAM pipeline role for GitHub Actions in prod"
+  value       = aws_iam_role.github_actions_iam_prod.arn
+}

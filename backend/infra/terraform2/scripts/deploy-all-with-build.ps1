@@ -67,10 +67,9 @@ $AllServices = @(
   @{ Name = "gamification-service"; Script = "deploy-gamification-service-with-build.ps1"; ECR = "goalsguild_gamification_service" }
 )
 
-# Define infrastructure stacks in deployment order
+# Define infrastructure stacks in deployment order (security excluded - deployed by IAM pipeline)
 $AllStacks = @(
   "database",
-  "security",
   "ecr",        # ECR repositories must be created before services
   "authorizer",
   "s3",

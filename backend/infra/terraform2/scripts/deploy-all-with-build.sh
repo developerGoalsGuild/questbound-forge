@@ -178,8 +178,8 @@ ALL_SERVICES[guild-service]="deploy-guild-service-with-build.sh|goalsguild_guild
 ALL_SERVICES[messaging-service]="deploy-messaging-service-with-build.sh|goalsguild_messaging_service"
 ALL_SERVICES[gamification-service]="deploy-gamification-service-with-build.sh|goalsguild_gamification_service"
 
-# Define infrastructure stacks in deployment order
-ALL_STACKS=("database" "security" "ecr" "authorizer" "s3" "appsync" "apigateway")
+# Define infrastructure stacks in deployment order (security excluded - deployed by IAM pipeline)
+ALL_STACKS=("database" "ecr" "authorizer" "s3" "appsync" "apigateway")
 
 # Filter services if specified
 if [ ${#SERVICES[@]} -gt 0 ]; then

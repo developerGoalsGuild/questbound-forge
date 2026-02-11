@@ -1,0 +1,94 @@
+name: Deploy IAM (Security & GitHub Actions OIDC)
+
+# IAM pipeline: deploys security and github-actions-oidc stacks only.
+# Run this workflow when IAM roles, policies, or security stack changes are needed.
+# Requires: Run github-actions-oidc stack manually with admin credentials first to bootstrap.
+# Then add AWS_ROLE_ARN_IAM_DEV, AWS_ROLE_ARN_IAM_STAGING, AWS_ROLE_ARN_IAM_PROD to GitHub secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-iam-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-iam-dev:
+    if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == ''
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_IAM_DEV }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Deploy IAM stacks
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-iam.sh
+          backend/infra/terraform2/scripts/deploy-iam.sh --env dev
+
+  deploy-iam-staging:
+    if: github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_IAM_STAGING }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Deploy IAM stacks
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-iam.sh
+          backend/infra/terraform2/scripts/deploy-iam.sh --env staging
+
+  deploy-iam-prod:
+    if: github.event.inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_IAM_PROD }}
+          aws-region: us-east-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Deploy IAM stacks
+        run: |
+          chmod +x backend/infra/terraform2/scripts/deploy-iam.sh
+          backend/infra/terraform2/scripts/deploy-iam.sh --env prod

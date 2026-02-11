@@ -1,0 +1,158 @@
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "AllowTerraformState",
+			"Effect": "Allow",
+			"Action": [
+				"s3:ListBucket",
+				"s3:GetObject",
+				"s3:PutObject",
+				"s3:DeleteObject"
+			],
+			"Resource": [
+				"arn:aws:s3:::tfstate-goalsguild-*",
+				"arn:aws:s3:::tfstate-goalsguild-*/*"
+			]
+		},
+		{
+			"Sid": "AllowTerraformLock",
+			"Effect": "Allow",
+			"Action": [
+				"dynamodb:GetItem",
+				"dynamodb:PutItem",
+				"dynamodb:DeleteItem"
+			],
+			"Resource": [
+				"arn:aws:dynamodb:*:*:table/tfstate-goalsguild-*-lock"
+			]
+		},
+		{
+			"Sid": "AllowSTS",
+			"Effect": "Allow",
+			"Action": ["sts:GetCallerIdentity"],
+			"Resource": "*"
+		},
+		{
+			"Sid": "AllowECRToken",
+			"Effect": "Allow",
+			"Action": ["ecr:GetAuthorizationToken"],
+			"Resource": "*"
+		},
+		{
+			"Sid": "AllowS3DevBuckets",
+			"Effect": "Allow",
+			"Action": ["s3:*"],
+			"Resource": [
+				"arn:aws:s3:::*-dev",
+				"arn:aws:s3:::*-dev/*"
+			]
+		},
+		{
+			"Sid": "DenyS3NonDevBuckets",
+			"Effect": "Deny",
+			"Action": ["s3:*"],
+			"Resource": [
+				"arn:aws:s3:::*-staging",
+				"arn:aws:s3:::*-staging/*",
+				"arn:aws:s3:::*-prod",
+				"arn:aws:s3:::*-prod/*"
+			]
+		},
+		{
+			"Sid": "DenyNonDevRequestTag",
+			"Effect": "Deny",
+			"Action": "*",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestTag/environment": ["staging", "prod", ""]
+				}
+			}
+		},
+		{
+			"Sid": "DenyNonDevResourceTag",
+			"Effect": "Deny",
+			"Action": "*",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:ResourceTag/environment": ["staging", "prod", ""]
+				}
+			}
+		},
+		{
+			"Sid": "DenyNonDevIAMResourceTag",
+			"Effect": "Deny",
+			"Action": "*",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"iam:ResourceTag/environment": ["staging", "prod", ""]
+				}
+			}
+		},
+		{
+			"Sid": "DenyNonDevECRResourceTag",
+			"Effect": "Deny",
+			"Action": ["ecr:*"],
+			"Resource": ["arn:aws:ecr:*:*:repository/*"],
+			"Condition": {
+				"StringEquals": {
+					"ecr:ResourceTag/environment": ["staging", "prod", ""]
+				}
+			}
+		},
+		{
+			"Sid": "DenyAPIGatewayNonDevByTag",
+			"Effect": "Deny",
+			"Action": [
+				"apigateway:GET",
+				"apigateway:POST",
+				"apigateway:PUT",
+				"apigateway:PATCH",
+				"apigateway:DELETE"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:ResourceTag/environment": ["staging", "prod", ""]
+				}
+			}
+		},
+		{
+			"Sid": "DenyAPIGatewayUntaggedUnlessNameEndsDev",
+			"Effect": "Deny",
+			"Action": [
+				"apigateway:GET",
+				"apigateway:POST",
+				"apigateway:PUT",
+				"apigateway:PATCH",
+				"apigateway:DELETE"
+			],
+			"Resource": "*",
+			"Condition": {
+				"Null": {
+					"aws:ResourceTag/environment": "true"
+				},
+				"StringNotLike": {
+					"apigateway:Resource/ApiName": "*_dev"
+				}
+			}
+		},
+		{
+			"Sid": "DenyAPIGatewayCreateNonDevByName",
+			"Effect": "Deny",
+			"Action": ["apigateway:POST"],
+			"Resource": "*",
+			"Condition": {
+				"Null": {
+					"aws:RequestTag/environment": "true"
+				},
+				"StringNotLike": {
+					"apigateway:Request/ApiName": "*_dev"
+				}
+			}
+		}
+	]
+}

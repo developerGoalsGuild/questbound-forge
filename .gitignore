@@ -126,3 +126,30 @@ backend/infra/terraform2/scripts/deploy-quest-service-with-build.sh
 apps/frontend/.env.development
 apps/frontend/test-results.json
 apps/frontend/test-results.json
+.ci-logs-temp/0_deploy-dev.txt
+.ci-logs-temp/1_tests.txt
+.ci-logs-temp/deploy-dev/1_Set up job.txt
+.ci-logs-temp/deploy-dev/2_Checkout.txt
+.ci-logs-temp/deploy-dev/3_Configure AWS credentials.txt
+.ci-logs-temp/deploy-dev/4_Setup Terraform.txt
+.ci-logs-temp/deploy-dev/5_Setup Docker Buildx.txt
+.ci-logs-temp/deploy-dev/6_Deploy backend infrastructure.txt
+.ci-logs-temp/deploy-dev/28_Post Setup Docker Buildx.txt
+.ci-logs-temp/deploy-dev/29_Post Configure AWS credentials.txt
+.ci-logs-temp/deploy-dev/30_Post Checkout.txt
+.ci-logs-temp/deploy-dev/31_Complete job.txt
+.ci-logs-temp/deploy-dev/system.txt
+.ci-logs-temp/tests/1_Set up job.txt
+.ci-logs-temp/tests/2_Checkout.txt
+.ci-logs-temp/tests/3_Setup Node.txt
+.ci-logs-temp/tests/4_Install frontend dependencies.txt
+.ci-logs-temp/tests/5_Run frontend unit tests.txt
+.ci-logs-temp/tests/6_Setup Python.txt
+.ci-logs-temp/tests/7_Setup uv.txt
+.ci-logs-temp/tests/8_Run backend service unit tests (no AWS _ integration).txt
+.ci-logs-temp/tests/13_Post Setup uv.txt
+.ci-logs-temp/tests/14_Post Setup Python.txt
+.ci-logs-temp/tests/15_Post Setup Node.txt
+.ci-logs-temp/tests/16_Post Checkout.txt
+.ci-logs-temp/tests/17_Complete job.txt
+.ci-logs-temp/tests/system.txt
