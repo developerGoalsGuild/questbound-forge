@@ -54,7 +54,8 @@ class TestConnectionManager:
         
         assert mock_websocket not in self.manager.connection_users
         assert "ROOM-123" not in self.manager.user_rooms["user-456"]
-        assert mock_websocket not in self.manager.active_connections["ROOM-123"]
+        # Room is removed from active_connections when last connection disconnects
+        assert "ROOM-123" not in self.manager.active_connections
 
     @pytest.mark.asyncio
     async def test_broadcast_to_room(self):
@@ -110,113 +111,107 @@ class TestRateLimiter:
 
 class TestJWTValidation:
     def setup_method(self):
-        # Set a test JWT secret
         os.environ["JWT_SECRET"] = "test-secret-key"
 
-    def test_verify_token_valid(self):
-        # Create a valid JWT token
+    @patch('app.main.boto3')
+    def test_verify_token_valid(self, mock_boto3):
+        # verify_token expects a Request with headers, and uses SSM for secret
         payload = {"sub": "user-123", "exp": datetime.utcnow() + timedelta(hours=1)}
         token = jwt.encode(payload, "test-secret-key", algorithm="HS256")
         
-        # Mock the HTTPAuthorizationCredentials
-        credentials = Mock()
-        credentials.credentials = token
+        request = Mock()
+        request.headers.get = lambda k, default='': "Bearer " + token if k == 'authorization' else default
         
-        result = verify_token(credentials)
+        mock_ssm = Mock()
+        mock_ssm.get_parameter.return_value = {"Parameter": {"Value": "test-secret-key"}}
+        mock_boto3.client.return_value = mock_ssm
+        
+        result = verify_token(request)
         assert result["sub"] == "user-123"
 
-    def test_verify_token_expired(self):
-        # Create an expired JWT token
+    @patch('app.main.boto3')
+    def test_verify_token_expired(self, mock_boto3):
         payload = {"sub": "user-123", "exp": datetime.utcnow() - timedelta(hours=1)}
         token = jwt.encode(payload, "test-secret-key", algorithm="HS256")
+        request = Mock()
+        request.headers.get = lambda k, default='': "Bearer " + token if k == 'authorization' else default
+        mock_ssm = Mock()
+        mock_ssm.get_parameter.return_value = {"Parameter": {"Value": "test-secret-key"}}
+        mock_boto3.client.return_value = mock_ssm
         
-        credentials = Mock()
-        credentials.credentials = token
-        
-        with pytest.raises(Exception):  # Should raise HTTPException
-            verify_token(credentials)
+        with pytest.raises(Exception):
+            verify_token(request)
 
-    def test_verify_token_invalid(self):
-        credentials = Mock()
-        credentials.credentials = "invalid-token"
+    @patch('app.main.boto3')
+    def test_verify_token_invalid(self, mock_boto3):
+        request = Mock()
+        request.headers.get = lambda k, default='': "Bearer invalid-token" if k == 'authorization' else default
+        mock_ssm = Mock()
+        mock_ssm.get_parameter.return_value = {"Parameter": {"Value": "test-secret-key"}}
+        mock_boto3.client.return_value = mock_ssm
         
-        with pytest.raises(Exception):  # Should raise HTTPException
-            verify_token(credentials)
+        with pytest.raises(Exception):
+            verify_token(request)
 
 class TestAPIEndpoints:
     def setup_method(self):
-        self.client = app.test_client()
+        from fastapi.testclient import TestClient
+        self.client = TestClient(app)
+        # Override auth so endpoints don't call real verify_token (SSM/boto3)
+        app.dependency_overrides[verify_token] = lambda: {"sub": "user-123"}
+
+    def teardown_method(self):
+        app.dependency_overrides.clear()
 
     def test_health_endpoint(self):
         response = self.client.get("/health")
         assert response.status_code == 200
-        
-        data = json.loads(response.data)
+        data = response.json()
         assert "status" in data
         assert data["status"] == "healthy"
         assert "active_connections" in data
         assert "active_rooms" in data
 
-    @patch('main.manager')
+    @patch('app.main.manager')
     def test_get_room_connections(self, mock_manager):
         mock_manager.get_room_connections.return_value = []
-        
-        # Mock JWT verification
-        with patch('main.verify_token') as mock_verify:
-            mock_verify.return_value = {"sub": "user-123"}
-            
-            response = self.client.get("/rooms/ROOM-123/connections")
-            assert response.status_code == 200
-            
-            data = json.loads(response.data)
-            assert data["room_id"] == "ROOM-123"
-            assert "active_connections" in data
+        response = self.client.get("/rooms/ROOM-123/connections")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["room_id"] == "ROOM-123"
+        assert "active_connections" in data
 
-    @patch('main.manager')
+    @patch('app.main.manager')
     def test_get_user_connections(self, mock_manager):
         mock_manager.get_user_connections.return_value = []
-        
-        with patch('main.verify_token') as mock_verify:
-            mock_verify.return_value = {"sub": "user-123"}
-            
-            response = self.client.get("/users/user-123/connections")
-            assert response.status_code == 200
-            
-            data = json.loads(response.data)
-            assert data["user_id"] == "user-123"
-            assert "active_connections" in data
+        response = self.client.get("/users/user-123/connections")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user_id"] == "user-123"
+        assert "active_connections" in data
 
-    @patch('main.manager')
-    @patch('main.rate_limiter')
+    @patch('app.main.manager')
+    @patch('app.main.rate_limiter')
     def test_broadcast_message(self, mock_rate_limiter, mock_manager):
         mock_rate_limiter.is_allowed.return_value = True
         mock_manager.broadcast_to_room = AsyncMock()
-        
-        with patch('main.verify_token') as mock_verify:
-            mock_verify.return_value = {"sub": "user-123"}
-            
-            response = self.client.post(
-                "/rooms/ROOM-123/broadcast",
-                json={"text": "Hello world", "message_type": "text"}
-            )
-            assert response.status_code == 200
-            
-            data = json.loads(response.data)
-            assert data["status"] == "broadcasted"
-            assert "message_id" in data
+        response = self.client.post(
+            "/rooms/ROOM-123/broadcast",
+            json={"text": "Hello world", "message_type": "text"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "broadcasted"
+        assert "message_id" in data
 
-    @patch('main.rate_limiter')
+    @patch('app.main.rate_limiter')
     def test_broadcast_message_rate_limited(self, mock_rate_limiter):
         mock_rate_limiter.is_allowed.return_value = False
-        
-        with patch('main.verify_token') as mock_verify:
-            mock_verify.return_value = {"sub": "user-123"}
-            
-            response = self.client.post(
-                "/rooms/ROOM-123/broadcast",
-                json={"text": "Hello world", "message_type": "text"}
-            )
-            assert response.status_code == 429
+        response = self.client.post(
+            "/rooms/ROOM-123/broadcast",
+            json={"text": "Hello world", "message_type": "text"}
+        )
+        assert response.status_code == 429
 
 if __name__ == "__main__":
     pytest.main([__file__])
