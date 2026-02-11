@@ -288,7 +288,7 @@ class TestSimpleIntegration:
         invite1 = create_invite('user-123', invite_payload)
         
         # Try to create duplicate invite
-        with pytest.raises(Exception, match="Invite already exists"):
+        with pytest.raises(Exception, match="already sent a collaboration invite"):
             create_invite('user-123', invite_payload)
     
     def test_collaborator_removal_basic(self, dynamodb, sample_data, mock_lookup_invitee):
