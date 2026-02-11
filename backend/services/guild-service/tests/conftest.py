@@ -13,16 +13,19 @@ def _minimal_env_defaults() -> None:
 
 
 def _ensure_common_on_path() -> None:
-    """Ensure the shared `common` package is importable during tests.
+    """Ensure the shared `common` package and guild-service `app` are importable during tests.
 
     The repository structure places `backend/services/common` alongside
     `backend/services/guild-service`. Tests executed from the guild-service
-    directory won't see `common` on sys.path by default, so we add it here.
+    directory won't see `common` or `app` on sys.path by default, so we add them here.
     """
     current_dir = os.path.dirname(__file__)
     guild_service_dir = os.path.normpath(os.path.join(current_dir, ".."))
     services_dir = os.path.normpath(os.path.join(guild_service_dir, ".."))
 
+    # Ensure guild-service directory is on path so `import app` works
+    if os.path.isdir(guild_service_dir) and guild_service_dir not in sys.path:
+        sys.path.insert(0, guild_service_dir)
     # Ensure the parent services directory is on path so `import common` works
     if os.path.isdir(services_dir) and services_dir not in sys.path:
         sys.path.insert(0, services_dir)
