@@ -8,10 +8,15 @@ import sys
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
 
-# Add the collaboration-service directory to Python path
+# Add the collaboration-service directory to Python path so we can import app
 collaboration_service_dir = Path(__file__).resolve().parents[1]
 if str(collaboration_service_dir) not in sys.path:
     sys.path.insert(0, str(collaboration_service_dir))
+
+# Add the services directory for common module
+services_dir = Path(__file__).resolve().parents[2]
+if str(services_dir) not in sys.path:
+    sys.path.insert(0, str(services_dir))
 
 # Set AWS region environment variable before any imports
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'

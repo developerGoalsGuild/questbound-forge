@@ -9,6 +9,11 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+# Add connect-service root so app is importable
+connect_service_dir = Path(__file__).resolve().parents[1]
+if str(connect_service_dir) not in sys.path:
+    sys.path.insert(0, str(connect_service_dir))
+
 # Add backend/services so common.logging is importable
 services_dir = Path(__file__).resolve().parents[2]
 if str(services_dir) not in sys.path:

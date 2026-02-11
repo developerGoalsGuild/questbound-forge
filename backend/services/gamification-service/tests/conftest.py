@@ -2,8 +2,21 @@
 Pytest configuration and shared fixtures.
 """
 
-import pytest
 import os
+import sys
+from pathlib import Path
+
+import pytest
+
+# Add the gamification-service directory to Python path so we can import app
+gamification_service_dir = Path(__file__).resolve().parents[1]
+if str(gamification_service_dir) not in sys.path:
+    sys.path.insert(0, str(gamification_service_dir))
+
+# Add the services directory for common module
+services_dir = Path(__file__).resolve().parents[2]
+if str(services_dir) not in sys.path:
+    sys.path.insert(0, str(services_dir))
 
 # Set default environment variables for all tests
 os.environ.setdefault('AWS_DEFAULT_REGION', 'us-east-2')

@@ -10,15 +10,15 @@ from fastapi.testclient import TestClient
 import jwt
 from datetime import datetime, timedelta, timezone
 
-# Add the services directory to Python path
+# Add the subscription-service directory to Python path so we can import app
+subscription_service_dir = Path(__file__).resolve().parents[1]
+if str(subscription_service_dir) not in sys.path:
+    sys.path.insert(0, str(subscription_service_dir))
+
+# Add the services directory for common module (backend/services)
 services_dir = Path(__file__).resolve().parents[2]
 if str(services_dir) not in sys.path:
     sys.path.insert(0, str(services_dir))
-
-# Add common module path
-common_dir = services_dir.parent / "common"
-if str(common_dir) not in sys.path:
-    sys.path.insert(0, str(common_dir))
 
 # Set AWS region environment variable before any imports
 os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
