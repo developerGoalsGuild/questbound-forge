@@ -9,8 +9,8 @@ from unittest.mock import Mock, AsyncMock, patch
 import jwt
 import os
 
-# Import the main application
-from main import app, ConnectionManager, RateLimiter, verify_token
+# Import the main application (app package is under messaging-service root)
+from app.main import app, ConnectionManager, RateLimiter, verify_token
 
 class TestConnectionManager:
     def setup_method(self):
