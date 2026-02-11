@@ -7,3 +7,5 @@ python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 boto3==1.34.0
 botocore==1.34.0
+# Pin httpx<0.28 for Starlette TestClient compatibility (httpx 0.28+ changed Client.__init__ signature)
+httpx>=0.24.0,<0.28.0
