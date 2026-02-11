@@ -14,12 +14,12 @@ describe('Quest Statistics', () => {
   beforeEach(() => {
     const now = Date.now();
     const oneDayAgo = now - (24 * 60 * 60 * 1000);
-    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const sixDaysAgo = now - (6 * 24 * 60 * 60 * 1000); // Use 6 days to avoid boundary (7 days exactly can be excluded due to timing)
     const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
     const thirtyOneDaysAgo = now - (31 * 24 * 60 * 60 * 1000);
 
     mockQuests = [
-      // Recent quests (last 30 days)
+      // Recent quests (last 30 days, last 7 days for activity)
       {
         id: '1',
         userId: 'user1',
@@ -28,9 +28,9 @@ describe('Quest Statistics', () => {
         difficulty: 'easy',
         rewardXp: 50,
         category: 'Health',
-        createdAt: oneWeekAgo,
-        updatedAt: oneWeekAgo + 1000,
-        startedAt: oneWeekAgo,
+        createdAt: sixDaysAgo,
+        updatedAt: sixDaysAgo + 1000,
+        startedAt: sixDaysAgo,
         kind: 'linked',
         linkedGoalIds: ['goal1'],
         linkedTaskIds: ['task1'],
@@ -72,9 +72,9 @@ describe('Quest Statistics', () => {
         difficulty: 'easy',
         rewardXp: 50,
         category: 'Learning',
-        createdAt: oneWeekAgo,
-        updatedAt: oneWeekAgo + 2000,
-        startedAt: oneWeekAgo,
+        createdAt: sixDaysAgo,
+        updatedAt: sixDaysAgo + 2000,
+        startedAt: sixDaysAgo,
         kind: 'linked',
         linkedGoalIds: ['goal4'],
         linkedTaskIds: ['task4'],
