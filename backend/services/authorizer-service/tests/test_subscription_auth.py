@@ -67,20 +67,22 @@ def test_cognito_token_fallback():
 
 
 def test_guild_room_requires_membership():
-    mock_table = MagicMock()
-    mock_table.get_item.return_value = {'Item': {'PK': 'GUILD#1', 'SK': 'MEMBER#user-123'}}
-    with patch.object(subscription_auth, '_core_table', mock_table), \
+    mock_guild_table = MagicMock()
+    mock_guild_table.get_item.return_value = {
+        'Item': {'PK': 'GUILD#1', 'SK': 'MEMBER#user-123', 'status': 'active'}
+    }
+    with patch.object(subscription_auth, '_get_guild_table', return_value=mock_guild_table), \
          patch.object(subscription_auth, 'verify_local_jwt', return_value={'sub': 'user-123'}):
         evt = _event({'authorization': 'Bearer token'}, room_id='GUILD#1')
         result = handler(evt, None)
         assert result['roomId'] == 'GUILD#1'
-        mock_table.get_item.assert_called_once()
+        mock_guild_table.get_item.assert_called_once()
 
 
 def test_guild_room_denies_non_member():
-    mock_table = MagicMock()
-    mock_table.get_item.return_value = {}
-    with patch.object(subscription_auth, '_core_table', mock_table), \
+    mock_guild_table = MagicMock()
+    mock_guild_table.get_item.return_value = {}
+    with patch.object(subscription_auth, '_get_guild_table', return_value=mock_guild_table), \
          patch.object(subscription_auth, 'verify_local_jwt', return_value={'sub': 'user-123'}):
         evt = _event({'authorization': 'Bearer token'}, room_id='GUILD#1')
         with pytest.raises(UnauthorizedError):
