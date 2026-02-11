@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 
 
 def _minimal_env_defaults() -> None:
+    os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+    os.environ.setdefault("AWS_REGION", "us-east-1")
     os.environ.setdefault("JWT_SECRET", "test-secret")
     os.environ.setdefault("JWT_AUDIENCE", "api://test")
     os.environ.setdefault("JWT_ISSUER", "https://auth.local")
